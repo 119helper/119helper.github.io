@@ -36,7 +36,7 @@ function parseXmlItems(xmlText: string): HolidayItem[] {
 // 공휴일 조회 (해당 연/월)
 export async function getHolidays(year: number, month: number): Promise<HolidayItem[]> {
   const monthStr = String(month).padStart(2, '0');
-  const url = `/api/holiday/getRestDeInfo?serviceKey=${API_KEY}&solYear=${year}&solMonth=${monthStr}&numOfRows=30`;
+  const url = `https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?serviceKey=${API_KEY}&solYear=${year}&solMonth=${monthStr}&numOfRows=30`;
 
   try {
     const res = await fetch(url);
@@ -51,7 +51,7 @@ export async function getHolidays(year: number, month: number): Promise<HolidayI
 // 기념일 조회 (해당 연/월) — 비공휴일 기념일
 export async function getAnniversaries(year: number, month: number): Promise<HolidayItem[]> {
   const monthStr = String(month).padStart(2, '0');
-  const url = `/api/holiday/getAnniversaryInfo?serviceKey=${API_KEY}&solYear=${year}&solMonth=${monthStr}&numOfRows=30`;
+  const url = `https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getAnniversaryInfo?serviceKey=${API_KEY}&solYear=${year}&solMonth=${monthStr}&numOfRows=30`;
 
   try {
     const res = await fetch(url);

@@ -67,7 +67,7 @@ function parseXmlItems<T>(xmlText: string): T[] {
 // 1. 응급실 실시간 가용병상 조회
 export async function getERRealTimeBeds(sido: string = '서울특별시', gugun: string = ''): Promise<ERRealTimeData[]> {
   // serviceKey를 직접 URL에 넣어 인코딩 문제 방지
-  let url = `/api/er/getEmrrmRltmUsefulSckbdInfoInqire?serviceKey=${ER_API_KEY}&STAGE1=${encodeURIComponent(sido)}&pageNo=1&numOfRows=50`;
+  let url = `https://apis.data.go.kr/B552657/ErmctInfoInqireService/getEmrrmRltmUsefulSckbdInfoInqire?serviceKey=${ER_API_KEY}&STAGE1=${encodeURIComponent(sido)}&pageNo=1&numOfRows=50`;
   if (gugun) url += `&STAGE2=${encodeURIComponent(gugun)}`;
 
   try {
@@ -82,7 +82,7 @@ export async function getERRealTimeBeds(sido: string = '서울특별시', gugun:
 
 // 3. 응급의료기관 목록 조회
 export async function getERList(sido: string = '서울특별시', gugun: string = ''): Promise<ERListItem[]> {
-  let url = `/api/er/getEgytListInfoInqire?serviceKey=${ER_API_KEY}&Q0=${encodeURIComponent(sido)}&pageNo=1&numOfRows=50`;
+  let url = `https://apis.data.go.kr/B552657/ErmctInfoInqireService/getEgytListInfoInqire?serviceKey=${ER_API_KEY}&Q0=${encodeURIComponent(sido)}&pageNo=1&numOfRows=50`;
   if (gugun) url += `&Q1=${encodeURIComponent(gugun)}`;
 
   try {
@@ -97,7 +97,7 @@ export async function getERList(sido: string = '서울특별시', gugun: string 
 
 // 4. 응급의료기관 위치정보 조회 (위경도 기반)
 export async function getERByLocation(lat: number, lng: number): Promise<ERListItem[]> {
-  const url = `/api/er/getEgytLcinfoInqire?serviceKey=${ER_API_KEY}&WGS84_LON=${lng}&WGS84_LAT=${lat}&pageNo=1&numOfRows=20`;
+  const url = `https://apis.data.go.kr/B552657/ErmctInfoInqireService/getEgytLcinfoInqire?serviceKey=${ER_API_KEY}&WGS84_LON=${lng}&WGS84_LAT=${lat}&pageNo=1&numOfRows=20`;
 
   try {
     const res = await fetch(url);

@@ -104,7 +104,7 @@ function getBaseDateTime(type: 'short' | 'ultra') {
 async function fetchKMA(path: string, params: Record<string, string>): Promise<ForecastItem[]> {
   const qs = new URLSearchParams({ authKey: API_KEY, dataType: 'JSON', ...params });
   try {
-    const res = await fetch(`/api/kma${path}?${qs}`);
+    const res = await fetch(`https://apihub.kma.go.kr${path}?${qs}`);
     const data = await res.json();
     return data?.response?.body?.items?.item || [];
   } catch (e) { console.error('KMA API 호출 실패:', path, e); return []; }
@@ -141,7 +141,7 @@ export async function getWeatherBriefing(): Promise<string> {
     authKey: API_KEY, dataType: 'JSON', numOfRows: '1', pageNo: '1', stnId,
   });
   try {
-    const res = await fetch(`/api/kma/api/typ02/openApi/ForecastGribInfoService_2.0/getOverview?${params}`);
+    const res = await fetch(`https://apihub.kma.go.kr/api/typ02/openApi/ForecastGribInfoService_2.0/getOverview?${params}`);
     const data = await res.json();
     const text = data?.response?.body?.items?.item?.[0]?.wfSv || '';
     return text || '기상개황 데이터를 불러올 수 없습니다.';
@@ -175,7 +175,7 @@ export async function getMidTermLand(regId = '11B00000'): Promise<MidTermForecas
     authKey: API_KEY, dataType: 'JSON', numOfRows: '1', pageNo: '1', regId, tmFc,
   });
   try {
-    const res = await fetch(`/api/kma/api/typ02/openApi/MidFcstInfoService/getMidLandFcst?${params}`);
+    const res = await fetch(`https://apihub.kma.go.kr/api/typ02/openApi/MidFcstInfoService/getMidLandFcst?${params}`);
     const data = await res.json();
     return data?.response?.body?.items?.item?.[0] || null;
   } catch { return null; }
@@ -202,7 +202,7 @@ export async function getMidTermTemp(regId = '11B10101'): Promise<MidTermTemp | 
   }
   const params = new URLSearchParams({ authKey: API_KEY, dataType: 'JSON', numOfRows: '1', pageNo: '1', regId, tmFc });
   try {
-    const res = await fetch(`/api/kma/api/typ02/openApi/MidFcstInfoService/getMidTa?${params}`);
+    const res = await fetch(`https://apihub.kma.go.kr/api/typ02/openApi/MidFcstInfoService/getMidTa?${params}`);
     const data = await res.json();
     return data?.response?.body?.items?.item?.[0] || null;
   } catch { return null; }
