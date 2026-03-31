@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './index.css';
 import StickyNotes from './components/StickyNotes';
 import Calculators from './components/Calculators';
@@ -9,6 +9,7 @@ import ERDashboard from './components/ERDashboard';
 import DashboardView from './components/DashboardView';
 import BuildingView from './components/BuildingView';
 import GlobalSearch from './components/GlobalSearch';
+import SettingsModal from './components/SettingsModal';
 import { MOCK_HYDRANTS, MOCK_WATER_TOWERS } from './data/mockData';
 
 type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar';
@@ -43,6 +44,20 @@ export default function App() {
   const [city, setCity] = useState<string>(() => localStorage.getItem('119helper-city') || 'seoul');
   const [gpsStatus, setGpsStatus] = useState<'loading' | 'granted' | 'denied' | 'idle'>('idle');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [regionOpen, setRegionOpen] = useState(false);
+  const regionRef = useRef<HTMLDivElement>(null);
+
+  // 드롭다운 외부 클릭 시 닫기
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (regionRef.current && !regionRef.current.contains(event.target as Node)) {
+        setRegionOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // GPS 자동 감지
   useEffect(() => {
@@ -178,38 +193,70 @@ export default function App() {
             <GlobalSearch onNavigate={handleNavigate} />
           </div>
           <div className="flex items-center gap-2 md:gap-3 shrink-0">
-            {/* 📍 Global Location Selector */}
-            <div className="flex items-center gap-1.5 bg-surface-container rounded-full px-3 py-1.5">
-              <span className="material-symbols-outlined text-primary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>
-                {gpsStatus === 'granted' ? 'my_location' : 'location_on'}
-              </span>
-              <select
-                value={city}
-                onChange={e => handleCityChange(e.target.value)}
-                className="bg-transparent text-on-surface text-sm font-bold focus:outline-none cursor-pointer pr-1 appearance-none"
-                style={{ WebkitAppearance: 'none' }}
+            {/* 📍 Global Location Selector (Custom Beautiful Dropdown) */}
+            <div className="relative" ref={regionRef}>
+              <button 
+                onClick={() => setRegionOpen(!regionOpen)}
+                className="flex items-center gap-1.5 bg-surface-container hover:bg-surface-container-high transition-colors rounded-full px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
-                {Object.entries(cityNames).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-              </select>
-              <span className="material-symbols-outlined text-on-surface-variant text-xs hidden sm:inline">expand_more</span>
+                <span className="material-symbols-outlined text-primary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  {gpsStatus === 'granted' ? 'my_location' : 'location_on'}
+                </span>
+                <span className="text-on-surface text-sm font-bold pr-1">{cityNames[city]}</span>
+                <span className={`material-symbols-outlined text-on-surface-variant text-xs hidden sm:inline transition-transform duration-200 ${regionOpen ? 'rotate-180' : ''}`}>
+                  expand_more
+                </span>
+              </button>
+              
+              {regionOpen && (
+                <div className="absolute top-full right-0 mt-2 w-32 bg-surface-container-high border border-outline-variant/20 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1">
+                    {Object.entries(cityNames).map(([k, v]) => (
+                      <button
+                        key={k}
+                        onClick={() => { handleCityChange(k); setRegionOpen(false); }}
+                        className={`w-full flex items-center px-4 py-2.5 text-sm transition-colors rounded-lg ${
+                          city === k 
+                            ? 'bg-primary/20 text-primary font-bold' 
+                            : 'text-on-surface hover:bg-surface-container-highest font-medium'
+                        }`}
+                      >
+                        {v}
+                        {city === k && <span className="material-symbols-outlined text-[16px] ml-auto">check</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
+
             <button className="relative p-1.5 rounded-lg hover:bg-surface-container transition-colors">
               <span className="material-symbols-outlined text-on-surface-variant text-xl">notifications</span>
               <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full"></span>
             </button>
-            <button className="p-1.5 rounded-lg hover:bg-surface-container transition-colors hidden sm:block">
+            <button 
+              onClick={() => setSettingsOpen(true)}
+              className="p-1.5 rounded-lg hover:bg-surface-container transition-colors hidden sm:block"
+            >
               <span className="material-symbols-outlined text-on-surface-variant text-xl">settings</span>
             </button>
           </div>
         </header>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar relative">
           {renderContent()}
         </div>
       </main>
+
+      {/* Settings Modal */}
+      <SettingsModal 
+        isOpen={settingsOpen} 
+        onClose={() => setSettingsOpen(false)} 
+        city={city}
+        onCityChange={handleCityChange}
+        cityNames={cityNames}
+      />
     </div>
   );
 }
