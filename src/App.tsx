@@ -45,9 +45,11 @@ export default function App() {
   const [gpsStatus, setGpsStatus] = useState<'loading' | 'granted' | 'denied' | 'idle'>('idle');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [notiOpen, setNotiOpen] = useState(false);
   const [regionOpen, setRegionOpen] = useState(false);
   const regionRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const notiRef = useRef<HTMLDivElement>(null);
 
   // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {
@@ -57,6 +59,9 @@ export default function App() {
       }
       if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
         setSettingsOpen(false);
+      }
+      if (notiRef.current && !notiRef.current.contains(event.target as Node)) {
+        setNotiOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -234,10 +239,59 @@ export default function App() {
               )}
             </div>
 
-            <button className="relative p-1.5 rounded-lg hover:bg-surface-container transition-colors">
-              <span className="material-symbols-outlined text-on-surface-variant text-xl">notifications</span>
-              <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full block animate-pulse"></span>
-            </button>
+            {/* Notification Bell */}
+            <div className="relative" ref={notiRef}>
+              <button 
+                onClick={() => setNotiOpen(!notiOpen)}
+                className={`p-1.5 rounded-lg transition-colors ${notiOpen ? 'bg-surface-container-high' : 'hover:bg-surface-container'}`}
+              >
+                <span className="material-symbols-outlined text-on-surface-variant text-xl">notifications</span>
+                <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full block animate-pulse"></span>
+              </button>
+              
+              {notiOpen && (
+                <div className="absolute right-0 top-full mt-2 z-50 p-2">
+                  <div className="bg-surface-container-high border border-outline-variant/20 rounded-2xl shadow-xl w-[320px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="p-3 border-b border-outline-variant/20 flex items-center justify-between bg-surface-container">
+                      <h2 className="text-sm font-bold text-on-surface flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-primary text-[18px]">notifications_active</span>
+                        최근 알림
+                      </h2>
+                      <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full font-bold">New 2</span>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto custom-scrollbar flex flex-col p-2 space-y-1">
+                      <div className="p-3 bg-primary/5 rounded-xl border border-primary/10">
+                        <div className="flex items-start gap-3">
+                          <span className="material-symbols-outlined text-primary text-xl mt-0.5">campaign</span>
+                          <div>
+                            <p className="text-sm font-bold text-on-surface">119 Helper v1.0 배포 완료</p>
+                            <p className="text-xs text-on-surface-variant leading-relaxed mt-1">대시보드 UI 개편 및 공공데이터 연동이 성공적으로 완료되었습니다. 현장 출동 시 유용하게 활용하세요!</p>
+                            <p className="text-[10px] text-on-surface-variant/70 mt-2 font-mono">Just Now</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-3 hover:bg-surface-container-highest rounded-xl transition-colors cursor-pointer">
+                        <div className="flex items-start gap-3">
+                          <span className="material-symbols-outlined text-tertiary text-xl mt-0.5">rainy</span>
+                          <div>
+                            <p className="text-sm font-bold text-on-surface">기상청 일일 브리핑</p>
+                            <p className="text-xs text-on-surface-variant leading-relaxed mt-1">현재 설정된 관심 지역({cityNames[city]})의 기상 정보가 업데이트되었습니다.</p>
+                            <p className="text-[10px] text-on-surface-variant/70 mt-2 font-mono">1 Hour Ago</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-2 border-t border-outline-variant/20 bg-surface-container/50">
+                      <button className="w-full py-1.5 text-xs font-bold text-primary hover:bg-primary/10 rounded-lg transition-colors">
+                        모두 읽음 처리
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Settings */}
             <div className="relative hidden sm:block" ref={settingsRef}>
               <button 
                 onClick={() => setSettingsOpen(!settingsOpen)}
