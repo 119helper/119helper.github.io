@@ -9,12 +9,12 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ isOpen, onClose, city, onCityChange, cityNames }: SettingsModalProps) {
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(false);
   const [refreshInterval, setRefreshInterval] = useState('5');
   const [theme, setTheme] = useState('dark');
 
   useEffect(() => {
-    setSoundEnabled(localStorage.getItem('119helper-sound') !== 'false');
+    setSoundEnabled(localStorage.getItem('119helper-sound') === 'true');
     setRefreshInterval(localStorage.getItem('119helper-refresh') || '5');
     setTheme(localStorage.getItem('119helper-theme') || 'dark');
   }, [isOpen]);
