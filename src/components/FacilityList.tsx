@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { FireFacility } from '../data/mockData';
 import KakaoMap from './KakaoMap';
 
@@ -15,6 +15,23 @@ export default function FacilityList({ data, title, icon, typeLabel, city, isLoa
   const [search, setSearch] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('전체');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mapStatus, setMapStatus] = useState<'loading' | 'loaded' | 'failed'>(() => window.kakao?.maps ? 'loaded' : 'loading');
+
+  useEffect(() => {
+    if (mapStatus === 'loaded') return;
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      if (window.kakao?.maps) {
+        setMapStatus('loaded');
+        clearInterval(interval);
+      } else if (attempts > 20) { // 10초 후 포기
+        setMapStatus('failed');
+        clearInterval(interval);
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, [mapStatus]);
 
   const districts = ['전체', ...Array.from(new Set(data.map(d => d.district)))];
 
@@ -60,7 +77,7 @@ export default function FacilityList({ data, title, icon, typeLabel, city, isLoa
 
       {/* KakaoMap */}
       <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden relative">
-        {window.kakao?.maps ? (
+        {mapStatus === 'loaded' ? (
           <>
             <KakaoMap data={filtered} city={city} height="300px" selectedId={selectedId} />
             {/* Status overlay */}
@@ -81,12 +98,19 @@ export default function FacilityList({ data, title, icon, typeLabel, city, isLoa
               </div>
             </div>
           </>
+        ) : mapStatus === 'loading' ? (
+          <div className="h-[300px] flex items-center justify-center bg-surface-dim">
+            <div className="text-center animate-pulse">
+              <span className="material-symbols-outlined text-4xl text-primary/50 animate-spin">progress_activity</span>
+              <p className="text-on-surface-variant font-bold mt-2">지도 불러오는 중...</p>
+            </div>
+          </div>
         ) : (
           <div className="h-[300px] flex items-center justify-center bg-surface-dim">
             <div className="text-center">
               <span className="material-symbols-outlined text-5xl text-outline/40">map</span>
               <p className="text-on-surface-variant text-sm mt-2">카카오맵 SDK 로드 실패</p>
-              <p className="text-outline text-xs mt-1">네트워크 연결을 확인해주세요</p>
+              <p className="text-outline text-xs mt-1">네트워크 연결 또는 AdBlock을 확인해주세요</p>
             </div>
           </div>
         )}
