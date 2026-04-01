@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react';
 import { MOCK_WEATHER, MOCK_ER_DATA } from '../data/mockData';
+import { getRealtimeAirQuality, type AirQualityData } from '../services/airQualityApi';
 import type { FireFacility } from '../data/mockData';
 
 type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar';
@@ -19,6 +21,16 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
   const w = MOCK_WEATHER;
   const cityLabel = cityNames[city] || '서울';
   
+  const [airQuality, setAirQuality] = useState<AirQualityData | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    getRealtimeAirQuality(city).then(data => {
+      if (isMounted && data) setAirQuality(data);
+    });
+    return () => { isMounted = false; };
+  }, [city]);
+
   const hydrantsCount = fireFacilities.filter(f => f.type === '소화전').length;
   const towersCount = fireFacilities.filter(f => f.type !== '소화전').length;
 
@@ -70,11 +82,21 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
           <div className="flex gap-3 md:gap-6 mt-4 md:mt-6 relative z-10 flex-wrap">
             <div className="flex items-center gap-2 bg-surface-container/40 rounded-lg px-3 py-2">
               <span className="text-xs text-on-surface-variant">미세먼지</span>
-              <span className={`text-xs font-bold ${w.pm10 <= 30 ? 'text-green-400' : w.pm10 <= 80 ? 'text-yellow-400' : 'text-red-400'}`}>{w.pm10}㎍/㎥</span>
+              <span className={`text-xs font-bold ${
+                airQuality?.pm10Grade === '1' ? 'text-blue-400' :
+                airQuality?.pm10Grade === '2' ? 'text-green-400' :
+                airQuality?.pm10Grade === '3' ? 'text-amber-400' :
+                airQuality?.pm10Grade === '4' ? 'text-red-400' : 'text-on-surface-variant'
+              }`}>{airQuality ? airQuality.pm10Value : '로딩중'}{airQuality?.pm10Value !== '-' ? '㎍/㎥' : ''}</span>
             </div>
             <div className="flex items-center gap-2 bg-surface-container/40 rounded-lg px-3 py-2">
               <span className="text-xs text-on-surface-variant">초미세먼지</span>
-              <span className={`text-xs font-bold ${w.pm25 <= 15 ? 'text-green-400' : w.pm25 <= 35 ? 'text-yellow-400' : 'text-red-400'}`}>{w.pm25}㎍/㎥</span>
+              <span className={`text-xs font-bold ${
+                airQuality?.pm25Grade === '1' ? 'text-blue-400' :
+                airQuality?.pm25Grade === '2' ? 'text-green-400' :
+                airQuality?.pm25Grade === '3' ? 'text-amber-400' :
+                airQuality?.pm25Grade === '4' ? 'text-red-400' : 'text-on-surface-variant'
+              }`}>{airQuality ? airQuality.pm25Value : '로딩중'}{airQuality?.pm25Value !== '-' ? '㎍/㎥' : ''}</span>
             </div>
             <div className="flex items-center gap-2 bg-surface-container/40 rounded-lg px-3 py-2">
               <span className="text-xs text-on-surface-variant">강수량</span>

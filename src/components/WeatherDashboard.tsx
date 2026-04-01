@@ -5,6 +5,7 @@ import {
   CITY_GRIDS,
   type CurrentWeather, type HourlyForecast, type MidTermForecast, type MidTermTemp,
 } from '../services/weatherApi';
+import { getRealtimeAirQuality, type AirQualityData } from '../services/airQualityApi';
 
 // Fallback data when API fails
 const FALLBACK_WEATHER: CurrentWeather = {
@@ -23,6 +24,7 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
   const [midLand, setMidLand] = useState<MidTermForecast | null>(null);
   const [midTemp, setMidTemp] = useState<MidTermTemp | null>(null);
   const [briefing, setBriefing] = useState('');
+  const [airQuality, setAirQuality] = useState<AirQualityData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastRefresh, setLastRefresh] = useState('');
@@ -33,12 +35,13 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
     setLoading(true);
     setError('');
     try {
-      const [nowItems, fcstItems, midL, midT, brief] = await Promise.allSettled([
+      const [nowItems, fcstItems, midL, midT, brief, aqRes] = await Promise.allSettled([
         getUltraShortNow(grid.nx, grid.ny),
         getShortTermFcst(grid.nx, grid.ny),
         getMidTermLand(),
         getMidTermTemp(),
         getWeatherBriefing(),
+        getRealtimeAirQuality(city),
       ]);
 
       if (nowItems.status === 'fulfilled' && nowItems.value.length > 0) {
@@ -53,6 +56,7 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
       if (midL.status === 'fulfilled') setMidLand(midL.value);
       if (midT.status === 'fulfilled') setMidTemp(midT.value);
       if (brief.status === 'fulfilled') setBriefing(brief.value);
+      if (aqRes.status === 'fulfilled') setAirQuality(aqRes.value);
 
       setLastRefresh(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }));
     } catch (e) {
@@ -152,6 +156,39 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
             </p>
             {current.humidity < 35 && <p className="text-xs text-red-300 mt-2 font-bold">⚠️ 건조주의! 화재 확산 위험</p>}
             {current.windSpeed > 10 && <p className="text-xs text-amber-300 mt-1 font-bold">💨 강풍! 고층 화재 주의</p>}
+          </div>
+
+          {/* Air Quality (AirKorea) */}
+          <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 flex-1">
+            <p className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant mb-3">😷 대기환경 (에어코리아)</p>
+            {airQuality ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-on-surface-variant">종합 (KHAI)</span>
+                  <span className={`font-bold px-2 py-0.5 rounded text-xs ${
+                    airQuality.khaiGrade === '1' ? 'bg-blue-500/20 text-blue-400' :
+                    airQuality.khaiGrade === '2' ? 'bg-green-500/20 text-green-400' :
+                    airQuality.khaiGrade === '3' ? 'bg-amber-500/20 text-amber-400' :
+                    airQuality.khaiGrade === '4' ? 'bg-red-500/20 text-red-500' : 'bg-surface-container text-on-surface-variant'
+                  }`}>
+                    {airQuality.khaiGrade === '1' ? '좋음' : airQuality.khaiGrade === '2' ? '보통' : airQuality.khaiGrade === '3' ? '나쁨' : airQuality.khaiGrade === '4' ? '매우나쁨' : (airQuality.khaiValue !== '-' ? airQuality.khaiValue : '조회 중')}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="bg-surface-container/50 rounded-lg p-2">
+                    <p className="text-[10px] text-on-surface-variant mb-1">PM10 (미세먼지)</p>
+                    <p className="text-sm font-bold text-on-surface">{airQuality.pm10Value} <span className="text-[9px] font-normal">㎍/㎥</span></p>
+                  </div>
+                  <div className="bg-surface-container/50 rounded-lg p-2">
+                    <p className="text-[10px] text-on-surface-variant mb-1">PM2.5 (초미세먼지)</p>
+                    <p className="text-sm font-bold text-on-surface">{airQuality.pm25Value} <span className="text-[9px] font-normal">㎍/㎥</span></p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-on-surface-variant text-right border-t border-outline-variant/10 pt-2 mt-2">{airQuality.stationName} 측정소 기준</p>
+              </div>
+            ) : (
+              <p className="text-xs text-on-surface-variant">데이터 동기화 중...</p>
+            )}
           </div>
 
           {/* Quick Stats */}
