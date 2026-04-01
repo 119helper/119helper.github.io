@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { MOCK_WEATHER, MOCK_ER_DATA } from '../data/mockData';
+import { MOCK_WEATHER } from '../data/mockData';
 import { getRealtimeAirQuality, type AirQualityData } from '../services/airQualityApi';
+import { getERRealTimeBeds, CITY_TO_SIDO, type ERRealTimeData } from '../services/erApi';
 import type { FireFacility } from '../data/mockData';
 
 type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar';
@@ -22,11 +23,17 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
   const cityLabel = cityNames[city] || '서울';
   
   const [airQuality, setAirQuality] = useState<AirQualityData | null>(null);
+  const [erList, setErList] = useState<ERRealTimeData[]>([]);
 
   useEffect(() => {
     let isMounted = true;
     getRealtimeAirQuality(city).then(data => {
       if (isMounted && data) setAirQuality(data);
+    });
+    
+    const sido = CITY_TO_SIDO[city] || '서울특별시';
+    getERRealTimeBeds(sido).then(data => {
+      if (isMounted && data) setErList(data);
     });
     return () => { isMounted = false; };
   }, [city]);
@@ -115,26 +122,29 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
                   <span className="text-[10px] bg-surface-container/50 px-2 py-0.5 rounded text-on-surface-variant">{cityLabel}</span>
                 </div>
                 <h4 className="text-4xl font-extrabold mt-1 font-headline">
-                  <span className="text-secondary">{MOCK_ER_DATA.reduce((s, e) => s + e.available, 0)}</span>
-                  <span className="text-lg text-on-surface-variant ml-1">/ {MOCK_ER_DATA.reduce((s, e) => s + e.total, 0)}</span>
+                  <span className="text-secondary">{erList.length > 0 ? erList.reduce((s, e) => s + (parseInt(e.hvec) || 0), 0) : '...'}</span>
+                  <span className="text-lg text-on-surface-variant ml-1">/ {erList.length > 0 ? erList.reduce((s, e) => s + (parseInt(e.hpbdn) || 0), 0) : '...'}</span>
                 </h4>
               </div>
               <div className="p-2 bg-secondary/10 rounded-lg">
                 <span className="material-symbols-outlined text-secondary text-2xl">emergency</span>
               </div>
             </div>
-            <p className="text-xs text-on-surface-variant mt-3">반경 10km 내 {MOCK_ER_DATA.length}개 병원 기준</p>
+            <p className="text-xs text-on-surface-variant mt-3">{cityLabel} 관내 {erList.length > 0 ? erList.length : '...'}개 병원 기준</p>
             <div className="mt-3 flex gap-2 flex-wrap">
-              {MOCK_ER_DATA.slice(0, 3).map(er => (
-                <span 
-                  key={er.name} 
-                  title={er.available < 0 ? "대기 중인 환자 수" : "잔여 병상 수"}
-                  className={`text-[10px] px-2 py-1 rounded-full border cursor-help ${er.available > 0 ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}
-                >
-                  {er.name.replace(/병원|대학교|서울/g, '').trim()} 
-                  {er.available < 0 ? ` 대기 ${Math.abs(er.available)}명` : ` 잔여 ${er.available}석`}
-                </span>
-              ))}
+              {erList.slice(0, 3).map(er => {
+                const available = parseInt(er.hvec) || 0;
+                return (
+                  <span 
+                    key={er.dutyName} 
+                    title={available < 0 ? "대기 중인 환자 수" : "잔여 병상 수"}
+                    className={`text-[10px] px-2 py-1 rounded-full border cursor-help ${available > 0 ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}
+                  >
+                    {er.dutyName.replace(/병원|대학교|서울/g, '').trim()} 
+                    {available < 0 ? ` 대기 ${Math.abs(available)}석` : ` 잔여 ${available}석`}
+                  </span>
+                );
+              })}
             </div>
           </div>
 

@@ -110,14 +110,14 @@ export default function ERDashboard({ city }: ERViewProps) {
                           title="현재 대기 중인 환자 수입니다."
                           className="text-lg font-extrabold text-error cursor-help border-b border-dashed border-error pb-0.5"
                         >
-                          대기 {Math.abs(avail)}명
+                          대기 {Math.abs(avail)}석
                         </span>
                       ) : (
                         <span 
                           title="현재 사용 가능한 잔여 병상 수입니다."
                           className={`text-lg font-extrabold cursor-help border-b border-dashed pb-0.5 ${avail > 3 ? 'text-secondary border-secondary' : avail > 0 ? 'text-amber-400 border-amber-400' : 'text-error border-error'}`}
                         >
-                          {avail} 병상
+                          잔여 {avail}석
                         </span>
                       )}
                     </td>
