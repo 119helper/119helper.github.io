@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import HazmatCalc from './HazmatCalc';
 
 interface CalcResult {
   label: string;
@@ -247,6 +248,7 @@ export default function Calculators() {
         <h2 className="text-2xl font-extrabold text-on-surface font-headline">🧮 소방 계산기</h2>
         <p className="text-sm text-on-surface-variant mt-1">현장 활동에 필요한 계산 도구</p>
       </div>
+      <HazmatCalc />
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <WaterPressureCalc />
         <HoseLengthCalc />

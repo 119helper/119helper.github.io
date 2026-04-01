@@ -98,8 +98,13 @@ export default function DashboardView({ onNavigate, city }: DashboardProps) {
             <p className="text-xs text-on-surface-variant mt-3">반경 10km 내 {MOCK_ER_DATA.length}개 병원 기준</p>
             <div className="mt-3 flex gap-2 flex-wrap">
               {MOCK_ER_DATA.slice(0, 3).map(er => (
-                <span key={er.name} className={`text-[10px] px-2 py-1 rounded-full border ${er.available > 0 ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-                  {er.name.replace(/병원|대학교|서울/g, '').trim()} {er.available}석
+                <span 
+                  key={er.name} 
+                  title={er.available < 0 ? "대기 중인 환자 수" : "잔여 병상 수"}
+                  className={`text-[10px] px-2 py-1 rounded-full border cursor-help ${er.available > 0 ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}
+                >
+                  {er.name.replace(/병원|대학교|서울/g, '').trim()} 
+                  {er.available < 0 ? ` 대기 ${Math.abs(er.available)}명` : ` 잔여 ${er.available}석`}
                 </span>
               ))}
             </div>
@@ -128,6 +133,7 @@ export default function DashboardView({ onNavigate, city }: DashboardProps) {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 p-4 md:p-6">
           {[
+            { icon: 'science', label: '유해물질', tab: 'calculator' as TabId, color: 'text-orange-400' },
             { icon: 'water_drop', label: '수압 계산기', tab: 'calculator' as TabId, color: 'text-blue-400' },
             { icon: 'straighten', label: '호스 전개', tab: 'calculator' as TabId, color: 'text-green-400' },
             { icon: 'timer', label: '공기호흡기', tab: 'calculator' as TabId, color: 'text-amber-400' },
