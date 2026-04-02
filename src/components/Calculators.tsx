@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import HazmatCalc from './HazmatCalc';
 
 interface CalcResult {
@@ -149,6 +149,7 @@ function AirTankTimer() {
   const [isRunning, setIsRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [totalTime, setTotalTime] = useState(0);
+  const startTimeRef = useRef<number>(0);
 
   const startTimer = () => {
     const p = parseFloat(pressure);
@@ -160,26 +161,27 @@ function AirTankTimer() {
     const seconds = minutes * 60;
     setTotalTime(seconds);
     setTimeLeft(seconds);
+    startTimeRef.current = Date.now();
     setIsRunning(true);
   };
 
-  // Timer effect
+  // Timer effect — Date.now() 기반으로 백그라운드 탭에서도 정확
   useEffect(() => {
-    if (!isRunning || timeLeft <= 0) return;
+    if (!isRunning || totalTime <= 0) return;
     const interval = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          setIsRunning(false);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+      const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      const remaining = Math.max(totalTime - elapsed, 0);
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        setIsRunning(false);
+      }
+    }, 250); // 250ms 간격으로 더 자주 체크하여 정확도 향상
     return () => clearInterval(interval);
-  }, [isRunning, timeLeft]);
+  }, [isRunning, totalTime]);
 
   const stopTimer = () => {
     setIsRunning(false);
+    setTimeLeft(0);
   };
 
   const formatTime = (secs: number) => {

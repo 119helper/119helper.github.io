@@ -50,7 +50,7 @@ export default function ERDashboard({ city }: ERViewProps) {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 text-center">
           <p className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">조회 병원</p>
           <p className="text-3xl font-extrabold text-on-surface mt-1">{erData.length}</p>

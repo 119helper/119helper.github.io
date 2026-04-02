@@ -64,7 +64,7 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
     } finally {
       setLoading(false);
     }
-  }, [grid.nx, grid.ny]);
+  }, [grid.nx, grid.ny, city]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -101,9 +101,9 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
       )}
 
       {/* Main Weather + Details */}
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Big Current Weather */}
-        <div className="col-span-8 bg-gradient-to-br from-blue-900/30 via-indigo-900/20 to-cyan-900/10 border border-blue-500/10 rounded-xl p-10 relative overflow-hidden">
+        <div className="lg:col-span-8 bg-gradient-to-br from-blue-900/30 via-indigo-900/20 to-cyan-900/10 border border-blue-500/10 rounded-xl p-6 lg:p-10 relative overflow-hidden">
           <div className="absolute -right-16 -top-16 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl"></div>
           <div className="flex items-start justify-between relative z-10">
             <div>
@@ -137,7 +137,7 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
         </div>
 
         {/* Side Info Cards */}
-        <div className="col-span-4 flex flex-col gap-4">
+        <div className="lg:col-span-4 flex flex-col gap-4">
           {/* Fire Risk Assessment */}
           <div className={`rounded-xl p-5 border flex-1 ${
             current.humidity < 35 ? 'bg-red-900/30 border-red-500/30' :
@@ -245,12 +245,12 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
       )}
 
       {/* Mid-Term + Briefing Row */}
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Mid-term forecast */}
-        <div className="col-span-7 bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
+        <div className="lg:col-span-7 bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-lg font-bold text-on-surface font-headline mb-4">📅 주간 예보 (중기예보)</h3>
           {midLand && midTemp ? (
-            <div className="grid grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {[3, 4, 5, 6, 7].map(day => {
                 const futureDate = new Date();
                 futureDate.setDate(futureDate.getDate() + day);
@@ -284,7 +284,7 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
         </div>
 
         {/* Briefing */}
-        <div className="col-span-5 bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
+        <div className="lg:col-span-5 bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-lg font-bold text-on-surface font-headline mb-4">📋 기상 브리핑</h3>
           <div className="bg-surface-container rounded-lg p-4">
             <p className="text-sm text-on-surface leading-relaxed whitespace-pre-line">

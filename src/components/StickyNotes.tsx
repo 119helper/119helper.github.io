@@ -17,8 +17,10 @@ const COLORS = [
 
 export default function StickyNotes() {
   const [notes, setNotes] = useState<Note[]>(() => {
-    const saved = localStorage.getItem('119helper-notes');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('119helper-notes');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
   });
   const [selectedColor, setSelectedColor] = useState(0);
 

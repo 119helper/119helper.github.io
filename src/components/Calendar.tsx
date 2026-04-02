@@ -23,8 +23,10 @@ export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>(() => {
-    const saved = localStorage.getItem('119helper-schedules');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('119helper-schedules');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
   });
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -138,9 +140,9 @@ export default function Calendar() {
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Calendar Grid */}
-        <div className="col-span-8 bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden">
+        <div className="lg:col-span-8 bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between p-5 border-b border-outline-variant/10">
             <div className="flex items-center gap-3">
@@ -233,7 +235,7 @@ export default function Calendar() {
         </div>
 
         {/* Side Panel */}
-        <div className="col-span-4 space-y-4">
+        <div className="lg:col-span-4 space-y-4">
           {/* Shift Settings */}
           <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5">
             <h4 className="text-sm font-bold text-on-surface mb-3 flex items-center gap-2">
