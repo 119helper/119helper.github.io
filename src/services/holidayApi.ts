@@ -31,15 +31,33 @@ function parseXmlItems(xmlText: string): HolidayItem[] {
   return result;
 }
 
-// 공휴일 조회 (해당 연/월)
+// 공휴일 조회 (해당 연/월) — API 실패 시 static fallback
 export async function getHolidays(year: number, month: number): Promise<HolidayItem[]> {
   try {
     const xmlText = await fetchHolidayXml(year, month);
-    return parseXmlItems(xmlText);
+    const items = parseXmlItems(xmlText);
+    if (items.length > 0) return items;
   } catch (e) {
-    console.error('공휴일 조회 실패:', e);
-    return [];
+    console.warn('공휴일 API 실패, static fallback 사용:', e);
   }
+
+  // API 실패 또는 결과 없음 → static 데이터로 fallback
+  const { getStaticHolidays } = await import('../data/holidays');
+  const staticMap = getStaticHolidays(year, month);
+  const fallbackItems: HolidayItem[] = [];
+  staticMap.forEach((names, dateKey) => {
+    const locdate = parseInt(dateKey.replace(/-/g, ''));
+    names.forEach((name, i) => {
+      fallbackItems.push({
+        dateKind: '01',
+        dateName: name,
+        isHoliday: 'Y',
+        locdate,
+        seq: i + 1,
+      });
+    });
+  });
+  return fallbackItems;
 }
 
 // 연간 공휴일 한꺼번에 조회
