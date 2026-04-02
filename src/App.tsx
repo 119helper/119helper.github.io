@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import './index.css';
 import StickyNotes from './components/StickyNotes';
 import Calculators from './components/Calculators';
@@ -11,8 +11,21 @@ import BuildingView from './components/BuildingView';
 import GlobalSearch from './components/GlobalSearch';
 import SettingsModal from './components/SettingsModal';
 import { fetchFireWaterFacilities } from './services/fireWaterApi';
+import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS } from './services/weatherApi';
+import { getRealtimeAirQuality } from './services/airQualityApi';
 import type { FireFacility } from './data/mockData';
 type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar';
+
+// 알림 시스템 타입
+interface Notification {
+  id: string;
+  icon: string;
+  iconColor: string;
+  title: string;
+  message: string;
+  timestamp: Date;
+  isNew: boolean;
+}
 
 interface NavItem {
   id: TabId;
@@ -38,6 +51,14 @@ const cityNames: Record<string, string> = {
   gwangju: '광주', daejeon: '대전', ulsan: '울산', sejong: '세종', jeju: '제주',
 };
 
+function formatTimeAgo(date: Date): string {
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 60) return '방금 전';
+  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
+  return `${Math.floor(diff / 86400)}일 전`;
+}
+
 /* ─────────── Main App ─────────── */
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
@@ -48,6 +69,9 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notiOpen, setNotiOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [refreshInterval, setRefreshInterval] = useState(() => parseInt(localStorage.getItem('119helper-refresh') || '5'));
+  const lastRefreshRef = useRef<Date>(new Date());
   const [regionOpen, setRegionOpen] = useState(false);
   const regionRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -105,20 +129,34 @@ export default function App() {
     localStorage.setItem('119helper-city', newCity);
   };
 
-  useEffect(() => {
+  // 알림 추가 헬퍼
+  const addNotification = useCallback((icon: string, iconColor: string, title: string, message: string) => {
+    setNotifications(prev => {
+      const newNoti: Notification = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        icon, iconColor, title, message,
+        timestamp: new Date(),
+        isNew: true,
+      };
+      const updated = [newNoti, ...prev].slice(0, 20); // 최대 20개
+      return updated;
+    });
+  }, []);
+
+  // 데이터 갱신 함수
+  const refreshData = useCallback(async () => {
+    // 소방용수
     setIsLoadingFacilities(true);
-    fetchFireWaterFacilities(city).then(items => {
+    try {
+      const items = await fetchFireWaterFacilities(city);
       const parsed: FireFacility[] = items.map((item, idx) => {
         let status: '정상' | '점검필요' | '고장' = '정상';
         if (item.insptnSttusNm?.includes('고장')) status = '고장';
         else if (item.insptnSttusNm?.includes('점검')) status = '점검필요';
-
-        // type fallback
         let type: '소화전' | '급수탑' | '저수조' | '비상소화장치' = '소화전';
         if (item.fcltyKndNm?.includes('급수탑')) type = '급수탑';
         else if (item.fcltyKndNm?.includes('저수조')) type = '저수조';
         else if (item.fcltyKndNm?.includes('비상소화장치')) type = '비상소화장치';
-
         return {
           id: item.fcltyNo || `FW-${idx}`,
           type,
@@ -129,11 +167,67 @@ export default function App() {
           status
         };
       }).filter(i => i.lat > 0 && i.lng > 0);
-
       setFireFacilities(parsed);
-      setIsLoadingFacilities(false);
-    });
-  }, [city]);
+    } catch (_) { /* silently fail */ }
+    setIsLoadingFacilities(false);
+
+    // 기상 알림 생성
+    try {
+      const grid = CITY_GRIDS[city] || CITY_GRIDS.seoul;
+      const items = await getUltraShortNow(grid.nx, grid.ny);
+      if (items.length > 0) {
+        const w = parseCurrentWeather(items);
+        if (w.precipType !== '없음') {
+          addNotification('rainy', 'text-blue-400', `🌧️ ${cityNames[city]} 강수 감지`, `현재 ${w.precipType} 관측 중. 풍속 ${w.windSpeed}m/s (${w.windDirection})`);
+        }
+        if (w.temperature >= 35) {
+          addNotification('thermostat', 'text-red-400', `🥵 ${cityNames[city]} 폭염 주의`, `현재 기온 ${w.temperature}°C. 현장 활동 시 열사병 주의!`);
+        }
+        if (w.temperature <= -10) {
+          addNotification('ac_unit', 'text-cyan-400', `🥶 ${cityNames[city]} 한파 주의`, `현재 기온 ${w.temperature}°C. 소화전 동파 점검 필요.`);
+        }
+      }
+    } catch (_) { /* silently fail */ }
+
+    // 대기질 알림 생성
+    try {
+      const aq = await getRealtimeAirQuality(cityNames[city] || '서울');
+      if (aq && parseInt(aq.pm10Grade) >= 3) {
+        addNotification('masks', 'text-yellow-400', `⚠️ ${cityNames[city]} 미세먼지 나쁨`, `PM10: ${aq.pm10Value}μg/m³. 현장 활동 시 방진마스크 착용 권장.`);
+      }
+    } catch (_) { /* silently fail */ }
+
+    lastRefreshRef.current = new Date();
+  }, [city, addNotification]);
+
+  // 최초 + city 변경 시 데이터 로드
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
+
+  // refreshInterval 자동 갱신
+  useEffect(() => {
+    if (refreshInterval <= 0) return; // 수동 갱신
+    const id = setInterval(() => {
+      refreshData();
+    }, refreshInterval * 60 * 1000);
+    return () => clearInterval(id);
+  }, [refreshInterval, refreshData]);
+
+  // localStorage 변경 감지 (설정 저장 시)
+  useEffect(() => {
+    const handleStorage = () => {
+      const val = parseInt(localStorage.getItem('119helper-refresh') || '5');
+      setRefreshInterval(val);
+    };
+    window.addEventListener('storage', handleStorage);
+    // 같은 탭에서도 감지하기 위해 폴링
+    const pollId = setInterval(() => {
+      const val = parseInt(localStorage.getItem('119helper-refresh') || '5');
+      setRefreshInterval(prev => prev !== val ? val : prev);
+    }, 2000);
+    return () => { window.removeEventListener('storage', handleStorage); clearInterval(pollId); };
+  }, []);
 
   const handleNavigate = (tab: TabId) => {
     setActiveTab(tab);
@@ -281,7 +375,9 @@ export default function App() {
                 className={`p-1.5 rounded-lg transition-colors ${notiOpen ? 'bg-surface-container-high' : 'hover:bg-surface-container'}`}
               >
                 <span className="material-symbols-outlined text-on-surface-variant text-xl">notifications</span>
-                <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full block animate-pulse"></span>
+                {notifications.some(n => n.isNew) && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full block animate-pulse"></span>
+                )}
               </button>
               
               {notiOpen && (
@@ -292,33 +388,48 @@ export default function App() {
                         <span className="material-symbols-outlined text-primary text-[18px]">notifications_active</span>
                         최근 알림
                       </h2>
-                      <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full font-bold">New 2</span>
+                      {notifications.filter(n => n.isNew).length > 0 && (
+                        <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full font-bold">
+                          New {notifications.filter(n => n.isNew).length}
+                        </span>
+                      )}
                     </div>
                     <div className="max-h-80 overflow-y-auto custom-scrollbar flex flex-col p-2 space-y-1">
-                      <div className="p-3 bg-primary/5 rounded-xl border border-primary/10">
-                        <div className="flex items-start gap-3">
-                          <span className="material-symbols-outlined text-primary text-xl mt-0.5">campaign</span>
-                          <div>
-                            <p className="text-sm font-bold text-on-surface">119 Helper v1.0 배포 완료</p>
-                            <p className="text-xs text-on-surface-variant leading-relaxed mt-1">대시보드 UI 개편 및 공공데이터 연동이 성공적으로 완료되었습니다. 현장 출동 시 유용하게 활용하세요!</p>
-                            <p className="text-[10px] text-on-surface-variant/70 mt-2 font-mono">Just Now</p>
-                          </div>
+                      {notifications.length === 0 ? (
+                        <div className="p-6 text-center">
+                          <span className="material-symbols-outlined text-on-surface-variant/40 text-3xl">notifications_off</span>
+                          <p className="text-xs text-on-surface-variant/60 mt-2">알림이 없습니다</p>
+                          <p className="text-[10px] text-on-surface-variant/40 mt-1">기상 이변, 미세먼지 등 감지 시 자동 알림</p>
                         </div>
-                      </div>
-                      <div className="p-3 hover:bg-surface-container-highest rounded-xl transition-colors cursor-pointer">
-                        <div className="flex items-start gap-3">
-                          <span className="material-symbols-outlined text-tertiary text-xl mt-0.5">rainy</span>
-                          <div>
-                            <p className="text-sm font-bold text-on-surface">기상청 일일 브리핑</p>
-                            <p className="text-xs text-on-surface-variant leading-relaxed mt-1">현재 설정된 관심 지역({cityNames[city]})의 기상 정보가 업데이트되었습니다.</p>
-                            <p className="text-[10px] text-on-surface-variant/70 mt-2 font-mono">1 Hour Ago</p>
+                      ) : (
+                        notifications.map(noti => (
+                          <div key={noti.id} className={`p-3 rounded-xl transition-colors ${noti.isNew ? 'bg-primary/5 border border-primary/10' : 'hover:bg-surface-container-highest'}`}>
+                            <div className="flex items-start gap-3">
+                              <span className={`material-symbols-outlined ${noti.iconColor} text-xl mt-0.5`}>{noti.icon}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-on-surface">{noti.title}</p>
+                                <p className="text-xs text-on-surface-variant leading-relaxed mt-1">{noti.message}</p>
+                                <p className="text-[10px] text-on-surface-variant/70 mt-2 font-mono">
+                                  {formatTimeAgo(noti.timestamp)}
+                                </p>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
+                        ))
+                      )}
                     </div>
-                    <div className="p-2 border-t border-outline-variant/20 bg-surface-container/50">
-                      <button className="w-full py-1.5 text-xs font-bold text-primary hover:bg-primary/10 rounded-lg transition-colors">
-                        모두 읽음 처리
+                    <div className="p-2 border-t border-outline-variant/20 bg-surface-container/50 flex gap-1">
+                      <button 
+                        onClick={() => setNotifications(prev => prev.map(n => ({ ...n, isNew: false })))}
+                        className="flex-1 py-1.5 text-xs font-bold text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                      >
+                        모두 읽음
+                      </button>
+                      <button 
+                        onClick={() => setNotifications([])}
+                        className="flex-1 py-1.5 text-xs font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-lg transition-colors"
+                      >
+                        전체 삭제
                       </button>
                     </div>
                   </div>

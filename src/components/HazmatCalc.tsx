@@ -1,21 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { ERG_CHEMICALS } from '../data/ergChemicals';
 
-interface ChemicalData {
-  unInfo: string;
-  name: string;
-  isolationSmall: number; // m
-  protectionSmall: number; // m
-  isolationLarge: number; // m
-  protectionLarge: number; // m
-}
-
-// Mock ERG data for common chemicals (day time)
-const MOCK_CHEMICALS: Record<string, ChemicalData> = {
-  'UN1005': { unInfo: 'UN1005', name: '암모니아 (무수)', isolationSmall: 30, protectionSmall: 100, isolationLarge: 300, protectionLarge: 2300 },
-  'UN1017': { unInfo: 'UN1017', name: '염소', isolationSmall: 30, protectionSmall: 200, isolationLarge: 300, protectionLarge: 3000 },
-  'UN1052': { unInfo: 'UN1052', name: '불화수소 (무수)', isolationSmall: 30, protectionSmall: 100, isolationLarge: 600, protectionLarge: 4400 },
-  'UN1048': { unInfo: 'UN1048', name: '브롬화수소 (무수)', isolationSmall: 30, protectionSmall: 200, isolationLarge: 150, protectionLarge: 1100 },
-};
 
 export default function HazmatCalc() {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -93,7 +78,7 @@ export default function HazmatCalc() {
       title: '누출 위치'
     });
 
-    const chemData = MOCK_CHEMICALS[selectedChem];
+    const chemData = ERG_CHEMICALS[selectedChem];
     if (!chemData) return;
 
     const isolationDist = spillSize === 'small' ? chemData.isolationSmall : chemData.isolationLarge;
@@ -169,7 +154,7 @@ export default function HazmatCalc() {
     }
   };
 
-  const currentChem = MOCK_CHEMICALS[selectedChem];
+  const currentChem = ERG_CHEMICALS[selectedChem];
   const currentIsolation = spillSize === 'small' ? currentChem.isolationSmall : currentChem.isolationLarge;
   const currentProtection = spillSize === 'small' ? currentChem.protectionSmall : currentChem.protectionLarge;
 
@@ -196,7 +181,7 @@ export default function HazmatCalc() {
                 onChange={e => setSelectedChem(e.target.value)}
                 className="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:ring-2 focus:ring-orange-500/50"
               >
-                {Object.values(MOCK_CHEMICALS).map(chem => (
+                {Object.values(ERG_CHEMICALS).map(chem => (
                   <option key={chem.unInfo} value={chem.unInfo}>{chem.unInfo} - {chem.name}</option>
                 ))}
               </select>

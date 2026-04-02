@@ -12,6 +12,7 @@ import { handleER } from './routes/er';
 import { handleBuilding } from './routes/building';
 import { handleFireWater } from './routes/firewater';
 import { handleHoliday } from './routes/holiday';
+import { handleMultiUse } from './routes/multiuse';
 
 export interface Env {
   KMA_API_KEY: string;
@@ -21,6 +22,7 @@ export interface Env {
   FIRE_WATER_API_KEY: string;
   HOLIDAY_API_KEY: string;
   KAKAO_MAP_KEY: string;
+  MULTI_USE_API_KEY: string;
   ENVIRONMENT: string;
 }
 
@@ -60,6 +62,7 @@ export default {
             fireWater: !!env.FIRE_WATER_API_KEY,
             holiday: !!env.HOLIDAY_API_KEY,
             kakaoMap: !!env.KAKAO_MAP_KEY,
+            multiUse: !!env.MULTI_USE_API_KEY,
           }
         }, request);
       }
@@ -104,6 +107,12 @@ export default {
       // ═══════ 공휴일 ═══════
       if (path === '/api/holiday') {
         const result = await handleHoliday(url, env.HOLIDAY_API_KEY);
+        return jsonResponse(result.data, request, 200, result.cacheTtl);
+      }
+
+      // ═══════ 다중이용업소 ═══════
+      if (path === '/api/multiuse') {
+        const result = await handleMultiUse(url, env.MULTI_USE_API_KEY);
         return jsonResponse(result.data, request, 200, result.cacheTtl);
       }
 
