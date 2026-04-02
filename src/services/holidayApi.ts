@@ -1,15 +1,13 @@
-// 한국천문연구원 특일 정보 API
-// Endpoint: https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService
-// Vite Proxy: /api/holiday
+// 공휴일 API — Cloudflare Worker 프록시 경유
 
-const API_KEY = import.meta.env.VITE_HOLIDAY_API_KEY;
+import { fetchHolidays as fetchHolidayXml } from './apiClient';
 
 export interface HolidayItem {
-  dateKind: string;      // '01': 국경일, '02': 기념일, '03': 24절기, '04': 잡절
-  dateName: string;      // 명칭 (예: 설날, 추석, 크리스마스)
-  isHoliday: 'Y' | 'N'; // 공휴일 여부
-  locdate: number;       // 날짜 (YYYYMMDD 숫자)
-  seq: number;           // 순번
+  dateKind: string;
+  dateName: string;
+  isHoliday: 'Y' | 'N';
+  locdate: number;
+  seq: number;
 }
 
 // XML 파싱 헬퍼
@@ -35,30 +33,11 @@ function parseXmlItems(xmlText: string): HolidayItem[] {
 
 // 공휴일 조회 (해당 연/월)
 export async function getHolidays(year: number, month: number): Promise<HolidayItem[]> {
-  const monthStr = String(month).padStart(2, '0');
-  const url = `https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?serviceKey=${API_KEY}&solYear=${year}&solMonth=${monthStr}&numOfRows=30`;
-
   try {
-    const res = await fetch(url);
-    const text = await res.text();
-    return parseXmlItems(text);
+    const xmlText = await fetchHolidayXml(year, month);
+    return parseXmlItems(xmlText);
   } catch (e) {
     console.error('공휴일 조회 실패:', e);
-    return [];
-  }
-}
-
-// 기념일 조회 (해당 연/월) — 비공휴일 기념일
-export async function getAnniversaries(year: number, month: number): Promise<HolidayItem[]> {
-  const monthStr = String(month).padStart(2, '0');
-  const url = `https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getAnniversaryInfo?serviceKey=${API_KEY}&solYear=${year}&solMonth=${monthStr}&numOfRows=30`;
-
-  try {
-    const res = await fetch(url);
-    const text = await res.text();
-    return parseXmlItems(text);
-  } catch (e) {
-    console.error('기념일 조회 실패:', e);
     return [];
   }
 }

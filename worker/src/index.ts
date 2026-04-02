@@ -5,7 +5,7 @@
  * 프론트엔드(SPA)는 이 Worker의 /api/* 엔드포인트만 호출합니다.
  */
 
-import { handleOptions, jsonResponse, errorResponse } from './middleware/cors';
+import { handleOptions, jsonResponse, errorResponse, isOriginAllowed } from './middleware/cors';
 import { handleWeather } from './routes/weather';
 import { handleAir } from './routes/air';
 import { handleER } from './routes/er';
@@ -29,6 +29,11 @@ export default {
     // Preflight
     if (request.method === 'OPTIONS') {
       return handleOptions(request);
+    }
+
+    // 🔒 비공개 API — 허용된 Origin만 통과
+    if (!isOriginAllowed(request)) {
+      return new Response('Forbidden', { status: 403 });
     }
 
     // GET만 허용

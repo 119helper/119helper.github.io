@@ -1,8 +1,7 @@
-// 기상청 API Hub 서비스 (Full Version)
-// Platform: apihub.kma.go.kr
-// Vite Proxy: /api/kma → https://apihub.kma.go.kr
+// 기상청 API — Cloudflare Worker 프록시 경유
+// API 키: Worker 서버사이드에만 존재 (프론트엔드에 없음)
 
-const API_KEY = import.meta.env.VITE_KMA_API_KEY;
+import { fetchWeatherNow, fetchWeatherUltra, fetchWeatherForecast, fetchMidLand, fetchMidTemp, fetchWeatherBriefing } from './apiClient';
 
 // ══════════ 좌표 변환 ══════════
 export function latLngToGrid(lat: number, lng: number) {
@@ -57,7 +56,7 @@ export function windDirectionText(deg: number): string {
 export interface ForecastItem {
   baseDate: string; baseTime: string; category: string;
   fcstDate: string; fcstTime: string; fcstValue: string;
-  obsrValue?: string;  // 초단기실황은 obsrValue 사용
+  obsrValue?: string;
   nx: number; ny: number;
 }
 
@@ -74,83 +73,34 @@ export interface HourlyForecast {
   humidity: number; windSpeed: number;
 }
 
-// ══════════ 발표 시각 계산 ══════════
-function getBaseDateTime(type: 'short' | 'ultra') {
-  const now = new Date();
-  const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0'), d = String(now.getDate()).padStart(2, '0');
-  const hhmm = now.getHours() * 100 + now.getMinutes();
+// ══════════ API 호출 (Worker 프록시 경유) ══════════
 
-  if (type === 'ultra') {
-    let h = now.getHours();
-    if (now.getMinutes() < 40) h -= 1;
-    if (h < 0) { const yd = new Date(now); yd.setDate(yd.getDate() - 1); return { baseDate: `${yd.getFullYear()}${String(yd.getMonth()+1).padStart(2,'0')}${String(yd.getDate()).padStart(2,'0')}`, baseTime: '2300' }; }
-    return { baseDate: `${y}${m}${d}`, baseTime: `${String(h).padStart(2, '0')}00` };
-  }
-
-  const baseTimes = ['0200', '0500', '0800', '1100', '1400', '1700', '2000', '2300'];
-  let baseDate = `${y}${m}${d}`, baseTime = '2300';
-  if (hhmm < 210) {
-    const yd = new Date(now); yd.setDate(yd.getDate() - 1);
-    baseDate = `${yd.getFullYear()}${String(yd.getMonth()+1).padStart(2,'0')}${String(yd.getDate()).padStart(2,'0')}`;
-  } else {
-    for (let i = baseTimes.length - 1; i >= 0; i--) {
-      if (hhmm >= parseInt(baseTimes[i]) + 10) { baseTime = baseTimes[i]; break; }
-    }
-  }
-  return { baseDate, baseTime };
-}
-
-// ══════════ JSON fetch 헬퍼 ══════════
-async function fetchKMA(path: string, params: Record<string, string>): Promise<ForecastItem[]> {
-  const qs = new URLSearchParams({ authKey: API_KEY, dataType: 'JSON', ...params });
-  try {
-    const targetUrl = `https://apihub.kma.go.kr${path}?${qs}&_t=${Date.now()}`;
-    const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, { cache: 'no-store' });
-    const data = await res.json();
-    return data?.response?.body?.items?.item || [];
-  } catch (e) { console.error('KMA API 호출 실패:', path, e); return []; }
-}
-
-// ══════════ 1. 초단기실황 (4.1) ══════════
 export async function getUltraShortNow(nx = 60, ny = 127): Promise<ForecastItem[]> {
-  const { baseDate, baseTime } = getBaseDateTime('ultra');
-  return fetchKMA('/api/typ02/openApi/VilageFcstInfoService_2.0/getUltraSrtNcst', {
-    numOfRows: '60', pageNo: '1', base_date: baseDate, base_time: baseTime, nx: String(nx), ny: String(ny),
-  });
-}
-
-// ══════════ 2. 초단기예보 (4.2) ══════════
-export async function getUltraShortFcst(nx = 60, ny = 127): Promise<ForecastItem[]> {
-  const { baseDate, baseTime } = getBaseDateTime('ultra');
-  return fetchKMA('/api/typ02/openApi/VilageFcstInfoService_2.0/getUltraSrtFcst', {
-    numOfRows: '100', pageNo: '1', base_date: baseDate, base_time: baseTime, nx: String(nx), ny: String(ny),
-  });
-}
-
-// ══════════ 3. 단기예보 (4.3) ══════════
-export async function getShortTermFcst(nx = 60, ny = 127): Promise<ForecastItem[]> {
-  const { baseDate, baseTime } = getBaseDateTime('short');
-  return fetchKMA('/api/typ02/openApi/VilageFcstInfoService_2.0/getVilageFcst', {
-    numOfRows: '1000', pageNo: '1', base_date: baseDate, base_time: baseTime, nx: String(nx), ny: String(ny),
-  });
-}
-
-// ══════════ 4. 기상개황 (3.1) — 텍스트 브리핑 ══════════
-export async function getWeatherBriefing(): Promise<string> {
-  const stnId = '108'; // 서울 관측소
-  const params = new URLSearchParams({
-    authKey: API_KEY, dataType: 'JSON', numOfRows: '1', pageNo: '1', stnId,
-  });
   try {
-    const targetUrl = `https://apihub.kma.go.kr/api/typ02/openApi/ForecastGribInfoService_2.0/getOverview?${params}&_t=${Date.now()}`;
-    const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, { cache: 'no-store' });
-    const data = await res.json();
-    const text = data?.response?.body?.items?.item?.[0]?.wfSv || '';
-    return text || '기상개황 데이터를 불러올 수 없습니다.';
+    return await fetchWeatherNow(nx, ny) as ForecastItem[];
+  } catch (e) { console.error('초단기실황 실패:', e); return []; }
+}
+
+export async function getUltraShortFcst(nx = 60, ny = 127): Promise<ForecastItem[]> {
+  try {
+    return await fetchWeatherUltra(nx, ny) as ForecastItem[];
+  } catch (e) { console.error('초단기예보 실패:', e); return []; }
+}
+
+export async function getShortTermFcst(nx = 60, ny = 127): Promise<ForecastItem[]> {
+  try {
+    return await fetchWeatherForecast(nx, ny) as ForecastItem[];
+  } catch (e) { console.error('단기예보 실패:', e); return []; }
+}
+
+export async function getWeatherBriefing(): Promise<string> {
+  try {
+    const data = await fetchWeatherBriefing('108');
+    return data.briefing || '기상개황 데이터를 불러올 수 없습니다.';
   } catch { return '기상개황 조회 실패'; }
 }
 
-// ══════════ 5. 중기육상예보 (중기 2.3) — 주간 날씨 ══════════
+// ══════════ 중기예보 타입 ══════════
 export interface MidTermForecast {
   regId: string;
   rnSt3Am: number; rnSt3Pm: number; rnSt4Am: number; rnSt4Pm: number;
@@ -162,29 +112,12 @@ export interface MidTermForecast {
 }
 
 export async function getMidTermLand(regId = '11B00000'): Promise<MidTermForecast | null> {
-  const now = new Date();
-  let h = now.getHours();
-  let tmFc: string;
-  const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
-  if (h >= 18) tmFc = `${y}${m}${d}1800`;
-  else if (h >= 6) tmFc = `${y}${m}${d}0600`;
-  else {
-    const yd = new Date(now); yd.setDate(yd.getDate()-1);
-    tmFc = `${yd.getFullYear()}${String(yd.getMonth()+1).padStart(2,'0')}${String(yd.getDate()).padStart(2,'0')}1800`;
-  }
-
-  const params = new URLSearchParams({
-    authKey: API_KEY, dataType: 'JSON', numOfRows: '1', pageNo: '1', regId, tmFc,
-  });
   try {
-    const targetUrl = `https://apihub.kma.go.kr/api/typ02/openApi/MidFcstInfoService/getMidLandFcst?${params}&_t=${Date.now()}`;
-    const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, { cache: 'no-store' });
-    const data = await res.json();
-    return data?.response?.body?.items?.item?.[0] || null;
+    const items = await fetchMidLand(regId) as any[];
+    return items?.[0] || null;
   } catch { return null; }
 }
 
-// ══════════ 6. 중기기온 (중기 2.2) ══════════
 export interface MidTermTemp {
   regId: string;
   taMin3: number; taMax3: number; taMin4: number; taMax4: number;
@@ -193,28 +126,14 @@ export interface MidTermTemp {
 }
 
 export async function getMidTermTemp(regId = '11B10101'): Promise<MidTermTemp | null> {
-  const now = new Date();
-  let h = now.getHours();
-  const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
-  let tmFc: string;
-  if (h >= 18) tmFc = `${y}${m}${d}1800`;
-  else if (h >= 6) tmFc = `${y}${m}${d}0600`;
-  else {
-    const yd = new Date(now); yd.setDate(yd.getDate()-1);
-    tmFc = `${yd.getFullYear()}${String(yd.getMonth()+1).padStart(2,'0')}${String(yd.getDate()).padStart(2,'0')}1800`;
-  }
-  const params = new URLSearchParams({ authKey: API_KEY, dataType: 'JSON', numOfRows: '1', pageNo: '1', regId, tmFc });
   try {
-    const targetUrl = `https://apihub.kma.go.kr/api/typ02/openApi/MidFcstInfoService/getMidTa?${params}&_t=${Date.now()}`;
-    const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, { cache: 'no-store' });
-    const data = await res.json();
-    return data?.response?.body?.items?.item?.[0] || null;
+    const items = await fetchMidTemp(regId) as any[];
+    return items?.[0] || null;
   } catch { return null; }
 }
 
-// ══════════ 파싱 유틸 ══════════
+// ══════════ 파싱 유틸 (변경 없음) ══════════
 export function parseCurrentWeather(items: ForecastItem[]): CurrentWeather {
-  // 초단기실황은 obsrValue, 단기예보는 fcstValue를 사용
   const get = (cat: string) => {
     const item = items.find(i => i.category === cat);
     if (!item) return '0';
