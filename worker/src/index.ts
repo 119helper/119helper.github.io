@@ -156,7 +156,7 @@ export default {
       if (path.startsWith('/api/fire-annual/')) {
         const cache = caches.default;
         const cacheUrl = new URL(url.toString());
-        cacheUrl.searchParams.set('_cv', '2'); // cache version - bump to invalidate
+        cacheUrl.searchParams.set('_cv', '3'); // cache version - bump to invalidate
         const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
         const cached = await cache.match(cacheKey);
         if (cached) return cached;
