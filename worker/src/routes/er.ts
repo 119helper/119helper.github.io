@@ -43,6 +43,28 @@ export async function handleER(path: string, url: URL, apiKey: string): Promise<
       return { data: { xml: text }, cacheTtl: 60 };
     }
 
+    case '/api/er/messages': {
+      const sido = url.searchParams.get('sido') || '서울특별시';
+      const gugun = url.searchParams.get('gugun') || '';
+      let erUrl = `${ER_BASE}/getEmrrmSrsillDissMsgInqire?serviceKey=${apiKey}&Q0=${encodeURIComponent(sido)}&pageNo=1&numOfRows=100`;
+      if (gugun) erUrl += `&Q1=${encodeURIComponent(gugun)}`;
+
+      const res = await fetch(erUrl, { headers: { 'User-Agent': '119-helper-worker/1.0' } });
+      const text = await res.text();
+      return { data: { xml: text }, cacheTtl: 60 }; // 1분 캐시
+    }
+
+    case '/api/er/severe-illness': {
+      const sido = url.searchParams.get('sido') || '서울특별시';
+      const gugun = url.searchParams.get('gugun') || '';
+      let erUrl = `${ER_BASE}/getSrsillDissAceptncPosblInfoInqire?serviceKey=${apiKey}&STAGE1=${encodeURIComponent(sido)}&pageNo=1&numOfRows=500`;
+      if (gugun) erUrl += `&STAGE2=${encodeURIComponent(gugun)}`;
+
+      const res = await fetch(erUrl, { headers: { 'User-Agent': '119-helper-worker/1.0' } });
+      const text = await res.text();
+      return { data: { xml: text }, cacheTtl: 60 }; // 실시간성 중요
+    }
+
     default:
       throw new Error(`Unknown ER route: ${path}`);
   }

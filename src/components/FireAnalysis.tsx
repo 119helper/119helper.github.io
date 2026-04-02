@@ -322,7 +322,7 @@ export default function FireAnalysis() {
             <EmptyState icon="emergency" text="인명피해 데이터 없음" />
           ) : (
             <div className="space-y-1.5 max-h-[240px] overflow-y-auto">
-              {casualtyData.map((d, i) => (
+              {casualtyData.map((d) => (
                 <div key={d.sido} className="flex items-center gap-3 text-xs">
                   <span className="text-on-surface-variant w-14 text-right">{d.sido}</span>
                   <div className="flex-1 flex gap-1">

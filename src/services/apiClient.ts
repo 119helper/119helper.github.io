@@ -72,6 +72,14 @@ export async function fetchERList(sido: string, gugun?: string) {
   return apiFetchXml('/api/er/list', { sido, gugun: gugun || '' });
 }
 
+export async function fetchERMessages(sido: string, gugun?: string) {
+  return apiFetchXml('/api/er/messages', { sido, gugun: gugun || '' });
+}
+
+export async function fetchERSevereIllness(sido: string, gugun?: string) {
+  return apiFetchXml('/api/er/severe-illness', { sido, gugun: gugun || '' });
+}
+
 // ═══════ 건축물대장 ═══════
 
 export async function fetchBuildingInfo(params: {

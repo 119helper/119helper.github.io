@@ -1,6 +1,6 @@
 // 응급의료기관 정보 조회 API — Cloudflare Worker 프록시 경유
 
-import { fetchERBeds, fetchERList } from './apiClient';
+import { fetchERBeds, fetchERList, fetchERMessages, fetchERSevereIllness } from './apiClient';
 
 export interface ERRealTimeData {
   rnum: string;
@@ -39,6 +39,22 @@ export interface ERListItem {
   phpid: string;
   wgs84Lat: string;
   wgs84Lon: string;
+}
+
+export interface ERMessage {
+  hpid: string;
+  dutyName: string;
+  symTypCd: string;     // 메시지 종류
+  symTypMain: string;   // 메시지 내용
+  symOutCon: string;    // 상세 내용
+  symTypMna: string;    // 관련 분류명 (주로 '응급실메시지')
+}
+
+export interface ERSevereIllness {
+  dutyName: string;
+  hpid: string;
+  // 각 질환(O/X/U 등의 여부) 정보를 담게 됨 (ex: MKTY_ST, MKTY_PC, 등등)
+  [key: string]: string; 
 }
 
 // XML 텍스트를 파싱하는 헬퍼
@@ -80,6 +96,28 @@ export async function getERList(sido: string = '서울특별시', gugun: string 
     return parseXmlItems<ERListItem>(xmlText);
   } catch (error) {
     console.error('응급의료기관 목록 조회 실패:', error);
+    return [];
+  }
+}
+
+// 4. 응급실 메시지 조회
+export async function getERMessages(sido: string = '서울특별시', gugun: string = ''): Promise<ERMessage[]> {
+  try {
+    const xmlText = await fetchERMessages(sido, gugun);
+    return parseXmlItems<ERMessage>(xmlText);
+  } catch (error) {
+    console.error('응급실 메시지 조회 실패:', error);
+    return [];
+  }
+}
+
+// 5. 중증질환자 수용가능정보 조회
+export async function getERSevereIllness(sido: string = '서울특별시', gugun: string = ''): Promise<ERSevereIllness[]> {
+  try {
+    const xmlText = await fetchERSevereIllness(sido, gugun);
+    return parseXmlItems<ERSevereIllness>(xmlText);
+  } catch (error) {
+    console.error('중증질환 수용정보 조회 실패:', error);
     return [];
   }
 }
