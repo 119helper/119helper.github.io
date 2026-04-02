@@ -10,6 +10,8 @@ export interface FireWaterFacility {
   longitude?: string;
   fcltyKndNm?: string;
   fcltySeNm?: string;
+  fcltyTyNm?: string;
+  fcltyNm?: string;
   insptnSttusNm?: string;
 }
 

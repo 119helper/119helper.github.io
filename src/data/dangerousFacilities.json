@@ -1,0 +1,508 @@
+[
+  {
+    "station": "합계",
+    "total": 9546,
+    "manufacturing": 163,
+    "handling": {
+      "total": 2381,
+      "gas": 1497,
+      "sales": 11,
+      "transport": 1,
+      "general": 872
+    },
+    "storage": {
+      "total": 7002,
+      "indoor": 602,
+      "outdoor_tank": 1942,
+      "indoor_tank": 996,
+      "underground_tank": 529,
+      "simple_tank": 0,
+      "mobile_tank": 2574,
+      "outdoor": 359,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "포항북부소방서",
+    "total": 305,
+    "manufacturing": 0,
+    "handling": {
+      "total": 127,
+      "gas": 89,
+      "sales": 2,
+      "transport": 0,
+      "general": 36
+    },
+    "storage": {
+      "total": 178,
+      "indoor": 11,
+      "outdoor_tank": 15,
+      "indoor_tank": 27,
+      "underground_tank": 13,
+      "simple_tank": 0,
+      "mobile_tank": 96,
+      "outdoor": 16,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "포항남부소방서",
+    "total": 1343,
+    "manufacturing": 23,
+    "handling": {
+      "total": 256,
+      "gas": 114,
+      "sales": 6,
+      "transport": 1,
+      "general": 135
+    },
+    "storage": {
+      "total": 1064,
+      "indoor": 57,
+      "outdoor_tank": 488,
+      "indoor_tank": 174,
+      "underground_tank": 49,
+      "simple_tank": 0,
+      "mobile_tank": 197,
+      "outdoor": 99,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "경주소방서",
+    "total": 1047,
+    "manufacturing": 27,
+    "handling": {
+      "total": 259,
+      "gas": 173,
+      "sales": 0,
+      "transport": 0,
+      "general": 86
+    },
+    "storage": {
+      "total": 761,
+      "indoor": 64,
+      "outdoor_tank": 267,
+      "indoor_tank": 97,
+      "underground_tank": 60,
+      "simple_tank": 0,
+      "mobile_tank": 219,
+      "outdoor": 54,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "김천소방서",
+    "total": 608,
+    "manufacturing": 14,
+    "handling": {
+      "total": 154,
+      "gas": 85,
+      "sales": 0,
+      "transport": 0,
+      "general": 69
+    },
+    "storage": {
+      "total": 440,
+      "indoor": 68,
+      "outdoor_tank": 160,
+      "indoor_tank": 48,
+      "underground_tank": 40,
+      "simple_tank": 0,
+      "mobile_tank": 108,
+      "outdoor": 16,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "안동소방서",
+    "total": 447,
+    "manufacturing": 0,
+    "handling": {
+      "total": 138,
+      "gas": 97,
+      "sales": 0,
+      "transport": 0,
+      "general": 41
+    },
+    "storage": {
+      "total": 309,
+      "indoor": 8,
+      "outdoor_tank": 37,
+      "indoor_tank": 71,
+      "underground_tank": 33,
+      "simple_tank": 0,
+      "mobile_tank": 157,
+      "outdoor": 3,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "구미소방서",
+    "total": 1053,
+    "manufacturing": 22,
+    "handling": {
+      "total": 286,
+      "gas": 117,
+      "sales": 2,
+      "transport": 0,
+      "general": 167
+    },
+    "storage": {
+      "total": 745,
+      "indoor": 148,
+      "outdoor_tank": 292,
+      "indoor_tank": 102,
+      "underground_tank": 56,
+      "simple_tank": 0,
+      "mobile_tank": 114,
+      "outdoor": 33,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "영주소방서",
+    "total": 265,
+    "manufacturing": 1,
+    "handling": {
+      "total": 87,
+      "gas": 58,
+      "sales": 0,
+      "transport": 0,
+      "general": 29
+    },
+    "storage": {
+      "total": 177,
+      "indoor": 3,
+      "outdoor_tank": 23,
+      "indoor_tank": 56,
+      "underground_tank": 16,
+      "simple_tank": 0,
+      "mobile_tank": 70,
+      "outdoor": 9,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "영천소방서",
+    "total": 795,
+    "manufacturing": 23,
+    "handling": {
+      "total": 141,
+      "gas": 103,
+      "sales": 0,
+      "transport": 0,
+      "general": 38
+    },
+    "storage": {
+      "total": 631,
+      "indoor": 46,
+      "outdoor_tank": 145,
+      "indoor_tank": 40,
+      "underground_tank": 21,
+      "simple_tank": 0,
+      "mobile_tank": 355,
+      "outdoor": 24,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "상주소방서",
+    "total": 282,
+    "manufacturing": 0,
+    "handling": {
+      "total": 96,
+      "gas": 72,
+      "sales": 0,
+      "transport": 0,
+      "general": 24
+    },
+    "storage": {
+      "total": 186,
+      "indoor": 7,
+      "outdoor_tank": 10,
+      "indoor_tank": 32,
+      "underground_tank": 23,
+      "simple_tank": 0,
+      "mobile_tank": 111,
+      "outdoor": 3,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "문경소방서",
+    "total": 220,
+    "manufacturing": 1,
+    "handling": {
+      "total": 82,
+      "gas": 54,
+      "sales": 0,
+      "transport": 0,
+      "general": 28
+    },
+    "storage": {
+      "total": 137,
+      "indoor": 11,
+      "outdoor_tank": 9,
+      "indoor_tank": 20,
+      "underground_tank": 22,
+      "simple_tank": 0,
+      "mobile_tank": 74,
+      "outdoor": 1,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "경산소방서",
+    "total": 874,
+    "manufacturing": 16,
+    "handling": {
+      "total": 162,
+      "gas": 108,
+      "sales": 0,
+      "transport": 0,
+      "general": 54
+    },
+    "storage": {
+      "total": 696,
+      "indoor": 53,
+      "outdoor_tank": 146,
+      "indoor_tank": 63,
+      "underground_tank": 52,
+      "simple_tank": 0,
+      "mobile_tank": 357,
+      "outdoor": 25,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "의성소방서",
+    "total": 215,
+    "manufacturing": 2,
+    "handling": {
+      "total": 67,
+      "gas": 48,
+      "sales": 0,
+      "transport": 0,
+      "general": 19
+    },
+    "storage": {
+      "total": 146,
+      "indoor": 3,
+      "outdoor_tank": 19,
+      "indoor_tank": 19,
+      "underground_tank": 16,
+      "simple_tank": 0,
+      "mobile_tank": 84,
+      "outdoor": 5,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "청송소방서",
+    "total": 118,
+    "manufacturing": 0,
+    "handling": {
+      "total": 36,
+      "gas": 28,
+      "sales": 0,
+      "transport": 0,
+      "general": 8
+    },
+    "storage": {
+      "total": 82,
+      "indoor": 0,
+      "outdoor_tank": 2,
+      "indoor_tank": 25,
+      "underground_tank": 11,
+      "simple_tank": 0,
+      "mobile_tank": 43,
+      "outdoor": 1,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "영덕소방서",
+    "total": 166,
+    "manufacturing": 0,
+    "handling": {
+      "total": 42,
+      "gas": 34,
+      "sales": 0,
+      "transport": 0,
+      "general": 8
+    },
+    "storage": {
+      "total": 124,
+      "indoor": 0,
+      "outdoor_tank": 33,
+      "indoor_tank": 19,
+      "underground_tank": 19,
+      "simple_tank": 0,
+      "mobile_tank": 52,
+      "outdoor": 1,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "청도소방서",
+    "total": 136,
+    "manufacturing": 2,
+    "handling": {
+      "total": 39,
+      "gas": 33,
+      "sales": 0,
+      "transport": 0,
+      "general": 6
+    },
+    "storage": {
+      "total": 95,
+      "indoor": 3,
+      "outdoor_tank": 8,
+      "indoor_tank": 19,
+      "underground_tank": 8,
+      "simple_tank": 0,
+      "mobile_tank": 55,
+      "outdoor": 2,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "고령소방서",
+    "total": 211,
+    "manufacturing": 8,
+    "handling": {
+      "total": 49,
+      "gas": 36,
+      "sales": 0,
+      "transport": 0,
+      "general": 13
+    },
+    "storage": {
+      "total": 154,
+      "indoor": 21,
+      "outdoor_tank": 25,
+      "indoor_tank": 28,
+      "underground_tank": 15,
+      "simple_tank": 0,
+      "mobile_tank": 47,
+      "outdoor": 18,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "성주소방서",
+    "total": 267,
+    "manufacturing": 7,
+    "handling": {
+      "total": 53,
+      "gas": 39,
+      "sales": 0,
+      "transport": 0,
+      "general": 14
+    },
+    "storage": {
+      "total": 207,
+      "indoor": 19,
+      "outdoor_tank": 15,
+      "indoor_tank": 29,
+      "underground_tank": 16,
+      "simple_tank": 0,
+      "mobile_tank": 114,
+      "outdoor": 14,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "칠곡소방서",
+    "total": 570,
+    "manufacturing": 16,
+    "handling": {
+      "total": 137,
+      "gas": 95,
+      "sales": 1,
+      "transport": 0,
+      "general": 41
+    },
+    "storage": {
+      "total": 417,
+      "indoor": 74,
+      "outdoor_tank": 125,
+      "indoor_tank": 47,
+      "underground_tank": 32,
+      "simple_tank": 0,
+      "mobile_tank": 110,
+      "outdoor": 29,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "예천소방서",
+    "total": 223,
+    "manufacturing": 0,
+    "handling": {
+      "total": 48,
+      "gas": 39,
+      "sales": 0,
+      "transport": 0,
+      "general": 9
+    },
+    "storage": {
+      "total": 175,
+      "indoor": 1,
+      "outdoor_tank": 64,
+      "indoor_tank": 15,
+      "underground_tank": 12,
+      "simple_tank": 0,
+      "mobile_tank": 82,
+      "outdoor": 1,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "봉화소방서",
+    "total": 112,
+    "manufacturing": 1,
+    "handling": {
+      "total": 39,
+      "gas": 33,
+      "sales": 0,
+      "transport": 0,
+      "general": 6
+    },
+    "storage": {
+      "total": 72,
+      "indoor": 1,
+      "outdoor_tank": 13,
+      "indoor_tank": 5,
+      "underground_tank": 1,
+      "simple_tank": 0,
+      "mobile_tank": 51,
+      "outdoor": 1,
+      "rock_tank": 0
+    }
+  },
+  {
+    "station": "울진소방서",
+    "total": 289,
+    "manufacturing": 0,
+    "handling": {
+      "total": 83,
+      "gas": 42,
+      "sales": 0,
+      "transport": 0,
+      "general": 41
+    },
+    "storage": {
+      "total": 206,
+      "indoor": 4,
+      "outdoor_tank": 46,
+      "indoor_tank": 60,
+      "underground_tank": 14,
+      "simple_tank": 0,
+      "mobile_tank": 78,
+      "outdoor": 4,
+      "rock_tank": 0
+    }
+  }
+]

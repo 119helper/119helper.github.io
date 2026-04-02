@@ -109,3 +109,15 @@ export async function fetchShelters(ctprvnNm: string, signguNm?: string, numOfRo
 export async function fetchMultiUseFacilities(ctprvnNm: string, signguNm?: string) {
   return apiFetch<any[]>('/api/multiuse', { ctprvnNm, signguNm: signguNm || '' });
 }
+
+// ═══════ 구급통계 ═══════
+
+export async function fetchEmergencyStats(op: string, params?: Record<string, string>) {
+  return apiFetch<{ items: any[]; totalCount: number }>(`/api/emergency/stats/${op}`, params);
+}
+
+// ═══════ 구급정보 ═══════
+
+export async function fetchEmergencyInfo(op: string, params?: Record<string, string>) {
+  return apiFetch<{ items: any[]; totalCount: number }>(`/api/emergency/info/${op}`, params);
+}

@@ -14,6 +14,8 @@ import { handleFireWater } from './routes/firewater';
 import { handleHoliday } from './routes/holiday';
 import { handleMultiUse } from './routes/multiuse';
 import { handleShelter } from './routes/shelter';
+import { handleEmergencyStats } from './routes/emergencyStats';
+import { handleEmergencyInfo } from './routes/emergencyInfo';
 
 export interface Env {
   KMA_API_KEY: string;
@@ -25,6 +27,7 @@ export interface Env {
   KAKAO_MAP_KEY: string;
   MULTI_USE_API_KEY: string;
   SHELTER_API_KEY: string;
+  EMERGENCY_API_KEY: string;
   ENVIRONMENT: string;
 }
 
@@ -65,6 +68,7 @@ export default {
             holiday: !!env.HOLIDAY_API_KEY,
             kakaoMap: !!env.KAKAO_MAP_KEY,
             multiUse: !!env.MULTI_USE_API_KEY,
+            emergency: !!env.EMERGENCY_API_KEY,
           }
         }, request);
       }
@@ -121,6 +125,18 @@ export default {
       // ═══════ 대피소 (지진해일) ═══════
       if (path === '/api/shelter') {
         const result = await handleShelter(url, env.SHELTER_API_KEY);
+        return jsonResponse(result.data, request, 200, result.cacheTtl);
+      }
+
+      // ═══════ 구급통계 ═══════
+      if (path.startsWith('/api/emergency/stats/')) {
+        const result = await handleEmergencyStats(path, url, env.EMERGENCY_API_KEY);
+        return jsonResponse(result.data, request, 200, result.cacheTtl);
+      }
+
+      // ═══════ 구급정보 ═══════
+      if (path.startsWith('/api/emergency/info/')) {
+        const result = await handleEmergencyInfo(path, url, env.EMERGENCY_API_KEY);
         return jsonResponse(result.data, request, 200, result.cacheTtl);
       }
 

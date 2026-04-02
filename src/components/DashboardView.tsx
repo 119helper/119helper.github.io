@@ -4,7 +4,7 @@ import { getERRealTimeBeds, CITY_TO_SIDO, type ERRealTimeData } from '../service
 import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS, type CurrentWeather } from '../services/weatherApi';
 import type { FireFacility } from '../data/mockData';
 
-type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar';
+type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'emergency';
 
 const cityNames: Record<string, string> = {
   seoul: '서울', busan: '부산', daegu: '대구', incheon: '인천',
@@ -187,6 +187,11 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
                 {isLoadingFacilities ? <span className="text-sm font-medium animate-pulse text-on-surface-variant">불러오는 중...</span> : towersCount}
               </p>
               <p className="text-[10px] text-on-surface-variant uppercase tracking-wider">급수탑/저수조</p>
+            </button>
+            <button onClick={() => onNavigate('emergency')} className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-4 text-left hover:border-red-500/30 transition-colors group relative overflow-hidden col-span-2">
+              <span className="material-symbols-outlined text-red-400 text-xl group-hover:scale-110 transition-transform">ambulance</span>
+              <p className="text-lg font-extrabold text-on-surface mt-1 font-headline">구급 출동 분석</p>
+              <p className="text-[10px] text-on-surface-variant">전국 구급통계 · 출동유형 · 연령별 분석</p>
             </button>
           </div>
         </div>
