@@ -1,5 +1,5 @@
 /**
- * 소방용수시설 API 프록시
+ * 소방용수시설 API 프록시 (전국소방용수시설표준데이터)
  * Route: GET /api/firewater?city=서울특별시
  */
 
@@ -14,7 +14,7 @@ export async function handleFireWater(url: URL, apiKey: string): Promise<{ data:
   });
 
   const res = await fetch(
-    `https://apis.data.go.kr/1661000/FireFacilityInfoService/getFireWterinfoList?${params}`,
+    `https://api.data.go.kr/openapi/tn_pubr_public_ffus_wtrcns_api?${params}`,
     { headers: { 'User-Agent': '119-helper-worker/1.0' } }
   );
   if (!res.ok) throw new Error(`FireWater API ${res.status}`);
