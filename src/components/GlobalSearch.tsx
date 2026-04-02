@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import { MOCK_HYDRANTS, MOCK_WATER_TOWERS, MOCK_ER_DATA } from '../data/mockData';
 
 type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar';
 
@@ -33,72 +32,33 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // 통합 검색
+  // 통합 검색 (메뉴 바로가기 + 기능 키워드)
   const results: SearchResult[] = (() => {
     if (!query.trim()) return [];
     const q = query.trim().toLowerCase();
     const out: SearchResult[] = [];
 
-    // 소화전
-    MOCK_HYDRANTS.forEach(h => {
-      if (h.address.toLowerCase().includes(q) || h.id.toLowerCase().includes(q) || h.district.includes(q)) {
-        out.push({
-          id: h.id,
-          title: h.id,
-          subtitle: `${h.type} · ${h.address}`,
-          icon: 'fire_hydrant',
-          tab: 'hydrants',
-          color: 'text-red-400',
-        });
-      }
-    });
-
-    // 급수탑
-    MOCK_WATER_TOWERS.forEach(w => {
-      if (w.address.toLowerCase().includes(q) || w.id.toLowerCase().includes(q) || w.district.includes(q)) {
-        out.push({
-          id: w.id,
-          title: w.id,
-          subtitle: `${w.type} · ${w.address}`,
-          icon: 'water_pump',
-          tab: 'waterTowers',
-          color: 'text-blue-400',
-        });
-      }
-    });
-
-    // 응급실
-    MOCK_ER_DATA.forEach(er => {
-      if (er.name.toLowerCase().includes(q) || er.tel.includes(q)) {
-        out.push({
-          id: er.name,
-          title: er.name,
-          subtitle: `가용 ${er.available}석 / ${er.total}석 · ${er.tel}`,
-          icon: 'local_hospital',
-          tab: 'er',
-          color: 'text-green-400',
-        });
-      }
-    });
-
-    // 메뉴 항목 (탭 이름 검색)
-    const menuMap: { keyword: string[]; tab: TabId; label: string; icon: string }[] = [
-      { keyword: ['날씨', '기상', '온도', '비', '눈', 'weather'], tab: 'weather', label: '기상 정보', icon: 'cloud' },
-      { keyword: ['계산', '수압', '호스', '공기', 'calc'], tab: 'calculator', label: '소방 계산기', icon: 'calculate' },
-      { keyword: ['달력', '일정', '교대', '근무', 'calendar'], tab: 'calendar', label: '달력/일정', icon: 'calendar_month' },
-      { keyword: ['메모', '노트', 'memo', 'note'], tab: 'memo', label: '메모장', icon: 'sticky_note_2' },
-      { keyword: ['건축', '건물', '대장', 'building'], tab: 'building', label: '건축물대장', icon: 'apartment' },
-      { keyword: ['대시보드', 'dashboard', '홈'], tab: 'dashboard', label: '대시보드', icon: 'dashboard' },
+    // 메뉴 항목 (탭 이름 + 관련 키워드 검색)
+    const menuMap: { keyword: string[]; tab: TabId; label: string; subtitle: string; icon: string; color: string }[] = [
+      { keyword: ['대시보드', 'dashboard', '홈', '메인'], tab: 'dashboard', label: '대시보드', subtitle: '종합 현황 보기', icon: 'dashboard', color: 'text-primary' },
+      { keyword: ['날씨', '기상', '온도', '비', '눈', '바람', '습도', 'weather', '풍속', '예보'], tab: 'weather', label: '기상 정보', subtitle: '실시간 날씨·예보·특보', icon: 'cloud', color: 'text-blue-400' },
+      { keyword: ['소화전', '수도', 'hydrant', '소방용수'], tab: 'hydrants', label: '소화전', subtitle: '소화전 위치·현황', icon: 'fire_hydrant', color: 'text-red-400' },
+      { keyword: ['급수탑', '저수조', '비상소화', 'water', '수원', '탱크'], tab: 'waterTowers', label: '급수탑/저수조', subtitle: '급수탑·저수조·비상소화장치', icon: 'water_pump', color: 'text-cyan-400' },
+      { keyword: ['응급', '응급실', '병원', '병상', 'er', '이송'], tab: 'er', label: '응급실 현황', subtitle: '실시간 가용 병상 조회', icon: 'local_hospital', color: 'text-green-400' },
+      { keyword: ['건축', '건물', '대장', 'building', '층수', '구조', '면적', '용도'], tab: 'building', label: '건축물대장', subtitle: '주소 입력 → 건물 정보 즉시 조회', icon: 'apartment', color: 'text-purple-400' },
+      { keyword: ['계산', '수압', '호스', '공기', 'calc', '마찰', '호흡기', '유해', '화학', 'hazmat'], tab: 'calculator', label: '소방 계산기', subtitle: '수압·호스·공기호흡기·Hazmat', icon: 'calculate', color: 'text-amber-400' },
+      { keyword: ['달력', '일정', '교대', '근무', 'calendar', '공휴일', '스케줄'], tab: 'calendar', label: '달력/일정', subtitle: '교대 근무·공휴일', icon: 'calendar_month', color: 'text-orange-400' },
+      { keyword: ['메모', '노트', 'memo', 'note', '인수인계', '기록'], tab: 'memo', label: '메모장', subtitle: '현장 메모·인수인계', icon: 'sticky_note_2', color: 'text-pink-400' },
     ];
     menuMap.forEach(m => {
-      if (m.keyword.some(k => k.includes(q) || q.includes(k))) {
+      if (m.keyword.some(k => k.includes(q) || q.includes(k)) || m.label.toLowerCase().includes(q)) {
         out.push({
           id: `menu-${m.tab}`,
           title: m.label,
-          subtitle: '바로가기',
+          subtitle: m.subtitle,
           icon: m.icon,
           tab: m.tab,
-          color: 'text-primary',
+          color: m.color,
         });
       }
     });

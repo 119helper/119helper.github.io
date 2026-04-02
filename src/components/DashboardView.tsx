@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { MOCK_WEATHER } from '../data/mockData';
 import { getRealtimeAirQuality, type AirQualityData } from '../services/airQualityApi';
 import { getERRealTimeBeds, CITY_TO_SIDO, type ERRealTimeData } from '../services/erApi';
+import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS, type CurrentWeather } from '../services/weatherApi';
 import type { FireFacility } from '../data/mockData';
 
 type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar';
@@ -19,18 +19,32 @@ interface DashboardProps {
 }
 
 export default function DashboardView({ onNavigate, city, fireFacilities, isLoadingFacilities }: DashboardProps) {
-  const w = MOCK_WEATHER;
   const cityLabel = cityNames[city] || '서울';
   
   const [airQuality, setAirQuality] = useState<AirQualityData | null>(null);
   const [erList, setErList] = useState<ERRealTimeData[]>([]);
+  const [weather, setWeather] = useState<CurrentWeather | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
+
+    // 실시간 날씨
+    const grid = CITY_GRIDS[city] || CITY_GRIDS.seoul;
+    setWeatherLoading(true);
+    getUltraShortNow(grid.nx, grid.ny).then(items => {
+      if (isMounted && items.length > 0) {
+        setWeather(parseCurrentWeather(items));
+      }
+      setWeatherLoading(false);
+    }).catch(() => setWeatherLoading(false));
+
+    // 대기질
     getRealtimeAirQuality(city).then(data => {
       if (isMounted && data) setAirQuality(data);
     });
     
+    // 응급실
     const sido = CITY_TO_SIDO[city] || '서울특별시';
     getERRealTimeBeds(sido).then(data => {
       if (isMounted && data) setErList(data);
@@ -43,14 +57,16 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
 
   return (
     <div className="space-y-6">
-      {/* Weather Alert Banner */}
-      {w.alerts.length > 0 && (
-        <div className="bg-gradient-to-r from-red-900/40 to-orange-900/30 border border-red-500/30 rounded-xl p-4 flex items-center gap-4 animate-pulse">
+      {/* Weather Alert Banner — 습도 30% 이하 or 풍속 10m/s 이상 시 자동 경고 */}
+      {weather && (weather.humidity <= 30 || weather.windSpeed >= 10) && (
+        <div className="bg-gradient-to-r from-red-900/40 to-orange-900/30 border border-red-500/30 rounded-xl p-4 flex items-center gap-4">
           <span className="material-symbols-outlined text-red-400 text-3xl">warning</span>
           <div className="flex-1">
-            <p className="text-red-300 font-bold text-sm">⚠️ 기상특보 발효 중</p>
+            <p className="text-red-300 font-bold text-sm">⚠️ 현장 활동 주의</p>
             <p className="text-red-200/80 text-xs mt-0.5">
-              {w.alerts.map(a => `${a.type} — ${a.region} (${a.issued})`).join(' | ')}
+              {weather.humidity <= 30 ? `건조 주의 — 습도 ${weather.humidity}% ` : ''}
+              {weather.windSpeed >= 10 ? `강풍 주의 — 풍속 ${weather.windSpeed}m/s` : ''}
+              ({cityLabel} 기준, {weather.lastUpdate} 갱신)
             </p>
           </div>
           <button onClick={() => onNavigate('weather')} className="text-xs bg-red-500/20 border border-red-500/30 text-red-300 px-3 py-1.5 rounded-lg hover:bg-red-500/30 transition-colors">
@@ -69,20 +85,28 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
               <div className="flex items-center gap-2">
                 <p className="text-xs font-bold uppercase tracking-widest text-blue-300/60">현재 날씨</p>
                 <span className="text-[10px] bg-surface-container/50 px-2 py-0.5 rounded text-on-surface-variant">{cityLabel}</span>
+                {weather && <span className="text-[10px] text-on-surface-variant/50">{weather.lastUpdate} 기준</span>}
               </div>
               <h3 className="text-4xl md:text-7xl font-extrabold text-on-surface mt-2 font-headline">
-                {w.temperature}<span className="text-3xl text-on-surface-variant ml-1">°C</span>
+                {weatherLoading ? (
+                  <span className="text-2xl animate-pulse text-on-surface-variant">조회 중...</span>
+                ) : (
+                  <>{weather?.temperature ?? '--'}<span className="text-3xl text-on-surface-variant ml-1">°C</span></>
+                )}
               </h3>
-              <p className="text-lg text-on-surface-variant mt-1">{w.sky}</p>
+              <p className="text-lg text-on-surface-variant mt-1">
+                {weather ? `${weather.skyIcon} ${weather.sky}` : '--'}
+                {weather?.precipType !== '없음' && weather?.precipIcon && ` ${weather.precipIcon} ${weather.precipType}`}
+              </p>
             </div>
             <div className="text-right space-y-3 hidden md:block">
               <div className="bg-surface-container/60 backdrop-blur-sm rounded-lg px-4 py-2.5">
                 <p className="text-[10px] text-on-surface-variant uppercase tracking-wide">풍속 / 풍향</p>
-                <p className="text-lg font-bold text-on-surface">{w.windSpeed}m/s <span className="text-on-surface-variant">{w.windDirection}</span></p>
+                <p className="text-lg font-bold text-on-surface">{weather?.windSpeed ?? '--'}m/s <span className="text-on-surface-variant">{weather?.windDirection ?? '--'}</span></p>
               </div>
               <div className="bg-surface-container/60 backdrop-blur-sm rounded-lg px-4 py-2.5">
                 <p className="text-[10px] text-on-surface-variant uppercase tracking-wide">습도</p>
-                <p className="text-lg font-bold text-on-surface">{w.humidity}%</p>
+                <p className={`text-lg font-bold ${weather && weather.humidity <= 30 ? 'text-red-400' : 'text-on-surface'}`}>{weather?.humidity ?? '--'}%</p>
               </div>
             </div>
           </div>
@@ -94,7 +118,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
                 airQuality?.pm10Grade === '2' ? 'text-green-400' :
                 airQuality?.pm10Grade === '3' ? 'text-amber-400' :
                 airQuality?.pm10Grade === '4' ? 'text-red-400' : 'text-on-surface-variant'
-              }`}>{airQuality ? airQuality.pm10Value : '로딩중'}{airQuality?.pm10Value !== '-' ? '㎍/㎥' : ''}</span>
+              }`}>{airQuality ? airQuality.pm10Value : '조회 중'}{airQuality?.pm10Value !== '-' ? '㎍/㎥' : ''}</span>
             </div>
             <div className="flex items-center gap-2 bg-surface-container/40 rounded-lg px-3 py-2">
               <span className="text-xs text-on-surface-variant">초미세먼지</span>
@@ -103,11 +127,11 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
                 airQuality?.pm25Grade === '2' ? 'text-green-400' :
                 airQuality?.pm25Grade === '3' ? 'text-amber-400' :
                 airQuality?.pm25Grade === '4' ? 'text-red-400' : 'text-on-surface-variant'
-              }`}>{airQuality ? airQuality.pm25Value : '로딩중'}{airQuality?.pm25Value !== '-' ? '㎍/㎥' : ''}</span>
+              }`}>{airQuality ? airQuality.pm25Value : '조회 중'}{airQuality?.pm25Value !== '-' ? '㎍/㎥' : ''}</span>
             </div>
             <div className="flex items-center gap-2 bg-surface-container/40 rounded-lg px-3 py-2">
-              <span className="text-xs text-on-surface-variant">강수량</span>
-              <span className="text-xs font-bold text-on-surface">{w.precipitation}mm</span>
+              <span className="text-xs text-on-surface-variant">강수</span>
+              <span className="text-xs font-bold text-on-surface">{weather?.precipitation ?? '--'}mm</span>
             </div>
           </div>
         </div>

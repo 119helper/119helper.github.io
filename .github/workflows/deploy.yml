@@ -33,6 +33,10 @@ jobs:
           VITE_KMA_API_KEY: ${{ secrets.VITE_KMA_API_KEY }}
           VITE_ER_API_KEY: ${{ secrets.VITE_ER_API_KEY }}
           VITE_HOLIDAY_API_KEY: ${{ secrets.VITE_HOLIDAY_API_KEY }}
+          VITE_KAKAO_MAP_KEY: ${{ secrets.VITE_KAKAO_MAP_KEY }}
+          VITE_BUILDING_API_KEY: ${{ secrets.VITE_BUILDING_API_KEY }}
+          VITE_FIRE_WATER_API_KEY: ${{ secrets.VITE_FIRE_WATER_API_KEY }}
+          VITE_AIR_API_KEY: ${{ secrets.VITE_AIR_API_KEY }}
 
   deploy:
     name: 🚀 Deploy to GitHub Pages
@@ -67,6 +71,10 @@ jobs:
           VITE_KMA_API_KEY: ${{ secrets.VITE_KMA_API_KEY }}
           VITE_ER_API_KEY: ${{ secrets.VITE_ER_API_KEY }}
           VITE_HOLIDAY_API_KEY: ${{ secrets.VITE_HOLIDAY_API_KEY }}
+          VITE_KAKAO_MAP_KEY: ${{ secrets.VITE_KAKAO_MAP_KEY }}
+          VITE_BUILDING_API_KEY: ${{ secrets.VITE_BUILDING_API_KEY }}
+          VITE_FIRE_WATER_API_KEY: ${{ secrets.VITE_FIRE_WATER_API_KEY }}
+          VITE_AIR_API_KEY: ${{ secrets.VITE_AIR_API_KEY }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

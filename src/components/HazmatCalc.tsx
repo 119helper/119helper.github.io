@@ -29,6 +29,12 @@ export default function HazmatCalc() {
   
   const [originPoint, setOriginPoint] = useState<{lat: number, lng: number} | null>({ lat: 37.5665, lng: 126.9780 }); // Default Seoul City Hall
   const [isSelectingOrigin, setIsSelectingOrigin] = useState(false);
+  const isSelectingRef = useRef(isSelectingOrigin);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    isSelectingRef.current = isSelectingOrigin;
+  }, [isSelectingOrigin]);
 
   // Map overlays refs
   const overlaysRef = useRef<{marker: any, circle: any, polygon: any}>({ marker: null, circle: null, polygon: null });
@@ -45,9 +51,9 @@ export default function HazmatCalc() {
       const initialMap = new window.kakao.maps.Map(mapRef.current, options);
       setMap(initialMap);
 
-      // Map click event for origin selection
+      // Map click event — uses ref to always get latest isSelectingOrigin
       window.kakao.maps.event.addListener(initialMap, 'click', (mouseEvent: any) => {
-        if (!isSelectingOrigin) return;
+        if (!isSelectingRef.current) return;
         const latlng = mouseEvent.latLng;
         setOriginPoint({ lat: latlng.getLat(), lng: latlng.getLng() });
         setIsSelectingOrigin(false);
