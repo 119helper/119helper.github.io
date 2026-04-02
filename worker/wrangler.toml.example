@@ -1,0 +1,20 @@
+# 119 Helper Worker 셀프 배포 가이드
+# 이 파일을 wrangler.toml로 복사하고 수정하세요.
+
+name = "119-helper-api"
+main = "src/index.ts"
+compatibility_date = "2025-03-01"
+
+# account_id = "YOUR_CF_ACCOUNT_ID"  # ← 본인 CF 계정 ID
+
+[vars]
+ENVIRONMENT = "production"
+
+# API 키는 시크릿으로 등록:
+# wrangler secret put KMA_API_KEY
+# wrangler secret put ER_API_KEY
+# wrangler secret put AIR_API_KEY
+# wrangler secret put BUILDING_API_KEY
+# wrangler secret put FIRE_WATER_API_KEY
+# wrangler secret put HOLIDAY_API_KEY
+# wrangler secret put KAKAO_MAP_KEY

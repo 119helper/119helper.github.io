@@ -25,3 +25,9 @@ dist-ssr
 
 # API Keys
 .env
+
+# Worker
+worker/node_modules
+worker/.wrangler
+worker/dist
+worker/wrangler.toml
