@@ -10,13 +10,14 @@ import DashboardView from './components/DashboardView';
 import BuildingView from './components/BuildingView';
 import ShelterView from './components/ShelterView';
 import EmergencyAnalysis from './components/EmergencyAnalysis';
+import FireAnalysis from './components/FireAnalysis';
 import GlobalSearch from './components/GlobalSearch';
 import SettingsModal from './components/SettingsModal';
 import { fetchFireWaterFacilities } from './services/fireWaterApi';
 import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS } from './services/weatherApi';
 import { getRealtimeAirQuality } from './services/airQualityApi';
 import type { FireFacility } from './data/mockData';
-type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency';
+type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis';
 
 // 알림 시스템 타입
 interface Notification {
@@ -45,6 +46,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'building', icon: 'apartment', label: '건축물대장' },
   { id: 'shelter', icon: 'emergency', label: '대피소' },
   { id: 'emergency', icon: 'ambulance', label: '구급 분석' },
+  { id: 'fire-analysis', icon: 'local_fire_department', label: '화재 분석' },
   { id: 'calculator', icon: 'calculate', label: '계산기' },
   { id: 'calendar', icon: 'calendar_month', label: '달력/일정' },
   { id: 'memo', icon: 'sticky_note_2', label: '메모장' },
@@ -254,6 +256,7 @@ export default function App() {
       case 'building': return <BuildingView />;
       case 'shelter': return <ShelterView city={city} />;
       case 'emergency': return <EmergencyAnalysis />;
+      case 'fire-analysis': return <FireAnalysis />;
       case 'calculator': return <Calculators />;
       case 'calendar': return <Calendar />;
       case 'memo': return <StickyNotes />;

@@ -121,3 +121,9 @@ export async function fetchEmergencyStats(op: string, params?: Record<string, st
 export async function fetchEmergencyInfo(op: string, params?: Record<string, string>) {
   return apiFetch<{ items: any[]; totalCount: number }>(`/api/emergency/info/${op}`, params);
 }
+
+// ═══════ 화재정보 ═══════
+
+export async function fetchFireInfo(op: string, params?: Record<string, string>) {
+  return apiFetch<{ items: any[]; totalCount: number }>(`/api/fire/${op}`, params);
+}

@@ -16,6 +16,7 @@ import { handleMultiUse } from './routes/multiuse';
 import { handleShelter } from './routes/shelter';
 import { handleEmergencyStats } from './routes/emergencyStats';
 import { handleEmergencyInfo } from './routes/emergencyInfo';
+import { handleFireInfo } from './routes/fireInfo';
 
 export interface Env {
   KMA_API_KEY: string;
@@ -28,6 +29,7 @@ export interface Env {
   MULTI_USE_API_KEY: string;
   SHELTER_API_KEY: string;
   EMERGENCY_API_KEY: string;
+  FIRE_INFO_API_KEY: string;
   ENVIRONMENT: string;
 }
 
@@ -69,6 +71,7 @@ export default {
             kakaoMap: !!env.KAKAO_MAP_KEY,
             multiUse: !!env.MULTI_USE_API_KEY,
             emergency: !!env.EMERGENCY_API_KEY,
+            fireInfo: !!env.FIRE_INFO_API_KEY,
           }
         }, request);
       }
@@ -137,6 +140,12 @@ export default {
       // ═══════ 구급정보 ═══════
       if (path.startsWith('/api/emergency/info/')) {
         const result = await handleEmergencyInfo(path, url, env.EMERGENCY_API_KEY);
+        return jsonResponse(result.data, request, 200, result.cacheTtl);
+      }
+
+      // ═══════ 화재정보 ═══════
+      if (path.startsWith('/api/fire/')) {
+        const result = await handleFireInfo(path, url, env.FIRE_INFO_API_KEY);
         return jsonResponse(result.data, request, 200, result.cacheTtl);
       }
 
