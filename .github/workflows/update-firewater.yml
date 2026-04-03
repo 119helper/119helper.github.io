@@ -1,0 +1,43 @@
+name: 🔄 소방용수시설 데이터 업데이트
+
+# 분기별 자동 실행 (1,4,7,10월 1일) + 수동 실행
+on:
+  schedule:
+    - cron: '0 0 1 1,4,7,10 *'
+  workflow_dispatch:
+
+jobs:
+  update-firewater:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: CSV → JSON 변환
+        run: |
+          echo "📂 data/firewater-csv/ 에 있는 CSV 파일을 변환합니다"
+          for csv in data/firewater-csv/*.csv; do
+            if [ -f "$csv" ]; then
+              echo "🔄 변환 중: $csv"
+              node scripts/convert-firewater-csv.js "$csv"
+            fi
+          done
+
+      - name: 변경 사항 확인
+        id: check
+        run: |
+          git diff --name-only public/firewater/ | head -20
+          echo "changed=$(git diff --quiet public/firewater/ && echo 'false' || echo 'true')" >> $GITHUB_OUTPUT
+
+      - name: 커밋 & 푸시
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/firewater/
+          git commit -m "chore: 소방용수시설 데이터 업데이트 ($(date +%Y-%m-%d))"
+          git push
