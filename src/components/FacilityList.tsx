@@ -116,9 +116,11 @@ export default function FacilityList({
                 }`}
               >
                 {d}
-                <span className={`ml-1.5 text-[10px] ${selectedDistrict === d ? 'text-on-primary/70' : 'text-on-surface-variant/50'}`}>
-                  {selectedDistrict === d ? data.length.toLocaleString() : cityIndex.districts[d]?.toLocaleString()}
-                </span>
+                {selectedDistrict === d && (
+                  <span className="ml-1.5 text-[10px] text-on-primary/70">
+                    {data.length.toLocaleString()}
+                  </span>
+                )}
               </button>
             ))}
           </div>
