@@ -190,15 +190,13 @@ export default function ERDashboard({ city }: ERViewProps) {
                 <th className="px-5 py-3 text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">병원명</th>
                 <th className="px-3 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">응급 병상</th>
                 <th className="px-3 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">입원실</th>
-                <th className="px-3 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">수술실</th>
-                <th className="px-3 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">CT</th>
-                <th className="px-3 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">MRI</th>
-                <th className="px-3 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">외상</th>
                 <th className="px-4 py-3 text-right text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">전화</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
-              {erData.map((er, i) => {
+              {[...erData]
+                .sort((a, b) => (parseInt(b.hvec) || 0) - (parseInt(a.hvec) || 0))
+                .map((er, i) => {
                 const avail = parseInt(er.hvec) || 0;
                 const isExpanded = expandedRow === er.phpid;
                 const severe = severeData[er.phpid];
@@ -221,31 +219,34 @@ export default function ERDashboard({ city }: ERViewProps) {
                         {avail < 0 ? (
                           <span 
                             title="현재 대기 중인 환자 수입니다."
-                            className="text-lg font-extrabold text-error cursor-help border-b border-dashed border-error pb-0.5"
+                            className="text-lg font-extrabold text-error bg-error/10 px-3 py-0.5 rounded-full cursor-help"
                           >
                             대기 {Math.abs(avail)}석
+                          </span>
+                        ) : avail === 0 ? (
+                          <span 
+                            title="잔여 병상이 없습니다."
+                            className="text-lg font-extrabold text-on-surface-variant/50 cursor-help"
+                          >
+                            잔여 0석
                           </span>
                         ) : (
                           <span 
                             title="현재 사용 가능한 잔여 병상 수입니다."
-                            className={`text-lg font-extrabold cursor-help border-b border-dashed pb-0.5 ${avail > 3 ? 'text-secondary border-secondary' : avail > 0 ? 'text-amber-400 border-amber-400' : 'text-error border-error'}`}
+                            className={`text-lg font-extrabold cursor-help border-b border-dashed pb-0.5 ${avail > 3 ? 'text-secondary border-secondary' : 'text-amber-400 border-amber-400'}`}
                           >
                             잔여 {avail}석
                           </span>
                         )}
                       </td>
                       <td className="px-3 py-3 text-center text-sm text-on-surface-variant font-mono">{parseInt(er.hvgc) || 0}</td>
-                      <td className="px-3 py-3 text-center">{er.hvoc === 'Y' ? <span className="text-green-400 font-bold">●</span> : <span className="text-outline">—</span>}</td>
-                      <td className="px-3 py-3 text-center">{er.hvs01 === 'Y' ? <span className="text-green-400 font-bold">●</span> : <span className="text-outline">—</span>}</td>
-                      <td className="px-3 py-3 text-center">{er.hvs02 === 'Y' ? <span className="text-green-400 font-bold">●</span> : <span className="text-outline">—</span>}</td>
-                      <td className="px-3 py-3 text-center">{er.hvs37 === 'Y' || er.hvs38 === 'Y' ? <span className="text-green-400 font-bold">●</span> : <span className="text-outline">—</span>}</td>
                       <td className="px-4 py-3 text-right">
                         <a href={`tel:${er.dutyTel3}`} onClick={(e) => e.stopPropagation()} className="text-sm text-primary font-mono hover:underline">{er.dutyTel3}</a>
                       </td>
                     </tr>
                     {isExpanded && (
                       <tr className="bg-surface-container/20">
-                        <td colSpan={8} className="px-5 py-4 border-t border-outline-variant/10">
+                        <td colSpan={4} className="px-5 py-4 border-t border-outline-variant/10">
                           <div className="flex flex-col gap-3">
                             <div className="flex items-center gap-2">
                               <span className="material-symbols-outlined text-primary text-sm">local_hospital</span>

@@ -3,6 +3,7 @@ import { getRealtimeAirQuality, type AirQualityData } from '../services/airQuali
 import { getERRealTimeBeds, CITY_TO_SIDO, type ERRealTimeData } from '../services/erApi';
 import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS, type CurrentWeather } from '../services/weatherApi';
 import type { FireFacility } from '../data/mockData';
+import type { CityIndex } from '../services/fireWaterApi';
 
 type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'emergency' | 'fire-analysis' | 'annual-fire' | 'statistics';
 
@@ -16,9 +17,10 @@ interface DashboardProps {
   city: string;
   fireFacilities: FireFacility[];
   isLoadingFacilities: boolean;
+  cityIndex?: CityIndex | null;
 }
 
-export default function DashboardView({ onNavigate, city, fireFacilities, isLoadingFacilities }: DashboardProps) {
+export default function DashboardView({ onNavigate, city, fireFacilities, isLoadingFacilities, cityIndex }: DashboardProps) {
   const cityLabel = cityNames[city] || '서울';
   
   const [airQuality, setAirQuality] = useState<AirQualityData | null>(null);
@@ -52,8 +54,10 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
     return () => { isMounted = false; };
   }, [city]);
 
-  const hydrantsCount = fireFacilities.filter(f => f.type === '소화전').length;
-  const towersCount = fireFacilities.filter(f => f.type !== '소화전').length;
+  // 분할 도시: index 메타에서 총 건수 사용 (데이터 로드 없이 즉시 표시)
+  // 비분할 도시: 로드된 데이터에서 카운트
+  const hydrantsCount = cityIndex ? cityIndex.total : fireFacilities.filter(f => f.type === '소화전').length;
+  const towersCount = cityIndex ? 0 : fireFacilities.filter(f => f.type !== '소화전').length;
 
   const regionImageUrl = `/images/regions/${city}.png`;
 
@@ -206,7 +210,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
             <button onClick={() => onNavigate('hydrants')} className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-4 text-left hover:border-primary/30 transition-colors group relative overflow-hidden">
               <span className="material-symbols-outlined text-primary text-xl group-hover:scale-110 transition-transform">fire_hydrant</span>
               <p className="text-2xl font-extrabold text-on-surface mt-1 font-headline">
-                {isLoadingFacilities ? <span className="text-sm font-medium animate-pulse text-on-surface-variant">불러오는 중...</span> : hydrantsCount}
+                {isLoadingFacilities ? <span className="text-sm font-medium animate-pulse text-on-surface-variant">불러오는 중...</span> : hydrantsCount.toLocaleString()}
               </p>
               <p className="text-[10px] text-on-surface-variant uppercase tracking-wider">소화전</p>
             </button>

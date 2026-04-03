@@ -1,5 +1,33 @@
 import { useState } from 'react';
 import { fetchBuildingRegister, type BuildingRegisterInfo } from '../services/buildingApi';
+import { fetchFireObjectAccom, fetchFireObjectFireSys } from '../services/apiClient';
+
+interface FireObjectAccom {
+  bldNm?: string;
+  ctprvn?: string;
+  signgu?: string;
+  bjdong?: string;
+  rdnmadr?: string;
+  lnmadr?: string;
+  flrCo?: string;
+  useAprDe?: string;
+  spclObjNm?: string;
+  rn?: string;
+  [key: string]: any;
+}
+
+interface FireObjectFireSys {
+  bldNm?: string;
+  ctprvn?: string;
+  signgu?: string;
+  rdnmadr?: string;
+  sprinklerInstlYn?: string;
+  outdoorHydrantInstlYn?: string;
+  indoorHydrantInstlYn?: string;
+  autoFirAlrmInstlYn?: string;
+  flrCo?: string;
+  [key: string]: any;
+}
 
 export default function BuildingView() {
   const [address, setAddress] = useState('');
@@ -8,12 +36,21 @@ export default function BuildingView() {
   const [bldgInfo, setBldgInfo] = useState<(BuildingRegisterInfo & { searchedAddress?: string }) | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
 
+  // 소방시설 정보
+  const [fireAccom, setFireAccom] = useState<FireObjectAccom[]>([]);
+  const [fireSys, setFireSys] = useState<FireObjectFireSys[]>([]);
+  const [fireLoading, setFireLoading] = useState(false);
+  const [fireError, setFireError] = useState('');
+
   const handleSearch = () => {
     if (!address.trim()) return;
     setIsLoading(true);
     setErrorMsg('');
     setBldgInfo(null);
     setHasSearched(true);
+    setFireAccom([]);
+    setFireSys([]);
+    setFireError('');
 
     if (!window.kakao?.maps?.services) {
       setErrorMsg('카카오 주소검색(Geocoder) 서비스 로드 실패. [새로고침] 해주세요.');
@@ -25,7 +62,6 @@ export default function BuildingView() {
     geocoder.addressSearch(address, async (result: any, status: any) => {
       if (status === window.kakao.maps.services.Status.OK && result[0]) {
         const item = result[0];
-        // 지번 주소 객체가 우선(대장 조회용), 없으면 도로명 주소
         const addrObj = item.address;
 
         if (!addrObj || !addrObj.b_code) {
@@ -43,7 +79,6 @@ export default function BuildingView() {
         
         const sigunguCd = bCode.substring(0, 5);
         const bjdongCd = bCode.substring(5, 10);
-        // 산(임야) 여부, V2 API는 mountain_yn을 내려줌.
         const platGbCd = (addrObj.mountain_yn === 'Y' || addrObj.san_yn === 'Y') ? '1' : '0';
         const bun = addrObj.main_address_no || '';
         const ji = addrObj.sub_address_no || '0';
@@ -65,6 +100,23 @@ export default function BuildingView() {
           setErrorMsg('정부 건축물대장 API 허브 연동 중 오류 발생');
         }
         setIsLoading(false);
+
+        // 소방시설 정보 조회 (지역명 추출)
+        const sido = addrObj.region_1depth_name || '';
+        if (sido) {
+          setFireLoading(true);
+          try {
+            const [accomRes, sysRes] = await Promise.allSettled([
+              fetchFireObjectAccom(sido, '50'),
+              fetchFireObjectFireSys(sido, '50'),
+            ]);
+            if (accomRes.status === 'fulfilled') setFireAccom(accomRes.value.items || []);
+            if (sysRes.status === 'fulfilled') setFireSys(sysRes.value.items || []);
+          } catch {
+            setFireError('소방시설 정보 조회 실패 — API 승인 대기 중일 수 있습니다.');
+          }
+          setFireLoading(false);
+        }
       } else {
         setErrorMsg('입력하신 주소를 지도에서 찾을 수 없습니다.');
         setIsLoading(false);
@@ -74,6 +126,16 @@ export default function BuildingView() {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') handleSearch();
+  };
+
+  const YnBadge = ({ val, label }: { val?: string; label: string }) => {
+    const isY = val === 'Y' || val === '1';
+    return (
+      <div className={`px-3 py-2 rounded-lg border text-center ${isY ? 'bg-green-500/10 border-green-500/30' : 'bg-surface-container border-outline-variant/20'}`}>
+        <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">{label}</p>
+        <p className={`text-sm font-extrabold mt-0.5 ${isY ? 'text-green-400' : 'text-outline'}`}>{isY ? '설치' : '미설치'}</p>
+      </div>
+    );
   };
 
   return (
@@ -135,6 +197,85 @@ export default function BuildingView() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* 소방시설 정보 섹션 */}
+      {hasSearched && !isLoading && (fireSys.length > 0 || fireAccom.length > 0 || fireLoading || fireError) && (
+        <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-2xl p-6 md:p-8 space-y-5 max-w-4xl shadow-xl shadow-surface-container/10">
+          <div className="flex items-center gap-3 border-b border-outline-variant/10 pb-4">
+            <span className="material-symbols-outlined text-3xl text-orange-400">local_fire_department</span>
+            <div>
+              <h3 className="text-lg font-extrabold text-on-surface">숙박시설 소방시설 현황</h3>
+              <p className="text-xs text-on-surface-variant">해당 지역 특정소방대상물(숙박시설)의 스프링클러 등 소방시설 설치 현황</p>
+            </div>
+          </div>
+          
+          {fireLoading && (
+            <div className="flex items-center gap-3 py-8 justify-center">
+              <span className="material-symbols-outlined animate-spin text-primary">progress_activity</span>
+              <span className="text-on-surface-variant text-sm">소방시설 정보 조회 중...</span>
+            </div>
+          )}
+
+          {fireError && (
+            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-3">
+              <span className="material-symbols-outlined text-amber-400">info</span>
+              <p className="text-sm font-medium text-amber-300">{fireError}</p>
+            </div>
+          )}
+
+          {fireSys.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
+                조회 결과 · {fireSys.length}건
+              </p>
+              <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
+                {fireSys.slice(0, 20).map((sys, i) => (
+                  <div key={i} className="bg-surface-container rounded-xl p-4 border border-outline-variant/10">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="text-sm font-extrabold text-on-surface">{sys.bldNm || '이름 미등록'}</p>
+                        <p className="text-[11px] text-on-surface-variant mt-0.5">{sys.rdnmadr || sys.lnmadr || `${sys.ctprvn} ${sys.signgu}`}</p>
+                        {sys.flrCo && <p className="text-[11px] text-on-surface-variant">지상 {sys.flrCo}층</p>}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <YnBadge val={sys.sprinklerInstlYn} label="스프링클러" />
+                      <YnBadge val={sys.indoorHydrantInstlYn} label="옥내소화전" />
+                      <YnBadge val={sys.outdoorHydrantInstlYn} label="옥외소화전" />
+                      <YnBadge val={sys.autoFirAlrmInstlYn} label="자동화재탐지" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {fireAccom.length > 0 && fireSys.length === 0 && (
+            <div className="space-y-3">
+              <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
+                숙박시설 목록 · {fireAccom.length}건
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {fireAccom.slice(0, 10).map((acc, i) => (
+                  <div key={i} className="bg-surface-container rounded-lg p-3 border border-outline-variant/10">
+                    <p className="text-sm font-bold text-on-surface">{acc.bldNm || acc.spclObjNm || '이름 미등록'}</p>
+                    <p className="text-[11px] text-on-surface-variant">{acc.rdnmadr || acc.lnmadr || `${acc.ctprvn} ${acc.signgu}`}</p>
+                    {acc.flrCo && <p className="text-[10px] text-on-surface-variant/60">지상 {acc.flrCo}층</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!fireLoading && !fireError && fireSys.length === 0 && fireAccom.length === 0 && (
+            <div className="text-center py-6 text-on-surface-variant">
+              <span className="material-symbols-outlined text-3xl mb-2 block text-outline">pending</span>
+              <p className="text-sm">해당 지역 소방시설 데이터가 아직 제공되지 않습니다.</p>
+              <p className="text-xs text-on-surface-variant/60 mt-1">API 승인 직후에는 데이터 활성화에 시간이 소요될 수 있습니다.</p>
+            </div>
+          )}
         </div>
       )}
 

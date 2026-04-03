@@ -5,7 +5,7 @@
  * 프론트엔드(SPA)는 이 Worker의 /api/* 엔드포인트만 호출합니다.
  */
 
-import { handleOptions, jsonResponse, errorResponse, isOriginAllowed } from './middleware/cors';
+import { handleOptions, jsonResponse, errorResponse, isOriginAllowed, checkRateLimit, rateLimitResponse } from './middleware/cors';
 import { handleWeather } from './routes/weather';
 import { handleAir } from './routes/air';
 import { handleER } from './routes/er';
@@ -18,6 +18,8 @@ import { handleEmergencyStats } from './routes/emergencyStats';
 import { handleEmergencyInfo } from './routes/emergencyInfo';
 import { handleFireInfo } from './routes/fireInfo';
 import { handleAnnualFireStats } from './routes/annualFireStats';
+import { handleFireObject } from './routes/fireObject';
+import { handleFireDamage } from './routes/fireDamage';
 
 export interface Env {
   KMA_API_KEY: string;
@@ -32,6 +34,8 @@ export interface Env {
   EMERGENCY_API_KEY: string;
   FIRE_INFO_API_KEY: string;
   ANNUAL_FIRE_API_KEY: string;
+  FIRE_OBJECT_API_KEY: string;
+  FIRE_DAMAGE_API_KEY: string;
   ENVIRONMENT: string;
 }
 
@@ -47,6 +51,12 @@ export default {
       return new Response('Forbidden', { status: 403 });
     }
 
+    // 🛡️ Rate Limiting (분당 60회)
+    const rateCheck = checkRateLimit(request);
+    if (!rateCheck.allowed) {
+      return rateLimitResponse(request);
+    }
+
     // GET만 허용
     if (request.method !== 'GET') {
       return errorResponse('Method not allowed', request, 405);
@@ -56,26 +66,12 @@ export default {
     const path = url.pathname;
 
     try {
-      // ═══════ 헬스체크 ═══════
+      // ═══════ 헬스체크 (키 정보 노출 제거) ═══════
       if (path === '/api/health') {
         return jsonResponse({
           status: 'ok',
           version: '1.0.0',
           timestamp: new Date().toISOString(),
-          environment: env.ENVIRONMENT,
-          keys: {
-            kma: !!env.KMA_API_KEY,
-            er: !!env.ER_API_KEY,
-            air: !!env.AIR_API_KEY,
-            building: !!env.BUILDING_API_KEY,
-            fireWater: !!env.FIRE_WATER_API_KEY,
-            holiday: !!env.HOLIDAY_API_KEY,
-            kakaoMap: !!env.KAKAO_MAP_KEY,
-            multiUse: !!env.MULTI_USE_API_KEY,
-            emergency: !!env.EMERGENCY_API_KEY,
-            fireInfo: !!env.FIRE_INFO_API_KEY,
-            annualFire: !!env.ANNUAL_FIRE_API_KEY,
-          }
         }, request);
       }
 
@@ -107,6 +103,12 @@ export default {
       // ═══════ 건축물대장 ═══════
       if (path === '/api/building') {
         const result = await handleBuilding(url, env.BUILDING_API_KEY);
+        return jsonResponse(result.data, request, 200, result.cacheTtl);
+      }
+
+      // ═══════ 특정소방대상물 (숙박시설 + 소방시설) ═══════
+      if (path.startsWith('/api/fire-object/')) {
+        const result = await handleFireObject(path, url, env.FIRE_OBJECT_API_KEY);
         return jsonResponse(result.data, request, 200, result.cacheTtl);
       }
 
@@ -149,6 +151,12 @@ export default {
       // ═══════ 화재정보 ═══════
       if (path.startsWith('/api/fire/')) {
         const result = await handleFireInfo(path, url, env.FIRE_INFO_API_KEY);
+        return jsonResponse(result.data, request, 200, result.cacheTtl);
+      }
+
+      // ═══════ 지역별 화재피해 현황 ═══════
+      if (path === '/api/fire-damage') {
+        const result = await handleFireDamage(url, env.FIRE_DAMAGE_API_KEY);
         return jsonResponse(result.data, request, 200, result.cacheTtl);
       }
 

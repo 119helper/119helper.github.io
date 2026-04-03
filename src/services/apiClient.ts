@@ -159,6 +159,44 @@ export async function fetchFireInfo(op: string, params?: Record<string, string>)
   return apiFetch<{ items: any[]; totalCount: number }>(`/api/fire/${op}`, params);
 }
 
+// ═══════ 특정소방대상물 (숙박시설 + 소방시설) ═══════
+
+export async function fetchFireObjectAccom(ctpvNm: string, numOfRows = '100', pageNo = '1') {
+  return apiFetch<{ items: any[]; totalCount: number }>('/api/fire-object/accom', { ctpvNm, numOfRows, pageNo });
+}
+
+export async function fetchFireObjectFireSys(ctpvNm: string, numOfRows = '100', pageNo = '1') {
+  return apiFetch<{ items: any[]; totalCount: number }>('/api/fire-object/fire-sys', { ctpvNm, numOfRows, pageNo });
+}
+
+// ═══════ 지역별 화재피해 현황 ═══════
+
+export interface FireDamageItem {
+  ocrnYmdhh: string;       // 발생일자
+  gutFsttOgidNm: string;   // 출동소방서
+  deadPercnt: string;       // 사망자 인원수
+  injrdprPercnt: string;    // 부상자 인원수
+  prptDmgSbttAmt: string;  // 재산피해소계금액(천원)
+  lawAddrName: string;      // 법정동주소(읍면동)
+}
+
+export interface FireDamageResponse {
+  items: FireDamageItem[];
+  totalCount: number;
+  pageNo: number;
+  numOfRows: number;
+  error?: string;
+  errorCode?: string;
+}
+
+export async function fetchFireDamage(params?: {
+  pageNo?: string;
+  numOfRows?: string;
+  lawAddrName?: string;
+}): Promise<FireDamageResponse> {
+  return apiFetch<FireDamageResponse>('/api/fire-damage', params);
+}
+
 // ═══════ 연간화재통계 ═══════
 
 export interface AnnualFireStatsResponse {

@@ -3,12 +3,14 @@ import AnnualFireView from './AnnualFireView';
 import FireAnalysis from './FireAnalysis';
 import EmergencyAnalysis from './EmergencyAnalysis';
 import HazmatView from './HazmatView';
+import FireDamageView from './FireDamageView';
 
-type SubTab = 'annual' | 'fire' | 'emergency' | 'hazmat';
+type SubTab = 'annual' | 'fire' | 'fire-damage' | 'emergency' | 'hazmat';
 
 const SUB_TABS: { id: SubTab; label: string; icon: string }[] = [
   { id: 'annual', label: '연간 화재통계', icon: 'bar_chart' },
   { id: 'fire', label: '화재 분석', icon: 'local_fire_department' },
+  { id: 'fire-damage', label: '지역별 화재피해', icon: 'map' },
   { id: 'emergency', label: '구급 출동 분석', icon: 'ambulance' },
   { id: 'hazmat', label: '위험물시설', icon: 'warning' },
 ];
@@ -49,6 +51,7 @@ export default function StatisticsView() {
       {/* Tab Content */}
       {activeSubTab === 'annual' && <AnnualFireView />}
       {activeSubTab === 'fire' && <FireAnalysis />}
+      {activeSubTab === 'fire-damage' && <FireDamageView />}
       {activeSubTab === 'emergency' && <EmergencyAnalysis />}
       {activeSubTab === 'hazmat' && <HazmatView />}
     </div>

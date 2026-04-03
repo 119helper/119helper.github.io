@@ -17,7 +17,8 @@ import MultiUseView from './components/MultiUseView';
 import HazmatView from './components/HazmatView';
 import AnnualFireView from './components/AnnualFireView';
 import StatisticsView from './components/StatisticsView';
-import { fetchFireWaterFacilities } from './services/fireWaterApi';
+import { fetchFireWaterFacilities, fetchCityIndex, isSplitCity } from './services/fireWaterApi';
+import type { CityIndex } from './services/fireWaterApi';
 import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS } from './services/weatherApi';
 import { getRealtimeAirQuality } from './services/airQualityApi';
 import type { FireFacility } from './data/mockData';
@@ -84,6 +85,8 @@ export default function App() {
   const [city, setCity] = useState<string>(() => localStorage.getItem('119helper-city') || 'seoul');
   const [fireFacilities, setFireFacilities] = useState<FireFacility[]>([]);
   const [isLoadingFacilities, setIsLoadingFacilities] = useState(false);
+  const [cityIndex, setCityIndex] = useState<CityIndex | null>(null);
+  const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
   const [gpsStatus, setGpsStatus] = useState<'loading' | 'granted' | 'denied' | 'idle'>('idle');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -179,34 +182,59 @@ export default function App() {
     });
   }, []);
 
-  // 데이터 갱신 함수
-  const refreshData = useCallback(async () => {
-    // 소방용수
+  // 소방용수 원시 데이터 → FireFacility 파싱 헬퍼
+  const parseItems = useCallback((items: Awaited<ReturnType<typeof fetchFireWaterFacilities>>) => {
+    return items.map((item, idx) => {
+      let status: '정상' | '점검필요' | '고장' = '정상';
+      if (item.insptnSttusNm?.includes('고장')) status = '고장';
+      else if (item.insptnSttusNm?.includes('점검')) status = '점검필요';
+
+      const kindRaw = item.fcltyKndNm || item.fcltySeNm || item.fcltyTyNm || '';
+      let type: '소화전' | '급수탑' | '저수조' | '비상소화장치' = '소화전';
+      if (kindRaw.includes('급수탑')) type = '급수탑';
+      else if (kindRaw.includes('저수조')) type = '저수조';
+      else if (kindRaw.includes('비상소화장치')) type = '비상소화장치';
+
+      return {
+        id: item.fcltyNo || item.fcltyNm || `FW-${idx}`,
+        type,
+        address: item.rdnmadr || item.lnmadr || '주소 미상',
+        lat: parseFloat(item.latitude || '0'),
+        lng: parseFloat(item.longitude || '0'),
+        district: item.signguNm || '알수없음',
+        status
+      } as FireFacility;
+    }).filter(i => i.lat > 0 && i.lng > 0);
+  }, []);
+
+  // 구별 데이터 로드 (분할 도시 전용)
+  const loadDistrict = useCallback(async (district: string) => {
+    setSelectedDistrict(district);
     setIsLoadingFacilities(true);
     try {
-      const items = await fetchFireWaterFacilities(city);
-      const parsed: FireFacility[] = items.map((item, idx) => {
-        let status: '정상' | '점검필요' | '고장' = '정상';
-        if (item.insptnSttusNm?.includes('고장')) status = '고장';
-        else if (item.insptnSttusNm?.includes('점검')) status = '점검필요';
-        
-        const kindRaw = item.fcltyKndNm || item.fcltySeNm || item.fcltyTyNm || '';
-        let type: '소화전' | '급수탑' | '저수조' | '비상소화장치' = '소화전';
-        if (kindRaw.includes('급수탑')) type = '급수탑';
-        else if (kindRaw.includes('저수조')) type = '저수조';
-        else if (kindRaw.includes('비상소화장치')) type = '비상소화장치';
-        
-        return {
-          id: item.fcltyNo || item.fcltyNm || `FW-${idx}`,
-          type,
-          address: item.rdnmadr || item.lnmadr || '주소 미상',
-          lat: parseFloat(item.latitude || '0'),
-          lng: parseFloat(item.longitude || '0'),
-          district: item.signguNm || '알수없음',
-          status
-        };
-      }).filter(i => i.lat > 0 && i.lng > 0);
-      setFireFacilities(parsed);
+      const items = await fetchFireWaterFacilities(city, district);
+      setFireFacilities(parseItems(items));
+    } catch { /* silently fail */ }
+    setIsLoadingFacilities(false);
+  }, [city, parseItems]);
+
+  // 데이터 갱신 함수
+  const refreshData = useCallback(async () => {
+    // 소방용수 — 분할 도시는 메타(index)만, 비분할 도시는 전체 로드
+    setIsLoadingFacilities(true);
+    setSelectedDistrict(null);
+    try {
+      if (isSplitCity(city)) {
+        // 분할 도시: index.json만 로드 (1KB) → 건수만 표시
+        const idx = await fetchCityIndex(city);
+        setCityIndex(idx);
+        setFireFacilities([]); // 구 선택 전까지 빈 배열
+      } else {
+        // 비분할 도시: 전체 로드 (기존 방식)
+        setCityIndex(null);
+        const items = await fetchFireWaterFacilities(city);
+        setFireFacilities(parseItems(items));
+      }
     } catch { /* silently fail */ }
     setIsLoadingFacilities(false);
 
@@ -278,33 +306,10 @@ export default function App() {
     const waterTowers = fireFacilities.filter(f => f.type !== '소화전');
 
     switch (activeTab) {
-      case 'dashboard': return <DashboardView onNavigate={handleNavigate} city={city} fireFacilities={fireFacilities} isLoadingFacilities={isLoadingFacilities} />;
+      case 'dashboard': return <DashboardView onNavigate={handleNavigate} city={city} fireFacilities={fireFacilities} isLoadingFacilities={isLoadingFacilities} cityIndex={cityIndex} />;
       case 'weather': return <WeatherDashboard city={city} />;
-      case 'hydrants': return <FacilityList data={hydrants} title="소화전 위치" icon="🚒" typeLabel="소화전" city={city} isLoading={isLoadingFacilities} />;
-      case 'waterTowers': return waterTowers.length > 0
-        ? <FacilityList data={waterTowers} title="급수탑 · 저수조 위치" icon="💧" typeLabel="급수탑/저수조/비상소화장치" city={city} isLoading={isLoadingFacilities} />
-        : (
-          <div className="space-y-6">
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-extrabold text-on-surface font-headline">💧 급수탑 · 저수조</h2>
-            </div>
-            <div className="bg-tertiary-container/20 border border-tertiary/20 rounded-xl p-8 text-center">
-              <span className="material-symbols-outlined text-5xl text-tertiary/50 mb-3 block">construction</span>
-              <h3 className="text-lg font-bold text-on-surface mb-2">데이터 준비 중</h3>
-              <p className="text-sm text-on-surface-variant max-w-lg mx-auto">
-                현재 소방용수시설 데이터에 급수탑·저수조 정보가 포함되어 있지 않습니다.<br />
-                공공데이터포털에서 별도 데이터셋 확보 후 제공 예정입니다.
-              </p>
-              <div className="mt-4 flex justify-center gap-3">
-                <button onClick={() => handleNavigate('hydrants')}
-                  className="bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/20 transition-colors inline-flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-lg">fire_hydrant</span>
-                  소화전 보기
-                </button>
-              </div>
-            </div>
-          </div>
-        );
+      case 'hydrants': return <FacilityList data={hydrants} title="소화전 위치" icon="🚒" typeLabel="소화전" city={city} isLoading={isLoadingFacilities} cityIndex={cityIndex} selectedDistrict={selectedDistrict} onDistrictChange={loadDistrict} />;
+      case 'waterTowers': return <FacilityList data={waterTowers} title="급수탑 · 저수조 위치" icon="💧" typeLabel="급수탑/저수조/비상소화장치" city={city} isLoading={isLoadingFacilities} cityIndex={cityIndex} selectedDistrict={selectedDistrict} onDistrictChange={loadDistrict} />;
       case 'er': return <ERDashboard city={city} />;
       case 'building': return <BuildingView />;
       case 'shelter': return <ShelterView city={city} />;
@@ -317,7 +322,7 @@ export default function App() {
       case 'calculator': return <Calculators />;
       case 'calendar': return <Calendar />;
       case 'memo': return <StickyNotes />;
-      default: return <DashboardView onNavigate={handleNavigate} city={city} fireFacilities={fireFacilities} isLoadingFacilities={isLoadingFacilities} />;
+      default: return <DashboardView onNavigate={handleNavigate} city={city} fireFacilities={fireFacilities} isLoadingFacilities={isLoadingFacilities} cityIndex={cityIndex} />;
     }
   };
 
