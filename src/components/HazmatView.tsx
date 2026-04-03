@@ -11,13 +11,12 @@ const PALETTE = [
 function DonutChart({ slices, total }: { slices: { label: string; value: number; color: string }[]; total: number }) {
   if (total === 0) return <p className="text-xs text-on-surface-variant text-center py-8">데이터 없음</p>;
 
-  let cum = 0;
-  const segments = slices.filter(s => s.value > 0).map((s, i) => {
+  const segments = slices.filter(s => s.value > 0).reduce((acc: any[], s, i) => {
     const pct = (s.value / total) * 100;
-    const start = cum;
-    cum += pct;
-    return { ...s, pct, start, color: s.color || PALETTE[i % PALETTE.length] };
-  });
+    const start = acc.length > 0 ? acc[acc.length - 1].start + acc[acc.length - 1].pct : 0;
+    acc.push({ ...s, pct, start, color: s.color || PALETTE[i % PALETTE.length] });
+    return acc;
+  }, []);
 
   const gradient = segments.map(s => `${s.color} ${s.start}% ${s.start + s.pct}%`).join(', ');
 

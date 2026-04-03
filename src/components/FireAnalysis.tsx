@@ -30,14 +30,13 @@ function DonutChart({ data, labelKey, valueKey, title }: { data: any[]; labelKey
   const total = data.reduce((s, d) => s + (Number(d[valueKey]) || 0), 0);
   if (total === 0) return <EmptyState icon="donut_large" text={`${title} 데이터 없음`} />;
 
-  let cum = 0;
-  const slices = data.filter(d => Number(d[valueKey]) > 0).map((d, i) => {
+  const slices = data.filter(d => Number(d[valueKey]) > 0).reduce((acc: any[], d, i) => {
     const val = Number(d[valueKey]) || 0;
     const pct = (val / total) * 100;
-    const start = cum;
-    cum += pct;
-    return { label: d[labelKey], value: val, pct, start, color: PALETTE[i % PALETTE.length] };
-  });
+    const start = acc.length > 0 ? acc[acc.length - 1].start + acc[acc.length - 1].pct : 0;
+    acc.push({ label: d[labelKey], value: val, pct, start, color: PALETTE[i % PALETTE.length] });
+    return acc;
+  }, []);
 
   const gradient = slices.map(s => `${s.color} ${s.start}% ${s.start + s.pct}%`).join(', ');
 

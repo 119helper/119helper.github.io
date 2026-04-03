@@ -2,13 +2,15 @@ import { useState } from 'react';
 import AnnualFireView from './AnnualFireView';
 import FireAnalysis from './FireAnalysis';
 import EmergencyAnalysis from './EmergencyAnalysis';
+import HazmatView from './HazmatView';
 
-type SubTab = 'annual' | 'fire' | 'emergency';
+type SubTab = 'annual' | 'fire' | 'emergency' | 'hazmat';
 
 const SUB_TABS: { id: SubTab; label: string; icon: string }[] = [
   { id: 'annual', label: '연간 화재통계', icon: 'bar_chart' },
   { id: 'fire', label: '화재 분석', icon: 'local_fire_department' },
   { id: 'emergency', label: '구급 출동 분석', icon: 'ambulance' },
+  { id: 'hazmat', label: '위험물시설', icon: 'warning' },
 ];
 
 export default function StatisticsView() {
@@ -48,6 +50,7 @@ export default function StatisticsView() {
       {activeSubTab === 'annual' && <AnnualFireView />}
       {activeSubTab === 'fire' && <FireAnalysis />}
       {activeSubTab === 'emergency' && <EmergencyAnalysis />}
+      {activeSubTab === 'hazmat' && <HazmatView />}
     </div>
   );
 }

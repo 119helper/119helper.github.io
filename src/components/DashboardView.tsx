@@ -57,6 +57,23 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
 
   const regionImageUrl = `/images/regions/${city}.png`;
 
+  const getBgOverlay = () => {
+    if (!weather) return 'from-black/80 via-black/50 to-black/30';
+    if (weather.precipType.includes('비') || weather.precipType.includes('소나기') || weather.precipType === '빗방울') {
+      return 'from-slate-900/90 via-blue-900/60 to-sky-900/40';
+    }
+    if (weather.precipType.includes('눈')) {
+      return 'from-slate-900/80 via-indigo-900/50 to-gray-500/40';
+    }
+    if (weather.sky === '맑음') {
+      return 'from-black/80 via-amber-900/40 to-yellow-900/20';
+    }
+    if (weather.sky.includes('흐림') || weather.sky.includes('구름')) {
+      return 'from-gray-900/90 via-gray-800/60 to-slate-700/50';
+    }
+    return 'from-black/80 via-black/50 to-black/30';
+  };
+
   return (
     <div className="space-y-6">
       {/* Weather Alert Banner — 습도 30% 이하 or 풍속 10m/s 이상 시 자동 경고 */}
@@ -90,8 +107,8 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
             className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
             style={{ backgroundImage: `url(${regionImageUrl})` }}
           />
-          {/* Dark overlay for text readability */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
+          {/* Dark/Colored overlay for text readability & weather mood */}
+          <div className={`absolute inset-0 bg-gradient-to-t transition-colors duration-1000 ${getBgOverlay()}`} />
           
           <div className="flex items-start justify-between relative z-10">
             <div>
@@ -160,7 +177,6 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
                 </div>
                 <h4 className="text-4xl font-extrabold mt-1 font-headline">
                   <span className="text-secondary">{erList.length > 0 ? erList.reduce((s, e) => s + (parseInt(e.hvec) || 0), 0) : '...'}</span>
-                  <span className="text-lg text-on-surface-variant ml-1">병상</span>
                 </h4>
               </div>
               <div className="p-2 bg-secondary/10 rounded-lg">

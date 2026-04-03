@@ -61,7 +61,7 @@ export default function BuildingView() {
           } else {
             setErrorMsg('해당 주소에 등록된 건축물대장 표제건물 정보를 찾을 수 없습니다.');
           }
-        } catch (e) {
+        } catch {
           setErrorMsg('정부 건축물대장 API 허브 연동 중 오류 발생');
         }
         setIsLoading(false);

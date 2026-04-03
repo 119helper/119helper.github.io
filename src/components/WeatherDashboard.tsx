@@ -59,7 +59,7 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
       if (aqRes.status === 'fulfilled') setAirQuality(aqRes.value);
 
       setLastRefresh(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }));
-    } catch (e) {
+    } catch {
       setError('API 호출 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
@@ -75,6 +75,30 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
 
   const formatTime = (t: string) => `${t.slice(0, 2)}시`;
   const formatDate = (d: string) => `${d.slice(4, 6)}/${d.slice(6, 8)}`;
+
+  const getBgGradient = () => {
+    if (current.precipType.includes('비') || current.precipType.includes('소나기') || current.precipType === '빗방울') {
+      return 'from-slate-900 via-blue-900/40 to-sky-900/20 border-blue-500/30 shadow-[inset_0_0_80px_rgba(30,58,138,0.2)]';
+    }
+    if (current.precipType.includes('눈')) {
+      return 'from-slate-800 via-indigo-900/30 to-gray-800/20 border-indigo-400/30 shadow-[inset_0_0_80px_rgba(79,70,229,0.15)]';
+    }
+    if (current.sky === '맑음') {
+      return 'from-amber-900/40 via-orange-900/20 to-yellow-900/10 border-amber-500/30 shadow-[inset_0_0_80px_rgba(217,119,6,0.15)]';
+    }
+    if (current.sky.includes('흐림') || current.sky.includes('구름')) {
+      return 'from-slate-800 via-gray-800/50 to-slate-700/30 border-gray-500/30 shadow-[inset_0_0_80px_rgba(100,116,139,0.1)]';
+    }
+    return 'from-blue-900/30 via-indigo-900/20 to-cyan-900/10 border-blue-500/10';
+  };
+
+  const getAccentColor = () => {
+    if (current.precipType.includes('비') || current.precipType.includes('소나기') || current.precipType === '빗방울') return 'text-blue-300/80';
+    if (current.precipType.includes('눈')) return 'text-indigo-300/80';
+    if (current.sky === '맑음') return 'text-amber-400/80';
+    if (current.sky.includes('흐림') || current.sky.includes('구름')) return 'text-slate-400';
+    return 'text-blue-300/60';
+  };
 
   return (
     <div className="space-y-6">
@@ -103,12 +127,12 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
       {/* Main Weather + Details */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Big Current Weather */}
-        <div className="lg:col-span-8 bg-gradient-to-br from-blue-900/30 via-indigo-900/20 to-cyan-900/10 border border-blue-500/10 rounded-xl p-6 lg:p-10 relative overflow-hidden">
-          <div className="absolute -right-16 -top-16 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl"></div>
+        <div className={`lg:col-span-8 bg-gradient-to-br ${getBgGradient()} border rounded-xl p-6 lg:p-10 relative overflow-hidden transition-all duration-1000`}>
+          <div className="absolute -right-16 -top-16 w-64 h-64 bg-white/5 rounded-full blur-3xl transition-opacity duration-1000"></div>
           <div className="flex items-start justify-between relative z-10">
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-sm text-blue-300/60 font-bold uppercase tracking-widest">현재 날씨</p>
+                <p className={`text-sm font-bold uppercase tracking-widest transition-colors duration-1000 ${getAccentColor()}`}>현재 날씨</p>
                 <span className="text-xs bg-surface-container/50 px-2 py-0.5 rounded text-on-surface-variant">{grid.name}</span>
               </div>
               <div className="flex items-end gap-4 mt-4">
@@ -225,13 +249,13 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
             <h3 className="text-lg font-bold text-on-surface font-headline">⏰ 시간별 예보 (단기예보)</h3>
             <span className="text-xs text-on-surface-variant">{hourly.length}시간</span>
           </div>
-          <div className="overflow-x-auto custom-scrollbar">
+          <div className="overflow-x-auto hidden-scrollbar">
             <div className="flex min-w-max">
               {hourly.slice(0, 24).map((h, i) => (
-                <div key={i} className={`flex flex-col items-center px-4 py-4 min-w-[72px] border-r border-outline-variant/5 relative ${
+                <div key={i} className={`flex flex-col items-center px-4 pt-6 pb-4 min-w-[72px] border-r border-outline-variant/5 relative ${
                   h.time === '0000' ? 'bg-surface-container/30 border-l-2 border-l-primary/30' : ''
                 }`}>
-                  {h.time === '0000' && <span className="absolute -top-0.5 left-1/2 -translate-x-1/2 text-[9px] text-primary font-bold bg-primary/10 px-1.5 py-0.5 rounded-b">{formatDate(h.date)}</span>}
+                  {h.time === '0000' && <span className="absolute top-0 left-1/2 -translate-x-1/2 text-[9px] text-primary font-bold bg-primary/10 px-2 py-1 rounded-b-md">{formatDate(h.date)}</span>}
                   <span className="text-xs text-on-surface-variant">{formatTime(h.time)}</span>
                   <span className="text-2xl my-2">{h.precipIcon || h.skyIcon}</span>
                   <span className="text-lg font-bold text-on-surface">{h.temp}°</span>

@@ -49,7 +49,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'er', icon: 'local_hospital', label: '응급실 현황' },
   { id: 'building', icon: 'apartment', label: '건축물대장' },
   { id: 'multiuse', icon: 'store', label: '다중이용업소' },
-  { id: 'hazmat', icon: 'warning', label: '위험물시설' },
   { id: 'statistics', icon: 'bar_chart', label: '통계' },
   { id: 'shelter', icon: 'emergency', label: '대피소' },
   { id: 'calculator', icon: 'calculate', label: '계산기' },
@@ -98,33 +97,21 @@ export default function App() {
   const notiRef = useRef<HTMLDivElement>(null);
 
   // ─── 테마 시스템 ───
-  const [theme, setTheme] = useState<string>(() => localStorage.getItem('119helper-theme') || 'system');
+  const [theme, setTheme] = useState<string>(() => {
+    const saved = localStorage.getItem('119helper-theme');
+    if (saved && saved !== 'system') return saved;
+    // 시스템 설정 자동 감지 → dark/light로 즉시 결정
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  });
 
-  const applyTheme = useCallback((t: string) => {
-    let resolved = t;
-    if (t === 'system') {
-      resolved = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-    }
-    document.documentElement.setAttribute('data-theme', resolved);
-  }, []);
-
-  // 마운트 시 + 테마 변경 시 적용
   useEffect(() => {
-    applyTheme(theme);
-    // 시스템 테마 변경 감지
-    if (theme === 'system') {
-      const mq = window.matchMedia('(prefers-color-scheme: light)');
-      const handler = () => applyTheme('system');
-      mq.addEventListener('change', handler);
-      return () => mq.removeEventListener('change', handler);
-    }
-  }, [theme, applyTheme]);
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   const handleThemeChange = useCallback((t: string) => {
     setTheme(t);
     localStorage.setItem('119helper-theme', t);
-    applyTheme(t);
-  }, [applyTheme]);
+  }, []);
 
   // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {
@@ -519,15 +506,14 @@ export default function App() {
               )}
             </div>
 
-            {/* Theme Toggle */}
             <button
-              onClick={() => handleThemeChange(theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark')}
+              onClick={() => handleThemeChange(theme === 'dark' ? 'light' : 'dark')}
               className="p-1.5 rounded-lg hover:bg-surface-container transition-colors"
-              title={`현재: ${theme === 'dark' ? '다크' : theme === 'light' ? '라이트' : '시스템'} 모드`}
+              title={`현재: ${theme === 'dark' ? '다크' : '라이트'} 모드`}
             >
               <span className="material-symbols-outlined text-on-surface-variant text-xl"
                 style={{ fontVariationSettings: "'FILL' 1" }}
-              >{theme === 'dark' ? 'dark_mode' : theme === 'light' ? 'light_mode' : 'settings_suggest'}</span>
+              >{theme === 'dark' ? 'dark_mode' : 'light_mode'}</span>
             </button>
 
             {/* Settings */}

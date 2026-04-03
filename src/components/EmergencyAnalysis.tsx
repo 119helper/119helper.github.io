@@ -62,13 +62,12 @@ function DonutChart({ data, labelKey, valueKey }: { data: any[]; labelKey: strin
   const total = data.reduce((s, d) => s + (d[valueKey] || 0), 0);
   if (total === 0) return <EmptyState icon="donut_large" text="데이터 없음" />;
 
-  let cumPercent = 0;
-  const slices = data.map((d, i) => {
+  const slices = data.reduce((acc: any[], d, i) => {
     const pct = (d[valueKey] / total) * 100;
-    const start = cumPercent;
-    cumPercent += pct;
-    return { label: d[labelKey], value: d[valueKey], pct, start, color: CHART_COLORS[i % CHART_COLORS.length] };
-  });
+    const start = acc.length > 0 ? acc[acc.length - 1].start + acc[acc.length - 1].pct : 0;
+    acc.push({ label: d[labelKey], value: d[valueKey], pct, start, color: CHART_COLORS[i % CHART_COLORS.length] });
+    return acc;
+  }, []);
 
   const gradient = slices.map(s => `${s.color} ${s.start}% ${s.start + s.pct}%`).join(', ');
 
@@ -163,8 +162,6 @@ export default function EmergencyAnalysis() {
   const [vehicles, setVehicles] = useState<VehicleItem[]>([]);
 
   const fetchAll = useCallback(async () => {
-    setLoading(true);
-    setApiError(null);
     const params = { reqYm: selectedMonth };
 
     try {
@@ -245,7 +242,7 @@ export default function EmergencyAnalysis() {
     }
 
     setLoading(false);
-  }, [selectedMonth]);
+  }, [selectedMonth, setApiError, setLoading]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -268,7 +265,11 @@ export default function EmergencyAnalysis() {
         <div className="flex items-center gap-3">
           <select
             value={selectedMonth}
-            onChange={e => setSelectedMonth(e.target.value)}
+            onChange={e => {
+              setLoading(true);
+              setApiError(null);
+              setSelectedMonth(e.target.value);
+            }}
             className="bg-surface-container border border-outline-variant/20 text-on-surface px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-primary"
           >
             {months.map(m => (
@@ -276,7 +277,11 @@ export default function EmergencyAnalysis() {
             ))}
           </select>
           <button
-            onClick={fetchAll}
+            onClick={() => {
+              setLoading(true);
+              setApiError(null);
+              fetchAll();
+            }}
             disabled={loading}
             className="bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/20 transition-colors flex items-center gap-2 disabled:opacity-50"
           >
@@ -317,7 +322,11 @@ export default function EmergencyAnalysis() {
             이미 승인된 API라면 공공데이터 서버 일시 장애일 수 있으니 잠시 후 다시 시도해주세요.
           </p>
           <button
-            onClick={fetchAll}
+            onClick={() => {
+              setLoading(true);
+              setApiError(null);
+              fetchAll();
+            }}
             className="bg-error/15 text-error px-5 py-2 rounded-lg text-sm font-bold hover:bg-error/25 transition-colors inline-flex items-center gap-2"
           >
             <span className="material-symbols-outlined text-lg">refresh</span>
