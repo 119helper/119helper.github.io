@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { getHolidays, buildHolidayMap } from '../services/holidayApi';
+import { useState, useEffect, useMemo } from 'react';
+import { getStaticHolidays } from '../data/holidays';
 
 interface Schedule {
   id: string;
@@ -57,26 +57,8 @@ export default function Calendar() {
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-  // 공휴일 데이터
-  const [holidays, setHolidays] = useState<Map<string, string[]>>(new Map());
-  const loadedMonths = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    const monthKey = `${year}-${month + 1}`;
-    if (loadedMonths.current.has(monthKey)) return;
-
-    getHolidays(year, month + 1).then(items => {
-      loadedMonths.current.add(monthKey);
-      setHolidays(prev => {
-        const nextMap = new Map(prev);
-        const newMap = buildHolidayMap(items);
-        newMap.forEach((val, key) => {
-          nextMap.set(key, val);
-        });
-        return nextMap;
-      });
-    });
-  }, [year, month]);
+  // 공휴일 데이터 — 정적 데이터에서 즉시 로드 (API 불필요)
+  const holidays = useMemo(() => getStaticHolidays(year, month + 1), [year, month]);
 
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
