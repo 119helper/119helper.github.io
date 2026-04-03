@@ -220,7 +220,7 @@ export default function App() {
         };
       }).filter(i => i.lat > 0 && i.lng > 0);
       setFireFacilities(parsed);
-    } catch (_) { /* silently fail */ }
+    } catch { /* silently fail */ }
     setIsLoadingFacilities(false);
 
     // 기상 알림 생성
@@ -239,7 +239,7 @@ export default function App() {
           addNotification('ac_unit', 'text-cyan-400', `🥶 ${cityNames[city]} 한파 주의`, `현재 기온 ${w.temperature}°C. 소화전 동파 점검 필요.`);
         }
       }
-    } catch (_) { /* silently fail */ }
+    } catch { /* silently fail */ }
 
     // 대기질 알림 생성
     try {
@@ -247,7 +247,7 @@ export default function App() {
       if (aq && parseInt(aq.pm10Grade) >= 3) {
         addNotification('masks', 'text-yellow-400', `⚠️ ${cityNames[city]} 미세먼지 나쁨`, `PM10: ${aq.pm10Value}μg/m³. 현장 활동 시 방진마스크 착용 권장.`);
       }
-    } catch (_) { /* silently fail */ }
+    } catch { /* silently fail */ }
 
     lastRefreshRef.current = new Date();
   }, [city, addNotification]);
