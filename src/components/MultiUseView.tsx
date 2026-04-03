@@ -1,47 +1,50 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchMultiUseFacilities } from '../services/apiClient';
 
-const cityToCtprvn: Record<string, string> = {
-  seoul: '서울특별시', busan: '부산광역시', daegu: '대구광역시', incheon: '인천광역시',
-  gwangju: '광주광역시', daejeon: '대전광역시', ulsan: '울산광역시', sejong: '세종특별자치시', jeju: '제주특별자치도',
-};
-
 const cityShort: Record<string, string> = {
   seoul: '서울', busan: '부산', daegu: '대구', incheon: '인천',
   gwangju: '광주', daejeon: '대전', ulsan: '울산', sejong: '세종', jeju: '제주',
 };
 
-// 업종별 아이콘/색상 매핑
-const TYPE_MAP: Record<string, { icon: string; color: string }> = {
-  '노래연습장': { icon: '🎤', color: 'text-purple-400' },
-  '단란주점': { icon: '🍻', color: 'text-amber-400' },
-  '유흥주점': { icon: '🎶', color: 'text-pink-400' },
-  '비디오감상실': { icon: '🎬', color: 'text-blue-400' },
-  '게임제공업': { icon: '🎮', color: 'text-green-400' },
-  '인터넷컴퓨터': { icon: '💻', color: 'text-cyan-400' },
-  '학원': { icon: '📚', color: 'text-indigo-400' },
-  '찜질방': { icon: '♨️', color: 'text-orange-400' },
-  '사우나': { icon: '🧖', color: 'text-red-400' },
-  '목욕장': { icon: '🛁', color: 'text-teal-400' },
-  '골프연습장': { icon: '⛳', color: 'text-green-500' },
-  '안마시술소': { icon: '💆', color: 'text-rose-400' },
+const cityToCtprvn: Record<string, string> = {
+  seoul: '서울특별시', busan: '부산광역시', daegu: '대구광역시', incheon: '인천광역시',
+  gwangju: '광주광역시', daejeon: '대전광역시', ulsan: '울산광역시', sejong: '세종특별자치시', jeju: '제주특별자치도',
 };
 
-function getTypeInfo(type: string) {
-  for (const [key, val] of Object.entries(TYPE_MAP)) {
-    if (type.includes(key)) return val;
-  }
-  return { icon: '🏢', color: 'text-gray-400' };
+// 업종별 아이콘/색상 매핑
+const TYPE_META: Record<string, { icon: string; color: string; barColor: string }> = {
+  '고시원': { icon: '🏠', color: 'text-orange-400', barColor: 'bg-orange-400' },
+  '노래연습장': { icon: '🎤', color: 'text-purple-400', barColor: 'bg-purple-400' },
+  'PC방': { icon: '💻', color: 'text-cyan-400', barColor: 'bg-cyan-400' },
+  '골프연습장': { icon: '⛳', color: 'text-green-400', barColor: 'bg-green-400' },
+  '단란주점': { icon: '🍻', color: 'text-amber-400', barColor: 'bg-amber-400' },
+  '유흥주점': { icon: '🎶', color: 'text-pink-400', barColor: 'bg-pink-400' },
+  '학원': { icon: '📚', color: 'text-indigo-400', barColor: 'bg-indigo-400' },
+  '휴게음식점': { icon: '☕', color: 'text-yellow-400', barColor: 'bg-yellow-400' },
+  '일반음식점': { icon: '🍽️', color: 'text-red-400', barColor: 'bg-red-400' },
+  '게임제공업': { icon: '🎮', color: 'text-emerald-400', barColor: 'bg-emerald-400' },
+  '산후조리원': { icon: '👶', color: 'text-rose-400', barColor: 'bg-rose-400' },
+  '안마시술소': { icon: '💆', color: 'text-teal-400', barColor: 'bg-teal-400' },
+  '찜질방': { icon: '♨️', color: 'text-orange-500', barColor: 'bg-orange-500' },
+  '사우나': { icon: '🧖', color: 'text-red-300', barColor: 'bg-red-300' },
+  '목욕장업': { icon: '🛁', color: 'text-sky-400', barColor: 'bg-sky-400' },
+  '콜라텍업': { icon: '💃', color: 'text-fuchsia-400', barColor: 'bg-fuchsia-400' },
+  '키즈카페업': { icon: '🧸', color: 'text-lime-400', barColor: 'bg-lime-400' },
+  '공유주방업': { icon: '🍳', color: 'text-amber-300', barColor: 'bg-amber-300' },
+  '실내사격장업': { icon: '🎯', color: 'text-gray-400', barColor: 'bg-gray-400' },
+  '멀티미디어문화컨텐츠설비 제공업': { icon: '🖥️', color: 'text-violet-400', barColor: 'bg-violet-400' },
+};
+
+function getMeta(type: string) {
+  return TYPE_META[type] || { icon: '🏢', color: 'text-gray-400', barColor: 'bg-gray-400' };
 }
 
-interface MultiUseFacility {
-  facilityName: string;
-  businessType: string;
-  address: string;
-  floor?: string;
-  area?: string;
-  lat?: number;
-  lng?: number;
+interface TypeStat {
+  type: string;
+  count: number;
+  icon: string;
+  color: string;
+  barColor: string;
 }
 
 interface MultiUseViewProps {
@@ -49,25 +52,40 @@ interface MultiUseViewProps {
 }
 
 export default function MultiUseView({ city }: MultiUseViewProps) {
-  const [facilities, setFacilities] = useState<MultiUseFacility[]>([]);
+  const [stats, setStats] = useState<TypeStat[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [filter, setFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [rawData, setRawData] = useState<Record<string, number>>({});
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setApiError(null);
     try {
       const data = await fetchMultiUseFacilities(cityToCtprvn[city] || '서울특별시');
+      // API 응답: [ { "PC방": 1195, "노래연습장": 500, ... } ] — 업종별 통계
       const items = Array.isArray(data) ? data : (data as any)?.items || [];
-      setFacilities(items.map((it: any) => ({
-        facilityName: it.bplcNm || it.업소명 || it.facilityName || '-',
-        businessType: it.induTypeNm || it.업종 || it.businessType || '기타',
-        address: it.roadNmAddr || it.sitewhlAddr || it.address || '-',
-        floor: it.flrNo || it.floor,
-        area: it.totArea || it.area,
-      })));
+      
+      // 통계 데이터 파싱 — 각 항목이 업종:개수 형태
+      const combined: Record<string, number> = {};
+      items.forEach((item: any) => {
+        Object.entries(item).forEach(([key, val]) => {
+          if (typeof val === 'number' && val > 0) {
+            // '소방본부' 같은 메타 필드 제외
+            if (!['순번', '연도'].includes(key) && !key.includes('소방본부') && !key.includes('관할')) {
+              combined[key] = (combined[key] || 0) + Number(val);
+            }
+          }
+        });
+      });
+
+      setRawData(combined);
+      const sorted = Object.entries(combined)
+        .map(([type, count]) => ({ type, count, ...getMeta(type) }))
+        .sort((a, b) => b.count - a.count);
+      
+      setStats(sorted);
+      setTotal(sorted.reduce((sum, s) => sum + s.count, 0));
     } catch (e: any) {
       setApiError(e?.message || '다중이용업소 데이터를 불러올 수 없습니다.');
     }
@@ -76,31 +94,17 @@ export default function MultiUseView({ city }: MultiUseViewProps) {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // 업종 목록 추출
-  const businessTypes = [...new Set(facilities.map(f => f.businessType))].sort();
-
-  const filtered = facilities.filter(f => {
-    const matchSearch = !filter || f.facilityName.includes(filter) || f.address.includes(filter);
-    const matchType = typeFilter === 'all' || f.businessType.includes(typeFilter);
-    return matchSearch && matchType;
-  });
-
-  // 업종별 통계
-  const typeStats = businessTypes.map(t => ({
-    type: t,
-    count: facilities.filter(f => f.businessType === t).length,
-    ...getTypeInfo(t),
-  })).sort((a, b) => b.count - a.count);
+  const maxCount = stats.length > 0 ? stats[0].count : 1;
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">🏢 다중이용업소 조회</h2>
+          <h2 className="text-2xl font-extrabold text-on-surface font-headline">🏢 다중이용업소 현황</h2>
           <p className="text-sm text-on-surface-variant mt-1">
             소방청 다중이용업소 정보 서비스 · <span className="text-primary font-bold">{cityShort[city] || city}</span>
-            {!loading && !apiError && <span className="ml-2">· 총 {facilities.length}개소</span>}
+            {!loading && !apiError && <span className="ml-2">· 총 <span className="font-bold text-primary">{total.toLocaleString()}</span>개소</span>}
           </p>
         </div>
         <button onClick={fetchData} disabled={loading}
@@ -116,103 +120,74 @@ export default function MultiUseView({ city }: MultiUseViewProps) {
           <span className="material-symbols-outlined text-5xl text-red-400/60 mb-3 block">cloud_off</span>
           <h3 className="text-lg font-bold text-on-surface mb-2">다중이용업소 API 연결 실패</h3>
           <p className="text-sm text-red-300/80 max-w-lg mx-auto mb-1">{apiError}</p>
-          <p className="text-xs text-on-surface-variant max-w-lg mx-auto mb-4">
-            공공데이터포털에서 API 서비스 신청 후 승인까지 최대 1~2일이 소요됩니다.
-          </p>
           <button onClick={fetchData}
-            className="bg-red-500/20 text-red-300 px-5 py-2 rounded-lg text-sm font-bold hover:bg-red-500/30 transition-colors inline-flex items-center gap-2">
+            className="mt-3 bg-red-500/20 text-red-300 px-5 py-2 rounded-lg text-sm font-bold hover:bg-red-500/30 transition-colors inline-flex items-center gap-2">
             <span className="material-symbols-outlined text-lg">refresh</span>
             다시 시도
           </button>
         </div>
       )}
 
-      {/* 업종별 통계 카드 */}
-      {!loading && !apiError && typeStats.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-          {typeStats.slice(0, 12).map(t => (
-            <button
-              key={t.type}
-              onClick={() => setTypeFilter(typeFilter === t.type ? 'all' : t.type)}
-              className={`bg-surface-container-lowest border rounded-xl p-3 text-left transition-all hover:scale-[1.02] ${
-                typeFilter === t.type ? 'border-primary ring-1 ring-primary/30' : 'border-outline-variant/10'
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-lg">{t.icon}</span>
-                <span className="text-xs text-on-surface-variant truncate flex-1">{t.type}</span>
-              </div>
-              <p className="text-xl font-extrabold text-on-surface font-headline tabular-nums">{t.count.toLocaleString()}</p>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* 검색 & 필터 */}
-      {!loading && !apiError && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
-            <input
-              type="text" placeholder="업소명 또는 주소 검색..."
-              value={filter} onChange={e => setFilter(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 text-sm bg-surface-container border border-outline-variant/20 rounded-lg text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
-          </div>
-          {typeFilter !== 'all' && (
-            <button onClick={() => setTypeFilter('all')}
-              className="bg-primary/10 text-primary px-3 py-2 rounded-lg text-xs font-bold hover:bg-primary/20 transition-colors inline-flex items-center gap-1.5">
-              {typeFilter} <span className="material-symbols-outlined text-sm">close</span>
-            </button>
-          )}
-          <span className="text-xs text-on-surface-variant">{filtered.length}건</span>
-        </div>
-      )}
-
-      {/* 결과 목록 */}
-      {loading ? (
+      {/* 로딩 */}
+      {loading && (
         <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-12 flex items-center justify-center gap-3">
           <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
           <span className="text-sm text-on-surface-variant">데이터 로딩 중...</span>
         </div>
-      ) : !apiError && filtered.length > 0 && (
-        <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-surface-container border-b border-outline-variant/10">
-                  <th className="text-left text-xs font-bold text-on-surface-variant uppercase tracking-wider px-4 py-3">업소명</th>
-                  <th className="text-left text-xs font-bold text-on-surface-variant uppercase tracking-wider px-4 py-3">업종</th>
-                  <th className="text-left text-xs font-bold text-on-surface-variant uppercase tracking-wider px-4 py-3 hidden lg:table-cell">주소</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant/5">
-                {filtered.slice(0, 100).map((f, i) => {
-                  const info = getTypeInfo(f.businessType);
-                  return (
-                    <tr key={`${f.facilityName}-${i}`} className="hover:bg-surface-container/50 transition-colors">
-                      <td className="px-4 py-3">
-                        <p className="text-sm font-bold text-on-surface">{f.facilityName}</p>
-                        <p className="text-xs text-on-surface-variant lg:hidden mt-0.5">{f.address}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full bg-surface-container ${info.color}`}>
-                          {info.icon} {f.businessType}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-on-surface-variant hidden lg:table-cell">{f.address}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      )}
+
+      {/* 통계 카드 그리드 */}
+      {!loading && !apiError && stats.length > 0 && (
+        <>
+          {/* Top-level stat cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            {stats.map(s => (
+              <div key={s.type}
+                className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-4 hover:border-primary/30 transition-all hover:scale-[1.02]"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">{s.icon}</span>
+                  <span className="text-xs text-on-surface-variant font-medium truncate flex-1">{s.type}</span>
+                </div>
+                <p className="text-2xl font-black text-on-surface font-headline tabular-nums">{s.count.toLocaleString()}</p>
+                <div className="mt-2 h-1.5 bg-surface-container rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${s.barColor} rounded-full transition-all duration-500`}
+                    style={{ width: `${Math.max(3, (s.count / maxCount) * 100)}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-on-surface-variant mt-1 text-right">
+                  {((s.count / total) * 100).toFixed(1)}%
+                </p>
+              </div>
+            ))}
           </div>
-          {filtered.length > 100 && (
-            <div className="bg-surface-container px-4 py-2 text-center text-xs text-on-surface-variant">
-              검색 결과가 많습니다. 총 {filtered.length}건 중 상위 100건을 표시합니다.
+
+          {/* 막대 차트 */}
+          <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5">
+            <h3 className="text-sm font-bold text-on-surface mb-4 flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-lg">bar_chart</span>
+              업종별 분포
+            </h3>
+            <div className="space-y-2.5">
+              {stats.map(s => (
+                <div key={s.type} className="flex items-center gap-3">
+                  <span className="text-base w-6 text-center flex-shrink-0">{s.icon}</span>
+                  <span className="text-xs text-on-surface-variant w-32 sm:w-44 truncate flex-shrink-0 font-medium">{s.type}</span>
+                  <div className="flex-1 h-6 bg-surface-container rounded-lg overflow-hidden relative">
+                    <div
+                      className={`h-full ${s.barColor}/60 rounded-lg transition-all duration-700`}
+                      style={{ width: `${Math.max(2, (s.count / maxCount) * 100)}%` }}
+                    />
+                    <span className="absolute inset-y-0 right-2 flex items-center text-[11px] font-bold text-on-surface tabular-nums">
+                      {s.count.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        </>
       )}
     </div>
   );
