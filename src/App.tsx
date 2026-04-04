@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import './index.css';
 import StickyNotes from './components/StickyNotes';
 import Calculators from './components/Calculators';
-import FacilityList from './components/FacilityList';
 import Calendar from './components/Calendar';
 import WeatherDashboard from './components/WeatherDashboard';
 import ERDashboard from './components/ERDashboard';
@@ -23,6 +22,7 @@ import { getRealtimeAirQuality } from './services/airQualityApi';
 import type { FireFacility } from './data/mockData';
 import FacilitySearchView from './components/FacilitySearchView';
 type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis' | 'multiuse' | 'hazmat' | 'annual-fire' | 'statistics';
+type ShelterCategory = 'hydrants' | 'waterTowers' | 'civil';
 
 // 알림 시스템 타입
 interface Notification {
@@ -45,13 +45,11 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', icon: 'dashboard', label: '대시보드', filled: true },
   { id: 'weather', icon: 'cloud', label: '기상 정보' },
-  { id: 'hydrants', icon: 'fire_hydrant', label: '소화전' },
-  { id: 'waterTowers', icon: 'water_pump', label: '급수탑/저수조' },
+  { id: 'shelter', icon: 'location_city', label: '시설 조회' },
   { id: 'er', icon: 'local_hospital', label: '응급실 현황' },
   { id: 'building', icon: 'apartment', label: '건축물대장' },
   { id: 'multiuse', icon: 'store', label: '다중이용업소' },
   { id: 'statistics', icon: 'bar_chart', label: '통계' },
-  { id: 'shelter', icon: 'location_city', label: '시설 조회' },
   { id: 'calculator', icon: 'calculate', label: '계산기' },
   { id: 'calendar', icon: 'calendar_month', label: '달력/일정' },
   { id: 'memo', icon: 'sticky_note_2', label: '메모장' },
@@ -60,7 +58,7 @@ const NAV_ITEMS: NavItem[] = [
 // 모바일 바텀 네비게이션 탭
 const BOTTOM_TABS: { id: TabId | 'more'; icon: string; label: string }[] = [
   { id: 'dashboard', icon: 'dashboard', label: '대시보드' },
-  { id: 'hydrants', icon: 'fire_hydrant', label: '소화전' },
+  { id: 'shelter', icon: 'location_city', label: '시설' },
   { id: 'er', icon: 'local_hospital', label: '응급실' },
   { id: 'weather', icon: 'cloud', label: '기상' },
   { id: 'more', icon: 'menu', label: '더보기' },
@@ -87,6 +85,7 @@ export default function App() {
   const [isLoadingFacilities, setIsLoadingFacilities] = useState(false);
   const [cityIndex, setCityIndex] = useState<CityIndex | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
+  const [shelterCategory, setShelterCategory] = useState<ShelterCategory>('hydrants');
   const [gpsStatus, setGpsStatus] = useState<'loading' | 'granted' | 'denied' | 'idle'>('idle');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -297,22 +296,33 @@ export default function App() {
   }, []);
 
   const handleNavigate = (tab: TabId) => {
-    setActiveTab(tab);
-    setSidebarOpen(false); // 모바일에서 탭 변경 시 사이드바 닫기
+    // hydrants/waterTowers → shelter 탭으로 통합 매핑
+    if (tab === 'hydrants' || tab === 'waterTowers') {
+      setShelterCategory(tab as ShelterCategory);
+      setActiveTab('shelter');
+    } else {
+      setActiveTab(tab);
+    }
+    setSidebarOpen(false);
   };
 
   const renderContent = () => {
-    const hydrants = fireFacilities.filter(f => f.type === '소화전' || f.type === '비상소화장치');
-    const waterTowers = fireFacilities.filter(f => f.type === '급수탑' || f.type === '저수조');
-
     switch (activeTab) {
       case 'dashboard': return <DashboardView onNavigate={handleNavigate} city={city} fireFacilities={fireFacilities} isLoadingFacilities={isLoadingFacilities} cityIndex={cityIndex} />;
       case 'weather': return <WeatherDashboard city={city} />;
-      case 'hydrants': return <FacilityList data={hydrants} title="소화전 위치" icon="🚒" typeLabel="소화전 · 비상소화장치" city={city} isLoading={isLoadingFacilities} cityIndex={cityIndex} selectedDistrict={selectedDistrict} onDistrictChange={loadDistrict} />;
-      case 'waterTowers': return <FacilityList data={waterTowers} title="급수탑 · 저수조 위치" icon="💧" typeLabel="급수탑 · 저수조" city={city} isLoading={isLoadingFacilities} cityIndex={cityIndex} selectedDistrict={selectedDistrict} onDistrictChange={loadDistrict} />;
+      case 'shelter': return (
+        <FacilitySearchView
+          city={city}
+          fireFacilities={fireFacilities}
+          isLoadingFacilities={isLoadingFacilities}
+          cityIndex={cityIndex}
+          selectedDistrict={selectedDistrict}
+          onDistrictChange={loadDistrict}
+          initialCategory={shelterCategory}
+        />
+      );
       case 'er': return <ERDashboard city={city} />;
       case 'building': return <BuildingView />;
-      case 'shelter': return <FacilitySearchView city={city} />;
       case 'emergency': return <EmergencyAnalysis />;
       case 'fire-analysis': return <FireAnalysis />;
       case 'multiuse': return <MultiUseView city={city} />;

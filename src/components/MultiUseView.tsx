@@ -56,7 +56,6 @@ export default function MultiUseView({ city }: MultiUseViewProps) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [rawData, setRawData] = useState<Record<string, number>>({});
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -79,7 +78,6 @@ export default function MultiUseView({ city }: MultiUseViewProps) {
         });
       });
 
-      setRawData(combined);
       const sorted = Object.entries(combined)
         .map(([type, count]) => ({ type, count, ...getMeta(type) }))
         .sort((a, b) => b.count - a.count);

@@ -31,3 +31,9 @@ worker/node_modules
 worker/.wrangler
 worker/dist
 worker/wrangler.toml
+
+# Lint & temp outputs
+eslint_report.json
+lint_errors.txt
+lint_output.txt
+tmp_lint.txt

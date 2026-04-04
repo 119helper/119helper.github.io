@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { fetchEmergencyStats, fetchEmergencyInfo } from '../services/apiClient';
 
 /* ─── 타입 정의 ─── */
@@ -533,7 +533,7 @@ export default function EmergencyAnalysis() {
   const [transfers, setTransfers] = useState<TransferItem[]>([]);
   const [firstAids, setFirstAids] = useState<FirstAidItem[]>([]);
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = async () => {
     const statsParams: Record<string, string> = { reqYm: selectedMonth };
     const infoParams: Record<string, string> = { reportYm: selectedMonth };
     if (selectedSido !== '전체') {
@@ -665,9 +665,10 @@ export default function EmergencyAnalysis() {
     }
 
     setLoading(false);
-  }, [selectedMonth, selectedSido]);
+  };
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchAll(); }, [selectedMonth, selectedSido]);
 
   const transferRate = activity.dispatchCnt > 0
     ? ((activity.transferCnt / activity.dispatchCnt) * 100).toFixed(1)
