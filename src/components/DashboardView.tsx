@@ -54,13 +54,13 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
     return () => { isMounted = false; };
   }, [city]);
 
-  // 분할 도시: index 메타에서 총 건수 사용 (데이터 로드 없이 즉시 표시)
+  // 분할 도시: index.json의 타입별 합계 사용
   // 비분할 도시: 로드된 데이터에서 카운트
   const hydrantsCount = cityIndex
-    ? cityIndex.total
+    ? (cityIndex.hydrants ?? cityIndex.total)
     : fireFacilities.filter(f => f.type === '소화전' || f.type === '비상소화장치').length;
   const towersCount = cityIndex
-    ? null  // 분할 도시: 타입별 분류 데이터 없음 → null로 표시
+    ? (cityIndex.waterTowers ?? 0)
     : fireFacilities.filter(f => f.type === '급수탑' || f.type === '저수조').length;
 
   const regionImageUrl = `/images/regions/${city}.png`;
@@ -216,16 +216,14 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
               <p className="text-2xl font-extrabold text-on-surface mt-1 font-headline">
                 {isLoadingFacilities ? <span className="text-sm font-medium animate-pulse text-on-surface-variant">불러오는 중...</span> : hydrantsCount.toLocaleString()}
               </p>
-              <p className="text-[10px] text-on-surface-variant uppercase tracking-wider">{cityIndex ? '소방용수시설' : '소화전'}</p>
+              <p className="text-[10px] text-on-surface-variant uppercase tracking-wider">소화전</p>
             </button>
             <button onClick={() => onNavigate('waterTowers')} className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-4 text-left hover:border-primary/30 transition-colors group relative overflow-hidden">
               <span className="material-symbols-outlined text-secondary text-xl group-hover:scale-110 transition-transform">water_pump</span>
               <p className="text-2xl font-extrabold text-on-surface mt-1 font-headline">
                 {isLoadingFacilities
                   ? <span className="text-sm font-medium animate-pulse text-on-surface-variant">불러오는 중...</span>
-                  : towersCount !== null
-                    ? towersCount.toLocaleString()
-                    : <span className="text-lg text-on-surface-variant">구 선택 시 표시</span>
+                  : towersCount.toLocaleString()
                 }
               </p>
               <p className="text-[10px] text-on-surface-variant uppercase tracking-wider">급수탑/저수조</p>

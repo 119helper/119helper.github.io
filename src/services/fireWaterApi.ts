@@ -19,6 +19,8 @@ export interface FireWaterFacility {
 export interface CityIndex {
   total: number;
   districts: Record<string, number>;
+  hydrants?: number;     // 소화전 + 비상소화장치 합계
+  waterTowers?: number;  // 급수탑 + 저수조 합계
 }
 
 const CITY_MAP: Record<string, string> = {
