@@ -33,6 +33,17 @@ const TYPE_META: Record<string, { icon: string; color: string; barColor: string 
   '공유주방업': { icon: '🍳', color: 'text-amber-300', barColor: 'bg-amber-300' },
   '실내사격장업': { icon: '🎯', color: 'text-gray-400', barColor: 'bg-gray-400' },
   '멀티미디어문화컨텐츠설비 제공업': { icon: '🖥️', color: 'text-violet-400', barColor: 'bg-violet-400' },
+  '권총사격장': { icon: '🎯', color: 'text-slate-400', barColor: 'bg-slate-400' },
+  '만화카페업': { icon: '📖', color: 'text-yellow-300', barColor: 'bg-yellow-300' },
+  '방탈출카페업': { icon: '🔐', color: 'text-red-500', barColor: 'bg-red-500' },
+  '복합영상물': { icon: '📺', color: 'text-blue-300', barColor: 'bg-blue-300' },
+  '복합유통업': { icon: '🏬', color: 'text-indigo-300', barColor: 'bg-indigo-300' },
+  '비디오물감상': { icon: '📼', color: 'text-purple-300', barColor: 'bg-purple-300' },
+  '비디오소극장': { icon: '🎬', color: 'text-pink-300', barColor: 'bg-pink-300' },
+  '수면방업': { icon: '😴', color: 'text-blue-400', barColor: 'bg-blue-400' },
+  '영화상영관': { icon: '🎥', color: 'text-red-300', barColor: 'bg-red-300' },
+  '전화방': { icon: '☎️', color: 'text-green-300', barColor: 'bg-green-300' },
+  '제과영업점': { icon: '🍰', color: 'text-pink-200', barColor: 'bg-pink-300' },
 };
 
 function getMeta(type: string) {
@@ -62,21 +73,27 @@ export default function MultiUseView({ city }: MultiUseViewProps) {
     setApiError(null);
     try {
       const data = await fetchMultiUseFacilities(cityToCtprvn[city] || '서울특별시');
-      // API 응답: [ { "PC방": 1195, "노래연습장": 500, ... } ] — 업종별 통계
+      // API 응답: 전국 시도별 배열 (19개), 각 항목에 "소방본부" 필드로 시도명 포함
       const items = Array.isArray(data) ? data : (data as any)?.items || [];
       
-      // 통계 데이터 파싱 — 각 항목이 업종:개수 형태
+      // 현재 도시에 해당하는 항목만 필터링
+      const shortName = (cityShort[city] || '서울').trim();
+      const cityItem = items.find((item: any) => {
+        const hq = String(item['소방본부'] || '').replace(/\s/g, '');
+        return hq.includes(shortName);
+      });
+
+      // 통계 데이터 파싱 — 해당 도시의 업종:개수
       const combined: Record<string, number> = {};
-      items.forEach((item: any) => {
-        Object.entries(item).forEach(([key, val]) => {
+      if (cityItem) {
+        Object.entries(cityItem).forEach(([key, val]) => {
           if (typeof val === 'number' && val > 0) {
-            // '소방본부' 같은 메타 필드 제외
             if (!['순번', '연도'].includes(key) && !key.includes('소방본부') && !key.includes('관할')) {
-              combined[key] = (combined[key] || 0) + Number(val);
+              combined[key] = Number(val);
             }
           }
         });
-      });
+      }
 
       const sorted = Object.entries(combined)
         .map(([type, count]) => ({ type, count, ...getMeta(type) }))
