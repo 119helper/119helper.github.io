@@ -24,7 +24,9 @@ import FacilitySearchView from './components/FacilitySearchView';
 import FieldAssessment from './components/FieldAssessment';
 import FieldTimer from './components/FieldTimer';
 import RadioCodes from './components/RadioCodes';
-type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis' | 'multiuse' | 'hazmat' | 'annual-fire' | 'statistics' | 'field-assessment' | 'field-timer' | 'radio-codes';
+import SOPChecklist from './components/SOPChecklist';
+import UnitConverter from './components/UnitConverter';
+type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis' | 'multiuse' | 'hazmat' | 'annual-fire' | 'statistics' | 'field-assessment' | 'field-timer' | 'radio-codes' | 'sop' | 'unit-converter';
 type ShelterCategory = 'hydrants' | 'waterTowers' | 'civil';
 
 // 알림 시스템 타입
@@ -57,6 +59,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'field-assessment', icon: 'emergency', label: '현장 평가' },
   { id: 'field-timer', icon: 'timer', label: '현장 타이머' },
   { id: 'radio-codes', icon: 'radio', label: '무전 코드' },
+  { id: 'sop', icon: 'checklist', label: 'SOP 체크리스트' },
+  { id: 'unit-converter', icon: 'swap_horiz', label: '단위 변환' },
   { id: 'calendar', icon: 'calendar_month', label: '달력/일정' },
   { id: 'memo', icon: 'sticky_note_2', label: '메모장' },
 ];
@@ -339,6 +343,8 @@ export default function App() {
       case 'field-assessment': return <FieldAssessment />;
       case 'field-timer': return <FieldTimer />;
       case 'radio-codes': return <RadioCodes />;
+      case 'sop': return <SOPChecklist />;
+      case 'unit-converter': return <UnitConverter />;
       case 'calendar': return <Calendar />;
       case 'memo': return <StickyNotes />;
       default: return <DashboardView onNavigate={handleNavigate} city={city} fireFacilities={fireFacilities} isLoadingFacilities={isLoadingFacilities} cityIndex={cityIndex} />;
