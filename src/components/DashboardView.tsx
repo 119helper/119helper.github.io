@@ -223,12 +223,16 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
                 {weather?.precipType !== '없음' && weather?.precipIcon && ` ${weather.precipIcon} ${weather.precipType}`}
               </p>
             </div>
-            <div className="text-right space-y-3 hidden md:block">
-              <div className="bg-black/40 backdrop-blur-md rounded-lg px-4 py-2.5 border border-white/10">
-                <p className="text-[10px] text-white/60 uppercase tracking-wide">풍속 / 풍향</p>
-                <p className="text-lg font-bold text-white">{weather?.windSpeed ?? '--'}m/s <span className="text-white/70">{weather?.windDirection ?? '--'}</span></p>
-              </div>
-              <div className="bg-black/40 backdrop-blur-md rounded-lg px-4 py-2.5 border border-white/10">
+            <div className="text-right space-y-3 hidden md:flex md:flex-col md:items-end">
+              {weather && (
+                <WindCompass 
+                  windSpeed={weather.windSpeed} 
+                  windDirectionDegree={weather.windDirectionDegree || 0} 
+                  windDirectionText={weather.windDirection} 
+                  variant="glass"
+                />
+              )}
+              <div className="bg-black/40 backdrop-blur-md rounded-lg px-4 py-2.5 border border-white/10 text-right w-32">
                 <p className="text-[10px] text-white/60 uppercase tracking-wide">습도</p>
                 <p className={`text-lg font-bold ${weather && weather.humidity <= 30 ? 'text-red-400' : 'text-white'}`}>{weather?.humidity ?? '--'}%</p>
               </div>
@@ -260,16 +264,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
           </div>
         </div>
 
-        {/* Wind Compass */}
-        <div className="lg:col-span-12 w-full mt-2 lg:-mt-2">
-          {weather && (
-            <WindCompass 
-              windSpeed={weather.windSpeed} 
-              windDirectionDegree={weather.windDirectionDegree || 0} 
-              windDirectionText={weather.windDirection} 
-            />
-          )}
-        </div>
+
 
         {/* ER Summary */}
         <div className="lg:col-span-5 flex flex-col gap-4 md:gap-6 mt-4 lg:mt-0">
