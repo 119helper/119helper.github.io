@@ -92,6 +92,14 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
     return 'from-blue-900/30 via-indigo-900/20 to-cyan-900/10 border-blue-500/10';
   };
 
+  const getBgImage = () => {
+    if (current.precipType.includes('비') || current.precipType.includes('소나기') || current.precipType === '빗방울') return '/images/weather/rain.png';
+    if (current.precipType.includes('눈')) return '/images/weather/snow.png';
+    if (current.sky === '맑음') return '/images/weather/sunny.png';
+    if (current.sky.includes('흐림') || current.sky.includes('구름')) return '/images/weather/cloudy.png';
+    return '/images/weather/sunny.png';
+  };
+
   const getAccentColor = () => {
     if (current.precipType.includes('비') || current.precipType.includes('소나기') || current.precipType === '빗방울') return 'text-blue-300/80';
     if (current.precipType.includes('눈')) return 'text-indigo-300/80';
@@ -127,34 +135,44 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
       {/* Main Weather + Details */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Big Current Weather */}
-        <div className={`lg:col-span-8 bg-gradient-to-br ${getBgGradient()} border rounded-xl p-6 lg:p-10 relative overflow-hidden transition-all duration-1000`}>
+        <div className={`lg:col-span-8 border border-white/10 rounded-xl p-6 lg:p-10 relative overflow-hidden transition-all duration-1000 shadow-xl group`}>
+          {/* Background Image Layer */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 group-hover:scale-105"
+            style={{ backgroundImage: `url(${getBgImage()})` }}
+          />
+          {/* Tint Overlay using getBgGradient */}
+          <div className={`absolute inset-0 bg-gradient-to-br opacity-80 mix-blend-multiply ${getBgGradient()}`} />
+          {/* Extra dark overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
+          
           <div className="absolute -right-16 -top-16 w-64 h-64 bg-white/5 rounded-full blur-3xl transition-opacity duration-1000"></div>
-          <div className="flex items-start justify-between relative z-10">
+          <div className="flex items-start justify-between relative z-10 text-white">
             <div>
               <div className="flex items-center gap-2">
                 <p className={`text-sm font-bold uppercase tracking-widest transition-colors duration-1000 ${getAccentColor()}`}>현재 날씨</p>
-                <span className="text-xs bg-surface-container/50 px-2 py-0.5 rounded text-on-surface-variant">{grid.name}</span>
+                <span className="text-xs bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded text-white font-bold">{grid.name}</span>
               </div>
-              <div className="flex items-end gap-4 mt-4">
+              <div className="flex items-end gap-4 mt-4 drop-shadow-md">
                 <span className="text-6xl">{current.skyIcon}</span>
-                <h3 className="text-8xl font-extrabold text-on-surface font-headline leading-none">
-                  {current.temperature}<span className="text-3xl text-on-surface-variant">°C</span>
+                <h3 className="text-8xl font-extrabold font-headline leading-none text-white">
+                  {current.temperature}<span className="text-3xl text-white/70 ml-1">°C</span>
                 </h3>
               </div>
-              <p className="text-xl text-on-surface-variant mt-2">{current.sky} {current.precipType !== '없음' ? `· ${current.precipType}` : ''}</p>
+              <p className="text-xl text-white/90 mt-2 drop-shadow-md">{current.sky} {current.precipType !== '없음' ? `· ${current.precipType}` : ''}</p>
             </div>
             <div className="space-y-3 text-right">
-              <div className="bg-surface-container/60 backdrop-blur-sm rounded-lg px-5 py-3">
-                <p className="text-[10px] text-on-surface-variant uppercase tracking-wide">풍속 / 풍향</p>
-                <p className="text-xl font-bold text-on-surface">{current.windSpeed}m/s <span className="text-on-surface-variant text-sm">{current.windDirection}</span></p>
+              <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-lg px-5 py-3">
+                <p className="text-[10px] text-white/70 uppercase tracking-wide">풍속 / 풍향</p>
+                <p className="text-xl font-bold text-white">{current.windSpeed}m/s <span className="text-white/70 text-sm">{current.windDirection}</span></p>
               </div>
-              <div className="bg-surface-container/60 backdrop-blur-sm rounded-lg px-5 py-3">
-                <p className="text-[10px] text-on-surface-variant uppercase tracking-wide">습도</p>
-                <p className="text-xl font-bold text-on-surface">{current.humidity}%</p>
+              <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-lg px-5 py-3">
+                <p className="text-[10px] text-white/70 uppercase tracking-wide">습도</p>
+                <p className="text-xl font-bold text-white">{current.humidity}%</p>
               </div>
-              <div className="bg-surface-container/60 backdrop-blur-sm rounded-lg px-5 py-3">
-                <p className="text-[10px] text-on-surface-variant uppercase tracking-wide">강수량</p>
-                <p className="text-xl font-bold text-on-surface">{current.precipitation}mm</p>
+              <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-lg px-5 py-3">
+                <p className="text-[10px] text-white/70 uppercase tracking-wide">강수량</p>
+                <p className="text-xl font-bold text-white">{current.precipitation}mm</p>
               </div>
             </div>
           </div>
