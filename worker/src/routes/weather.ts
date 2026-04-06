@@ -137,11 +137,11 @@ export async function handleWeather(path: string, url: URL, apiKey: string): Pro
         authKey: apiKey, dataType: 'JSON', numOfRows: '1', pageNo: '1', stnId,
       });
       const res = await fetch(
-        `${BASE}/api/typ02/openApi/ForecastGribInfoService_2.0/getOverview?${qs}`,
+        `${BASE}/api/typ02/openApi/VilageFcstMsgService/getWthrSituation?${qs}`,
         { headers: { 'User-Agent': '119-helper-worker/1.0' } }
       );
       const json: any = await res.json();
-      const text = json?.response?.body?.items?.item?.[0]?.wfSv || '기상개황 데이터 없음';
+      const text = json?.response?.body?.items?.item?.[0]?.wfSv1 || json?.response?.body?.items?.item?.[0]?.wfSv || '기상개황 데이터 없음';
       return { data: { briefing: text }, cacheTtl: 3600 };
     }
 

@@ -25,8 +25,9 @@ import FieldTimer from './components/FieldTimer';
 import UnitConverter from './components/UnitConverter';
 import NewsDashboard from './components/NewsDashboard';
 import PolicyDashboard from './components/PolicyDashboard';
+import { WildfireView } from './components/WildfireView';
 
-type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis' | 'multiuse' | 'hazmat' | 'annual-fire' | 'statistics' | 'manual' | 'field-timer' | 'unit-converter' | 'news' | 'policy';
+type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis' | 'multiuse' | 'hazmat' | 'annual-fire' | 'statistics' | 'manual' | 'field-timer' | 'unit-converter' | 'news' | 'policy' | 'wildfire';
 type ShelterCategory = 'hydrants' | 'waterTowers' | 'civil';
 
 // 알림 시스템 타입
@@ -54,6 +55,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'news', icon: 'newspaper', label: '뉴스' },
   { id: 'building', icon: 'apartment', label: '건축물대장' },
   { id: 'multiuse', icon: 'store', label: '다중이용업소' },
+  { id: 'wildfire', icon: 'local_fire_department', label: '산불현황' },
   { id: 'shelter', icon: 'location_city', label: '시설 조회' },
   { id: 'statistics', icon: 'bar_chart', label: '통계' },
   { id: 'manual', icon: 'menu_book', label: '대응 매뉴얼' },
@@ -69,7 +71,7 @@ const BOTTOM_TABS: { id: TabId | 'more'; icon: string; label: string }[] = [
   { id: 'dashboard', icon: 'dashboard', label: '대시보드' },
   { id: 'shelter', icon: 'location_city', label: '시설' },
   { id: 'er', icon: 'local_hospital', label: '응급실' },
-  { id: 'weather', icon: 'cloud', label: '기상' },
+  { id: 'wildfire', icon: 'local_fire_department', label: '산불' },
   { id: 'more', icon: 'menu', label: '더보기' },
 ];
 
@@ -337,6 +339,7 @@ export default function App() {
       case 'emergency': return <EmergencyAnalysis />;
       case 'fire-analysis': return <FireAnalysis />;
       case 'multiuse': return <MultiUseView city={city} />;
+      case 'wildfire': return <WildfireView />;
       case 'hazmat': return <HazmatView />;
       case 'annual-fire': return <AnnualFireView />;
       case 'statistics': return <StatisticsView city={city} />;

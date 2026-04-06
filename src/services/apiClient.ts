@@ -18,7 +18,7 @@ function humanizeApiError(status: number, body: string): string {
   return `API 오류 (${status}): ${body}`;
 }
 
-async function apiFetch<T>(path: string, params?: Record<string, string>): Promise<T> {
+export async function apiFetch<T>(path: string, params?: Record<string, string>): Promise<T> {
   const url = new URL(`${API_BASE}${path}`);
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
