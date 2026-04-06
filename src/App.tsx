@@ -570,7 +570,7 @@ export default function App() {
               {renderContent()}
             </div>
             {/* Mobile Nav Spacer - Guaranteed to add scroll space at the bottom */}
-            <div className="h-20 lg:hidden w-full shrink-0" />
+            <div className="h-[72px] lg:hidden w-full shrink-0" />
             <div className="safe-area-bottom w-full shrink-0" />
           </div>
         </div>
