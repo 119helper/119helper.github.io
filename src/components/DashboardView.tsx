@@ -232,7 +232,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
                   variant="glass"
                 />
               )}
-              <div className="bg-black/40 backdrop-blur-md rounded-lg px-4 py-2.5 border border-white/10 text-right w-32">
+              <div className="bg-black/40 backdrop-blur-md rounded-lg px-4 py-2.5 border border-white/10 flex flex-col items-center min-w-[5rem]">
                 <p className="text-[10px] text-white/60 uppercase tracking-wide">습도</p>
                 <p className={`text-lg font-bold ${weather && weather.humidity <= 30 ? 'text-red-400' : 'text-white'}`}>{weather?.humidity ?? '--'}%</p>
               </div>

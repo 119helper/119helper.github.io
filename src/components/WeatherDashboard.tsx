@@ -6,6 +6,7 @@ import {
   type CurrentWeather, type HourlyForecast, type MidTermForecast, type MidTermTemp,
 } from '../services/weatherApi';
 import { getRealtimeAirQuality, type AirQualityData } from '../services/airQualityApi';
+import { WindCompass } from './WindCompass';
 
 // Fallback data when API fails
 const FALLBACK_WEATHER: CurrentWeather = {
@@ -174,18 +175,24 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
               </div>
               <p className="text-xl text-white/90 mt-2 drop-shadow-md">{current.sky} {current.precipType !== '없음' ? `· ${current.precipType}` : ''}</p>
             </div>
-            <div className="space-y-3 text-right">
-              <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-lg px-5 py-3">
-                <p className="text-[10px] text-white/70 uppercase tracking-wide">풍속 / 풍향</p>
-                <p className="text-xl font-bold text-white">{current.windSpeed}m/s <span className="text-white/70 text-sm">{current.windDirection}</span></p>
-              </div>
-              <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-lg px-5 py-3">
-                <p className="text-[10px] text-white/70 uppercase tracking-wide">습도</p>
-                <p className="text-xl font-bold text-white">{current.humidity}%</p>
-              </div>
-              <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-lg px-5 py-3">
-                <p className="text-[10px] text-white/70 uppercase tracking-wide">강수량</p>
-                <p className="text-xl font-bold text-white">{current.precipitation}mm</p>
+            <div className="space-y-3 text-right hidden md:flex md:flex-col md:items-end">
+              {current.windSpeed > 0 && (
+                <WindCompass 
+                  windSpeed={current.windSpeed} 
+                  windDirectionDegree={current.windDirectionDegree || 0} 
+                  windDirectionText={current.windDirection} 
+                  variant="glass"
+                />
+              )}
+              <div className="flex gap-3">
+                <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-lg px-5 py-3 flex flex-col items-center min-w-[5rem]">
+                  <p className="text-[10px] text-white/70 uppercase tracking-wide">습도</p>
+                  <p className="text-xl font-bold text-white">{current.humidity}%</p>
+                </div>
+                <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-lg px-5 py-3 flex flex-col items-center min-w-[5rem]">
+                  <p className="text-[10px] text-white/70 uppercase tracking-wide">강수량</p>
+                  <p className="text-xl font-bold text-white">{current.precipitation}mm</p>
+                </div>
               </div>
             </div>
           </div>
