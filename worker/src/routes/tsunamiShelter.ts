@@ -19,15 +19,15 @@ export async function handleTsunamiShelter(url: URL, apiKey?: string): Promise<{
     pageNo,
   });
 
-  if (ctprvnNm) {
-    qs.set('ctprvnNm', ctprvnNm);
-  }
+  // DSSP-IF-10944는 지역 필터를 지원하지 않는 경우가 많으므로 전수 조사를 위해 필터 제거
+  // if (ctprvnNm) {
+  //   qs.set('ctprvnNm', ctprvnNm);
+  // }
 
-  const apiUrl = `${BASE}/V2/api/DSSP-IF-10944?${qs}`;
+  // SSL 오류 방지를 위해 http 시도 (safetydata는 보통 지원함)
+  const apiUrl = `http://www.safetydata.go.kr/V2/api/DSSP-IF-10944?${qs}`;
 
-  const res = await fetch(apiUrl, { 
-    headers: { 'User-Agent': '119-helper-worker/1.0' }
-  });
+  const res = await fetch(apiUrl);
 
   if (!res.ok) {
     throw new Error(`Tsunami Shelter API ${res.status}: ${res.statusText}`);
