@@ -22,12 +22,11 @@ import type { FireFacility } from './data/mockData';
 import FacilitySearchView from './components/FacilitySearchView';
 import ManualView from './components/ManualView';
 import FieldTimer from './components/FieldTimer';
-import UnitConverter from './components/UnitConverter';
 import NewsDashboard from './components/NewsDashboard';
 import PolicyDashboard from './components/PolicyDashboard';
 import { WildfireView } from './components/WildfireView';
 
-type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis' | 'multiuse' | 'hazmat' | 'annual-fire' | 'statistics' | 'manual' | 'field-timer' | 'unit-converter' | 'news' | 'policy' | 'wildfire';
+type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis' | 'multiuse' | 'hazmat' | 'annual-fire' | 'statistics' | 'manual' | 'field-timer' | 'news' | 'policy' | 'wildfire';
 type ShelterCategory = 'hydrants' | 'waterTowers' | 'civil';
 
 // 알림 시스템 타입
@@ -345,7 +344,6 @@ export default function App() {
       case 'manual': return <ManualView />;
       case 'calculator': return <Calculators subId={activeSubId} />;
       case 'field-timer': return <FieldTimer />;
-      case 'unit-converter': return <UnitConverter />;
       case 'calendar': return <Calendar />;
       case 'news': return <NewsDashboard city={city} />;
       case 'policy': return <PolicyDashboard />;

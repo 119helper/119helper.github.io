@@ -20,11 +20,11 @@ export interface CityIndex {
 }
 
 // TODO: 환경에 맞춰 City Map 재구성 (fireWater와 유사)
-const CITY_MAP: Record<string, string> = {
-  seoul: '서울특별시', busan: '부산광역시', daegu: '대구광역시',
-  incheon: '인천광역시', gwangju: '광주광역시', daejeon: '대전광역시',
-  ulsan: '울산광역시', sejong: '세종특별자치시', jeju: '제주특별자치도'
-};
+// const CITY_MAP: Record<string, string> = {
+//   seoul: '서울특별시', busan: '부산광역시', daegu: '대구광역시',
+//   incheon: '인천광역시', gwangju: '광주광역시', daejeon: '대전광역시',
+//   ulsan: '울산광역시', sejong: '세종특별자치시', jeju: '제주특별자치도'
+// };
 
 /**
  * 도시 메타 정보(구 목록 + 건수) 로드
