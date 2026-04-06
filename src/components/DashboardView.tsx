@@ -331,7 +331,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
 
       {/* Quick Tools */}
       <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden shadow-sm transition-all">
-        <div className="flex items-center justify-between border-b border-outline-variant/10 p-4 md:p-6">
+        <div className="flex items-center justify-between border-b border-outline-variant/10 p-3 md:p-4">
           <button 
             onClick={() => setShowQuickTools(!showQuickTools)}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
@@ -352,7 +352,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
           </button>
         </div>
         {showQuickTools && customTools.length > 0 && (
-          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4 p-4 md:p-6 animate-in slide-in-from-top-4 fade-in duration-300">
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4 p-3 md:p-4 animate-in slide-in-from-top-4 fade-in duration-300">
             {customTools.map(toolId => {
               const tool = ALL_QUICK_TOOLS.find(t => t.id === toolId);
               if (!tool) return null;
@@ -360,9 +360,9 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
                 <button
                   key={tool.id}
                   onClick={() => onNavigate(tool.tab, tool.subId)}
-                  className="flex flex-col items-center gap-3 p-4 md:p-5 rounded-xl bg-surface-container hover:bg-surface-container-high transition-all group border border-transparent hover:border-outline-variant/20"
+                  className="flex flex-col items-center gap-2 p-3 md:p-4 rounded-xl bg-surface-container hover:bg-surface-container-high transition-all group border border-transparent hover:border-outline-variant/20"
                 >
-                  <span className={`material-symbols-outlined text-3xl ${tool.color} group-hover:scale-110 transition-transform`}>{tool.icon}</span>
+                  <span className={`material-symbols-outlined text-2xl md:text-3xl ${tool.color} group-hover:scale-110 transition-transform`}>{tool.icon}</span>
                   <span className="text-xs md:text-sm font-medium text-on-surface whitespace-nowrap">{tool.label}</span>
                 </button>
               );
@@ -370,8 +370,8 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
           </div>
         )}
         {showQuickTools && customTools.length === 0 && (
-          <div className="p-8 text-center text-on-surface-variant/60 flex flex-col items-center gap-2">
-            <span className="material-symbols-outlined text-4xl opacity-50">category</span>
+          <div className="p-6 text-center text-on-surface-variant/60 flex flex-col items-center gap-2">
+            <span className="material-symbols-outlined text-3xl opacity-50">category</span>
             <p className="text-sm font-medium">선택된 도구가 없습니다.</p>
             <p className="text-xs">우측 상단의 '도구 편집'을 눌러 기능을 추가해보세요.</p>
           </div>
@@ -382,7 +382,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
       <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden shadow-sm transition-all">
         <button 
           onClick={() => setShowMemo(!showMemo)}
-          className="w-full p-4 md:p-6 border-b border-outline-variant/10 flex items-center justify-between hover:bg-surface-container/50 transition-colors"
+          className="w-full p-3 md:p-4 border-b border-outline-variant/10 flex items-center justify-between hover:bg-surface-container/50 transition-colors"
         >
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-pink-400 text-xl">sticky_note_2</span>
@@ -393,7 +393,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
           </span>
         </button>
         {showMemo && (
-          <div className="p-4 md:p-6 animate-in slide-in-from-top-4 fade-in duration-300 bg-surface/30">
+          <div className="p-3 md:p-4 animate-in slide-in-from-top-4 fade-in duration-300 bg-surface/30">
             <StickyNotes embedMode />
           </div>
         )}

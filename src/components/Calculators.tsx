@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import HazmatCalc from './HazmatCalc';
+import UnitConverter from './UnitConverter';
 
 interface CalcResult {
   label: string;
@@ -243,139 +244,6 @@ function AirTankTimer() {
   );
 }
 
-function FireUnitConverter() {
-  const [activeGroup, setActiveGroup] = useState(0);
-  const [inputVal, setInputVal] = useState('');
-
-  const groups = [
-    {
-      name: '압력',
-      icon: 'speed',
-      color: 'primary',
-      units: [
-        { name: 'MPa', factor: 1 },
-        { name: 'kgf/cm²', factor: 10.1972 },
-        { name: 'bar', factor: 10 },
-        { name: 'psi', factor: 145.038 },
-        { name: 'mH₂O', factor: 101.972 },
-      ],
-    },
-    {
-      name: '유량',
-      icon: 'water',
-      color: 'secondary',
-      units: [
-        { name: 'L/min', factor: 1 },
-        { name: 'm³/h', factor: 0.06 },
-        { name: 'GPM', factor: 0.264172 },
-        { name: 'L/s', factor: 1 / 60 },
-      ],
-    },
-    {
-      name: '길이',
-      icon: 'straighten',
-      color: 'tertiary',
-      units: [
-        { name: 'm', factor: 1 },
-        { name: 'ft', factor: 3.28084 },
-        { name: 'in', factor: 39.3701 },
-        { name: 'mm', factor: 1000 },
-      ],
-    },
-    {
-      name: '온도',
-      icon: 'thermostat',
-      color: 'error',
-      units: [], // 특수 처리
-    },
-  ];
-
-  const group = groups[activeGroup];
-  const val = parseFloat(inputVal) || 0;
-
-  // 온도는 특수 변환
-  const tempConversions = inputVal
-    ? [
-        { name: '℃', value: val },
-        { name: '℉', value: val * 9 / 5 + 32 },
-        { name: 'K', value: val + 273.15 },
-      ]
-    : [];
-
-  // 일반 단위 변환 (첫번째 단위 기준으로 입력 → 나머지 환산)
-  const conversions =
-    group.name === '온도'
-      ? tempConversions
-      : group.units.map(u => ({
-          name: u.name,
-          value: val * u.factor,
-        }));
-
-  return (
-    <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6 space-y-4">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="p-2 bg-primary/10 rounded-lg">
-          <span className="material-symbols-outlined text-primary text-2xl">calculate</span>
-        </div>
-        <div>
-          <h3 className="text-lg font-bold text-on-surface">단위 변환기</h3>
-          <p className="text-xs text-on-surface-variant">소방 현장 압력·유량·길이·온도 변환</p>
-        </div>
-      </div>
-
-      {/* 카테고리 탭 */}
-      <div className="flex gap-2">
-        {groups.map((g, i) => (
-          <button
-            key={g.name}
-            onClick={() => { setActiveGroup(i); setInputVal(''); }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-              i === activeGroup
-                ? `bg-${g.color}/15 text-${g.color}`
-                : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
-            }`}
-          >
-            <span className="material-symbols-outlined text-sm">{g.icon}</span>
-            {g.name}
-          </button>
-        ))}
-      </div>
-
-      {/* 입력 */}
-      <div className="flex gap-3 items-center">
-        <input
-          type="number"
-          value={inputVal}
-          onChange={e => setInputVal(e.target.value)}
-          placeholder={`값 입력 (${group.name === '온도' ? '℃' : group.units[0]?.name || ''} 기준)`}
-          className="flex-1 bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30 font-mono"
-        />
-      </div>
-
-      {/* 변환 결과 */}
-      {inputVal && conversions.length > 0 && (
-        <div className="bg-surface-container rounded-lg p-4 space-y-1">
-          {conversions.map((c, i) => (
-            <div
-              key={c.name}
-              className={`flex justify-between items-center py-2 ${i === 0 ? 'font-bold' : ''} ${i > 0 ? 'border-t border-outline-variant/10' : ''}`}
-            >
-              <span className="text-sm text-on-surface-variant">{c.name}</span>
-              <span className="text-sm text-on-surface font-mono font-bold">
-                {typeof c.value === 'number' && !isNaN(c.value)
-                  ? c.value < 0.01 && c.value > 0
-                    ? c.value.toExponential(2)
-                    : c.value.toFixed(c.value >= 1000 ? 1 : c.value >= 1 ? 3 : 4)
-                  : '-'}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function Calculators({ subId }: { subId?: string }) {
   useEffect(() => {
     if (subId) {
@@ -403,7 +271,7 @@ export default function Calculators({ subId }: { subId?: string }) {
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div id="air_tank_timer"><AirTankTimer /></div>
-        <div id="unit_converter"><FireUnitConverter /></div>
+        <div id="unit_converter" className="xl:col-span-1"><UnitConverter /></div>
       </div>
     </div>
   );

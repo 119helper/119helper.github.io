@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { fetchWildfires, type WildfireItem } from '../services/wildfireApi';
 import { latLngToGrid, getUltraShortNow, parseCurrentWeather, type CurrentWeather } from '../services/weatherApi';
 
-export const WildfireView: React.FC = () => {
+export const WildfireView: React.FC<{ cityName?: string }> = ({ cityName }) => {
   const [fires, setFires] = useState<WildfireItem[]>([]);
+  const [filterMode, setFilterMode] = useState<'all' | 'local'>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [windInfo, setWindInfo] = useState<Record<string, CurrentWeather>>({});
@@ -37,10 +38,14 @@ export const WildfireView: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const ongoing = fires.filter(f => f.isOngoing);
-  const extinguished = fires.filter(f => !f.isOngoing);
+  const displayFires = filterMode === 'local' && cityName
+    ? fires.filter(f => f.address.includes(cityName))
+    : fires;
+
+  const ongoing = displayFires.filter(f => f.isOngoing);
+  const extinguished = displayFires.filter(f => !f.isOngoing);
   
-  const totalDamage = fires.reduce((acc, curr) => acc + (curr.damageArea || 0), 0);
+  const totalDamage = displayFires.reduce((acc, curr) => acc + (curr.damageArea || 0), 0);
 
   // 확산 방향 예측 도우미 (반대 방향)
   const getSpreadDirection = (windDirText: string) => {
@@ -63,13 +68,32 @@ export const WildfireView: React.FC = () => {
           </h2>
           <p className="text-sm text-on-surface-variant mt-1">행정안전부 산불정보 (최근 200건)</p>
         </div>
-        <button 
-          onClick={loadData}
-          className="p-2 rounded-full bg-surface-variant text-on-surface hover:bg-surface-tint hover:text-white transition-colors flex items-center shadow-sm"
-          title="새로고침"
-        >
-          <span className={`material-symbols-outlined ${isLoading ? 'animate-spin' : ''}`}>refresh</span>
-        </button>
+        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
+          {cityName && (
+            <div className="flex bg-surface-container rounded-lg p-1 shadow-inner">
+              <button 
+                onClick={() => setFilterMode('all')}
+                className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-bold transition-all ${filterMode === 'all' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+              >
+                전국
+              </button>
+              <button 
+                onClick={() => setFilterMode('local')}
+                className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-bold transition-all flex items-center gap-1 ${filterMode === 'local' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+              >
+                <span className="material-symbols-outlined text-[14px]">location_on</span>
+                {cityName} 한정
+              </button>
+            </div>
+          )}
+          <button 
+            onClick={loadData}
+            className="p-2 rounded-full bg-surface-variant text-on-surface hover:bg-surface-tint hover:text-white transition-colors flex items-center shadow-sm"
+            title="새로고침"
+          >
+            <span className={`material-symbols-outlined ${isLoading ? 'animate-spin' : ''}`}>refresh</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -93,18 +117,18 @@ export const WildfireView: React.FC = () => {
 
       <h3 className="text-lg font-bold text-on-background mb-4">현재 화재 및 최근 완료 목록</h3>
       
-      {isLoading && fires.length === 0 ? (
+      {isLoading && displayFires.length === 0 ? (
         <div className="flex justify-center py-10">
           <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
         </div>
-      ) : fires.length === 0 ? (
+      ) : displayFires.length === 0 ? (
         <div className="text-center py-10 text-on-surface-variant bg-surface rounded-xl shadow-inner">
           <span className="material-symbols-outlined text-4xl mb-2 opacity-50">forest</span>
           <p>조회된 산불 정보가 없습니다.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {fires.map((fire) => (
+          {displayFires.map((fire) => (
             <div key={fire.id} className={`p-4 rounded-xl shadow-md flex flex-col sm:flex-row sm:items-center justify-between border-l-4 ${fire.isOngoing ? 'bg-error/10 border-error' : 'bg-surface border-secondary'}`}>
               <div className="mb-2 sm:mb-0">
                 <div className="flex items-center">

@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Huge data files that freeze Git UI
+public/firewater/*.json
+*.csv
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

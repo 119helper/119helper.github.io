@@ -6,6 +6,7 @@
  */
 
 import tsunamiData from '../../public/data/tsunami.json';
+import { civilData } from '../data/civilData';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://119-helper-api.teemozipsa.workers.dev';
 
@@ -152,7 +153,8 @@ export async function fetchTsunamiShelters() {
 // ═══════ 민방위대피시설 ═══════
 
 export async function fetchCivilShelters(ctprvnNm: string, sgnNm?: string, numOfRows = '200', pageNo = '1') {
-  return apiFetch<any[]>('/api/civil-shelter', { ctprvnNm, sgnNm: sgnNm || '', numOfRows, pageNo });
+  // 민방위 데이터 또한 공공데이터 포털의 SSL 차단 및 필터링 미지원 이슈로 정적 JSON을 사용합니다.
+  return civilData;
 }
 
 // ═══════ 다중이용업소 ═══════

@@ -61,7 +61,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'manual', icon: 'menu_book', label: '대응 매뉴얼' },
   { id: 'calculator', icon: 'calculate', label: '계산기' },
   { id: 'field-timer', icon: 'timer', label: '현장 타이머' },
-  { id: 'unit-converter', icon: 'swap_horiz', label: '단위 변환' },
   { id: 'calendar', icon: 'calendar_month', label: '달력/일정' },
   { id: 'policy', icon: 'gavel', label: '법안/지침' },
 ];
@@ -339,7 +338,7 @@ export default function App() {
       case 'emergency': return <EmergencyAnalysis />;
       case 'fire-analysis': return <FireAnalysis />;
       case 'multiuse': return <MultiUseView city={city} />;
-      case 'wildfire': return <WildfireView />;
+      case 'wildfire': return <WildfireView cityName={cityNames[city]} />;
       case 'hazmat': return <HazmatView />;
       case 'annual-fire': return <AnnualFireView />;
       case 'statistics': return <StatisticsView city={city} />;
