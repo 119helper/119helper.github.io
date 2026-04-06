@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getUltraShortNow, getShortTermFcst, getMidTermLand, getMidTermTemp, getWeatherBriefing,
   parseCurrentWeather, parseHourlyForecast,
@@ -29,6 +29,34 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastRefresh, setLastRefresh] = useState('');
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    isDragging.current = true;
+    startX.current = e.pageX - scrollRef.current.offsetLeft;
+    scrollLeft.current = scrollRef.current.scrollLeft;
+  };
+
+  const handleMouseLeave = () => {
+    isDragging.current = false;
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX.current) * 2;
+    scrollRef.current.scrollLeft = scrollLeft.current - walk;
+  };
 
   const grid = CITY_GRIDS[city] || CITY_GRIDS['seoul'];
 
@@ -287,7 +315,14 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
             <h3 className="text-lg font-bold text-on-surface font-headline">⏰ 시간별 예보 (단기예보)</h3>
             <span className="text-xs text-on-surface-variant">{hourly.length}시간</span>
           </div>
-          <div className="overflow-x-auto hidden-scrollbar">
+          <div 
+            ref={scrollRef}
+            className="overflow-x-auto hidden-scrollbar cursor-grab active:cursor-grabbing"
+            onMouseDown={handleMouseDown}
+            onMouseLeave={handleMouseLeave}
+            onMouseUp={handleMouseUp}
+            onMouseMove={handleMouseMove}
+          >
             <div className="flex min-w-max">
               {hourly.slice(0, 24).map((h, i) => (
                 <div key={i} className={`flex flex-col items-center px-4 pt-6 pb-4 min-w-[72px] border-r border-outline-variant/5 relative ${
