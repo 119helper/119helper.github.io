@@ -565,7 +565,10 @@ export default function App() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto custom-scrollbar relative">
-          <div className="p-4 md:p-6 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-6 min-h-full">
+          <div 
+            className="p-4 md:p-6 lg:pb-6 min-h-full"
+            style={{ paddingBottom: 'calc(7rem + env(safe-area-inset-bottom))' }}
+          >
             {renderContent()}
           </div>
         </div>
