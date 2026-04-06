@@ -565,11 +565,13 @@ export default function App() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto custom-scrollbar relative">
-          <div 
-            className="p-4 md:p-6 lg:pb-6 min-h-full"
-            style={{ paddingBottom: 'calc(7rem + env(safe-area-inset-bottom))' }}
-          >
-            {renderContent()}
+          <div className="p-4 md:p-6 lg:pb-6 min-h-full flex flex-col">
+            <div className="flex-1">
+              {renderContent()}
+            </div>
+            {/* Mobile Nav Spacer - Guaranteed to add scroll space at the bottom */}
+            <div className="h-28 lg:hidden w-full shrink-0" />
+            <div className="safe-area-bottom w-full shrink-0" />
           </div>
         </div>
 
