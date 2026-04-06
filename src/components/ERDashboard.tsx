@@ -94,6 +94,7 @@ export default function ERDashboard({ city }: ERViewProps) {
 
   /* 메시지 분류 라벨 */
   function getMsgTypeLabel(msg: ERMessage): string {
+    if (msg.symBlkMsgTyp && msg.symBlkMsgTyp.trim()) return msg.symBlkMsgTyp.trim();
     if (msg.symTypMna && msg.symTypMna.trim()) return msg.symTypMna.trim();
     if (msg.symTypMain && msg.symTypMain.trim()) return msg.symTypMain.trim();
     return '응급실 알림';
@@ -143,7 +144,7 @@ export default function ERDashboard({ city }: ERViewProps) {
                     <span className="font-extrabold text-on-surface text-base">{msg.dutyName}</span>
                     <span className="px-2 py-0.5 bg-error/20 text-error rounded text-[10px] font-bold">{getMsgTypeLabel(msg)}</span>
                   </div>
-                  <p className="text-on-surface-variant font-medium leading-relaxed">{msg.symOutCon || msg.symTypMain || '상세 내용 없음'}</p>
+                  <p className="text-on-surface-variant font-medium leading-relaxed">{msg.symBlkMsg || msg.symOutCon || msg.symTypMain || '상세 내용 없음'}</p>
                 </div>
               ))}
             </div>

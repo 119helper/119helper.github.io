@@ -44,10 +44,12 @@ export interface ERListItem {
 export interface ERMessage {
   hpid: string;
   dutyName: string;
-  symTypCd: string;     // 메시지 종류
-  symTypMain: string;   // 메시지 내용
-  symOutCon: string;    // 상세 내용
-  symTypMna: string;    // 관련 분류명 (주로 '응급실메시지')
+  symTypCd?: string;     // 메시지 종류 (안쓰일수있음)
+  symTypMain?: string;   // 메시지 내용 (안쓰일수있음)
+  symOutCon?: string;    // 상세 내용 (안쓰일수있음)
+  symTypMna?: string;    // 관련 분류명 (안쓰일수있음)
+  symBlkMsg?: string;    // 실제 응급실 메시지 내용
+  symBlkMsgTyp?: string; // 실제 응급실 메시지 타입 (응급 등)
 }
 
 export interface ERSevereIllness {
