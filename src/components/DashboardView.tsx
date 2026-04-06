@@ -7,7 +7,7 @@ import type { CityIndex } from '../services/fireWaterApi';
 import WeatherAlertBanner from './WeatherAlertBanner';
 import StickyNotes from './StickyNotes';
 
-type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'calendar' | 'emergency' | 'fire-analysis' | 'annual-fire' | 'statistics';
+type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis' | 'multiuse' | 'hazmat' | 'annual-fire' | 'statistics' | 'manual' | 'field-timer' | 'unit-converter' | 'news' | 'policy';
 
 const cityNames: Record<string, string> = {
   seoul: '서울', busan: '부산', daegu: '대구', incheon: '인천',
@@ -15,12 +15,45 @@ const cityNames: Record<string, string> = {
 };
 
 interface DashboardProps {
-  onNavigate: (tab: TabId) => void;
+  onNavigate: (tab: TabId, subId?: string) => void;
   city: string;
   fireFacilities: FireFacility[];
   isLoadingFacilities: boolean;
   cityIndex?: CityIndex | null;
 }
+
+export interface QuickToolDef {
+  id: string;
+  tab: TabId;
+  subId?: string;
+  icon: string;
+  label: string;
+  color: string;
+  category: string;
+}
+
+export const ALL_QUICK_TOOLS: QuickToolDef[] = [
+  // 소방 계산기
+  { id: 'calc_hazmat', tab: 'calculator', subId: 'hazmat_calc', icon: 'science', label: '유해물질', color: 'text-orange-400', category: '계산기' },
+  { id: 'calc_water', tab: 'calculator', subId: 'water_pressure_calc', icon: 'water_drop', label: '수압 계산', color: 'text-blue-400', category: '계산기' },
+  { id: 'calc_hose', tab: 'calculator', subId: 'hose_length_calc', icon: 'straighten', label: '호스 전개', color: 'text-green-400', category: '계산기' },
+  { id: 'calc_air', tab: 'calculator', subId: 'air_tank_timer', icon: 'timer', label: '공기호흡기', color: 'text-amber-400', category: '계산기' },
+  { id: 'calc_unit', tab: 'calculator', subId: 'unit_converter', icon: 'swap_horiz', label: '단위 변환', color: 'text-indigo-400', category: '계산기' },
+  // 주요 탭
+  { id: 'field_timer', tab: 'field-timer', icon: 'timer', label: '현장 타이머', color: 'text-red-500', category: '현장 도구' },
+  { id: 'building', tab: 'building', icon: 'apartment', label: '건축물대장', color: 'text-purple-400', category: '조회' },
+  { id: 'multiuse', tab: 'multiuse', icon: 'store', label: '다중이용업소', color: 'text-teal-400', category: '조회' },
+  { id: 'shelter', tab: 'shelter', icon: 'location_city', label: '시설 조회', color: 'text-yellow-400', category: '조회' },
+  { id: 'er', tab: 'er', icon: 'local_hospital', label: '응급실 현황', color: 'text-pink-400', category: '현장 도구' },
+  { id: 'weather', tab: 'weather', icon: 'cloud', label: '기상 정보', color: 'text-sky-400', category: '현장 도구' },
+  { id: 'statistics', tab: 'statistics', icon: 'bar_chart', label: '통계 분석', color: 'text-orange-500', category: '행정/기타' },
+  { id: 'news', tab: 'news', icon: 'newspaper', label: '소방 뉴스', color: 'text-teal-500', category: '행정/기타' },
+  { id: 'manual', tab: 'manual', icon: 'menu_book', label: '대응 매뉴얼', color: 'text-blue-500', category: '행정/기타' },
+  { id: 'calendar', tab: 'calendar', icon: 'calendar_month', label: '달력/일정', color: 'text-red-400', category: '행정/기타' },
+  { id: 'policy', tab: 'policy', icon: 'gavel', label: '법안/지침', color: 'text-green-500', category: '행정/기타' },
+];
+
+const DEFAULT_TOOLS = ['calc_water', 'field_timer', 'building'];
 
 export default function DashboardView({ onNavigate, city, fireFacilities, isLoadingFacilities, cityIndex }: DashboardProps) {
   const cityLabel = cityNames[city] || '서울';
@@ -33,6 +66,21 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
   // 섹션 접기/펴기 상태
   const [showQuickTools, setShowQuickTools] = useState(true);
   const [showMemo, setShowMemo] = useState(true);
+
+  // 빠른 도구 상태
+  const [customTools, setCustomTools] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('119helper-custom-tools');
+      if (saved) return JSON.parse(saved);
+    } catch { /* parse error fallback */ }
+    return DEFAULT_TOOLS;
+  });
+  const [isEditingTools, setIsEditingTools] = useState(false);
+
+  const saveTools = (newTools: string[]) => {
+    setCustomTools(newTools);
+    localStorage.setItem('119helper-custom-tools', JSON.stringify(newTools));
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -230,36 +278,49 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
 
       {/* Quick Tools */}
       <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden shadow-sm transition-all">
-        <button 
-          onClick={() => setShowQuickTools(!showQuickTools)}
-          className="w-full p-4 md:p-6 border-b border-outline-variant/10 flex items-center justify-between hover:bg-surface-container/50 transition-colors"
-        >
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between border-b border-outline-variant/10 p-4 md:p-6">
+          <button 
+            onClick={() => setShowQuickTools(!showQuickTools)}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
+          >
             <span className="material-symbols-outlined text-primary text-xl">build_circle</span>
             <h3 className="text-lg font-extrabold text-on-surface font-headline">빠른 도구</h3>
+            <span className={`material-symbols-outlined text-on-surface-variant transition-transform duration-300 ${showQuickTools ? 'rotate-180' : ''}`}>
+              expand_more
+            </span>
+          </button>
+          
+          <button
+            onClick={() => setIsEditingTools(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors text-xs font-bold text-on-surface-variant"
+          >
+            <span className="material-symbols-outlined text-sm">edit</span>
+            도구 편집
+          </button>
+        </div>
+        {showQuickTools && customTools.length > 0 && (
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4 p-4 md:p-6 animate-in slide-in-from-top-4 fade-in duration-300">
+            {customTools.map(toolId => {
+              const tool = ALL_QUICK_TOOLS.find(t => t.id === toolId);
+              if (!tool) return null;
+              return (
+                <button
+                  key={tool.id}
+                  onClick={() => onNavigate(tool.tab, tool.subId)}
+                  className="flex flex-col items-center gap-3 p-4 md:p-5 rounded-xl bg-surface-container hover:bg-surface-container-high transition-all group border border-transparent hover:border-outline-variant/20"
+                >
+                  <span className={`material-symbols-outlined text-3xl ${tool.color} group-hover:scale-110 transition-transform`}>{tool.icon}</span>
+                  <span className="text-xs md:text-sm font-medium text-on-surface whitespace-nowrap">{tool.label}</span>
+                </button>
+              );
+            })}
           </div>
-          <span className={`material-symbols-outlined text-on-surface-variant transition-transform duration-300 ${showQuickTools ? 'rotate-180' : ''}`}>
-            expand_more
-          </span>
-        </button>
-        {showQuickTools && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 p-4 md:p-6 animate-in slide-in-from-top-4 fade-in duration-300">
-            {[
-              { icon: 'science', label: '유해물질', tab: 'calculator' as TabId, color: 'text-orange-400' },
-              { icon: 'water_drop', label: '수압 계산기', tab: 'calculator' as TabId, color: 'text-blue-400' },
-              { icon: 'straighten', label: '호스 전개', tab: 'calculator' as TabId, color: 'text-green-400' },
-              { icon: 'timer', label: '공기호흡기', tab: 'calculator' as TabId, color: 'text-amber-400' },
-              { icon: 'apartment', label: '건축물대장', tab: 'building' as TabId, color: 'text-purple-400' },
-            ].map(tool => (
-              <button
-                key={tool.label}
-                onClick={() => onNavigate(tool.tab)}
-                className="flex flex-col items-center gap-3 p-5 rounded-xl bg-surface-container hover:bg-surface-container-high transition-all group border border-transparent hover:border-outline-variant/20"
-              >
-                <span className={`material-symbols-outlined text-3xl ${tool.color} group-hover:scale-110 transition-transform`}>{tool.icon}</span>
-                <span className="text-sm font-medium text-on-surface">{tool.label}</span>
-              </button>
-            ))}
+        )}
+        {showQuickTools && customTools.length === 0 && (
+          <div className="p-8 text-center text-on-surface-variant/60 flex flex-col items-center gap-2">
+            <span className="material-symbols-outlined text-4xl opacity-50">category</span>
+            <p className="text-sm font-medium">선택된 도구가 없습니다.</p>
+            <p className="text-xs">우측 상단의 '도구 편집'을 눌러 기능을 추가해보세요.</p>
           </div>
         )}
       </section>
@@ -284,6 +345,89 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
           </div>
         )}
       </section>
+
+      {/* Editor Modal */}
+      {isEditingTools && (
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-surface-container-lowest w-full max-w-2xl max-h-[85vh] rounded-2xl flex flex-col shadow-2xl relative">
+            <div className="p-5 border-b border-outline-variant/20 flex items-center justify-between sticky top-0 bg-surface-container-lowest/95 backdrop-blur-md rounded-t-2xl z-10">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-2xl">category</span>
+                <h3 className="text-xl font-extrabold text-on-surface">빠른 도구 편집</h3>
+              </div>
+              <button 
+                onClick={() => setIsEditingTools(false)}
+                className="p-2 rounded-full hover:bg-surface-container transition-colors"
+              >
+                <span className="material-symbols-outlined text-on-surface-variant">close</span>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
+              {Object.entries(
+                ALL_QUICK_TOOLS.reduce((acc, tool) => {
+                  if (!acc[tool.category]) acc[tool.category] = [];
+                  acc[tool.category].push(tool);
+                  return acc;
+                }, {} as Record<string, QuickToolDef[]>)
+              ).map(([cat, tools]) => (
+                <div key={cat} className="space-y-3">
+                  <h4 className="text-sm font-bold text-on-surface-variant capitalize tracking-widest">{cat}</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {tools.map(tool => {
+                      const isSelected = customTools.includes(tool.id);
+                      return (
+                        <button
+                          key={tool.id}
+                          onClick={() => {
+                            if (isSelected) {
+                              saveTools(customTools.filter(id => id !== tool.id));
+                            } else {
+                              saveTools([...customTools, tool.id]);
+                            }
+                          }}
+                          className={`flex items-center gap-3 p-3 text-left border rounded-xl transition-all ${
+                            isSelected 
+                              ? 'bg-primary/10 border-primary/40 shadow-inner' 
+                              : 'bg-surface-container border-outline-variant/10 hover:border-outline-variant/30'
+                          }`}
+                        >
+                          <span className={`material-symbols-outlined text-2xl ${isSelected ? tool.color : 'text-on-surface-variant'} transition-colors`}>
+                            {tool.icon}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-bold truncate ${isSelected ? 'text-primary' : 'text-on-surface'}`}>
+                              {tool.label}
+                            </p>
+                          </div>
+                          {isSelected && (
+                            <span className="material-symbols-outlined text-primary text-sm font-bold absolute right-3 opacity-80 pointer-events-none">check_circle</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-5 border-t border-outline-variant/20 bg-surface-container-lowest rounded-b-2xl flex justify-end gap-3 sticky bottom-0 z-10">
+              <button
+                onClick={() => saveTools(DEFAULT_TOOLS)}
+                className="px-5 py-2.5 rounded-lg text-sm font-bold text-on-surface-variant bg-surface-container hover:bg-surface-container-high transition-colors"
+              >
+                초기화
+              </button>
+              <button
+                onClick={() => setIsEditingTools(false)}
+                className="px-6 py-2.5 rounded-lg text-sm font-bold text-on-primary bg-primary hover:bg-primary/90 shadow-md shadow-primary/20 transition-all"
+              >
+                완료
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

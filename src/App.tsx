@@ -89,6 +89,7 @@ function formatTimeAgo(date: Date): string {
 /* ─────────── Main App ─────────── */
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
+  const [activeSubId, setActiveSubId] = useState<string | undefined>(undefined);
   const [city, setCity] = useState<string>(() => localStorage.getItem('119helper-city') || 'seoul');
   const [fireFacilities, setFireFacilities] = useState<FireFacility[]>([]);
   const [isLoadingFacilities, setIsLoadingFacilities] = useState(false);
@@ -304,7 +305,7 @@ export default function App() {
     return () => { window.removeEventListener('storage', handleStorage); clearInterval(pollId); };
   }, []);
 
-  const handleNavigate = (tab: TabId) => {
+  const handleNavigate = (tab: TabId, subId?: string) => {
     // hydrants/waterTowers → shelter 탭으로 통합 매핑
     if (tab === 'hydrants' || tab === 'waterTowers') {
       setShelterCategory(tab as ShelterCategory);
@@ -312,6 +313,7 @@ export default function App() {
     } else {
       setActiveTab(tab);
     }
+    setActiveSubId(subId);
     setSidebarOpen(false);
   };
 
@@ -339,7 +341,7 @@ export default function App() {
       case 'annual-fire': return <AnnualFireView />;
       case 'statistics': return <StatisticsView city={city} />;
       case 'manual': return <ManualView />;
-      case 'calculator': return <Calculators />;
+      case 'calculator': return <Calculators subId={activeSubId} />;
       case 'field-timer': return <FieldTimer />;
       case 'unit-converter': return <UnitConverter />;
       case 'calendar': return <Calendar />;

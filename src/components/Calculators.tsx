@@ -35,7 +35,7 @@ function WaterPressureCalc() {
   };
 
   return (
-    <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6 space-y-4">
+    <div id="water_pressure_calc" className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6 space-y-4">
       <div className="flex items-center gap-3 mb-2">
         <div className="p-2 bg-primary/10 rounded-lg">
           <span className="material-symbols-outlined text-primary text-2xl">water_drop</span>
@@ -376,21 +376,34 @@ function FireUnitConverter() {
   );
 }
 
-export default function Calculators() {
+export default function Calculators({ subId }: { subId?: string }) {
+  useEffect(() => {
+    if (subId) {
+      setTimeout(() => {
+        const el = document.getElementById(subId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          el.classList.add('ring-4', 'ring-primary/50', 'transition-all', 'duration-500');
+          setTimeout(() => el.classList.remove('ring-4', 'ring-primary/50'), 2000);
+        }
+      }, 100);
+    }
+  }, [subId]);
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-extrabold text-on-surface font-headline">🧮 소방 계산기</h2>
         <p className="text-sm text-on-surface-variant mt-1">현장 활동에 필요한 계산 · 단위 변환 도구</p>
       </div>
-      <HazmatCalc />
+      <div id="hazmat_calc"><HazmatCalc /></div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <WaterPressureCalc />
-        <HoseLengthCalc />
+        <div id="water_pressure_calc"><WaterPressureCalc /></div>
+        <div id="hose_length_calc"><HoseLengthCalc /></div>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <AirTankTimer />
-        <FireUnitConverter />
+        <div id="air_tank_timer"><AirTankTimer /></div>
+        <div id="unit_converter"><FireUnitConverter /></div>
       </div>
     </div>
   );
