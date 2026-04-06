@@ -68,157 +68,87 @@ export default {
     const path = url.pathname;
 
     try {
-      // ═══════ 헬스체크 (키 정보 노출 제거) ═══════
-      if (path === '/api/health') {
-        return jsonResponse({
-          status: 'ok',
-          version: '1.0.0',
-          timestamp: new Date().toISOString(),
-        }, request);
-      }
-
-      // ═══════ 카카오맵 키 (프론트에서 SDK 로드용) ═══════
-      if (path === '/api/config') {
-        return jsonResponse({
-          kakaoMapKey: env.KAKAO_MAP_KEY || '',
-        }, request, 200, 3600);
-      }
-
-      // ═══════ 날씨 ═══════
-      if (path.startsWith('/api/weather/')) {
-        const result = await handleWeather(path, url, env.KMA_API_KEY);
-        return jsonResponse(result.data, request, 200, result.cacheTtl);
-      }
-
-      // ═══════ 대기질 ═══════
-      if (path === '/api/air') {
-        const result = await handleAir(url, env.AIR_API_KEY);
-        return jsonResponse(result.data, request, 200, result.cacheTtl);
-      }
-
-      // ═══════ 응급실 ═══════
-      if (path.startsWith('/api/er/')) {
-        const result = await handleER(path, url, env.ER_API_KEY);
-        return jsonResponse(result.data, request, 200, result.cacheTtl);
-      }
-
-      // ═══════ 건축물대장 ═══════
-      if (path === '/api/building') {
-        const result = await handleBuilding(url, env.BUILDING_API_KEY);
-        return jsonResponse(result.data, request, 200, result.cacheTtl);
-      }
-
-      // ═══════ 특정소방대상물 (숙박시설 + 소방시설) ═══════
-      if (path.startsWith('/api/fire-object/')) {
-        const result = await handleFireObject(path, url, env.FIRE_OBJECT_API_KEY);
-        return jsonResponse(result.data, request, 200, result.cacheTtl);
-      }
-
-      // ═══════ 소방용수 ═══════
-      if (path === '/api/firewater') {
-        const result = await handleFireWater(url, env.FIRE_WATER_API_KEY);
-        return jsonResponse(result.data, request, 200, result.cacheTtl);
-      }
-
-      // ═══════ 공휴일 ═══════
-      if (path === '/api/holiday') {
-        const result = await handleHoliday(url, env.HOLIDAY_API_KEY);
-        return jsonResponse(result.data, request, 200, result.cacheTtl);
-      }
-
-      // ═══════ 다중이용업소 ═══════
-      if (path === '/api/multiuse') {
-        const result = await handleMultiUse(url, env.MULTI_USE_API_KEY);
-        return jsonResponse(result.data, request, 200, result.cacheTtl);
-      }
-
-      // ═══════ 대피소 (지진해일) ═══════
-      if (path === '/api/shelter') {
-        const result = await handleShelter(url, env.SHELTER_API_KEY);
-        return jsonResponse(result.data, request, 200, result.cacheTtl);
-      }
-
-      // ═══════ 민방위대피시설 ═══════
-      if (path === '/api/civil-shelter') {
-        const result = await handleCivilShelter(url, env.SHELTER_API_KEY);
-        return jsonResponse(result.data, request, 200, result.cacheTtl);
-      }
-
-      // ═══════ 구급통계 ═══════
-      if (path.startsWith('/api/emergency/stats/')) {
-        const result = await handleEmergencyStats(path, url, env.EMERGENCY_API_KEY);
-        return jsonResponse(result.data, request, 200, result.cacheTtl);
-      }
-
-      // ═══════ 구급정보 ═══════
-      if (path.startsWith('/api/emergency/info/')) {
-        const result = await handleEmergencyInfo(path, url, env.EMERGENCY_API_KEY);
-        return jsonResponse(result.data, request, 200, result.cacheTtl);
-      }
-
-      // ═══════ 화재정보 ═══════
-      if (path.startsWith('/api/fire/')) {
-        const result = await handleFireInfo(path, url, env.FIRE_INFO_API_KEY);
-        return jsonResponse(result.data, request, 200, result.cacheTtl);
-      }
-
-      // ═══════ 지역별 화재피해 현황 ═══════
-      if (path === '/api/fire-damage') {
-        const result = await handleFireDamage(url, env.FIRE_DAMAGE_API_KEY);
-        return jsonResponse(result.data, request, 200, result.cacheTtl);
-      }
-
-      // ═══════ 연간화재통계 (Cache API 적용) ═══════
+      const cacheUrl = new URL(url.toString());
+      cacheUrl.searchParams.delete('_t'); // 브라우저 캐시버스트 파라미터 무시
+      
       if (path.startsWith('/api/fire-annual/')) {
-        const cache = caches.default;
-        const cacheUrl = new URL(url.toString());
-        cacheUrl.searchParams.delete('_t'); // remove browser cache-bust param
-        cacheUrl.searchParams.set('_cv', '3'); // cache version - bump to invalidate
-        const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
-        const cached = await cache.match(cacheKey);
-        if (cached) return cached;
-
-        const result = await handleAnnualFireStats(path, url, env.ANNUAL_FIRE_API_KEY);
-        const response = jsonResponse(result.data, request, 200, result.cacheTtl);
-        // 24시간 엣지 캐시
-        response.headers.set('Cache-Control', 'public, max-age=86400');
-        await cache.put(cacheKey, response.clone());
-        return response;
+        cacheUrl.searchParams.set('_cv', '3'); // 기존 캐시 버전 관리 유지
       }
 
-      // ═══════ 뉴스/소식 (Google News RSS 프록시) ═══════
-      if (path === '/api/news') {
-        const cache = caches.default;
-        const cacheKey = new Request(url.toString(), { method: 'GET' });
-        const cached = await cache.match(cacheKey);
-        if (cached) {
-          // 캐시된 응답에 CORS 헤더 재적용 (캐시된 응답은 헤더 수정이 불가능하므로 복제 후 수정)
-          const response = new Response(cached.body, cached);
-          const cors = corsHeaders(request);
-          for (const [k, v] of Object.entries(cors)) {
-            response.headers.set(k, String(v));
-          }
-          return response;
-        }
+      const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
+      const cache = caches.default;
 
-        const response = await newsHandler(request, env);
-        if (response.status === 200) {
-          const cacheableResponse = response.clone();
-          cacheableResponse.headers.set('Cache-Control', 'public, max-age=3600'); // 1시간 캐시
-          await cache.put(cacheKey, cacheableResponse);
-        }
-        
-        // CORS 헤더 적용
-        const finalResponse = new Response(response.body, response);
+      // 1. 공용 캐시(Edge Cache) 적중 여부 확인
+      const cached = await cache.match(cacheKey);
+      if (cached) {
+        const res = new Response(cached.body, cached);
         const cors = corsHeaders(request);
         for (const [k, v] of Object.entries(cors)) {
-          finalResponse.headers.set(k, String(v));
+          res.headers.set(k, String(v));
         }
-        return finalResponse;
+        return res;
       }
 
-      // 404
-      return errorResponse(`Not found: ${path}`, request, 404);
+      // 2. 캐시가 없으면 원본 API 호출
+      let result: { data: any, cacheTtl: number } | null = null;
+      let isNews = false;
+      let newsResponse: Response | null = null;
+
+      if (path === '/api/health') result = { data: { status: 'ok', version: '1.0.0', timestamp: new Date().toISOString() }, cacheTtl: 0 };
+      else if (path === '/api/config') result = { data: { kakaoMapKey: env.KAKAO_MAP_KEY || '' }, cacheTtl: 3600 };
+      else if (path.startsWith('/api/weather/')) result = await handleWeather(path, url, env.KMA_API_KEY);
+      else if (path === '/api/air') result = await handleAir(url, env.AIR_API_KEY);
+      else if (path.startsWith('/api/er/')) result = await handleER(path, url, env.ER_API_KEY);
+      else if (path === '/api/building') result = await handleBuilding(url, env.BUILDING_API_KEY);
+      else if (path.startsWith('/api/fire-object/')) result = await handleFireObject(path, url, env.FIRE_OBJECT_API_KEY);
+      else if (path === '/api/firewater') result = await handleFireWater(url, env.FIRE_WATER_API_KEY);
+      else if (path === '/api/holiday') result = await handleHoliday(url, env.HOLIDAY_API_KEY);
+      else if (path === '/api/multiuse') result = await handleMultiUse(url, env.MULTI_USE_API_KEY);
+      else if (path === '/api/shelter') result = await handleShelter(url, env.SHELTER_API_KEY);
+      else if (path === '/api/civil-shelter') result = await handleCivilShelter(url, env.SHELTER_API_KEY);
+      else if (path.startsWith('/api/emergency/stats/')) result = await handleEmergencyStats(path, url, env.EMERGENCY_API_KEY);
+      else if (path.startsWith('/api/emergency/info/')) result = await handleEmergencyInfo(path, url, env.EMERGENCY_API_KEY);
+      else if (path.startsWith('/api/fire/')) result = await handleFireInfo(path, url, env.FIRE_INFO_API_KEY);
+      else if (path === '/api/fire-damage') result = await handleFireDamage(url, env.FIRE_DAMAGE_API_KEY);
+      else if (path.startsWith('/api/fire-annual/')) result = await handleAnnualFireStats(path, url, env.ANNUAL_FIRE_API_KEY);
+      else if (path === '/api/news') {
+        isNews = true;
+        newsResponse = await newsHandler(request, env);
+      } else {
+        return errorResponse(`Not found: ${path}`, request, 404);
+      }
+
+      // 3. 응답 생성 및 캐시 저장
+      let response: Response;
+
+      if (isNews && newsResponse) {
+        response = newsResponse;
+        if (response.status === 200) {
+          const cacheableResponse = response.clone();
+          cacheableResponse.headers.set('Cache-Control', 'public, max-age=3600');
+          await cache.put(cacheKey, cacheableResponse);
+        }
+      } else if (result) {
+        response = jsonResponse(result.data, request, 200, result.cacheTtl);
+        
+        // 정상 응답(데이터 내 error 속성 없음)일 때만 Edge 환경에 캐싱
+        const isErrorData = result.data && typeof result.data === 'object' && 'error' in result.data;
+        if (result.cacheTtl > 0 && !isErrorData) {
+          const cacheableResponse = response.clone();
+          cacheableResponse.headers.set('Cache-Control', `public, max-age=${result.cacheTtl}`);
+          await cache.put(cacheKey, cacheableResponse);
+        }
+      } else {
+        return errorResponse('No data returned from API', request, 500);
+      }
+
+      // 보조 CORS 헤더 적용
+      const finalRes = new Response(response.body, response);
+      const cors = corsHeaders(request);
+      for (const [k, v] of Object.entries(cors)) {
+        finalRes.headers.set(k, String(v));
+      }
+      return finalRes;
 
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Internal server error';
