@@ -367,18 +367,21 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
 
           {/* Quick Stats Row */}
           <div className="grid grid-cols-2 gap-4">
-            <button onClick={() => onNavigate('hydrants')} className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 text-left hover:border-primary/50 hover:bg-surface-container-low transition-all group relative overflow-hidden shadow-sm hover:shadow-md">
-              <span className="material-symbols-outlined text-primary text-2xl group-hover:scale-110 transition-transform">fire_hydrant</span>
+            <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 border-l-4 border-l-primary/50 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow group">
+              <span className="material-symbols-outlined text-primary text-2xl">fire_hydrant</span>
               <p className="text-3xl font-extrabold text-on-surface mt-2 font-headline">
                 {isLoadingFacilities ? <span className="text-base font-medium animate-pulse text-on-surface-variant">조회 중...</span> : hydrantsCount.toLocaleString()}
               </p>
               <p className="text-xs text-on-surface-variant font-bold mt-1">소화전</p>
-              <div className="absolute right-4 bottom-4 bg-primary/10 text-primary px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 group-hover:bg-primary group-hover:text-on-primary transition-colors">
-                <span className="material-symbols-outlined text-[12px]">map</span> 지도로 보기
-              </div>
-            </button>
-            <button onClick={() => onNavigate('waterTowers')} className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 text-left hover:border-secondary/50 hover:bg-surface-container-low transition-all group relative overflow-hidden shadow-sm hover:shadow-md">
-              <span className="material-symbols-outlined text-secondary text-2xl group-hover:scale-110 transition-transform">water_pump</span>
+              <button 
+                onClick={(e) => { e.stopPropagation(); onNavigate('hydrants'); }} 
+                className="absolute right-4 bottom-4 bg-primary/10 text-primary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-primary hover:text-on-primary transition-colors focus:ring-2 focus:ring-primary/50 focus:outline-none cursor-pointer z-10"
+              >
+                <span className="material-symbols-outlined text-[14px]">map</span> 지도로 보기
+              </button>
+            </div>
+            <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 border-l-4 border-l-secondary/50 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow group">
+              <span className="material-symbols-outlined text-secondary text-2xl">water_pump</span>
               <p className="text-3xl font-extrabold text-on-surface mt-2 font-headline">
                 {isLoadingFacilities
                   ? <span className="text-base font-medium animate-pulse text-on-surface-variant">조회 중...</span>
@@ -386,10 +389,13 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
                 }
               </p>
               <p className="text-xs text-on-surface-variant font-bold mt-1">급수탑 / 저수조</p>
-              <div className="absolute right-4 bottom-4 bg-secondary/10 text-secondary px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 group-hover:bg-secondary group-hover:text-on-secondary transition-colors">
-                <span className="material-symbols-outlined text-[12px]">map</span> 지도로 보기
-              </div>
-            </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); onNavigate('waterTowers'); }} 
+                className="absolute right-4 bottom-4 bg-secondary/10 text-secondary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-secondary hover:text-on-secondary transition-colors focus:ring-2 focus:ring-secondary/50 focus:outline-none cursor-pointer z-10"
+              >
+                <span className="material-symbols-outlined text-[14px]">map</span> 지도로 보기
+              </button>
+            </div>
           </div>
         </div>
       </div>
