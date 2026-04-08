@@ -367,7 +367,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
 
           {/* Quick Stats Row */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 border-l-4 border-l-primary/50 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow group">
+            <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 text-left relative overflow-hidden shadow-sm group">
               <span className="material-symbols-outlined text-primary text-2xl">fire_hydrant</span>
               <p className="text-3xl font-extrabold text-on-surface mt-2 font-headline">
                 {isLoadingFacilities ? <span className="text-base font-medium animate-pulse text-on-surface-variant">조회 중...</span> : hydrantsCount.toLocaleString()}
@@ -380,7 +380,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
                 <span className="material-symbols-outlined text-[14px]">map</span> 지도로 보기
               </button>
             </div>
-            <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 border-l-4 border-l-secondary/50 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow group">
+            <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 text-left relative overflow-hidden shadow-sm group">
               <span className="material-symbols-outlined text-secondary text-2xl">water_pump</span>
               <p className="text-3xl font-extrabold text-on-surface mt-2 font-headline">
                 {isLoadingFacilities
