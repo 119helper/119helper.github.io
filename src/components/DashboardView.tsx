@@ -371,42 +371,48 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
           {/* Quick Stats Row */}
           <div className="grid grid-cols-2 gap-4">
             <div 
-              className="border border-outline-variant/10 rounded-xl p-5 text-left hover:border-primary/50 transition-all group relative overflow-hidden shadow-sm hover:shadow-md"
-              style={{ backgroundImage: `url(${hydrantBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+              className="border border-outline-variant/10 rounded-xl p-5 text-left hover:border-primary/50 transition-all group relative overflow-hidden shadow-sm hover:shadow-md min-h-[140px]"
             >
-              <div className="absolute inset-0 bg-surface-container-lowest/80 backdrop-blur-[2px] group-hover:bg-surface-container-lowest/70 transition-colors z-0" />
+              <div 
+                className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+                style={{ backgroundImage: `url(${hydrantBg})` }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 via-slate-900/50 to-slate-900/30 transition-colors duration-1000 z-0" />
               <div className="relative z-10">
-                <span className="material-symbols-outlined text-primary text-2xl group-hover:scale-110 transition-transform">fire_hydrant</span>
-                <p className="text-3xl font-extrabold text-on-surface mt-2 font-headline">
-                  {isLoadingFacilities ? <span className="text-base font-medium animate-pulse text-on-surface-variant">조회 중...</span> : hydrantsCount.toLocaleString()}
+                <span className="material-symbols-outlined text-blue-400 text-2xl transition-transform">fire_hydrant</span>
+                <p className="text-3xl font-extrabold text-white mt-2 font-headline drop-shadow-sm">
+                  {isLoadingFacilities ? <span className="text-base font-medium animate-pulse text-white/70">조회 중...</span> : hydrantsCount.toLocaleString()}
                 </p>
-                <p className="text-xs text-on-surface-variant font-bold mt-1">소화전</p>
+                <p className="text-xs text-white/80 font-bold mt-1 drop-shadow-sm">소화전</p>
               </div>
               <button 
                 onClick={(e) => { e.stopPropagation(); onNavigate('hydrants'); }} 
-                className="absolute right-4 bottom-4 bg-primary/20 text-primary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-primary hover:text-on-primary border border-primary/20 backdrop-blur-sm transition-all focus:ring-2 focus:ring-primary/50 focus:outline-none cursor-pointer z-10"
+                className="absolute right-4 bottom-4 bg-blue-500/20 text-blue-300 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-blue-500 hover:text-white border border-blue-500/30 backdrop-blur-sm transition-all focus:ring-2 focus:ring-blue-500/50 focus:outline-none cursor-pointer z-10"
               >
                 <span className="material-symbols-outlined text-[14px]">map</span> 지도로 보기
               </button>
             </div>
             <div 
-              className="border border-outline-variant/10 rounded-xl p-5 text-left hover:border-secondary/50 transition-all group relative overflow-hidden shadow-sm hover:shadow-md"
-              style={{ backgroundImage: `url(${waterTowerBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+              className="border border-outline-variant/10 rounded-xl p-5 text-left hover:border-secondary/50 transition-all group relative overflow-hidden shadow-sm hover:shadow-md min-h-[140px]"
             >
-              <div className="absolute inset-0 bg-surface-container-lowest/80 backdrop-blur-[2px] group-hover:bg-surface-container-lowest/70 transition-colors z-0" />
+              <div 
+                className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+                style={{ backgroundImage: `url(${waterTowerBg})` }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 via-slate-900/50 to-slate-900/30 transition-colors duration-1000 z-0" />
               <div className="relative z-10">
-                <span className="material-symbols-outlined text-secondary text-2xl group-hover:scale-110 transition-transform">water_pump</span>
-                <p className="text-3xl font-extrabold text-on-surface mt-2 font-headline">
+                <span className="material-symbols-outlined text-emerald-400 text-2xl transition-transform">water_pump</span>
+                <p className="text-3xl font-extrabold text-white mt-2 font-headline drop-shadow-sm">
                   {isLoadingFacilities
-                    ? <span className="text-base font-medium animate-pulse text-on-surface-variant">조회 중...</span>
+                    ? <span className="text-base font-medium animate-pulse text-white/70">조회 중...</span>
                     : towersCount.toLocaleString()
                   }
                 </p>
-                <p className="text-xs text-on-surface-variant font-bold mt-1">급수탑 / 저수조</p>
+                <p className="text-xs text-white/80 font-bold mt-1 drop-shadow-sm">급수탑 / 저수조</p>
               </div>
               <button 
                 onClick={(e) => { e.stopPropagation(); onNavigate('waterTowers'); }} 
-                className="absolute right-4 bottom-4 bg-secondary/20 text-secondary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-secondary hover:text-on-secondary border border-secondary/20 backdrop-blur-sm transition-all focus:ring-2 focus:ring-secondary/50 focus:outline-none cursor-pointer z-10"
+                className="absolute right-4 bottom-4 bg-emerald-500/20 text-emerald-300 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-500 hover:text-white border border-emerald-500/30 backdrop-blur-sm transition-all focus:ring-2 focus:ring-emerald-500/50 focus:outline-none cursor-pointer z-10"
               >
                 <span className="material-symbols-outlined text-[14px]">map</span> 지도로 보기
               </button>
