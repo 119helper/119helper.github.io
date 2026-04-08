@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fetchWildfires, type WildfireItem } from '../services/wildfireApi';
 
-export const WildfireTicker: React.FC = () => {
+export const WildfireTicker: React.FC<{ cityName?: string }> = ({ cityName }) => {
   const [ongoingFires, setOngoingFires] = useState<WildfireItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -9,9 +9,18 @@ export const WildfireTicker: React.FC = () => {
     let isMounted = true;
     const loadFires = async () => {
       setIsLoading(true);
-      const data = await fetchWildfires('20', '1');
+      const data = await fetchWildfires('200', '1');
       if (isMounted) {
-        setOngoingFires(data.filter(f => f.isOngoing));
+        let ongoing = data.filter(f => f.isOngoing);
+        if (cityName) {
+          ongoing = ongoing.filter(f => {
+            if (cityName === '광주') {
+              return f.address.includes('광주광역시') || (f.address.includes('광주') && !f.address.includes('경기'));
+            }
+            return f.address.includes(cityName);
+          });
+        }
+        setOngoingFires(ongoing);
         setIsLoading(false);
       }
     };
@@ -23,7 +32,7 @@ export const WildfireTicker: React.FC = () => {
       isMounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [cityName]);
 
   if (isLoading) return null;
   if (ongoingFires.length === 0) return null;
@@ -39,8 +48,8 @@ export const WildfireTicker: React.FC = () => {
       {/* CSS 마키(Marquee) 애니메이션 효과 */}
       <div className="flex-1 overflow-hidden whitespace-nowrap">
         <div 
-          className="inline-block animate-[marquee_20s_linear_infinite] group-hover:[animation-play-state:paused]"
-          style={{ animationDuration: `${Math.max(20, ongoingFires.length * 15)}s` }}
+          className="inline-block animate-marquee group-hover:[animation-play-state:paused]"
+          style={{ '--marquee-duration': `${Math.max(20, ongoingFires.length * 15)}s` } as React.CSSProperties}
         >
           {ongoingFires.map((fire) => (
             <span key={fire.id} className="mr-8">
