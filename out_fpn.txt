@@ -1,0 +1,24 @@
+HTTP/1.1 200 OK
+Date: Wed, 08 Apr 2026 05:53:36 GMT
+Content-Type: application/xml; charset=utf-8
+Content-Length: 195
+Connection: keep-alive
+Access-Control-Allow-Origin: http://localhost:5173
+Cache-Control: public, max-age=1800
+Vary: Origin
+Access-Control-Allow-Headers: Content-Type
+Access-Control-Allow-Methods: GET, OPTIONS
+Access-Control-Max-Age: 86400
+Report-To: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=297FTWRFq1Wlbj6zAbHTIstRnQgnJVMBL8e%2FLA06JuT0QUd8tqrfryEaGwlddpoPtWRleXtt%2BRAYO4a6wmSY3HRvaestFiVcbXQVQakW40dsZEbyaqOpCV6ClmEDeAmX2q3TBNXC2XfPduXXUOGaJfIEDjf3p4%2FX"}]}
+Nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+Server: cloudflare
+CF-RAY: 9e8f030988551f56-LAX
+alt-svc: h3=":443"; ma=86400
+
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>site:fpn119.co.kr 서울 - 뉴스</title>
+    <description>검색 결과 없음</description>
+  </channel>
+</rss>

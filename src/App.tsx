@@ -665,12 +665,12 @@ export default function App() {
         {/* Scroll To Top FAB */}
         <button
           onClick={() => scrollToTop()}
-          className={`fixed right-4 bottom-24 lg:right-8 lg:bottom-10 z-[100] p-3.5 rounded-full bg-primary text-on-primary shadow-[0_8px_30px_rgb(0,0,0,0.3)] hover:bg-primary/90 transition-all duration-300 transform flex items-center justify-center ${
-            showScrollTop ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0 pointer-events-none'
+          className={`fixed right-5 bottom-24 lg:right-10 lg:bottom-12 z-[9999] p-4 rounded-full bg-primary text-on-primary shadow-2xl hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all duration-300 transform flex items-center justify-center ${
+            showScrollTop ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-16 opacity-0 scale-75 pointer-events-none'
           }`}
           aria-label="맨 위로 가기"
         >
-          <span className="material-symbols-outlined text-2xl font-bold">arrow_upward</span>
+          <span className="material-symbols-outlined text-[28px] font-black">arrow_upward</span>
         </button>
 
         {/* Mobile Bottom Navigation */}

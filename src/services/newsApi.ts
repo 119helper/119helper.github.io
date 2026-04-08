@@ -34,26 +34,32 @@ async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boo
       const xmlText = await response.text();
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlText, 'application/xml');
-      const items = Array.from(xmlDoc.querySelectorAll('item')).slice(0, limit);
+      const itemNodes = xmlDoc.getElementsByTagName('item');
+      const items = [];
+      for (let i = 0; i < Math.min(itemNodes.length, limit); i++) {
+        items.push(itemNodes[i]);
+      }
       
       // 빈 응답이면 재시도
       if (items.length === 0 && attempt < retries) continue;
 
       return items.map(item => {
-        let desc = item.querySelector('description')?.textContent || '';
+        let desc = item.getElementsByTagName('description')[0]?.textContent || '';
         desc = desc.replace(/<[^>]+>/g, '').trim();
         
-        let pubDateStr = item.querySelector('pubDate')?.textContent || item.querySelector('dc\\:date')?.textContent || item.querySelector('date')?.textContent || '';
+        let pubDateStr = item.getElementsByTagName('pubDate')[0]?.textContent || 
+                         item.getElementsByTagName('dc:date')[0]?.textContent || 
+                         item.getElementsByTagName('date')[0]?.textContent || '';
         
         let actualSource = sourceName;
         if (!isOfficial) {
-          actualSource = item.querySelector('source')?.textContent || sourceName;
+          actualSource = item.getElementsByTagName('source')[0]?.textContent || sourceName;
         }
 
         return {
-          id: item.querySelector('link')?.textContent || Math.random().toString(),
-          title: item.querySelector('title')?.textContent || '',
-          link: item.querySelector('link')?.textContent || '',
+          id: item.getElementsByTagName('link')[0]?.textContent || Math.random().toString(),
+          title: item.getElementsByTagName('title')[0]?.textContent || '',
+          link: item.getElementsByTagName('link')[0]?.textContent || '',
           pubDateStr,
           source: actualSource,
           description: desc,
@@ -99,10 +105,18 @@ export async function fetchLocalNews(city: string, forceRefresh = false): Promis
   }
   try {
     const [gNews, fpnNews] = await Promise.all([
-      fetchRssAndParse(`${API_BASE}/api/news?type=google&query=${encodeURIComponent(city + ' 소방')}`, 'Google News', false, 15),
+      fetchRssAndParse(`${API_BASE}/api/news?type=google&query=${encodeURIComponent(city + ' 소방')}`, 'Google 뉴스', false, 15),
       fetchRssAndParse(`${API_BASE}/api/news?type=google&query=${encodeURIComponent('site:fpn119.co.kr ' + city)}`, '소방방재신문', true, 5)
     ]);
-    const results = processAndSort([gNews, fpnNews]);
+    let results = processAndSort([gNews, fpnNews]);
+    
+    // 구글 뉴스 차단 등 오류로 결과가 없을 때 NFA (소방청) 뉴스로 Fallback
+    if (results.length === 0) {
+      console.warn('Google News fetch failed or returned no results. Falling back to NFA news.');
+      const nfaNews = await fetchRssAndParse(`${API_BASE}/api/news?type=nfa`, '소방청 주요뉴스(Fallback)', true, 15);
+      results = processAndSort([nfaNews]);
+    }
+
     localNewsCache[city] = { data: results, timestamp: Date.now() };
     return results;
   } catch (error) {

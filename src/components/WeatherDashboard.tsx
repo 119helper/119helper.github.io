@@ -158,6 +158,8 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
       if (!trimmed) return null;
 
       let badge = null;
+      
+      // Match predefined time keywords
       if (trimmed.startsWith('(종합)')) {
         badge = <span className="inline-block bg-primary/20 text-primary text-xs font-bold px-2 py-0.5 rounded mr-2 mb-1 flex-shrink-0">종합</span>;
         trimmed = trimmed.replace('(종합)', '').trim();
@@ -173,13 +175,20 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
       } else if (trimmed.includes('(글피)')) {
         badge = <span className="inline-block bg-pink-500/20 text-pink-400 text-xs font-bold px-2 py-0.5 rounded mr-2 mb-1 flex-shrink-0">글피</span>;
         trimmed = trimmed.replace('○ (글피)', '').replace('(글피)', '').trim();
+      } else {
+        // Match generic keywords like (강수), (건조), (기온), (강풍)
+        const keywordMatch = trimmed.match(/^[○-]?\s*\((.*?)\)/);
+        if (keywordMatch) {
+          badge = <span className="inline-block bg-teal-500/20 text-teal-400 text-xs font-bold px-2 py-0.5 rounded mr-2 mb-1 flex-shrink-0">{keywordMatch[1]}</span>;
+          trimmed = trimmed.replace(keywordMatch[0], '').trim();
+        }
       }
 
       if (badge) {
         return (
-          <div key={idx} className={`flex items-start mt-4 border-b border-outline-variant/10 pb-2 ${idx === 0 ? 'mt-0' : ''}`}>
+          <div key={idx} className={`flex items-start mt-4 border-b border-outline-variant/10 pb-3 ${idx === 0 ? 'mt-0' : ''}`}>
             {badge}
-            <span className="font-bold text-on-surface leading-relaxed flex-1 text-sm">{trimmed}</span>
+            <span className="font-bold text-on-surface leading-loose flex-1 text-sm tracking-wide">{trimmed}</span>
           </div>
         );
       }
@@ -188,18 +197,18 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
       if (trimmed.startsWith('○') || trimmed.startsWith('-')) {
         trimmed = trimmed.replace(/^[○-]\s*/, '').trim();
         return (
-          <div key={idx} className="flex items-start mt-2 px-2">
+          <div key={idx} className="flex items-start mt-2.5 px-3">
             <span className="text-primary mr-2 mt-0.5 font-bold flex-shrink-0">•</span>
-            <span className="text-on-surface leading-relaxed text-sm flex-1">{trimmed}</span>
+            <span className="text-on-surface leading-loose text-[13.5px] flex-1 break-keep">{trimmed}</span>
           </div>
         );
       }
 
       if (trimmed.startsWith('*')) {
         return (
-           <div key={idx} className="text-xs text-on-surface-variant flex items-start mt-2 bg-surface-container-high p-3 rounded-lg border border-outline-variant/10">
-             <span className="mr-1.5 text-primary flex-shrink-0">*</span>
-             <span className="leading-relaxed flex-1">{trimmed.substring(1).trim()}</span>
+           <div key={idx} className="text-xs text-on-surface-variant flex items-start mt-3 bg-surface-container-high p-3 rounded-lg border border-outline-variant/10 leading-relaxed">
+             <span className="material-symbols-outlined text-[14px] text-amber-500 mr-1.5 flex-shrink-0">info</span>
+             <span className="flex-1 break-keep">{trimmed.replace('*', '').trim()}</span>
            </div>
         );
       }
@@ -410,10 +419,9 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
         <div className="lg:col-span-7 bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-lg font-bold text-on-surface font-headline mb-4">📅 주간 예보 (중기예보)</h3>
           {midLand && midTemp ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
               {[3, 4, 5, 6, 7, 8, 9, 10]
                 .filter(day => (midTemp as any)[`taMin${day}`] !== undefined)
-                .slice(0, 5)
                 .map(day => {
                 const futureDate = new Date();
                 futureDate.setDate(futureDate.getDate() + day);
@@ -425,18 +433,18 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
                 const rain = day >= 8 ? ((midLand as any)[`rnSt${day}`] ?? 0) : ((midLand as any)[`rnSt${day}Pm`] ?? 0);
 
                 return (
-                  <div key={day} className="bg-surface-container rounded-xl p-4 text-center">
+                  <div key={day} className="bg-surface-container rounded-xl p-4 text-center border border-outline-variant/5 shadow-sm">
                     <p className="text-xs text-on-surface-variant font-bold">
                       {futureDate.getMonth() + 1}/{futureDate.getDate()} ({dayName})
                     </p>
-                    <p className="text-sm text-on-surface mt-2">{amWf}</p>
-                    <p className="text-xs text-on-surface-variant">{pmWf}</p>
-                    <div className="mt-2">
+                    <p className="text-[13px] text-on-surface font-black mt-2 tracking-tight">{amWf}</p>
+                    {day < 8 && <p className="text-[11px] text-on-surface-variant">{pmWf}</p>}
+                    <div className="mt-2.5">
                       <span className="text-blue-400 text-sm font-bold">{tMin}°</span>
                       <span className="text-on-surface-variant mx-1">/</span>
                       <span className="text-red-400 text-sm font-bold">{tMax}°</span>
                     </div>
-                    {rain > 0 && <p className="text-[10px] text-blue-400 mt-1">💧{rain}%</p>}
+                    {rain > 0 && <p className="text-[10px] text-blue-400 mt-1 font-bold">💧 {rain}%</p>}
                   </div>
                 );
               })}

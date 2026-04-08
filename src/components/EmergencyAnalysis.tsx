@@ -510,7 +510,7 @@ function PatientSection({
 }
 
 /* ═══════ 뷰 모드 ═══════ */
-type ViewMode = 'stats' | 'response-time' | 'patient';
+type ViewMode = 'stats' | 'response-time' | 'patient' | 'search';
 
 /* ═══════ 메인 컴포넌트 ═══════ */
 export default function EmergencyAnalysis() {
@@ -680,6 +680,7 @@ export default function EmergencyAnalysis() {
     { id: 'stats', label: '출동 통계', icon: 'bar_chart' },
     { id: 'response-time', label: '대응시간 분석', icon: 'timer' },
     { id: 'patient', label: '환자 이송/처치', icon: 'medical_information' },
+    { id: 'search', label: '상세 내역 검색', icon: 'search' },
   ];
 
   return (
@@ -931,6 +932,11 @@ export default function EmergencyAnalysis() {
       {viewMode === 'patient' && (
         loading ? <LoadingSkeleton /> : <PatientSection transfers={transfers} firstAids={firstAids} />
       )}
+
+      {/* 4. 상세 내역 검색 (새로 추가) */}
+      {viewMode === 'search' && (
+        loading ? <LoadingSkeleton /> : <SearchSection transfers={transfers} firstAids={firstAids} activityDetails={activityDetails} />
+      )}
     </div>
   );
 }
@@ -966,6 +972,171 @@ function LoadingSkeleton() {
           <div className="flex-1 h-6 bg-surface-container rounded" style={{ width: `${70 - i * 10}%` }} />
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ─── 상세 내역 검색 컴퓨넌트 ─── */
+function SearchSection({ transfers, firstAids, activityDetails }: { transfers: TransferItem[]; firstAids: FirstAidItem[]; activityDetails: ActivityDetailItem[] }) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dataType, setDataType] = useState<'transfer' | 'firstAid' | 'activity'>('transfer');
+
+  const getTransferData = () => {
+    return transfers.filter(t => 
+      t.fireStnNm.includes(searchTerm) || 
+      t.occrrPlce.includes(searchTerm) || 
+      t.occrrType.includes(searchTerm) || 
+      t.sidoNm.includes(searchTerm)
+    );
+  };
+
+  const getFirstAidData = () => {
+    return firstAids.filter(f => 
+      f.fireStnNm.includes(searchTerm) || 
+      f.ptntAge.includes(searchTerm) || 
+      f.emrgFirstaidCd.includes(searchTerm) || 
+      f.sidoNm.includes(searchTerm)
+    );
+  };
+
+  const getActivityData = () => {
+    return activityDetails.filter(a => 
+      a.fireStnNm.includes(searchTerm) || 
+      a.safeCnterNm.includes(searchTerm) || 
+      a.sidoNm.includes(searchTerm) || 
+      a.arriveYmd.includes(searchTerm)
+    );
+  };
+
+  const dataMap = {
+    transfer: getTransferData(),
+    firstAid: getFirstAidData(),
+    activity: getActivityData()
+  };
+
+  const currentData = dataMap[dataType];
+
+  return (
+    <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden flex flex-col">
+      <div className="p-6 border-b border-outline-variant/10 bg-surface-container/20 space-y-4">
+        <div className="flex flex-col md:flex-row justify-between gap-4 md:items-center">
+          <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest flex items-center gap-2">
+            <span className="material-symbols-outlined text-base text-teal-400">search</span>
+            상세 내역 검색
+          </h3>
+          <div className="flex gap-2">
+            {(['transfer', 'firstAid', 'activity'] as const).map(type => (
+              <button
+                key={type}
+                onClick={() => { setDataType(type); setSearchTerm(''); }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  dataType === type 
+                    ? 'bg-primary text-on-primary' 
+                    : 'bg-surface-container border border-outline-variant/20 hover:bg-surface-container-high text-on-surface-variant'
+                }`}
+              >
+                {type === 'transfer' ? '이송 정보' : type === 'firstAid' ? '응급 통계' : '출동 상세'}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* 검색창 */}
+        <div className="relative">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50">search</span>
+          <input
+            type="text"
+            placeholder="소방서, 사고유형, 지역, 특징 등을 검색하세요..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-surface-container border border-outline-variant/20 focus:border-primary text-on-surface pl-10 pr-4 py-3 rounded-lg text-sm transition-colors outline-none"
+          />
+        </div>
+      </div>
+
+      {currentData.length === 0 ? (
+        <div className="p-12 text-center text-on-surface-variant/70">
+          <span className="material-symbols-outlined text-4xl mb-2 opacity-50">search_off</span>
+          <p>검색된 결과가 없습니다.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+          <table className="w-full relative">
+            <thead className="sticky top-0 bg-surface-container/90 backdrop-blur z-10 border-b border-outline-variant/10 shadow-sm">
+              <tr>
+                <th className="px-5 py-3 text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-widest whitespace-nowrap">소방서/센터</th>
+                {dataType === 'transfer' && (
+                  <>
+                    <th className="px-5 py-3 text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-widest whitespace-nowrap">사고발생지역</th>
+                    <th className="px-5 py-3 text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-widest whitespace-nowrap">발생유형</th>
+                  </>
+                )}
+                {dataType === 'firstAid' && (
+                  <>
+                    <th className="px-5 py-3 text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-widest whitespace-nowrap">환자 연령/성별</th>
+                    <th className="px-5 py-3 text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-widest whitespace-nowrap">응급처치 결과</th>
+                  </>
+                )}
+                {dataType === 'activity' && (
+                  <>
+                    <th className="px-5 py-3 text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-widest whitespace-nowrap">현장 도착/귀소 시각</th>
+                    <th className="px-5 py-3 text-right text-[10px] font-bold text-on-surface-variant uppercase tracking-widest whitespace-nowrap">출동 거리</th>
+                  </>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant/10 text-sm">
+              {currentData.slice(0, 200).map((item: any, i) => (
+                <tr key={i} className="hover:bg-surface-container/30 transition-colors">
+                  <td className="px-5 py-3 font-medium text-on-surface flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/70"></span>
+                    {item.sidoNm} {item.fireStnNm} {item.safeCnterNm ? `(${item.safeCnterNm})` : ''}
+                  </td>
+                  
+                  {dataType === 'transfer' && (
+                    <>
+                      <td className="px-5 py-3 text-on-surface-variant">{item.occrrPlce || '-'}</td>
+                      <td className="px-5 py-3">
+                        <span className="bg-surface-container-high px-2 py-1 rounded text-xs text-on-surface">{item.occrrType || '-'}</span>
+                      </td>
+                    </>
+                  )}
+                  
+                  {dataType === 'firstAid' && (
+                    <>
+                      <td className="px-5 py-3 text-on-surface-variant">
+                        {item.ptntAge && item.ptntAge !== '미상' ? `${item.ptntAge}대` : '미상'} / {item.ptntSex || '-'}
+                      </td>
+                      <td className="px-5 py-3">
+                         <span className="bg-secondary/10 text-secondary px-2 py-1 rounded text-xs">{item.emrgFirstaidCd || '-'}</span>
+                      </td>
+                    </>
+                  )}
+                  
+                  {dataType === 'activity' && (
+                    <>
+                      <td className="px-5 py-3 text-on-surface-variant">
+                        <div className="flex gap-4">
+                          <span className="flex items-center gap-1 text-xs"><span className="material-symbols-outlined text-[14px]">login</span> {item.arriveYmd} {item.arriveHh}:{item.arriveMm}</span>
+                          <span className="flex items-center gap-1 text-xs opacity-60"><span className="material-symbols-outlined text-[14px]">logout</span> {item.returnYmd} {item.returnHh}:{item.returnMm}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-right tabular-nums text-on-surface font-medium">
+                        {item.distKm ? `${item.distKm} km` : '-'}
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {currentData.length > 200 && (
+            <div className="p-4 text-center text-xs text-on-surface-variant/50 bg-surface-container-lowest">
+              성능을 위해 최대 200개의 검색 결과만 표시됩니다.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
