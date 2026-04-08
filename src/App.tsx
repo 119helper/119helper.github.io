@@ -26,6 +26,7 @@ import NewsDashboard from './components/NewsDashboard';
 import PolicyDashboard from './components/PolicyDashboard';
 import { WildfireView } from './components/WildfireView';
 import LawDashboard from './components/LawDashboard';
+import { loadNotificationSettings } from './services/notificationSettings';
 
 type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis' | 'multiuse' | 'hazmat' | 'annual-fire' | 'statistics' | 'manual' | 'field-timer' | 'news' | 'policy' | 'wildfire' | 'law';
 type ShelterCategory = 'hydrants' | 'waterTowers' | 'civil';
@@ -255,30 +256,47 @@ export default function App() {
     setIsLoadingFacilities(false);
 
     // 기상 알림 생성
-    try {
-      const grid = CITY_GRIDS[city] || CITY_GRIDS.seoul;
-      const items = await getUltraShortNow(grid.nx, grid.ny);
-      if (items.length > 0) {
-        const w = parseCurrentWeather(items);
-        if (w.precipType !== '없음') {
-          addNotification('rainy', 'text-blue-400', `🌧️ ${cityNames[city]} 강수 감지`, `현재 ${w.precipType} 관측 중. 풍속 ${w.windSpeed}m/s (${w.windDirection})`);
+    const ns = loadNotificationSettings();
+
+    if (ns.enabled && ns.weather.enabled) {
+      try {
+        const grid = CITY_GRIDS[city] || CITY_GRIDS.seoul;
+        const items = await getUltraShortNow(grid.nx, grid.ny);
+        if (items.length > 0) {
+          const w = parseCurrentWeather(items);
+          if (ns.weather.rain && w.precipType !== '없음' && w.precipType !== '눈') {
+            addNotification('rainy', 'text-blue-400', `🌧️ ${cityNames[city]} 강수 감지`, `현재 ${w.precipType} 관측 중. 풍속 ${w.windSpeed}m/s (${w.windDirection})`);
+          }
+          if (ns.weather.snow && w.precipType === '눈') {
+            addNotification('weather_snowy', 'text-cyan-300', `❄️ ${cityNames[city]} 적설 감지`, `현재 눈 관측 중. 풍속 ${w.windSpeed}m/s`);
+          }
+          if (ns.weather.heatwave && w.temperature >= ns.weather.heatwaveThreshold) {
+            addNotification('thermostat', 'text-red-400', `🥵 ${cityNames[city]} 폭염 주의`, `현재 기온 ${w.temperature}°C. 현장 활동 시 열사병 주의!`);
+          }
+          if (ns.weather.coldwave && w.temperature <= ns.weather.coldwaveThreshold) {
+            addNotification('ac_unit', 'text-cyan-400', `🥶 ${cityNames[city]} 한파 주의`, `현재 기온 ${w.temperature}°C. 소화전 동파 점검 필요.`);
+          }
+          if (ns.weather.strongWind && parseFloat(String(w.windSpeed)) >= ns.weather.windThreshold) {
+            addNotification('air', 'text-teal-400', `💨 ${cityNames[city]} 강풍 주의`, `풍속 ${w.windSpeed}m/s (${w.windDirection}). 사다리차 운행 주의!`);
+          }
         }
-        if (w.temperature >= 35) {
-          addNotification('thermostat', 'text-red-400', `🥵 ${cityNames[city]} 폭염 주의`, `현재 기온 ${w.temperature}°C. 현장 활동 시 열사병 주의!`);
-        }
-        if (w.temperature <= -10) {
-          addNotification('ac_unit', 'text-cyan-400', `🥶 ${cityNames[city]} 한파 주의`, `현재 기온 ${w.temperature}°C. 소화전 동파 점검 필요.`);
-        }
-      }
-    } catch { /* silently fail */ }
+      } catch { /* silently fail */ }
+    }
 
     // 대기질 알림 생성
-    try {
-      const aq = await getRealtimeAirQuality(cityNames[city] || '서울');
-      if (aq && parseInt(aq.pm10Grade) >= 3) {
-        addNotification('masks', 'text-yellow-400', `⚠️ ${cityNames[city]} 미세먼지 나쁨`, `PM10: ${aq.pm10Value}μg/m³. 현장 활동 시 방진마스크 착용 권장.`);
-      }
-    } catch { /* silently fail */ }
+    if (ns.enabled && ns.airQuality.enabled) {
+      try {
+        const aq = await getRealtimeAirQuality(cityNames[city] || '서울');
+        if (aq) {
+          if (ns.airQuality.pm10Bad && parseInt(aq.pm10Grade) >= 3) {
+            addNotification('masks', 'text-yellow-400', `⚠️ ${cityNames[city]} 미세먼지 나쁨`, `PM10: ${aq.pm10Value}μg/m³. 현장 활동 시 방진마스크 착용 권장.`);
+          }
+          if (ns.airQuality.pm25Bad && parseInt(aq.pm25Grade || '0') >= 3) {
+            addNotification('blur_circular', 'text-orange-400', `⚠️ ${cityNames[city]} 초미세먼지 나쁨`, `PM2.5: ${aq.pm25Value}μg/m³. 호흡기 보호구 착용 필수.`);
+          }
+        }
+      } catch { /* silently fail */ }
+    }
 
     lastRefreshRef.current = new Date();
   }, [city, addNotification]);
