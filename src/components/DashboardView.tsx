@@ -45,7 +45,6 @@ export const ALL_QUICK_TOOLS: QuickToolDef[] = [
   { id: 'checklist', tab: 'checklist', icon: 'check_circle', label: '장비점검', color: 'text-orange-400', category: '현장 도구' },
   { id: 'field_timer', tab: 'field-timer', icon: 'timer', label: '현장 타이머', color: 'text-red-500', category: '현장 도구' },
   { id: 'building', tab: 'building', icon: 'apartment', label: '건축물대장', color: 'text-purple-400', category: '조회' },
-  { id: 'multiuse', tab: 'multiuse', icon: 'store', label: '다중이용업소', color: 'text-teal-400', category: '조회' },
   { id: 'shelter', tab: 'shelter', icon: 'location_city', label: '시설 조회', color: 'text-yellow-400', category: '조회' },
   { id: 'er', tab: 'er', icon: 'local_hospital', label: '응급실 현황', color: 'text-pink-400', category: '현장 도구' },
   { id: 'weather', tab: 'weather', icon: 'cloud', label: '기상 정보', color: 'text-sky-400', category: '현장 도구' },
@@ -108,8 +107,6 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
   
   // 섹션 접기/펴기 상태
   const [showQuickTools, setShowQuickTools] = useState(true);
-  const [showMemo, setShowMemo] = useState(true);
-
   // 빠른 도구 상태
   const [customTools, setCustomTools] = useState<string[]>(() => {
     try {
@@ -267,8 +264,27 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
 
 
 
-        {/* ER Summary */}
+        {/* ER + Info Column */}
         <div className="lg:col-span-5 flex flex-col gap-4 md:gap-6 mt-4 lg:mt-0">
+          
+          {/* 개인안전장비 점검 미니 위젯 */}
+          <div 
+            className="bg-surface-container border border-outline-variant/20 rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-surface-container-high transition-transform hover:-translate-y-1 shadow-sm"
+            onClick={() => onNavigate('checklist')}
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-orange-500/20 text-orange-500 dark:bg-orange-500/30 dark:text-orange-400">
+                <span className="material-symbols-outlined">fact_check</span>
+              </div>
+              <div>
+                <h4 className="text-on-surface font-bold text-sm">개인안전장비 점검</h4>
+                <p className="text-on-surface-variant text-xs mt-0.5">출근 직후 필수 점검 사항</p>
+              </div>
+            </div>
+            <span className="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+          </div>
+
+          {/* ER Summary */}
           <div className="flex-1 relative overflow-hidden rounded-xl p-6 cursor-pointer hover:shadow-2xl transition-shadow group border border-outline-variant/10" onClick={() => onNavigate('er')}>
             {/* Background Image Layer */}
             <div 
@@ -402,25 +418,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
       </section>
 
       {/* Embedded Sticky Notes */}
-      <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden shadow-sm transition-all">
-        <div className="flex items-center border-b border-outline-variant/10 p-3 md:p-4">
-          <button 
-            onClick={() => setShowMemo(!showMemo)}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
-          >
-            <span className="material-symbols-outlined text-pink-400 text-xl">sticky_note_2</span>
-            <h3 className="text-lg font-extrabold text-on-surface font-headline">메모장</h3>
-            <span className={`material-symbols-outlined text-on-surface-variant transition-transform duration-300 ${showMemo ? 'rotate-180' : ''}`}>
-              expand_more
-            </span>
-          </button>
-        </div>
-        {showMemo && (
-          <div className="p-3 md:p-4 animate-in slide-in-from-top-4 fade-in duration-300 bg-surface/30">
-            <StickyNotes embedMode />
-          </div>
-        )}
-      </section>
+      <StickyNotes embedMode />
 
       {/* Editor Modal */}
       {isEditingTools && (

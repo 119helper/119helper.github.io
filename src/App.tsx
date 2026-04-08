@@ -57,7 +57,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'er', icon: 'local_hospital', label: '응급실 현황' },
   { id: 'news', icon: 'newspaper', label: '뉴스' },
   { id: 'building', icon: 'apartment', label: '건축물대장' },
-  { id: 'multiuse', icon: 'store', label: '다중이용업소' },
   { id: 'wildfire', icon: 'local_fire_department', label: '산불현황' },
   { id: 'shelter', icon: 'location_city', label: '시설 조회' },
   { id: 'statistics', icon: 'bar_chart', label: '통계' },
