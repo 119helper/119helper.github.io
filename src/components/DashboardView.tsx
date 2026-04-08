@@ -9,6 +9,9 @@ import StickyNotes from './StickyNotes';
 import { WildfireTicker } from './WildfireTicker';
 import { WindCompass } from './WindCompass';
 
+import hydrantBg from '../assets/hydrant_bg.jpg';
+import waterTowerBg from '../assets/water_tower_bg.jpg';
+
 type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis' | 'multiuse' | 'hazmat' | 'annual-fire' | 'statistics' | 'manual' | 'field-timer' | 'news' | 'policy' | 'wildfire' | 'checklist';
 
 const cityNames: Record<string, string> = {
@@ -367,31 +370,43 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
 
           {/* Quick Stats Row */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 text-left hover:border-primary/50 hover:bg-surface-container-low transition-all group relative overflow-hidden shadow-sm hover:shadow-md">
-              <span className="material-symbols-outlined text-primary text-2xl group-hover:scale-110 transition-transform">fire_hydrant</span>
-              <p className="text-3xl font-extrabold text-on-surface mt-2 font-headline">
-                {isLoadingFacilities ? <span className="text-base font-medium animate-pulse text-on-surface-variant">조회 중...</span> : hydrantsCount.toLocaleString()}
-              </p>
-              <p className="text-xs text-on-surface-variant font-bold mt-1">소화전</p>
+            <div 
+              className="border border-outline-variant/10 rounded-xl p-5 text-left hover:border-primary/50 transition-all group relative overflow-hidden shadow-sm hover:shadow-md"
+              style={{ backgroundImage: `url(${hydrantBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+            >
+              <div className="absolute inset-0 bg-surface-container-lowest/80 backdrop-blur-[2px] group-hover:bg-surface-container-lowest/70 transition-colors z-0" />
+              <div className="relative z-10">
+                <span className="material-symbols-outlined text-primary text-2xl group-hover:scale-110 transition-transform">fire_hydrant</span>
+                <p className="text-3xl font-extrabold text-on-surface mt-2 font-headline">
+                  {isLoadingFacilities ? <span className="text-base font-medium animate-pulse text-on-surface-variant">조회 중...</span> : hydrantsCount.toLocaleString()}
+                </p>
+                <p className="text-xs text-on-surface-variant font-bold mt-1">소화전</p>
+              </div>
               <button 
                 onClick={(e) => { e.stopPropagation(); onNavigate('hydrants'); }} 
-                className="absolute right-4 bottom-4 bg-primary/10 text-primary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-primary hover:text-on-primary transition-colors focus:ring-2 focus:ring-primary/50 focus:outline-none cursor-pointer z-10"
+                className="absolute right-4 bottom-4 bg-primary/20 text-primary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-primary hover:text-on-primary border border-primary/20 backdrop-blur-sm transition-all focus:ring-2 focus:ring-primary/50 focus:outline-none cursor-pointer z-10"
               >
                 <span className="material-symbols-outlined text-[14px]">map</span> 지도로 보기
               </button>
             </div>
-            <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 text-left hover:border-secondary/50 hover:bg-surface-container-low transition-all group relative overflow-hidden shadow-sm hover:shadow-md">
-              <span className="material-symbols-outlined text-secondary text-2xl group-hover:scale-110 transition-transform">water_pump</span>
-              <p className="text-3xl font-extrabold text-on-surface mt-2 font-headline">
-                {isLoadingFacilities
-                  ? <span className="text-base font-medium animate-pulse text-on-surface-variant">조회 중...</span>
-                  : towersCount.toLocaleString()
-                }
-              </p>
-              <p className="text-xs text-on-surface-variant font-bold mt-1">급수탑 / 저수조</p>
+            <div 
+              className="border border-outline-variant/10 rounded-xl p-5 text-left hover:border-secondary/50 transition-all group relative overflow-hidden shadow-sm hover:shadow-md"
+              style={{ backgroundImage: `url(${waterTowerBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+            >
+              <div className="absolute inset-0 bg-surface-container-lowest/80 backdrop-blur-[2px] group-hover:bg-surface-container-lowest/70 transition-colors z-0" />
+              <div className="relative z-10">
+                <span className="material-symbols-outlined text-secondary text-2xl group-hover:scale-110 transition-transform">water_pump</span>
+                <p className="text-3xl font-extrabold text-on-surface mt-2 font-headline">
+                  {isLoadingFacilities
+                    ? <span className="text-base font-medium animate-pulse text-on-surface-variant">조회 중...</span>
+                    : towersCount.toLocaleString()
+                  }
+                </p>
+                <p className="text-xs text-on-surface-variant font-bold mt-1">급수탑 / 저수조</p>
+              </div>
               <button 
                 onClick={(e) => { e.stopPropagation(); onNavigate('waterTowers'); }} 
-                className="absolute right-4 bottom-4 bg-secondary/10 text-secondary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-secondary hover:text-on-secondary transition-colors focus:ring-2 focus:ring-secondary/50 focus:outline-none cursor-pointer z-10"
+                className="absolute right-4 bottom-4 bg-secondary/20 text-secondary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-secondary hover:text-on-secondary border border-secondary/20 backdrop-blur-sm transition-all focus:ring-2 focus:ring-secondary/50 focus:outline-none cursor-pointer z-10"
               >
                 <span className="material-symbols-outlined text-[14px]">map</span> 지도로 보기
               </button>
