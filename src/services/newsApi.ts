@@ -45,7 +45,14 @@ async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boo
 
       return items.map(item => {
         let desc = item.getElementsByTagName('description')[0]?.textContent || '';
-        desc = desc.replace(/<[^>]+>/g, '').trim();
+        desc = desc.replace(/<[^>]+>/g, '')
+                   .replace(/&nbsp;/gi, ' ')
+                   .replace(/&quot;/gi, '"')
+                   .replace(/&amp;/gi, '&')
+                   .replace(/&lt;/gi, '<')
+                   .replace(/&gt;/gi, '>')
+                   .replace(/&#39;|&apos;/gi, "'")
+                   .trim();
         
         let pubDateStr = item.getElementsByTagName('pubDate')[0]?.textContent || 
                          item.getElementsByTagName('dc:date')[0]?.textContent || 
