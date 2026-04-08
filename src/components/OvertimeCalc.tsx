@@ -44,11 +44,9 @@ export default function OvertimeCalc() {
   const [otherOvertime, setOtherOvertime] = useState('');
   const [vacationDays, setVacationDays] = useState('');
 
-  const [calTotalWorkHours, setCalTotalWorkHours] = useState(0);
   const [calOvertime, setCalOvertime] = useState(0);
   const [calNightCount, setCalNightCount] = useState(0);
   const [calHolidayCount, setCalHolidayCount] = useState(0);
-  const [calHolidayDeduction, setCalHolidayDeduction] = useState(0);
 
   const floorToTen = (num: number) => Math.floor(num / 10) * 10;
   const calculatePay = (qty: number, rate: number) => floorToTen(qty * rate);
@@ -95,11 +93,9 @@ export default function OvertimeCalc() {
     }
     setManualWeekdays(autoWeekdaysCount);
 
-    setCalTotalWorkHours(0);
     setCalOvertime(0);
     setCalNightCount(0);
     setCalHolidayCount(0);
-    setCalHolidayDeduction(0);
     setTotalAmount(0);
   };
 
@@ -204,11 +200,9 @@ export default function OvertimeCalc() {
         totalWorkHours - standardDeduction - holidayDeductionHours + extra + vacationCredit
       );
 
-      setCalTotalWorkHours(totalWorkHours);
-      setCalOvertime(calcOvertime);
-      setCalNightCount(nightCnt);
-      setCalHolidayCount(holidayCnt);
-      setCalHolidayDeduction(holidayDeductionHours);
+      setCalOvertime(Math.max(0, Number((calcOvertime).toFixed(1))));
+      setCalNightCount(Math.max(0, Number((nightCnt * 8).toFixed(1))));
+      setCalHolidayCount(Math.max(0, Number((holidayCnt).toFixed(1))));
 
       finalOvertime = calcOvertime;
       finalNightHours = nightCnt * 8;
