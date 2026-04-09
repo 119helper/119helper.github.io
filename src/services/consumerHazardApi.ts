@@ -1,5 +1,3 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://119-helper-api.teemozipsa.workers.dev';
-
 export interface HazardItem {
   id: string;
   receiveDay: string;      // 접수일자

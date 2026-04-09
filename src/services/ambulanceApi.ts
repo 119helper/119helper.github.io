@@ -1,7 +1,5 @@
 import { CITY_TO_SIDO } from './erApi';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://119-helper-api.teemozipsa.workers.dev';
-
 export interface PrivateAmbulance {
   dutyName: string;   // 기관/업체명
   dutyAddr: string;   // 주소
