@@ -9,6 +9,7 @@ import {
   type LawParagraph,
   type LawSubItem,
 } from '../services/lawApi';
+import LawDefenseShield from './LawDefenseShield';
 
 // ── 헬퍼: 배열 보장 ──
 function asArray<T>(v: T | T[] | undefined | null): T[] {
@@ -32,6 +33,8 @@ function cleanText(s?: string): string {
 }
 
 export default function LawDashboard() {
+  const [activeTab, setActiveTab] = useState<'SEARCH' | 'DEFENSE'>('SEARCH');
+  
   const [query, setQuery] = useState('');
   const [items, setItems] = useState<LawSearchItem[]>([]);
   const [totalCnt, setTotalCnt] = useState(0);
@@ -115,18 +118,42 @@ export default function LawDashboard() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div className="border-b border-outline-variant/20 pb-4">
-        <h2 className="text-2xl font-extrabold text-on-surface flex items-center gap-2 font-headline">
-          <span className="material-symbols-outlined text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>gavel</span>
-          관련 법령
-        </h2>
-        <p className="text-on-surface-variant text-sm mt-1">
-          소방 관련 법률·시행령·시행규칙을 검색하고 조문 내용을 확인합니다
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-outline-variant/20 pb-4">
+        <div>
+          <h2 className="text-2xl font-extrabold text-on-surface flex items-center gap-2 font-headline">
+            <span className="material-symbols-outlined text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>gavel</span>
+            관련 법령
+          </h2>
+          <p className="text-on-surface-variant text-sm mt-1">
+            소방 관련 법률·시행령 등과 현장 실전 법률 방어망(판례)을 조회합니다
+          </p>
+        </div>
+
+        {/* 탭 네비게이션 */}
+        <div className="flex bg-surface-container-low p-1 rounded-xl">
+          <button
+            onClick={() => setActiveTab('SEARCH')}
+            className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+              activeTab === 'SEARCH' ? 'bg-surface-container-highest text-on-surface shadow-sm' : 'text-on-surface-variant hover:bg-surface-container'
+            }`}
+          >
+            법령 검색
+          </button>
+          <button
+            onClick={() => setActiveTab('DEFENSE')}
+            className={`px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+              activeTab === 'DEFENSE' ? 'bg-amber-500 text-white shadow-sm' : 'text-on-surface-variant hover:bg-surface-container'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">shield_spark</span>
+            실전 법률 방어망
+          </button>
+        </div>
       </div>
 
-      {/* 본문 뷰가 열려있으면 뒤로가기 */}
-      {detail && !detailLoading ? (
+      {activeTab === 'DEFENSE' ? (
+        <LawDefenseShield />
+      ) : detail && !detailLoading ? (
         <div className="space-y-5">
           {/* 뒤로가기 + 법령 기본정보 */}
           <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-2xl p-5">
