@@ -392,10 +392,10 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
               {/* 카카오맵으로 보기 버튼 (소화전) */}
               <button 
                 onClick={(e) => { e.stopPropagation(); onNavigate('hydrants'); }} 
-                className="absolute right-4 bottom-4 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-extrabold flex items-center gap-2 hover:bg-blue-500 hover:scale-110 border-2 border-white/20 shadow-xl backdrop-blur-md transition-all focus:ring-4 focus:ring-blue-500/50 focus:outline-none cursor-pointer z-20 group"
+                className="absolute right-3 bottom-3 sm:right-4 sm:bottom-4 bg-blue-600 text-white px-2.5 py-2 sm:px-5 sm:py-2.5 rounded-xl text-sm font-extrabold flex items-center gap-1.5 hover:bg-blue-500 hover:scale-110 border-2 border-white/20 shadow-xl backdrop-blur-md transition-all focus:ring-4 focus:ring-blue-500/50 focus:outline-none cursor-pointer z-20 group"
               >
-                <span className="material-symbols-outlined text-[20px] transition-transform group-hover:rotate-12">map</span>
-                지도 보기
+                <span className="material-symbols-outlined text-[18px] sm:text-[20px] transition-transform group-hover:rotate-12">map</span>
+                <span className="hidden sm:inline">지도 보기</span>
               </button>
             </div>
             <div 
@@ -418,10 +418,10 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
               </div>
               <button 
                 onClick={(e) => { e.stopPropagation(); onNavigate('waterTowers'); }} 
-                className="absolute right-4 bottom-4 bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-extrabold flex items-center gap-2 hover:bg-emerald-500 hover:scale-110 border-2 border-white/20 shadow-xl backdrop-blur-md transition-all focus:ring-4 focus:ring-emerald-500/50 focus:outline-none cursor-pointer z-20 group"
+                className="absolute right-3 bottom-3 sm:right-4 sm:bottom-4 bg-emerald-600 text-white px-2.5 py-2 sm:px-5 sm:py-2.5 rounded-xl text-sm font-extrabold flex items-center gap-1.5 hover:bg-emerald-500 hover:scale-110 border-2 border-white/20 shadow-xl backdrop-blur-md transition-all focus:ring-4 focus:ring-emerald-500/50 focus:outline-none cursor-pointer z-20 group"
               >
-                <span className="material-symbols-outlined text-[20px] transition-transform group-hover:rotate-12">map</span>
-                지도 보기
+                <span className="material-symbols-outlined text-[18px] sm:text-[20px] transition-transform group-hover:rotate-12">map</span>
+                <span className="hidden sm:inline">지도 보기</span>
               </button>
             </div>
           </div>

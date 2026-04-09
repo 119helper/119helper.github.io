@@ -104,15 +104,21 @@ export const WildfireView: React.FC<{ cityName?: string }> = ({ cityName }) => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-surface p-4 rounded-xl shadow-md border border-outline-variant/30 flex flex-col justify-center items-center">
           <span className="text-sm text-on-surface-variant font-medium">현재 진화 중</span>
-          <span className="text-3xl font-bold text-error mt-1">{ongoing.length}건</span>
+          <span className="text-3xl font-bold text-error mt-1">
+            {isLoading && fires.length === 0 ? <span className="text-on-surface-variant animate-pulse">---</span> : `${ongoing.length}건`}
+          </span>
         </div>
         <div className="bg-surface p-4 rounded-xl shadow-md border border-outline-variant/30 flex flex-col justify-center items-center">
           <span className="text-sm text-on-surface-variant font-medium">최근 진화 완료</span>
-          <span className="text-3xl font-bold text-primary mt-1">{extinguished.length}건</span>
+          <span className="text-3xl font-bold text-primary mt-1">
+            {isLoading && fires.length === 0 ? <span className="text-on-surface-variant animate-pulse">---</span> : `${extinguished.length}건`}
+          </span>
         </div>
         <div className="bg-surface p-4 rounded-xl shadow-md border border-outline-variant/30 flex flex-col justify-center items-center">
           <span className="text-sm text-on-surface-variant font-medium">추정 피해 면적</span>
-          <span className="text-3xl font-bold text-tertiary mt-1">{totalDamage.toLocaleString()}ha</span>
+          <span className="text-3xl font-bold text-tertiary mt-1">
+            {isLoading && fires.length === 0 ? <span className="text-on-surface-variant animate-pulse">---</span> : `${totalDamage.toLocaleString()}ha`}
+          </span>
         </div>
         <div className="bg-surface p-4 rounded-xl shadow-md border border-outline-variant/30 flex flex-col justify-center items-center text-center">
           <span className="text-sm text-on-surface-variant font-medium">마지막 업데이트</span>
@@ -122,14 +128,28 @@ export const WildfireView: React.FC<{ cityName?: string }> = ({ cityName }) => {
 
       <h3 className="text-lg font-bold text-on-background mb-4">현재 화재 및 최근 완료 목록</h3>
       
-      {isLoading && displayFires.length === 0 ? (
-        <div className="flex justify-center py-10">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
+      {isLoading && fires.length === 0 ? (
+        /* ── 스켈레톤 로딩 (초기 로드) ── */
+        <div className="animate-pulse space-y-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-surface-container rounded-xl p-4 h-24" />
+            ))}
+          </div>
+          <div className="flex items-center gap-3 py-2">
+            <div className="h-4 bg-surface-container rounded w-40" />
+          </div>
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="bg-surface-container rounded-xl p-5 h-28" />
+            ))}
+          </div>
         </div>
       ) : displayFires.length === 0 ? (
         <div className="text-center py-10 text-on-surface-variant bg-surface rounded-xl shadow-inner">
           <span className="material-symbols-outlined text-4xl mb-2 opacity-50">forest</span>
           <p>조회된 산불 정보가 없습니다.</p>
+          <p className="text-xs mt-1 opacity-60">현재 진행 중인 산불이 없거나, 해당 지역 데이터가 없습니다.</p>
         </div>
       ) : (
         <div className="space-y-3">

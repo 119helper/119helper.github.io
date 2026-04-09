@@ -30,26 +30,32 @@ export default function StatisticsView({ city }: { city: string }) {
       </div>
 
       {/* Sub-Tab Bar */}
-      <div className="flex gap-2 bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-1.5 overflow-x-auto">
-        {SUB_TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveSubTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
-              activeSubTab === tab.id
-                ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
-                : 'text-on-surface-variant hover:bg-surface-container-high/50'
-            }`}
-          >
-            <span
-              className="material-symbols-outlined text-lg"
-              style={activeSubTab === tab.id ? { fontVariationSettings: "'FILL' 1" } : undefined}
+      <div className="relative">
+        {/* 좌측 스크롤 힌트 그라디언트 */}
+        <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-surface-container-lowest to-transparent z-10 pointer-events-none rounded-l-xl md:hidden" />
+        {/* 우측 스크롤 힌트 그라디언트 */}
+        <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-surface-container-lowest to-transparent z-10 pointer-events-none rounded-r-xl md:hidden" />
+        <div className="flex gap-2 bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-1.5 overflow-x-auto scrollbar-hide">
+          {SUB_TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
+                activeSubTab === tab.id
+                  ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
+                  : 'text-on-surface-variant hover:bg-surface-container-high/50'
+              }`}
             >
-              {tab.icon}
-            </span>
-            {tab.label}
-          </button>
-        ))}
+              <span
+                className="material-symbols-outlined text-lg"
+                style={activeSubTab === tab.id ? { fontVariationSettings: "'FILL' 1" } : undefined}
+              >
+                {tab.icon}
+              </span>
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tab Content */}

@@ -1,0 +1,34 @@
+{
+  "name": "119 Helper - 소방관 도우미",
+  "short_name": "119Helper",
+  "description": "소방관 실시간 관제 대시보드. 기상정보, 응급실 현황, 소화전 위치, 교대근무 달력",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0e1a",
+  "theme_color": "#4f8cff",
+  "orientation": "portrait-primary",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["utilities", "productivity"],
+  "shortcuts": [
+    {
+      "name": "산불 현황",
+      "short_name": "산불",
+      "url": "/?tab=wildfire",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "응급실 현황",
+      "short_name": "응급실",
+      "url": "/?tab=er",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    }
+  ]
+}

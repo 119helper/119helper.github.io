@@ -295,7 +295,11 @@ export default function OvertimeCalc() {
       <div className="mt-4">
         <div className="flex items-center justify-between mb-4">
           <button
-            onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() - 1)))}
+            onClick={() => {
+              const d = new Date(currentDate);
+              d.setMonth(d.getMonth() - 1);
+              setCurrentDate(d);
+            }}
             className="p-2 hover:bg-surface-variant rounded-full text-on-surface-variant transition-colors"
           >
             <span className="material-symbols-outlined shrink-0 text-xl">chevron_left</span>
@@ -304,7 +308,11 @@ export default function OvertimeCalc() {
             {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
           </span>
           <button
-            onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)))}
+            onClick={() => {
+              const d = new Date(currentDate);
+              d.setMonth(d.getMonth() + 1);
+              setCurrentDate(d);
+            }}
             className="p-2 hover:bg-surface-variant rounded-full text-on-surface-variant transition-colors"
           >
             <span className="material-symbols-outlined shrink-0 text-xl">chevron_right</span>
@@ -355,10 +363,11 @@ export default function OvertimeCalc() {
             <span className="material-symbols-outlined text-primary">calculate</span>
             <h2>계급 및 기준 단가</h2>
           </div>
+          <div className="relative">
           <select
             value={selectedRankName}
             onChange={handleRankChange}
-            className="w-full p-3 bg-surface border border-outline-variant/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-on-surface font-medium text-sm appearance-none"
+            className="w-full p-3 pr-10 bg-surface border border-outline-variant/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-on-surface font-medium text-sm appearance-none cursor-pointer"
           >
             {RANK_DATA.map((r) => (
               <option key={r.rank} value={r.rank}>
@@ -366,6 +375,8 @@ export default function OvertimeCalc() {
               </option>
             ))}
           </select>
+          <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-lg">expand_more</span>
+          </div>
           <div className="bg-surface-container rounded-lg p-3">
             <button
               onClick={() => setShowRateSettings(!showRateSettings)}
@@ -612,7 +623,7 @@ export default function OvertimeCalc() {
                   <span className="material-symbols-outlined text-[16px] font-bold">check</span>
                 </div>
               </label>
-              <span className="text-sm font-bold text-on-surface" onClick={() => setIncludeFlatPay(!includeFlatPay)}>정액분 기본 10시간 포함</span>
+              <span className="text-sm font-bold text-on-surface" onClick={() => setIncludeFlatPay(!includeFlatPay)}>정액분 기본 {flatPayHours}시간 포함</span>
             </div>
             {includeFlatPay && (
               <div className="flex items-center border border-outline-variant/30 rounded-lg bg-surface px-2 py-1">
@@ -646,10 +657,10 @@ export default function OvertimeCalc() {
                 <span className="font-mono text-on-surface">{formatCurrency(calculatePay(activeTab === 'simple' ? Number(simpleOvertime) : calOvertime, rates.overtime))} 원</span>
               </div>
               
-              {Number(activeTab === 'simple' ? simpleNightHours : calNightCount * 8) > 0 && (
+              {Number(activeTab === 'simple' ? simpleNightHours : calNightCount) > 0 && (
                 <div className="flex justify-between items-center text-secondary">
-                  <span>야간 <span className="px-1.5 py-0.5 bg-secondary/10 rounded ml-1">{activeTab === 'simple' ? simpleNightHours : calNightCount * 8}h</span></span>
-                  <span className="font-mono">+ {formatCurrency(calculatePay(activeTab === 'simple' ? Number(simpleNightHours) : calNightCount * 8, rates.night))} 원</span>
+                  <span>야간 <span className="px-1.5 py-0.5 bg-secondary/10 rounded ml-1">{activeTab === 'simple' ? simpleNightHours : calNightCount}h</span></span>
+                  <span className="font-mono">+ {formatCurrency(calculatePay(activeTab === 'simple' ? Number(simpleNightHours) : calNightCount, rates.night))} 원</span>
                 </div>
               )}
               
