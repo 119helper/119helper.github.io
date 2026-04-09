@@ -47,7 +47,7 @@ const ALL_QUICK_TOOLS: QuickToolDef[] = [
   // 주요 탭
   { id: 'checklist', tab: 'checklist', icon: 'check_circle', label: '장비점검', color: 'text-orange-400', category: '현장 도구' },
   { id: 'field_timer', tab: 'field-timer', icon: 'timer', label: '현장 타이머', color: 'text-red-500', category: '현장 도구' },
-  { id: 'building', tab: 'building', icon: 'apartment', label: '건축물대장', color: 'text-purple-400', category: '조회' },
+  { id: 'building', tab: 'shelter', subId: 'building', icon: 'apartment', label: '건축물대장', color: 'text-purple-400', category: '조회' },
   { id: 'shelter', tab: 'shelter', icon: 'location_city', label: '시설 조회', color: 'text-yellow-400', category: '조회' },
   { id: 'er', tab: 'er', icon: 'local_hospital', label: '응급실 현황', color: 'text-pink-400', category: '현장 도구' },
   { id: 'weather', tab: 'weather', icon: 'cloud', label: '기상 정보', color: 'text-sky-400', category: '현장 도구' },

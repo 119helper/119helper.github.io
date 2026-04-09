@@ -38,29 +38,61 @@ export async function newsHandler(request: Request, env: any): Promise<Response>
       rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=ko&gl=KR&ceid=KR:ko`;
     }
     
+    let xmlText = '';
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000); // 8초 타임아웃
 
-    const response = await fetch(rssUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-        'Accept-Language': 'ko-KR,ko;q=0.9',
-      },
-      signal: controller.signal,
-    });
+    try {
+      const response = await fetch(rssUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+          'Accept-Language': 'ko-KR,ko;q=0.9',
+        },
+        signal: controller.signal,
+      });
 
-    clearTimeout(timeout);
+      clearTimeout(timeout);
 
-    if (!response.ok) {
-      throw new Error(`RSS fetch failed: ${response.status}`);
-    }
+      if (!response.ok) {
+        throw new Error(`Google RSS fetch failed: ${response.status}`);
+      }
 
-    const xmlText = await response.text();
+      xmlText = await response.text();
 
-    // 빈 응답 또는 너무 짧은 응답 체크
-    if (!xmlText || xmlText.length < 100 || !xmlText.includes('<item>')) {
-      throw new Error('Empty or invalid RSS response');
+      // 빈 응답 또는 너무 짧은 응답 체크
+      if (!xmlText || xmlText.length < 100 || !xmlText.includes('<item>')) {
+        throw new Error('Empty or invalid Google RSS response');
+      }
+    } catch (googleError: any) {
+      console.warn(`[news] Google fetch failed:`, googleError.message, `trying Bing fallback...`);
+      clearTimeout(timeout);
+      
+      // Fallback to Bing News RSS
+      const bingUrl = `https://www.bing.com/news/search?q=${encodeURIComponent(query)}&format=rss`;
+      const bingController = new AbortController();
+      const bingTimeout = setTimeout(() => bingController.abort(), 8000);
+      
+      const bingResponse = await fetch(bingUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+          'Accept-Language': 'ko-KR,ko;q=0.9',
+        },
+        signal: bingController.signal,
+      });
+      
+      clearTimeout(bingTimeout);
+      
+      if (!bingResponse.ok) {
+        throw new Error(`Fallback Bing RSS fetch failed: ${bingResponse.status}`);
+      }
+      
+      xmlText = await bingResponse.text();
+      
+      if (!xmlText || xmlText.length < 100 || !xmlText.includes('<item>')) {
+        throw new Error('Empty or invalid Fallback Bing RSS response');
+      }
     }
 
     // 성공 → 캐시 갱신

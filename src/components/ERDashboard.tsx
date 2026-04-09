@@ -184,7 +184,11 @@ export default function ERDashboard({ city }: ERViewProps) {
                             {er.dutyName}
                           </p>
                           {messages.filter(m => m.dutyName === er.dutyName).length > 0 && (
-                            <span className="material-symbols-outlined text-[14px] text-error animate-pulse" title="긴급 공지사항 있음">
+                            <span 
+                              onClick={() => setNoticePopupId(er.dutyName)}
+                              className="material-symbols-outlined text-[14px] text-error animate-pulse cursor-pointer hover:scale-125 transition-transform" 
+                              title="공지사항 보기"
+                            >
                               campaign
                             </span>
                           )}

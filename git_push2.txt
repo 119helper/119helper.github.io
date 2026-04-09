@@ -1,4 +1,0 @@
-remote: This repository moved. Please use the new location:        
-remote:   https://github.com/119helper/119helper.github.io.git        
-To https://github.com/teemoZipsa/119-helper.git
-   e3e6746..e3c8084  master -> master

@@ -59,8 +59,11 @@ interface FacilityItem {
   femaleToilet?: number;
 }
 
+import BuildingView from './BuildingView';
+
 // 통합 카테고리 정의
 const CATEGORIES = [
+  { id: 'building', label: '건축물대장', icon: 'apartment', desc: '건축물대장 및 소방시설 현황 조회', isFireWater: false, isBuilding: true },
   { id: 'hydrants', label: '소화전', icon: 'fire_hydrant', desc: '소화전 · 비상소화장치', isFireWater: true },
   { id: 'waterTowers', label: '급수탑/저수조', icon: 'water_pump', desc: '급수탑 · 저수조', isFireWater: true },
   { id: 'civil', label: '민방위 대피시설', icon: 'shield', desc: '전시/재난 대비 지하 대피시설', isFireWater: false },
@@ -77,7 +80,7 @@ export default function FacilitySearchView({
   onDistrictChange,
   initialCategory,
 }: FacilitySearchProps) {
-  const [activeCategory, setActiveCategory] = useState(initialCategory || 'hydrants');
+  const [activeCategory, setActiveCategory] = useState(initialCategory || 'building');
   const [facilities, setFacilities] = useState<FacilityItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -139,7 +142,7 @@ export default function FacilitySearchView({
 
   // 대피소/화장실 데이터 로드
   const loadShelterData = useCallback(async () => {
-    if (isFireWater) return; // 소방용수는 App에서 관리
+    if (isFireWater || (currentCat as any).isBuilding) return; // 소방용수/건축물대장은 자체 관리
 
     setLoading(true);
     setApiError(null);
@@ -275,7 +278,7 @@ export default function FacilitySearchView({
 
   // 카카오맵 초기화 — 대피소 카테고리에서만 사용
   useEffect(() => {
-    if (isFireWater || loading || apiError) return;
+    if (isFireWater || (currentCat as any).isBuilding || loading || apiError) return;
     
     // SDK가 아직 준비되지 않았다면 로드
     if (!window.kakao || !window.kakao.maps) {
@@ -309,11 +312,11 @@ export default function FacilitySearchView({
         });
       }
     });
-  }, [city, userPos, isFireWater, loading, apiError, kakaoMap, sdkReady]);
+  }, [city, userPos, isFireWater, (currentCat as any).isBuilding, loading, apiError, kakaoMap, sdkReady]);
 
   // 마커 업데이트 (대피소용)
   useEffect(() => {
-    if (isFireWater || !kakaoMap || !window.kakao) return;
+    if (isFireWater || (currentCat as any).isBuilding || !kakaoMap || !window.kakao) return;
     
     markersRef.current.forEach(m => m.setMap(null));
     markersRef.current = [];
@@ -388,13 +391,15 @@ export default function FacilitySearchView({
                 <span className="text-primary font-bold">{cityShort[city] || city}</span> 지역
                 {isFireWater
                   ? ` | ${currentCat.desc}`
-                  : !loading && !apiError ? ` | ${currentCat.label} ${filtered.length}개소` : ''
+                  : (currentCat as any).isBuilding
+                    ? ` | ${currentCat.desc}`
+                    : !loading && !apiError ? ` | ${currentCat.label} ${filtered.length}개소` : ''
                 }
-                {!isFireWater && userPos && ' | GPS 거리순'}
+                {!isFireWater && !(currentCat as any).isBuilding && userPos && ' | GPS 거리순'}
               </p>
             </div>
           </div>
-          {!isFireWater && (
+          {!isFireWater && !(currentCat as any).isBuilding && (
             <button onClick={loadShelterData} disabled={loading}
               className="bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/20 transition-colors flex items-center gap-2 disabled:opacity-50">
               <span className={`material-symbols-outlined text-lg ${loading ? 'animate-spin' : ''}`}>refresh</span>
@@ -439,8 +444,15 @@ export default function FacilitySearchView({
         />
       )}
 
+      {/* ═══ 건축물대장 카테고리 ═══ */}
+      {(currentCat as any).isBuilding && (
+        <div className="mt-4">
+          <BuildingView />
+        </div>
+      )}
+
       {/* ═══ 대피소 카테고리: 기존 지도+목록 뷰 ═══ */}
-      {!isFireWater && (
+      {!isFireWater && !(currentCat as any).isBuilding && (
         <>
           {/* 구/군 필터 UI (대피소/화장실용) 항상 표시되도록 밖으로 뺌 */}
           <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-4 mt-4">

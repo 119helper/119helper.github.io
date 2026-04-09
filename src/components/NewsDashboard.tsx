@@ -28,7 +28,7 @@ export default function NewsDashboard({ city }: NewsDashboardProps) {
   }, [displayCity]);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">

@@ -31,7 +31,7 @@ import { loadNotificationSettings } from './services/notificationSettings';
 import { fetchDisasterMsgs } from './services/disasterMsgApi';
 
 type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis' | 'multiuse' | 'hazmat' | 'annual-fire' | 'statistics' | 'manual' | 'field-timer' | 'news' | 'policy' | 'wildfire' | 'law' | 'checklist';
-type ShelterCategory = 'hydrants' | 'waterTowers' | 'civil';
+type ShelterCategory = 'building' | 'hydrants' | 'waterTowers' | 'civil' | 'tsunami' | 'restrooms';
 
 // 알림 시스템 타입
 interface Notification {
@@ -56,7 +56,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'weather', icon: 'cloud', label: '기상 정보' },
   { id: 'er', icon: 'local_hospital', label: '응급실 현황' },
   { id: 'news', icon: 'newspaper', label: '뉴스' },
-  { id: 'building', icon: 'apartment', label: '건축물대장' },
   { id: 'wildfire', icon: 'local_fire_department', label: '산불현황' },
   { id: 'shelter', icon: 'location_city', label: '시설 조회' },
   { id: 'statistics', icon: 'bar_chart', label: '통계' },
@@ -100,7 +99,7 @@ export default function App() {
   const [isLoadingFacilities, setIsLoadingFacilities] = useState(false);
   const [cityIndex, setCityIndex] = useState<CityIndex | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
-  const [shelterCategory, setShelterCategory] = useState<ShelterCategory>('hydrants');
+  const [shelterCategory, setShelterCategory] = useState<ShelterCategory>('building');
   const [gpsStatus, setGpsStatus] = useState<'loading' | 'granted' | 'denied' | 'idle'>('idle');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -373,9 +372,12 @@ export default function App() {
   }, []);
 
   const handleNavigate = (tab: TabId, subId?: string) => {
-    // hydrants/waterTowers → shelter 탭으로 통합 매핑
-    if (tab === 'hydrants' || tab === 'waterTowers') {
+    // hydrants/waterTowers/building → shelter 탭으로 통합 매핑
+    if (tab === 'hydrants' || tab === 'waterTowers' || tab === 'building') {
       setShelterCategory(tab as ShelterCategory);
+      setActiveTab('shelter');
+    } else if (tab === 'shelter' && subId) {
+      setShelterCategory(subId as ShelterCategory);
       setActiveTab('shelter');
     } else {
       setActiveTab(tab);
@@ -412,7 +414,7 @@ export default function App() {
         />
       );
       case 'er': return <ERDashboard city={city} />;
-      case 'building': return <BuildingView />;
+
       case 'emergency': return <EmergencyAnalysis />;
       case 'fire-analysis': return <FireAnalysis />;
       case 'multiuse': return <MultiUseView city={city} />;

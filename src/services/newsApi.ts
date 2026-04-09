@@ -84,6 +84,25 @@ async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boo
           desc = desc.split(sourceToRemove).join('').trim();
         }
 
+        // 요약 최적화: description이 title과 거의 겹친다면, title 부분 제거 (구글 뉴스 RSS 특성상 title이 description 첫 부분에 반복됨)
+        if (title.length > 5 && desc.includes(title)) {
+          desc = desc.replace(title, '').trim();
+        } else if (title.length > 10) {
+           // 구글 뉴스 포맷 등에서 타이틀의 일부분만 description에 있을 경우를 위해 앞부분 매칭
+           const partialTitle = title.substring(0, Math.floor(title.length * 0.7));
+           if (desc.includes(partialTitle)) {
+             desc = desc.replace(new RegExp(`.*${partialTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\\s]*`), '').trim();
+           }
+        }
+        
+        // 시작 부분에 남은 특수문자나 찌꺼기 제거 (예: '-', '...', '기자 =')
+        desc = desc.replace(/^[-=·\s]+/, '');
+        // "기자 =" 또는 "기자=" 등의 패턴이 앞부분에 있으면 제거 (보통 기자 이름 뒤에 옴)
+        desc = desc.replace(/^[^]{0,15}기자\s*=\s*/, '');
+        // 언론사 뉴스 툴팁 등으로 남은 불필요 글자 정리
+        if (desc.startsWith('뉴스')) desc = desc.replace(/^뉴스\s*-?\s*/, '');
+        if (desc.length < 10) desc = ''; // 내용이 너무 짧으면 없앰
+
         return {
           id: item.getElementsByTagName('link')[0]?.textContent || Math.random().toString(),
           title,
