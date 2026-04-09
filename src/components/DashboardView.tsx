@@ -8,6 +8,7 @@ import WeatherAlertBanner from './WeatherAlertBanner';
 import StickyNotes from './StickyNotes';
 import { WildfireTicker } from './WildfireTicker';
 import { WindCompass } from './WindCompass';
+import MiniTimerWidget from './MiniTimerWidget';
 
 import hydrantBg from '../assets/hydrant_bg.jpg';
 import waterTowerBg from '../assets/water_tower_bg.jpg';
@@ -292,6 +293,9 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
         {/* ER + Info Column */}
         <div className="lg:col-span-5 flex flex-col gap-4 md:gap-6 mt-4 lg:mt-0">
           
+          {/* 현장 타이머 미니 위젯 */}
+          <MiniTimerWidget onNavigate={onNavigate} />
+
           {/* 개인안전장비 점검 미니 위젯 */}
           <div 
             className="bg-surface-container border border-outline-variant/10 rounded-xl p-5 flex items-center justify-between cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02] shadow-sm relative overflow-hidden group"

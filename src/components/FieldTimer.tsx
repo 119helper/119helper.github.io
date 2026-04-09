@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState } from 'react';
+import { useTimer, type TimerState } from '../contexts/TimerContext';
 
 // ─── 타이머 프리셋 ───
 const PRESETS = [
@@ -9,171 +10,21 @@ const PRESETS = [
   { label: '사용자', seconds: 0, desc: '직접 설정', color: 'bg-gray-500', icon: 'tune' },
 ];
 
-// 경고 기준 (남은 비율)
-const WARN_THRESHOLD = 0.33; // 1/3 남으면 경고
-const DANGER_THRESHOLD = 0.1; // 10% 남으면 위험
-
-interface TimerState {
-  id: number;
-  label: string;
-  totalSeconds: number;
-  remaining: number;
-  isRunning: boolean;
-  startedAt: Date | null;
-}
-
-interface StopwatchLap {
-  label: string;
-  time: Date;
-  elapsed: number; // ms from first lap
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
-
-function formatTimeMs(ms: number): string {
-  const totalSec = Math.floor(ms / 1000);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
-
-let nextTimerId = 1;
-
 export default function FieldTimer() {
-  const [timers, setTimers] = useState<TimerState[]>([]);
+  const { 
+    timers, stopwatchRunning, stopwatchStart, stopwatchElapsed, laps,
+    addTimer, toggleTimer, resetTimer, removeTimer,
+    toggleStopwatch, addLap, resetStopwatch,
+    formatTime, formatTimeMs,
+    WARN_THRESHOLD, DANGER_THRESHOLD
+  } = useTimer();
+
   const [customMinutes, setCustomMinutes] = useState(20);
-  const [showPresets, setShowPresets] = useState(true);
+  const [showPresets, setShowPresets] = useState(timers.length === 0);
 
-  // 스톱워치 (출동 시간 기록)
-  const [stopwatchRunning, setStopwatchRunning] = useState(false);
-  const [stopwatchStart, setStopwatchStart] = useState<Date | null>(null);
-  const [stopwatchElapsed, setStopwatchElapsed] = useState(0);
-  const [laps, setLaps] = useState<StopwatchLap[]>([]);
-  const [, setTick] = useState(0); // force re-render
-
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
-
-  // ─── Wake Lock (화면 꺼짐 방지) ───
-  const requestWakeLock = useCallback(async () => {
-    try {
-      if ('wakeLock' in navigator) {
-        wakeLockRef.current = await navigator.wakeLock.request('screen');
-      }
-    } catch { /* 지원 안 되면 무시 */ }
-  }, []);
-
-  const releaseWakeLock = useCallback(() => {
-    wakeLockRef.current?.release();
-    wakeLockRef.current = null;
-  }, []);
-
-  // ─── 타이머 틱 ───
-  const stopwatchStartRef = useRef(stopwatchStart);
-  stopwatchStartRef.current = stopwatchStart;
-
-  const hasRunningTimer = timers.some(t => t.isRunning);
-
-  useEffect(() => {
-    const hasActive = hasRunningTimer || stopwatchRunning;
-
-    if (hasActive) {
-      requestWakeLock();
-      intervalRef.current = setInterval(() => {
-        setTimers(prev => prev.map(t => {
-          if (!t.isRunning || t.remaining <= 0) return t;
-          const newRemaining = t.remaining - 1;
-
-          // 진동 알림
-          if (newRemaining === 0) {
-            try { navigator.vibrate?.([500, 200, 500, 200, 500]); } catch { /* */ }
-          } else if (newRemaining === Math.floor(t.totalSeconds * WARN_THRESHOLD)) {
-            try { navigator.vibrate?.([200, 100, 200]); } catch { /* */ }
-          }
-
-          return { ...t, remaining: Math.max(0, newRemaining) };
-        }));
-
-        const sw = stopwatchStartRef.current;
-        if (stopwatchRunning && sw) {
-          setStopwatchElapsed(Date.now() - sw.getTime());
-        }
-
-        setTick(t => t + 1);
-      }, 1000);
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      releaseWakeLock();
-    }
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [hasRunningTimer, stopwatchRunning, requestWakeLock, releaseWakeLock]);
-
-  // ─── 타이머 조작 ───
-  const addTimer = (seconds: number, label: string) => {
-    const timer: TimerState = {
-      id: nextTimerId++,
-      label,
-      totalSeconds: seconds,
-      remaining: seconds,
-      isRunning: false,
-      startedAt: null,
-    };
-    setTimers(prev => [...prev, timer]);
+  const handleAddTimer = (seconds: number, label: string) => {
+    addTimer(seconds, label);
     setShowPresets(false);
-  };
-
-  const toggleTimer = (id: number) => {
-    setTimers(prev => prev.map(t =>
-      t.id === id ? { ...t, isRunning: !t.isRunning, startedAt: !t.isRunning ? new Date() : t.startedAt } : t
-    ));
-  };
-
-  const resetTimer = (id: number) => {
-    setTimers(prev => prev.map(t =>
-      t.id === id ? { ...t, remaining: t.totalSeconds, isRunning: false } : t
-    ));
-  };
-
-  const removeTimer = (id: number) => {
-    setTimers(prev => prev.filter(t => t.id !== id));
-    if (timers.length <= 1) setShowPresets(true);
-  };
-
-  // ─── 스톱워치 조작 ───
-  const toggleStopwatch = () => {
-    if (!stopwatchRunning) {
-      const start = stopwatchStart || new Date();
-      if (!stopwatchStart) {
-        setStopwatchStart(start);
-        setLaps([{ label: '출동', time: start, elapsed: 0 }]);
-      }
-      setStopwatchRunning(true);
-    } else {
-      setStopwatchRunning(false);
-    }
-  };
-
-  const addLap = (label: string) => {
-    if (!stopwatchStart) return;
-    setLaps(prev => [...prev, {
-      label,
-      time: new Date(),
-      elapsed: Date.now() - stopwatchStart.getTime()
-    }]);
-  };
-
-  const resetStopwatch = () => {
-    setStopwatchRunning(false);
-    setStopwatchStart(null);
-    setStopwatchElapsed(0);
-    setLaps([]);
   };
 
   const getTimerColor = (t: TimerState) => {
@@ -265,9 +116,9 @@ export default function FieldTimer() {
                 key={preset.label}
                 onClick={() => {
                   if (preset.seconds === 0) {
-                    addTimer(customMinutes * 60, `${customMinutes}분`);
+                    handleAddTimer(customMinutes * 60, `${customMinutes}분`);
                   } else {
-                    addTimer(preset.seconds, preset.label);
+                    handleAddTimer(preset.seconds, preset.label);
                   }
                 }}
                 className="bg-surface-container border border-outline-variant/20 rounded-xl p-4 text-left hover:border-primary/30 hover:scale-[1.02] transition-all group"
@@ -328,7 +179,7 @@ export default function FieldTimer() {
                     {color.label}
                   </span>
                 </div>
-                <button onClick={() => removeTimer(t.id)} className="text-on-surface-variant hover:text-red-400 transition-colors">
+                <button onClick={() => { removeTimer(t.id); if(timers.length <= 1) setShowPresets(true); }} className="text-on-surface-variant hover:text-red-400 transition-colors">
                   <span className="material-symbols-outlined text-lg">close</span>
                 </button>
               </div>
