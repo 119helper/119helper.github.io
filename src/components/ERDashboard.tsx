@@ -100,7 +100,7 @@ export default function ERDashboard({ city }: ERViewProps) {
     return '응급실 알림';
   }
 
-  const [noticeOpen, setNoticeOpen] = useState(false);
+
   const [noticePopupId, setNoticePopupId] = useState<string | null>(null);
 
   return (
