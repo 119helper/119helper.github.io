@@ -44,8 +44,12 @@ export async function fetchWildfires(numOfRows = '200', pageNo = '1', forceRefre
         ? (Date.now() - occurredDate.getTime()) / (1000 * 60 * 60) 
         : 0;
 
-      // 진화완료 시간이 없어도 발생 후 48시간이 지났다면 진화 완료된 것으로(상태 누락) 간주
-      const isOngoing = !extinguished && hoursElapsed < 48;
+      const damageArea = item.GRS_FRSTFR_DAM_AREA ? parseFloat(item.GRS_FRSTFR_DAM_AREA) : 0;
+
+      // [핵심 로직] 1헥타르(약 3000평) 미만의 작은 산불이 48시간을 넘겼다면 행정상 입력 누락(유령 산불)으로 간주
+      // 단, 대형 산불(1ha 이상)은 실제로 며칠간 사투를 벌이는 경우일 수 있으므로 강제로 진화 처리하지 않음!
+      const isGhost = !extinguished && hoursElapsed >= 48 && damageArea < 1;
+      const isOngoing = !extinguished && !isGhost;
 
       return {
         id: item.FRSTFR_INFO_ID || Math.random().toString(),
@@ -53,7 +57,7 @@ export async function fetchWildfires(numOfRows = '200', pageNo = '1', forceRefre
         occurredAt: occurredAtStr,
         extinguishedAt: extinguished,
         isOngoing,
-        damageArea: item.GRS_FRSTFR_DAM_AREA || 0,
+        damageArea,
         lat: item.FRSTFR_PSTN_YCRD ? parseFloat(item.FRSTFR_PSTN_YCRD) : undefined,
         lng: item.FRSTFR_PSTN_XCRD ? parseFloat(item.FRSTFR_PSTN_XCRD) : undefined,
       };
