@@ -1,8 +1,8 @@
 /**
  * 119 Helper API Gateway ??Cloudflare Worker
  * 
- * 모든 ?��? API ?�출???�리하??API ?��? ?�버 측에�?보�??�니??
- * ?�론?�엔??SPA)????Worker??/api/* ?�드?�인?�만 ?�출?�니??
+ * 모든 ?? API ?출???리하??API ?? ?버 측에?보??니??
+ * ?론?엔??SPA)????Worker??/api/* ?드?인?만 ?출?니??
  */
 
 import { handleOptions, jsonResponse, errorResponse, isOriginAllowed, checkRateLimit, rateLimitResponse, corsHeaders } from './middleware/cors';
@@ -21,8 +21,9 @@ import { handleAnnualFireStats } from './routes/annualFireStats';
 import { handleFireObject } from './routes/fireObject';
 import { handleFireDamage } from './routes/fireDamage';
 import { handleCivilShelter } from './routes/civilShelter';
+import { handleEquipment } from './routes/equipment';
 
-import { newsHandler } from './routes/news';
+import { newsHandler, prefetchNews } from './routes/news';
 import { handleWildfire } from './routes/wildfire';
 import { handleTsunamiShelter } from './routes/tsunamiShelter';
 import { handleLaw } from './routes/law';
@@ -46,7 +47,11 @@ export interface Env {
   WILDFIRE_API_KEY: string;
   TSUNAMI_SHELTER_API_KEY: string;
   DISASTER_API_KEY: string;
+  EQUIPMENT_API_KEY: string;
   ENVIRONMENT: string;
+  NAVER_CLIENT_ID?: string;
+  NAVER_CLIENT_SECRET?: string;
+  NEWS_CACHE: KVNamespace;
 }
 
 export default {
@@ -119,9 +124,8 @@ export default {
       else if (path.startsWith('/api/fire/')) result = await handleFireInfo(path, url, env.FIRE_INFO_API_KEY);
       else if (path === '/api/fire-damage') result = await handleFireDamage(url, env.FIRE_DAMAGE_API_KEY);
       else if (path.startsWith('/api/fire-annual/')) result = await handleAnnualFireStats(path, url, env.ANNUAL_FIRE_API_KEY);
-      else if (path === '/api/temp-civil-fetch') {
-
-
+      else if (path.startsWith('/api/equipment/')) {
+        return await handleEquipment(request, env);
       }
       else if (path === '/api/wildfire') result = await handleWildfire(url, env.WILDFIRE_API_KEY);
       else if (path === '/api/tsunami-shelter') result = await handleTsunamiShelter(url, env.TSUNAMI_SHELTER_API_KEY);
@@ -149,7 +153,7 @@ export default {
       } else if (result) {
         response = jsonResponse(result.data, request, 200, result.cacheTtl);
         
-        // ?�상 ?�답(?�이????error ?�성 ?�음)???�만 Edge ?�경??캐싱
+        // ?상 ?답(?이????error ?성 ?음)???만 Edge ?경??캐싱
         const isErrorData = result.data && typeof result.data === 'object' && 'error' in result.data;
         if (result.cacheTtl > 0 && !isErrorData) {
           const cacheableResponse = response.clone();
@@ -160,7 +164,7 @@ export default {
         return errorResponse('No data returned from API', request, 500);
       }
 
-      // 보조 CORS ?�더 ?�용
+      // 보조 CORS ?더 ?용
       const finalRes = new Response(response.body, response);
       const cors = corsHeaders(request);
       for (const [k, v] of Object.entries(cors)) {
@@ -171,11 +175,17 @@ export default {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Internal server error';
       console.error(`[119-helper-api] ${path} error:`, message);
-      // API ??관???�러 메시지 ?��?
+      // API ??관???러 메시지 ??
       const safeMessage = message.includes('authKey') || message.includes('serviceKey')
-        ? 'API ?�증 ?�류. 관리자?�게 문의?�세??'
+        ? 'API 인증 오류. 관리자에게 문의하세요'
         : message;
       return errorResponse(safeMessage, request, 502);
     }
   },
+  
+  // Cron Trigger 핸들러
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+    // 백그라운드 프리패치 작업을 이벤트 수명주기 내에서 실행
+    ctx.waitUntil(prefetchNews(env));
+  }
 };

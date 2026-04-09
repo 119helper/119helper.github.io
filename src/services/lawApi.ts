@@ -5,7 +5,7 @@
 
 const API_BASE = import.meta.env.DEV
   ? 'http://localhost:8787'
-  : 'https://helper-api.119helper.workers.dev';
+  : (import.meta.env.VITE_API_BASE || 'https://119-helper-api.teemozipsa.workers.dev');
 
 // ── 검색 결과 타입 ──
 export interface LawSearchItem {

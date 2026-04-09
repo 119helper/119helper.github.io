@@ -26,10 +26,11 @@ import PolicyDashboard from './components/PolicyDashboard';
 import { WildfireView } from './components/WildfireView';
 import LawDashboard from './components/LawDashboard';
 import EquipmentChecklist from './components/EquipmentChecklist';
+import EquipmentCertSearch from './components/EquipmentCertSearch';
 import { loadNotificationSettings } from './services/notificationSettings';
 import { fetchDisasterMsgs } from './services/disasterMsgApi';
 
-type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis' | 'multiuse' | 'hazmat' | 'annual-fire' | 'statistics' | 'manual' | 'field-timer' | 'news' | 'policy' | 'wildfire' | 'law' | 'checklist';
+type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis' | 'multiuse' | 'hazmat' | 'annual-fire' | 'statistics' | 'manual' | 'field-timer' | 'news' | 'policy' | 'wildfire' | 'law' | 'checklist' | 'equipment-cert';
 type ShelterCategory = 'building' | 'hydrants' | 'waterTowers' | 'civil' | 'tsunami' | 'restrooms';
 
 // 알림 시스템 타입
@@ -427,6 +428,7 @@ export default function App() {
       case 'calendar': return <Calendar />;
       case 'news': return <NewsDashboard city={city} />;
       case 'checklist': return <EquipmentChecklist />;
+      case 'equipment-cert': return <EquipmentCertSearch />;
       case 'law': return <LawDashboard />;
       case 'policy': return <PolicyDashboard />;
       default: return <DashboardView onNavigate={handleNavigate} city={city} fireFacilities={fireFacilities} isLoadingFacilities={isLoadingFacilities} cityIndex={cityIndex} />;

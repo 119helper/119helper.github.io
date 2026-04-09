@@ -10,6 +10,7 @@
 const ALLOWED_ORIGINS = [
   'https://119helper.github.io',        // 프로덕션
   'http://localhost:5173',               // 개발 서버
+  'http://127.0.0.1:5173',               // 개발 서버 (IP)
   'http://localhost:4173',               // 프리뷰 서버
 ];
 

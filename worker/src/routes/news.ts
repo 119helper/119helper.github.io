@@ -1,117 +1,183 @@
 /**
- * 뉴스 RSS 프록시 (Google News / 소방청 korea.kr)
+ * 뉴스 데이터 프록시 (Naver News API / Google News / Bing News)
  * 
- * Google News RSS는 Cloudflare Worker IP를 자주 차단하므로:
- * 1. 성공 시 KV(또는 메모리) 캐시에 저장
- * 2. 실패 시 이전 캐시를 반환 (stale-while-revalidate)
- * 3. 캐시 TTL을 넉넉하게 (1시간)
- * 
- * Route: GET /api/news?type=google&query=소방관
- *        GET /api/news?type=nfa
+ * 1. Naver API Key가 있으면 최우선으로 Naver API 사용 (결과를 기존 프론트와 호환되게 XML로 변환)
+ * 2. 실패 시 Google News RSS -> Bing News RSS 폴백 방식을 취함
+ * 3. 성공 시 KV(NEWS_CACHE)에 저장
+ * 4. 실패 시 KV의 만료된(stale) 데이터라도 반환 (고가용성)
  */
 
-// 메모리 캐시 (Worker instance 수명 동안 유지)
-const newsMemCache = new Map<string, { text: string; ts: number }>();
-const CACHE_TTL = 60 * 60 * 1000; // 1시간
-const STALE_TTL = 6 * 60 * 60 * 1000; // 6시간 (stale 허용)
+const CACHE_TTL = 60 * 60; // 1시간 (KV 만료 기본 단위 초)
+const STALE_TTL = 6 * 60 * 60; // 6시간 동안은 실패 시 과거 데이터라도 반환
 
 export async function newsHandler(request: Request, env: any): Promise<Response> {
   const url = new URL(request.url);
   const type = url.searchParams.get('type') || 'google';
   const query = url.searchParams.get('query') || '소방관';
 
-  // 캐시 키 생성
-  const cacheKey = `news:${type}:${query}`;
+  return await getNewsWithCache(type, query, env, false);
+}
 
-  // 1. 메모리 캐시 체크 (fresh)
-  const cached = newsMemCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < CACHE_TTL) {
-    return xmlResponse(cached.text);
+// Cron Trigger에서 주기적으로 호출하기 위한 프리패치 함수
+export async function prefetchNews(env: any) {
+  // 프리패치 할 기본 검색어: "소방" (화재 OR 구조 OR 구급 OR 재난)
+  const defaultQuery = '"소방" (화재 OR 구조 OR 구급 OR 재난)';
+  console.log('[news] Running cron prefetch for query:', defaultQuery);
+  try {
+    // force fetch by skipping cache read
+    await getNewsWithCache('google', defaultQuery, env, true);
+    console.log('[news] Cron prefetch success');
+  } catch (err: any) {
+    console.error('[news] Cron prefetch error:', err.message);
+  }
+}
+
+async function getNewsWithCache(type: string, query: string, env: any, forceFetch: boolean): Promise<Response> {
+  const cacheKey = `news:${type}:${query}`;
+  const kv = env.NEWS_CACHE; // binding from wrangler.toml
+
+  // 1. KV 캐시 확인
+  if (!forceFetch && kv) {
+    const cachedData = await kv.get(cacheKey, 'json');
+    if (cachedData) {
+      const { text, ts } = cachedData as { text: string; ts: number };
+      const ageMs = Date.now() - ts;
+      
+      // 1시간 이내의 싱싱한 데이터면 즉시 반환
+      if (ageMs < CACHE_TTL * 1000) {
+        return xmlResponse(text);
+      }
+    }
   }
 
-  // 2. 원본 RSS 가져오기 시도
+  let xmlText = '';
+
   try {
-    let rssUrl = '';
+    // 2. Fetch 뉴스 데이터
     if (type === 'nfa') {
-      rssUrl = 'https://www.korea.kr/rss/dept_nfa.xml';
+      xmlText = await fetchRss('https://www.korea.kr/rss/dept_nfa.xml');
     } else {
-      rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=ko&gl=KR&ceid=KR:ko`;
-    }
-    
-    let xmlText = '';
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000); // 8초 타임아웃
-
-    try {
-      const response = await fetch(rssUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-          'Accept-Language': 'ko-KR,ko;q=0.9',
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        throw new Error(`Google RSS fetch failed: ${response.status}`);
-      }
-
-      xmlText = await response.text();
-
-      // 빈 응답 또는 너무 짧은 응답 체크
-      if (!xmlText || xmlText.length < 100 || !xmlText.includes('<item>')) {
-        throw new Error('Empty or invalid Google RSS response');
-      }
-    } catch (googleError: any) {
-      console.warn(`[news] Google fetch failed:`, googleError.message, `trying Bing fallback...`);
-      clearTimeout(timeout);
-      
-      // Fallback to Bing News RSS
-      const bingUrl = `https://www.bing.com/news/search?q=${encodeURIComponent(query)}&format=rss`;
-      const bingController = new AbortController();
-      const bingTimeout = setTimeout(() => bingController.abort(), 8000);
-      
-      const bingResponse = await fetch(bingUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-          'Accept-Language': 'ko-KR,ko;q=0.9',
-        },
-        signal: bingController.signal,
-      });
-      
-      clearTimeout(bingTimeout);
-      
-      if (!bingResponse.ok) {
-        throw new Error(`Fallback Bing RSS fetch failed: ${bingResponse.status}`);
-      }
-      
-      xmlText = await bingResponse.text();
-      
-      if (!xmlText || xmlText.length < 100 || !xmlText.includes('<item>')) {
-        throw new Error('Empty or invalid Fallback Bing RSS response');
+      // 우선 Naver API 시도
+      if (env.NAVER_CLIENT_ID && env.NAVER_CLIENT_SECRET) {
+        try {
+          xmlText = await fetchNaverAsXml(query, env.NAVER_CLIENT_ID, env.NAVER_CLIENT_SECRET);
+        } catch (naverErr: any) {
+          console.warn(`[news] Naver API failed: ${naverErr?.message}. Falling back to Google RSS.`);
+          xmlText = await fetchGoogleFallback(query);
+        }
+      } else {
+        xmlText = await fetchGoogleFallback(query);
       }
     }
 
-    // 성공 → 캐시 갱신
-    newsMemCache.set(cacheKey, { text: xmlText, ts: Date.now() });
+    // 성공 → KV 저장
+    if (kv && xmlText) {
+      // KV put with expirationTtl so it auto cleans up (e.g. 24h)
+      await kv.put(cacheKey, JSON.stringify({ text: xmlText, ts: Date.now() }), { expirationTtl: 86400 });
+    }
 
     return xmlResponse(xmlText);
 
   } catch (error: any) {
-    console.error(`[news] ${cacheKey} error:`, error.message);
+    console.error(`[news] Fetch error for ${cacheKey}:`, error.message);
 
-    // 3. 실패 시 stale 캐시 반환
-    if (cached && Date.now() - cached.ts < STALE_TTL) {
-      console.log(`[news] Serving stale cache for ${cacheKey}`);
-      return xmlResponse(cached.text);
+    // 3. 완전히 실패한 경우, KV에 오래된(stale) 데이터라도 있는지 확인
+    if (kv) {
+      const cachedData = await kv.get(cacheKey, 'json');
+      if (cachedData) {
+        const { text, ts } = cachedData as { text: string; ts: number };
+        if (Date.now() - ts < STALE_TTL * 1000) {
+          console.log(`[news] Serving stale KV cache for ${cacheKey}`);
+          return xmlResponse(text);
+        }
+      }
     }
 
-    // 4. 캐시도 없으면 빈 RSS 반환 (프론트에서 "뉴스 없음" 표시)
     return xmlResponse(emptyRss(query), true);
   }
+}
+
+async function fetchGoogleFallback(query: string): Promise<string> {
+  try {
+    const googleUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=ko&gl=KR&ceid=KR:ko`;
+    return await fetchRss(googleUrl);
+  } catch (err: any) {
+    console.warn(`[news] Google fetch failed:`, err.message, `trying Bing fallback...`);
+    const bingUrl = `https://www.bing.com/news/search?q=${encodeURIComponent(query)}&format=rss`;
+    return await fetchRss(bingUrl);
+  }
+}
+
+async function fetchRss(url: string): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+      'Accept-Language': 'ko-KR,ko;q=0.9',
+    },
+    signal: controller.signal,
+  });
+
+  clearTimeout(timeout);
+
+  if (!response.ok) {
+    throw new Error(`RSS fetch failed: ${response.status}`);
+  }
+
+  const text = await response.text();
+  if (!text || text.length < 100 || !text.includes('<item>')) {
+    throw new Error('Empty or invalid RSS response');
+  }
+
+  return text;
+}
+
+// 네이버 뉴스 검색 JSON 결과를 RSS XML 포맷으로 변환
+async function fetchNaverAsXml(query: string, clientId: string, clientSecret: string): Promise<string> {
+  const url = `https://openapi.naver.com/v1/search/news.json?query=${encodeURIComponent(query)}&display=10&sort=date`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  const response = await fetch(url, {
+    headers: {
+      'X-Naver-Client-Id': clientId,
+      'X-Naver-Client-Secret': clientSecret
+    },
+    signal: controller.signal,
+  });
+  
+  clearTimeout(timeout);
+  if (!response.ok) {
+    throw new Error(`Naver API returned ${response.status}`);
+  }
+
+  const data = await response.json() as any;
+  if (!data?.items || data.items.length === 0) {
+    throw new Error('Naver API returned 0 items');
+  }
+
+  // RSS Header
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n  <channel>\n`;
+  xml += `    <title><![CDATA[Naver News - ${query}]]></title>\n`;
+  xml += `    <description><![CDATA[Naver Search Result]]></description>\n`;
+  xml += `    <lastBuildDate>${data.lastBuildDate || new Date().toUTCString()}</lastBuildDate>\n`;
+
+  // Item parsing (escaping b tags and raw html since front-end handles it as text or we must enclose in CDATA)
+  for (const item of data.items) {
+    // title/desc contains <b>keyword</b> from Naver
+    xml += `    <item>\n`;
+    xml += `      <title><![CDATA[${item.title}]]></title>\n`;
+    xml += `      <link><![CDATA[${item.link}]]></link>\n`;
+    xml += `      <description><![CDATA[${item.description}]]></description>\n`;
+    xml += `      <pubDate>${item.pubDate}</pubDate>\n`;
+    xml += `    </item>\n`;
+  }
+
+  xml += `  </channel>\n</rss>`;
+  return xml;
 }
 
 function xmlResponse(body: string, isError: boolean = false): Response {
@@ -120,7 +186,7 @@ function xmlResponse(body: string, isError: boolean = false): Response {
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
       'Access-Control-Allow-Origin': '*',
-      'Cache-Control': isError ? 'no-store, no-cache, must-revalidate' : 'public, max-age=1800', // 에러 시 캐시 방지
+      'Cache-Control': isError ? 'no-store, no-cache, must-revalidate' : 'public, max-age=600',
     },
   });
 }
