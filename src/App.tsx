@@ -58,6 +58,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'news', icon: 'newspaper', label: '뉴스' },
   { id: 'wildfire', icon: 'local_fire_department', label: '산불현황' },
   { id: 'shelter', icon: 'location_city', label: '시설 조회' },
+  { id: 'building', icon: 'apartment', label: '건축물대장' },
   { id: 'statistics', icon: 'bar_chart', label: '통계' },
   { id: 'manual', icon: 'menu_book', label: '대응 매뉴얼' },
   { id: 'calculator', icon: 'calculate', label: '계산기' },
@@ -414,6 +415,7 @@ export default function App() {
         />
       );
       case 'er': return <ERDashboard city={city} />;
+      case 'building': return <BuildingView />;
 
       case 'emergency': return <EmergencyAnalysis />;
       case 'fire-analysis': return <FireAnalysis />;
