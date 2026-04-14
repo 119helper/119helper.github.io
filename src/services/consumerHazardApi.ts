@@ -1,3 +1,5 @@
+import { apiFetch } from './apiClient';
+
 export interface HazardItem {
   id: string;
   receiveDay: string;      // 접수일자
@@ -25,16 +27,8 @@ export async function fetchConsumerHazards(forceRefresh = false): Promise<Hazard
       }
     }
 
-    // 서비스 키 인코딩
-    const serviceKey = '189a16b141d49948bf119eeb2cb8f583b70e5be4b3d407f4cf8a5901b9283b1e';
-    const encodedKey = encodeURIComponent(serviceKey);
-
-    const qs = `serviceKey=${encodedKey}&pageNo=1&numOfRows=100&apiFormat=json`;
-    const url = `https://apis.data.go.kr/B551919/open-api/harm/reception?${qs}`;
-
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('API fetch failed');
-    const json = await res.json();
+    // Cloudflare Worker 프록시 통신
+    const json = await apiFetch<any>('/api/consumer-hazard');
 
     const itemsRaw = json?.response?.body?.items?.item || [];
     const items: HazardItem[] = (Array.isArray(itemsRaw) ? itemsRaw : [itemsRaw]).map((item: any) => ({

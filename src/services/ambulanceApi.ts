@@ -1,3 +1,4 @@
+import { apiFetch } from './apiClient';
 import { CITY_TO_SIDO } from './erApi';
 
 export interface PrivateAmbulance {
@@ -23,13 +24,10 @@ export async function fetchPrivateAmbulances(city: string, forceRefresh = false)
     }
 
     const sidoName = CITY_TO_SIDO[city] || '서울특별시';
-    const qs = `serviceKey=${encodeURIComponent('189a16b141d49948bf119eeb2cb8f583b70e5be4b3d407f4cf8a5901b9283b1e')}&pageNo=1&numOfRows=1000`;
-    // For AmblInfoInqireService, it accepts Q0 (시도명) and Q1 (시군구명) -> However, the spec says "Q0 (주소(시도))", let's use Q0 for simplicity
-    const url = `https://apis.data.go.kr/B552657/AmblInfoInqireService/getAmblListInfoInqire?${qs}&Q0=${encodeURIComponent(sidoName)}`;
-
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Ambulance API fetch failed');
-    const xmlText = await res.text();
+    
+    // Cloudflare Worker 프록시 통신
+    const response = await apiFetch<{xml: string}>('/api/ambulance', { Q0: sidoName });
+    const xmlText = response.xml;
     
     // Parse XML
     const parser = new DOMParser();

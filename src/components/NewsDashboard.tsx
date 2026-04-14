@@ -1,6 +1,44 @@
 import { useState, useEffect } from 'react';
 import { fetchLocalNews, type NewsItem } from '../services/newsApi';
 
+type NewsCategory = 'fire' | 'rescue' | 'medical' | 'default';
+
+const getNewsCategory = (title: string = '', desc: string = ''): NewsCategory => {
+  const text = (title + ' ' + desc).toLowerCase();
+  
+  if (/(화재|불|진압|소방관|소방차|발화|잔불|화망)/.test(text)) return 'fire';
+  if (/(구조|사고|고립|붕괴|실종|수색|추락|재난|태풍|지진)/.test(text)) return 'rescue';
+  if (/(구급|환자|응급|이송|병원|심정지|위급|부상)/.test(text)) return 'medical';
+  return 'default';
+};
+
+const categoryTheme = {
+  fire: {
+    gradient: "from-orange-500/40 via-red-500/20 to-transparent",
+    icon: "local_fire_department",
+    iconColor: "text-red-500/10",
+    badge: "bg-red-500/15 text-red-600 dark:text-red-400",
+  },
+  rescue: {
+    gradient: "from-yellow-400/40 via-amber-500/20 to-transparent",
+    icon: "warning",
+    iconColor: "text-amber-500/10",
+    badge: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  },
+  medical: {
+    gradient: "from-cyan-400/40 via-blue-500/20 to-transparent",
+    icon: "medical_services",
+    iconColor: "text-blue-500/10",
+    badge: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+  },
+  default: {
+    gradient: "from-primary/30 via-surface-variant/20 to-transparent",
+    icon: "newspaper",
+    iconColor: "text-primary/10",
+    badge: "bg-primary/15 text-primary",
+  }
+};
+
 interface NewsDashboardProps {
   city: string;
 }
@@ -59,37 +97,55 @@ export default function NewsDashboard({ city }: NewsDashboardProps) {
           <p className="text-on-surface-variant">관련 뉴스를 찾을 수 없습니다.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {news.map((item) => (
-            <a 
-              key={item.id} 
-              href={item.link} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="bg-surface-container-low hover:bg-surface-container transition-colors rounded-2xl border border-outline-variant/20 overflow-hidden flex flex-col group"
-            >
-              <div className="p-5 flex-1">
-                <div className="flex items-center justify-between mb-3 text-xs">
-                  <span className={`${item.isOfficial ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' : 'bg-primary/10 text-primary'} px-2.5 py-1 rounded-full font-bold flex items-center gap-1`}>
-                    {item.isOfficial && <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>}
-                    {item.source}
-                  </span>
-                  <span className="text-on-surface-variant flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px]">schedule</span>
-                    {item.pubDate}
-                  </span>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {news.map((item) => {
+            const category = getNewsCategory(item.title, item.description);
+            const theme = categoryTheme[category];
+            
+            return (
+              <a 
+                key={item.id} 
+                href={item.link} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="relative bg-surface-container-lowest/80 backdrop-blur-xl hover:bg-surface-container-lowest transition-all duration-300 rounded-3xl border border-outline-variant/30 overflow-hidden flex flex-col group hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5"
+              >
+                {/* 동적 매쉬 그라데이션 오라(Glow) */}
+                <div className={`absolute -top-16 -right-16 w-56 h-56 bg-gradient-to-bl ${theme.gradient} rounded-full blur-[40px] opacity-70 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none`}></div>
+                
+                {/* 큼직한 워터마크 모노톤 아이콘 */}
+                <span className={`material-symbols-outlined absolute -bottom-4 right-2 text-9xl ${theme.iconColor} transform rotate-12 group-hover:scale-110 group-hover:rotate-0 transition-all duration-500 pointer-events-none`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                  {theme.icon}
+                </span>
+
+                <div className="p-6 flex-1 relative z-10">
+                  <div className="flex items-center justify-between mb-4 text-xs font-bold">
+                    <span className={`${theme.badge} px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm`}>
+                      {item.isOfficial ? <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span> : null}
+                      {item.source}
+                    </span>
+                    <span className="text-on-surface-variant flex items-center gap-1 bg-surface-variant/30 backdrop-blur-sm px-2.5 py-1 rounded-lg">
+                      <span className="material-symbols-outlined text-[14px]">schedule</span>
+                      {item.pubDate}
+                    </span>
+                  </div>
+                  
+                  <h3 className="font-extrabold text-on-surface text-[17px] leading-snug group-hover:text-primary transition-colors line-clamp-2 mb-3" dangerouslySetInnerHTML={{ __html: item.title }} />
+                  
+                  <p className="text-[13px] text-on-surface-variant line-clamp-3 leading-relaxed font-medium">
+                    {item.description}
+                  </p>
                 </div>
-                <h3 className="font-bold text-on-surface text-md leading-snug group-hover:text-primary transition-colors line-clamp-2 mb-2" dangerouslySetInnerHTML={{ __html: item.title }} />
-                <p className="text-xs text-on-surface-variant line-clamp-3 leading-relaxed">
-                  {item.description}
-                </p>
-              </div>
-              <div className="p-4 border-t border-outline-variant/10 bg-surface-container-lowest flex items-center justify-between">
-                <span className="text-[11px] font-bold text-primary group-hover:underline">기사 원문 보기</span>
-                <span className="material-symbols-outlined text-primary text-sm transform group-hover:translate-x-1 transition-transform">arrow_forward</span>
-              </div>
-            </a>
-          ))}
+                
+                <div className="px-6 py-4 border-t border-outline-variant/20 bg-surface/50 backdrop-blur-md flex items-center justify-between relative z-10 group-hover:bg-primary/5 transition-colors">
+                  <span className="text-xs font-extrabold text-primary group-hover:underline">기사 원문 보기</span>
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center transform group-hover:translate-x-2 shadow-md transition-all">
+                     <span className="material-symbols-outlined text-on-primary text-[16px]">arrow_forward</span>
+                  </div>
+                </div>
+              </a>
+            );
+          })}
         </div>
       )}
     </div>

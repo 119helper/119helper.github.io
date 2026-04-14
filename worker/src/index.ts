@@ -28,6 +28,8 @@ import { handleWildfire } from './routes/wildfire';
 import { handleTsunamiShelter } from './routes/tsunamiShelter';
 import { handleLaw } from './routes/law';
 import { handleDisasterMsg } from './routes/disaster';
+import { handleConsumerHazard } from './routes/consumerHazard';
+import { handleAmbulance } from './routes/ambulance';
 
 export interface Env {
   KMA_API_KEY: string;
@@ -48,6 +50,8 @@ export interface Env {
   TSUNAMI_SHELTER_API_KEY: string;
   DISASTER_API_KEY: string;
   EQUIPMENT_API_KEY: string;
+  CONSUMER_HAZARD_API_KEY: string;
+  AMBULANCE_API_KEY: string;
   ENVIRONMENT: string;
   NAVER_CLIENT_ID?: string;
   NAVER_CLIENT_SECRET?: string;
@@ -130,6 +134,8 @@ export default {
       else if (path === '/api/wildfire') result = await handleWildfire(url, env.WILDFIRE_API_KEY);
       else if (path === '/api/tsunami-shelter') result = await handleTsunamiShelter(url, env.TSUNAMI_SHELTER_API_KEY);
       else if (path === '/api/disaster-msg') result = await handleDisasterMsg(url, env.DISASTER_API_KEY);
+      else if (path === '/api/consumer-hazard') result = await handleConsumerHazard(url, env.CONSUMER_HAZARD_API_KEY);
+      else if (path === '/api/ambulance') result = await handleAmbulance(url, env.AMBULANCE_API_KEY);
       else if (path.startsWith('/api/law')) {
         return await handleLaw(request);
       }
