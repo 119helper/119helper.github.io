@@ -8,6 +8,7 @@ export interface NewsItem {
   source: string;
   description?: string;
   isOfficial?: boolean;
+  imageUrl?: string;
 }
 
 interface CacheEntry {
@@ -103,6 +104,10 @@ async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boo
         if (desc.startsWith('뉴스')) desc = desc.replace(/^뉴스\s*-?\s*/, '');
         if (desc.length < 10) desc = ''; // 내용이 너무 짧으면 없앰
 
+        let imageUrl = item.getElementsByTagName('imageUrl')[0]?.textContent || '';
+        // CDATA 등 흔적 제거
+        imageUrl = imageUrl.replace(/<!\[CDATA\[(.*?)\]\]>/, '$1').trim();
+
         return {
           id: item.getElementsByTagName('link')[0]?.textContent || Math.random().toString(),
           title,
@@ -110,7 +115,8 @@ async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boo
           pubDateStr,
           source: actualSource,
           description: desc,
-          isOfficial
+          isOfficial,
+          imageUrl
         };
       });
     } catch (err) {
@@ -141,7 +147,8 @@ function processAndSort(arrays: any[][]): NewsItem[] {
     }),
     source: item.source,
     description: item.description,
-    isOfficial: item.isOfficial
+    isOfficial: item.isOfficial,
+    imageUrl: item.imageUrl
   }));
 }
 

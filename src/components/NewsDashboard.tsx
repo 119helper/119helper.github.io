@@ -6,36 +6,38 @@ type NewsCategory = 'fire' | 'rescue' | 'medical' | 'default';
 const getNewsCategory = (title: string = '', desc: string = ''): NewsCategory => {
   const text = (title + ' ' + desc).toLowerCase();
   
-  if (/(화재|불|진압|소방관|소방차|발화|잔불|화망)/.test(text)) return 'fire';
-  if (/(구조|사고|고립|붕괴|실종|수색|추락|재난|태풍|지진)/.test(text)) return 'rescue';
-  if (/(구급|환자|응급|이송|병원|심정지|위급|부상)/.test(text)) return 'medical';
+  // 정규식을 확 늘려서 키워드가 더 잘 걸리게 수정
+  if (/(화재|불|진압|소방|화망|발화|잔불|산불|방화|인화)/.test(text)) return 'fire';
+  if (/(구조|사고|고립|붕괴|실종|수색|추락|재난|지진|태풍|침수|안전|재해|대비)/.test(text)) return 'rescue';
+  if (/(구급|환자|응급|이송|병원|심정지|위급|부상|심폐소생술|CPR|의료|생명)/.test(text)) return 'medical';
+  
   return 'default';
 };
 
 const categoryTheme = {
   fire: {
-    gradient: "from-orange-500/40 via-red-500/20 to-transparent",
+    gradient: "from-orange-500/50 via-red-500/30 to-transparent",
     icon: "local_fire_department",
-    iconColor: "text-red-500/10",
-    badge: "bg-red-500/15 text-red-600 dark:text-red-400",
+    iconColor: "text-red-500/40 dark:text-red-400/30", // 투명도를 40%로 올려서 확실히 보이게
+    badge: "bg-red-500/20 text-red-700 dark:text-red-300",
   },
   rescue: {
-    gradient: "from-yellow-400/40 via-amber-500/20 to-transparent",
+    gradient: "from-yellow-400/50 via-amber-500/30 to-transparent",
     icon: "warning",
-    iconColor: "text-amber-500/10",
-    badge: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+    iconColor: "text-amber-500/40 dark:text-amber-400/30",
+    badge: "bg-amber-500/20 text-amber-700 dark:text-amber-300",
   },
   medical: {
-    gradient: "from-cyan-400/40 via-blue-500/20 to-transparent",
+    gradient: "from-cyan-400/50 via-blue-500/30 to-transparent",
     icon: "medical_services",
-    iconColor: "text-blue-500/10",
-    badge: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+    iconColor: "text-blue-500/40 dark:text-blue-400/30",
+    badge: "bg-blue-500/20 text-blue-700 dark:text-blue-300",
   },
   default: {
-    gradient: "from-primary/30 via-surface-variant/20 to-transparent",
+    gradient: "from-primary/40 via-surface-variant/30 to-transparent",
     icon: "newspaper",
-    iconColor: "text-primary/10",
-    badge: "bg-primary/15 text-primary",
+    iconColor: "text-primary/40 dark:text-primary/30",
+    badge: "bg-primary/20 text-primary",
   }
 };
 
@@ -113,10 +115,24 @@ export default function NewsDashboard({ city }: NewsDashboardProps) {
                 {/* 동적 매쉬 그라데이션 오라(Glow) */}
                 <div className={`absolute -top-16 -right-16 w-56 h-56 bg-gradient-to-bl ${theme.gradient} rounded-full blur-[40px] opacity-70 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none`}></div>
                 
-                {/* 큼직한 워터마크 모노톤 아이콘 */}
-                <span className={`material-symbols-outlined absolute -bottom-4 right-2 text-9xl ${theme.iconColor} transform rotate-12 group-hover:scale-110 group-hover:rotate-0 transition-all duration-500 pointer-events-none`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                {/* 큼직한 워터마크 모노톤 아이콘: 투명도를 높이고 z-0 부여해서 본문 배경에 깔리게 */}
+                <span className={`material-symbols-outlined absolute -bottom-6 -right-2 text-[140px] ${theme.iconColor} transform rotate-12 group-hover:scale-110 group-hover:rotate-0 transition-all duration-500 pointer-events-none z-0`} style={{ fontVariationSettings: "'FILL' 1" }}>
                   {theme.icon}
                 </span>
+
+                {item.imageUrl && (
+                  <div className="w-full h-48 sm:h-44 relative z-10 overflow-hidden bg-surface-container/50 border-b border-outline-variant/20 shrink-0">
+                    <img 
+                      src={item.imageUrl} 
+                      alt="" 
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                      onError={(e) => {
+                        e.currentTarget.parentElement!.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
 
                 <div className="p-6 flex-1 relative z-10">
                   <div className="flex items-center justify-between mb-4 text-xs font-bold">

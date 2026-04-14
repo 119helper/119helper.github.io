@@ -70,6 +70,13 @@ async function getNewsWithCache(type: string, query: string, env: any, forceFetc
       }
     }
 
+    // --- Og:Image 썸네일 병렬 추출 (모든 RSS 포맷 통합) ---
+    try {
+      xmlText = await enhanceRssWithImages(xmlText);
+    } catch (ogErr) {
+      console.warn(`[news] Og:image extraction failed, proceeding with original XML:`, ogErr);
+    }
+
     // 성공 → KV 저장
     if (kv && xmlText) {
       // KV put with expirationTtl so it auto cleans up (e.g. 24h)
@@ -135,6 +142,72 @@ async function fetchRss(url: string): Promise<string> {
   return text;
 }
 
+// 썸네일 URL(Og:Image)만 1.5초 내로 빠르게 훔쳐오는 스크래퍼
+async function fetchOgImage(link: string): Promise<string> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 1500);
+
+    const res = await fetch(link, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'
+      },
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeout);
+    if (!res.ok) return '';
+    
+    const html = await res.text();
+    // meta og:image 추출 정규식
+    const match = html.match(/<meta\s+(?:property|name)=["']og:image["']\s+content=["'](.*?)["']/i) || 
+                  html.match(/<meta\s+content=["'](.*?)["']\s+(?:property|name)=["']og:image["']/i);
+    return match ? match[1] : '';
+  } catch(e) {
+    return '';
+  }
+}
+
+// 생성되거나 파싱된 XML의 <item> 속 <link>들을 추적해 <imageUrl> 태그를 박아넣는 함수 (병렬 처리)
+async function enhanceRssWithImages(xml: string): Promise<string> {
+  const itemRegex = /<item>[\s\S]*?<\/item>/g;
+  const items = xml.match(itemRegex);
+  if (!items) return xml;
+
+  const enhancedItems = await Promise.all(items.map(async (itemXml) => {
+    // originallink가 있으면 그것을, 없으면 link를 사용 (네이버용)
+    const originalLinkMatch = itemXml.match(/<originallink[^>]*>([^<]+)<\/originallink>/i);
+    const linkMatch = itemXml.match(/<link[^>]*>([^<]+)<\/link>/i);
+    
+    let targetLink = '';
+    if (originalLinkMatch) {
+      targetLink = originalLinkMatch[1];
+    } else if (linkMatch) {
+      targetLink = linkMatch[1];
+    }
+    
+    if (!targetLink) return itemXml;
+    targetLink = targetLink.replace(/<!\[CDATA\[(.*?)\]\]>/, '$1').trim();
+    
+    const imageUrl = await fetchOgImage(targetLink);
+    
+    if (imageUrl) {
+      // </item> 직전에 imageUrl 삽입
+      return itemXml.replace(/<\/item>/i, `  <imageUrl><![CDATA[${imageUrl}]]></imageUrl>\n    </item>`);
+    }
+    return itemXml;
+  }));
+
+  // 원본 XML 문자열 대치
+  let newXml = xml;
+  // 순차 대치 (items와 enhancedItems 순서/길이가 보장됨)
+  for(let i = 0; i < items.length; i++) {
+    newXml = newXml.replace(items[i], enhancedItems[i]);
+  }
+  
+  return newXml;
+}
+
 // 네이버 뉴스 검색 JSON 결과를 RSS XML 포맷으로 변환
 async function fetchNaverAsXml(query: string, clientId: string, clientSecret: string): Promise<string> {
   const url = `https://openapi.naver.com/v1/search/news.json?query=${encodeURIComponent(query)}&display=10&sort=date`;
@@ -170,6 +243,7 @@ async function fetchNaverAsXml(query: string, clientId: string, clientSecret: st
     // title/desc contains <b>keyword</b> from Naver
     xml += `    <item>\n`;
     xml += `      <title><![CDATA[${item.title}]]></title>\n`;
+    xml += `      <originallink><![CDATA[${item.originallink}]]></originallink>\n`; // og 추출용 추가
     xml += `      <link><![CDATA[${item.link}]]></link>\n`;
     xml += `      <description><![CDATA[${item.description}]]></description>\n`;
     xml += `      <pubDate>${item.pubDate}</pubDate>\n`;
