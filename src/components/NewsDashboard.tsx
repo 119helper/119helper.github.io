@@ -16,28 +16,28 @@ const getNewsCategory = (title: string = '', desc: string = ''): NewsCategory =>
 
 const categoryTheme = {
   fire: {
-    gradient: "from-orange-500/50 via-red-500/30 to-transparent",
+    gradient: "from-red-500 to-orange-500",
     icon: "local_fire_department",
-    iconColor: "text-red-500/40 dark:text-red-400/30", // 투명도를 40%로 올려서 확실히 보이게
-    badge: "bg-red-500/20 text-red-700 dark:text-red-300",
+    iconColor: "text-red-500/10 dark:text-red-400/5",
+    badge: "border-red-500/30 text-red-700 dark:text-red-400 bg-red-500/5",
   },
   rescue: {
-    gradient: "from-yellow-400/50 via-amber-500/30 to-transparent",
+    gradient: "from-amber-400 to-yellow-500",
     icon: "warning",
-    iconColor: "text-amber-500/40 dark:text-amber-400/30",
-    badge: "bg-amber-500/20 text-amber-700 dark:text-amber-300",
+    iconColor: "text-amber-500/10 dark:text-amber-400/5",
+    badge: "border-amber-500/30 text-amber-700 dark:text-amber-400 bg-amber-500/5",
   },
   medical: {
-    gradient: "from-cyan-400/50 via-blue-500/30 to-transparent",
+    gradient: "from-blue-400 to-cyan-500",
     icon: "medical_services",
-    iconColor: "text-blue-500/40 dark:text-blue-400/30",
-    badge: "bg-blue-500/20 text-blue-700 dark:text-blue-300",
+    iconColor: "text-blue-500/10 dark:text-blue-400/5",
+    badge: "border-blue-500/30 text-blue-700 dark:text-blue-400 bg-blue-500/5",
   },
   default: {
-    gradient: "from-primary/40 via-surface-variant/30 to-transparent",
+    gradient: "from-gray-600 to-gray-400 dark:from-gray-400 dark:to-gray-600",
     icon: "newspaper",
-    iconColor: "text-primary/40 dark:text-primary/30",
-    badge: "bg-primary/20 text-primary",
+    iconColor: "text-on-surface/5",
+    badge: "border-outline-variant text-on-surface-variant bg-surface-variant/30",
   }
 };
 
@@ -99,10 +99,11 @@ export default function NewsDashboard({ city }: NewsDashboardProps) {
           <p className="text-on-surface-variant">관련 뉴스를 찾을 수 없습니다.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {news.map((item) => {
+        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6 md:grid-flow-row-dense">
+          {news.map((item, idx) => {
             const category = getNewsCategory(item.title, item.description);
             const theme = categoryTheme[category];
+            const isHero = idx === 0;
             
             return (
               <a 
@@ -110,53 +111,79 @@ export default function NewsDashboard({ city }: NewsDashboardProps) {
                 href={item.link} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="relative bg-surface-container-lowest/80 backdrop-blur-xl hover:bg-surface-container-lowest transition-all duration-300 rounded-3xl border border-outline-variant/30 overflow-hidden flex flex-col group hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5"
+                className={`
+                  relative bg-surface-container-lowest border border-outline-variant/40 rounded-[2rem] overflow-hidden group 
+                  hover:border-primary/40 hover:ring-1 hover:ring-primary/40 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/5
+                  transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] flex flex-col
+                  ${isHero ? 'md:col-span-4 lg:col-span-4 md:flex-row' : 'col-span-1 md:col-span-2 lg:col-span-2'}
+                `}
               >
-                {/* 동적 매쉬 그라데이션 오라(Glow) */}
-                <div className={`absolute -top-16 -right-16 w-56 h-56 bg-gradient-to-bl ${theme.gradient} rounded-full blur-[40px] opacity-70 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none`}></div>
-                
-                {/* 큼직한 워터마크 모노톤 아이콘: 투명도를 높이고 z-0 부여해서 본문 배경에 깔리게 */}
-                <span className={`material-symbols-outlined absolute -bottom-6 -right-2 text-[140px] ${theme.iconColor} transform rotate-12 group-hover:scale-110 group-hover:rotate-0 transition-all duration-500 pointer-events-none z-0`} style={{ fontVariationSettings: "'FILL' 1" }}>
-                  {theme.icon}
-                </span>
+                {/* 하이테크 상단 글로우 바 */}
+                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${theme.gradient} opacity-50 group-hover:opacity-100 transition-opacity`}></div>
 
+                {/* 이미지 영역 (있을 경우만) */}
                 {item.imageUrl && (
-                  <div className="w-full h-48 sm:h-44 relative z-10 overflow-hidden bg-surface-container/50 border-b border-outline-variant/20 shrink-0">
+                  <div className={`
+                    relative z-10 overflow-hidden bg-surface-container shrink-0
+                    ${isHero ? 'w-full md:w-1/2 h-64 md:h-auto border-b md:border-b-0 md:border-r border-outline-variant/20' : 'w-full h-48 sm:h-44 border-b border-outline-variant/20'}
+                  `}>
                     <img 
                       src={item.imageUrl} 
                       alt="" 
                       loading="lazy"
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
                       onError={(e) => {
                         e.currentTarget.parentElement!.style.display = 'none';
                       }}
                     />
+                    {/* 데스크톱 영웅 카드용 이너 오버레이 (텍스트로 넘어가는 경계 부드럽게) */}
+                    {isHero && (
+                      <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-surface-container-lowest to-transparent hidden md:block"></div>
+                    )}
                   </div>
                 )}
 
-                <div className="p-6 flex-1 relative z-10">
-                  <div className="flex items-center justify-between mb-4 text-xs font-bold">
-                    <span className={`${theme.badge} px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm`}>
-                      {item.isOfficial ? <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span> : null}
+                {/* 콘텐츠 영역 */}
+                <div className={`p-6 md:p-8 flex-1 flex flex-col relative z-20 ${isHero && !item.imageUrl ? 'justify-center' : ''}`}>
+                  
+                  {/* 거대 백그라운드 워터마크 마이크로 인터랙션 */}
+                  <span className={`material-symbols-outlined absolute pointer-events-none z-0 ${theme.iconColor} transform -rotate-12 group-hover:scale-110 group-hover:rotate-0 transition-all duration-700 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isHero ? '-bottom-10 -right-10 text-[200px]' : '-bottom-6 -right-6 text-[120px]'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                    {theme.icon}
+                  </span>
+                  
+                  {/* 메타데이터(뱃지, 시간) */}
+                  <div className="flex flex-wrap items-center gap-3 mb-5 relative z-10">
+                    <span className={`px-3 py-1 text-[11px] font-black rounded-full border border-solid ${theme.badge} uppercase tracking-wider shadow-sm`}>
+                      {item.isOfficial ? <span className="material-symbols-outlined text-[11px] align-text-bottom mr-1" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span> : null}
                       {item.source}
                     </span>
-                    <span className="text-on-surface-variant flex items-center gap-1 bg-surface-variant/30 backdrop-blur-sm px-2.5 py-1 rounded-lg">
+                    <span className="text-[12px] font-bold text-on-surface-variant flex items-center gap-1 opacity-70">
                       <span className="material-symbols-outlined text-[14px]">schedule</span>
                       {item.pubDate}
                     </span>
                   </div>
                   
-                  <h3 className="font-extrabold text-on-surface text-[17px] leading-snug group-hover:text-primary transition-colors line-clamp-2 mb-3" dangerouslySetInnerHTML={{ __html: item.title }} />
+                  {/* 제목 타이포그래피 극대화 */}
+                  <h3 className={`
+                    font-extrabold text-on-surface leading-tight tracking-tight mb-4 relative z-10
+                    ${isHero ? 'text-[22px] md:text-[28px]' : 'text-[18px] line-clamp-3'}
+                    group-hover:bg-clip-text group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:${theme.gradient} transition-all duration-300
+                  `} dangerouslySetInnerHTML={{ __html: item.title }} />
                   
-                  <p className="text-[13px] text-on-surface-variant line-clamp-3 leading-relaxed font-medium">
+                  {/* 본문 설명 */}
+                  <p className={`
+                    text-on-surface-variant font-medium leading-relaxed relative z-10 opacity-80
+                    ${isHero ? 'text-[15px] line-clamp-4' : 'text-[14px] line-clamp-2'}
+                  `}>
                     {item.description}
                   </p>
-                </div>
-                
-                <div className="px-6 py-4 border-t border-outline-variant/20 bg-surface/50 backdrop-blur-md flex items-center justify-between relative z-10 group-hover:bg-primary/5 transition-colors">
-                  <span className="text-xs font-extrabold text-primary group-hover:underline">기사 원문 보기</span>
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center transform group-hover:translate-x-2 shadow-md transition-all">
-                     <span className="material-symbols-outlined text-on-primary text-[16px]">arrow_forward</span>
+
+                  {/* 하단 바로가기 (모던 버튼) */}
+                  <div className="mt-auto pt-6 flex items-center justify-between relative z-10">
+                    <span className="text-[13px] font-bold text-on-surface opacity-50 group-hover:opacity-100 transition-opacity duration-300">자세히 보기</span>
+                    <div className="w-10 h-10 rounded-full border border-outline-variant/40 flex items-center justify-center bg-surface hover:bg-primary group-hover:border-primary group-hover:text-on-primary text-on-surface-variant transition-all duration-300 transform group-hover:translate-x-1 shadow-sm">
+                      <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                    </div>
                   </div>
                 </div>
               </a>
