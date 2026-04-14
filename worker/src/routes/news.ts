@@ -34,7 +34,7 @@ export async function prefetchNews(env: any) {
 
 async function getNewsWithCache(type: string, query: string, env: any, forceFetch: boolean): Promise<Response> {
   // 캐시 키 버전을 v4 등으로 올려서 이전 데이터(이미지 없는 데이터) 캐시를 즉시 무효화
-  const CACHE_PREFIX = 'news:v4:';
+  const CACHE_PREFIX = 'news:v5:';
   const cacheKey = `${CACHE_PREFIX}${type}:${query}`;
   const kv = env.NEWS_CACHE; // binding from wrangler.toml
 
@@ -148,11 +148,14 @@ async function fetchRss(url: string): Promise<string> {
 async function fetchOgImage(link: string): Promise<string> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1500);
+    const timeout = setTimeout(() => controller.abort(), 3000);
 
     const res = await fetch(link, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Cache-Control': 'no-cache'
       },
       signal: controller.signal
     });
@@ -161,9 +164,10 @@ async function fetchOgImage(link: string): Promise<string> {
     if (!res.ok) return '';
     
     const html = await res.text();
-    // meta og:image 추출 정규식
-    const match = html.match(/<meta\s+(?:property|name)=["']og:image["']\s+content=["'](.*?)["']/i) || 
-                  html.match(/<meta\s+content=["'](.*?)["']\s+(?:property|name)=["']og:image["']/i);
+    // meta og:image 추출 정규식 (줄바꿈 허용, 순서 무관)
+    const match = html.match(/<meta[^>]*?property=["']og:image["'][^>]*?content=["']([^"']+)["']/i) || 
+                  html.match(/<meta[^>]*?content=["']([^"']+)["'][^>]*?property=["']og:image["']/i) ||
+                  html.match(/<meta[^>]*?name=["']twitter:image["'][^>]*?content=["']([^"']+)["']/i);
     return match ? match[1] : '';
   } catch(e) {
     return '';
@@ -193,10 +197,16 @@ async function enhanceRssWithImages(xml: string): Promise<string> {
     const linkMatch = itemXml.match(/<link[^>]*>([^<]+)<\/link>/i);
     
     let targetLink = '';
-    if (originalLinkMatch) {
-      targetLink = originalLinkMatch[1];
-    } else if (linkMatch) {
-      targetLink = linkMatch[1];
+    // Priority: If link contains naver.com, use it (extremely fast and standard). Otherwise fallback to originallink, then link.
+    const linkUrl = linkMatch ? linkMatch[1] : '';
+    const originalLinkUrl = originalLinkMatch ? originalLinkMatch[1] : '';
+    
+    if (linkUrl.includes('naver.com')) {
+      targetLink = linkUrl;
+    } else if (originalLinkUrl) {
+      targetLink = originalLinkUrl;
+    } else if (linkUrl) {
+      targetLink = linkUrl;
     }
     
     if (!targetLink) return itemXml;

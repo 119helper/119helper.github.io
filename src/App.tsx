@@ -12,7 +12,8 @@ import SettingsModal from './components/SettingsModal';
 import MultiUseView from './components/MultiUseView';
 import HazmatView from './components/HazmatView';
 import AnnualFireView from './components/AnnualFireView';
-import StatisticsView from './components/StatisticsView';
+import FireDamageView from './components/FireDamageView';
+import ConsumerHazardView from './components/ConsumerHazardView';
 import { fetchFireWaterFacilities, fetchCityIndex, isSplitCity } from './services/fireWaterApi';
 import type { CityIndex } from './services/fireWaterApi';
 import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS } from './services/weatherApi';
@@ -30,7 +31,7 @@ import EquipmentCertSearch from './components/EquipmentCertSearch';
 import { loadNotificationSettings } from './services/notificationSettings';
 import { fetchDisasterMsgs } from './services/disasterMsgApi';
 
-type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis' | 'multiuse' | 'hazmat' | 'annual-fire' | 'statistics' | 'manual' | 'field-timer' | 'news' | 'policy' | 'wildfire' | 'law' | 'checklist' | 'equipment-cert';
+type TabId = 'dashboard' | 'hydrants' | 'waterTowers' | 'er' | 'building' | 'weather' | 'calculator' | 'memo' | 'calendar' | 'shelter' | 'emergency' | 'fire-analysis' | 'multiuse' | 'hazmat' | 'annual-fire' | 'fire-damage' | 'hazards' | 'statistics' | 'manual' | 'field-timer' | 'news' | 'policy' | 'wildfire' | 'law' | 'checklist' | 'equipment-cert';
 type ShelterCategory = 'building' | 'hydrants' | 'waterTowers' | 'civil' | 'tsunami' | 'restrooms';
 
 // 알림 시스템 타입
@@ -44,28 +45,60 @@ interface Notification {
   isNew: boolean;
 }
 
-interface NavItem {
+interface NavSubItem {
   id: TabId;
+  label: string;
+}
+
+interface NavItem {
+  id: string; // Group ID or TabId
   icon: string;
   label: string;
   filled?: boolean;
+  subItems?: NavSubItem[];
 }
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', icon: 'dashboard', label: '대시보드', filled: true },
-  { id: 'weather', icon: 'cloud', label: '기상 정보' },
-  { id: 'er', icon: 'local_hospital', label: '응급실 현황' },
-  { id: 'news', icon: 'newspaper', label: '뉴스' },
-  { id: 'wildfire', icon: 'local_fire_department', label: '산불현황' },
   { id: 'shelter', icon: 'location_city', label: '시설 조회' },
-  { id: 'statistics', icon: 'bar_chart', label: '통계' },
-  { id: 'manual', icon: 'menu_book', label: '대응 매뉴얼' },
-  { id: 'calculator', icon: 'calculate', label: '계산기' },
-  { id: 'field-timer', icon: 'timer', label: '현장 타이머' },
-  { id: 'checklist', icon: 'check_circle', label: '장비점검' },
-  { id: 'calendar', icon: 'calendar_month', label: '달력/일정' },
-  { id: 'law', icon: 'security', label: '실전 법률방어' },
-  { id: 'policy', icon: 'account_balance', label: '법안/지침' },
+  {
+    id: 'group-monitoring', icon: 'monitor', label: '모니터링',
+    subItems: [
+      { id: 'weather', label: '날씨' },
+      { id: 'wildfire', label: '산불현황' },
+      { id: 'er', label: '응급실 현황' },
+      { id: 'news', label: '뉴스' },
+    ]
+  },
+  {
+    id: 'group-tools', icon: 'build', label: '현장도구',
+    subItems: [
+      { id: 'field-timer', label: '현장 타이머' },
+      { id: 'checklist', label: '장비점검' },
+      { id: 'calculator', label: '계산기' },
+    ]
+  },
+  {
+    id: 'group-admin', icon: 'folder_open', label: '업무지원',
+    subItems: [
+      { id: 'manual', label: '대응 매뉴얼' },
+      { id: 'law', label: '실전 법률방어' },
+      { id: 'policy', label: '법안지침' },
+      { id: 'calendar', label: '일정관리' },
+    ]
+  },
+  {
+    id: 'group-statistics', icon: 'bar_chart', label: '통계',
+    subItems: [
+      { id: 'annual-fire', label: '연간 화재통계' },
+      { id: 'fire-analysis', label: '화재 분석' },
+      { id: 'fire-damage', label: '지역별 화재피해' },
+      { id: 'emergency', label: '구급 출동 분석' },
+      { id: 'hazmat', label: '위험물시설' },
+      { id: 'multiuse', label: '다중이용업소' },
+      { id: 'hazards', label: '생활위해사고' },
+    ]
+  }
 ];
 
 // 모바일 바텀 네비게이션 탭
@@ -102,6 +135,7 @@ export default function App() {
   const [shelterCategory, setShelterCategory] = useState<ShelterCategory>('building');
   const [gpsStatus, setGpsStatus] = useState<'loading' | 'granted' | 'denied' | 'idle'>('idle');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(['group-monitoring']);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notiOpen, setNotiOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -414,14 +448,14 @@ export default function App() {
         />
       );
       case 'er': return <ERDashboard city={city} />;
-
       case 'emergency': return <EmergencyAnalysis />;
       case 'fire-analysis': return <FireAnalysis />;
+      case 'fire-damage': return <FireDamageView />;
+      case 'hazards': return <ConsumerHazardView />;
       case 'multiuse': return <MultiUseView city={city} />;
       case 'wildfire': return <WildfireView cityName={cityNames[city]} />;
       case 'hazmat': return <HazmatView />;
       case 'annual-fire': return <AnnualFireView />;
-      case 'statistics': return <StatisticsView city={city} />;
       case 'manual': return <ManualView />;
       case 'calculator': return <Calculators subId={activeSubId} />;
       case 'field-timer': return <FieldTimer />;
@@ -462,25 +496,80 @@ export default function App() {
           <p className="text-xs text-on-surface-variant font-medium">소방관 도우미</p>
         </div>
         <nav className="flex-1 px-3 space-y-1 mt-2 overflow-y-auto custom-scrollbar">
-          {NAV_ITEMS.map(item => (
-            <button
-              key={item.id}
-              onClick={() => handleNavigate(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left ${
-                activeTab === item.id
-                  ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
-                  : 'text-on-surface-variant hover:bg-surface-container-high/50'
-              }`}
-            >
-              <span
-                className="material-symbols-outlined text-xl"
-                style={activeTab === item.id ? { fontVariationSettings: "'FILL' 1" } : undefined}
-              >
-                {item.icon}
-              </span>
-              <span className="font-medium text-sm">{item.label}</span>
-            </button>
-          ))}
+          {NAV_ITEMS.map(item => {
+            const hasSub = !!item.subItems;
+            const isExpanded = expandedGroups.includes(item.id);
+            const isGroupActive = hasSub && item.subItems?.some(sub => sub.id === activeTab);
+            
+            return (
+              <div key={item.id} className="mb-1">
+                <button
+                  onClick={() => {
+                    if (hasSub) {
+                      setExpandedGroups(prev => 
+                        prev.includes(item.id) ? prev.filter(g => g !== item.id) : [...prev, item.id]
+                      );
+                    } else {
+                      handleNavigate(item.id as TabId);
+                    }
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-left ${
+                    !hasSub && activeTab === item.id
+                      ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
+                      : isGroupActive && !isExpanded
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-on-surface-variant hover:bg-surface-container-high/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`material-symbols-outlined text-xl transition-colors`}
+                      style={(!hasSub && activeTab === item.id) || isGroupActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                    >
+                      {item.icon}
+                    </span>
+                    <span className={`font-medium ${hasSub ? 'text-sm font-bold' : 'text-sm'}`}>{item.label}</span>
+                  </div>
+                  {hasSub && (
+                    <span className={`material-symbols-outlined text-xl transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                      expand_more
+                    </span>
+                  )}
+                </button>
+                
+                {hasSub && (
+                  <div
+                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                      isExpanded ? 'max-h-[500px] opacity-100 mt-1' : 'max-h-0 opacity-0'
+                    }`}
+                  >
+                    <div className="pl-4 pr-0 space-y-0.5">
+                      {item.subItems!.map(sub => {
+                        const isSubActive = activeTab === sub.id;
+                        return (
+                          <button
+                            key={sub.id}
+                            onClick={() => handleNavigate(sub.id as TabId)}
+                            className={`w-full flex items-center px-4 py-2.5 rounded-lg transition-all text-sm ${
+                              isSubActive
+                                ? 'bg-primary/15 text-primary font-bold'
+                                : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-medium'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              {/* Sub item bullet point */}
+                              <div className={`w-1.5 h-1.5 rounded-full transition-colors ${isSubActive ? 'bg-primary' : 'bg-transparent border border-on-surface-variant/40'}`} />
+                              <span>{sub.label}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
         <div className="p-4 border-t border-outline-variant/20 flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center">
