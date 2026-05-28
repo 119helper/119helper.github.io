@@ -16,15 +16,28 @@ const ALLOWED_ORIGINS = [
 
 /* ═══ CORS ═══ */
 
+function isAllowedOrigin(origin: string): boolean {
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+
+  try {
+    const url = new URL(origin);
+    return url.protocol === 'http:'
+      && ['localhost', '127.0.0.1', '::1', '[::1]'].includes(url.hostname)
+      && !!url.port;
+  } catch {
+    return false;
+  }
+}
+
 export function isOriginAllowed(request: Request): boolean {
   const origin = request.headers.get('Origin') || '';
   if (!origin) return false;
-  return ALLOWED_ORIGINS.some(o => origin === o);
+  return isAllowedOrigin(origin);
 }
 
 export function corsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get('Origin') || '';
-  const isAllowed = ALLOWED_ORIGINS.some(o => origin === o);
+  const isAllowed = isAllowedOrigin(origin);
 
   return {
     'Access-Control-Allow-Origin': isAllowed ? origin : '',

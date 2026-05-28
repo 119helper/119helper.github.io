@@ -79,7 +79,7 @@ function saveToCache(key: string, data: any) {
         keysToRemove.forEach(k => localStorage.removeItem(k));
         const item: CacheItem = { version: 1, cachedAt: Date.now(), data };
         localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(item));
-      } catch (inner) {
+      } catch {
         // Ignore if still fails
       }
     }
@@ -97,9 +97,13 @@ function getFromCache(key: string, ttlMs?: number): { data: any; cachedAt: numbe
       return null;
     }
     return { data: item.data, cachedAt: item.cachedAt };
-  } catch (e) {
+  } catch {
     // If parse fails or structure is broken, clean it up
-    try { localStorage.removeItem(CACHE_PREFIX + key); } catch {}
+    try {
+      localStorage.removeItem(CACHE_PREFIX + key);
+    } catch {
+      // localStorage may be unavailable in restricted contexts.
+    }
     return null;
   }
 }
@@ -159,7 +163,7 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
       let data;
       try {
         data = bodyText ? JSON.parse(bodyText) : null;
-      } catch (e) {
+      } catch {
         throw new Error('INVALID_JSON');
       }
       if (!data) throw new Error('EMPTY_DATA');
@@ -249,7 +253,11 @@ export async function fetchShelters(ctprvnNm: string, signguNm?: string, numOfRo
 export async function fetchTsunamiShelters() { return tsunamiData; }
 
 // ═══════ 민방위대피시설 ═══════
-export async function fetchCivilShelters(_ctprvnNm: string, _sgnNm?: string) { return civilData; }
+export async function fetchCivilShelters(ctprvnNm?: string, sgnNm?: string) {
+  void ctprvnNm;
+  void sgnNm;
+  return civilData;
+}
 
 // ═══════ 다중이용업소 (7일) ═══════
 export async function fetchMultiUseFacilities(ctprvnNm: string, signguNm?: string) {

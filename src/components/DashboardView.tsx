@@ -9,7 +9,7 @@ import StickyNotes from './StickyNotes';
 import { WildfireTicker } from './WildfireTicker';
 import { WindCompass } from './WindCompass';
 import MiniTimerWidget from './MiniTimerWidget';
-import { EQUIPMENT_CHECKLIST_TOTAL } from './EquipmentChecklist';
+import { EQUIPMENT_CHECKLIST_TOTAL } from '../data/equipmentChecklist';
 import type { NavigateTarget } from '../types/navigation';
 
 import hydrantBg from '../assets/hydrant_bg.jpg';

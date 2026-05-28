@@ -59,20 +59,13 @@ export default function HazmatView() {
     () => HAZMAT_FACILITY_DATA.filter(d => d.fireDept !== '합계'),
     []
   );
-  const summary = HAZMAT_FACILITY_DATA.find(d => d.fireDept === '합계') ?? HAZMAT_FACILITY_DATA[0];
-
-  if (!summary) {
-    return (
-      <div className="text-error bg-surface-container-lowest rounded-xl p-6">
-        위험물시설 데이터를 불러올 수 없습니다.
-      </div>
-    );
-  }
-
-  const selected: HazmatFacilityStats = HAZMAT_FACILITY_DATA.find(d => d.fireDept === selectedDept) || summary;
+  const summary = HAZMAT_FACILITY_DATA.find(d => d.fireDept === '합계') ?? HAZMAT_FACILITY_DATA[0] ?? null;
+  const selected: HazmatFacilityStats | null = summary
+    ? HAZMAT_FACILITY_DATA.find(d => d.fireDept === selectedDept) || summary
+    : null;
 
   // 대분류 도넛 데이터
-  const categorySlices = useMemo(() => [
+  const categorySlices = useMemo(() => selected ? [
     { label: '제조소', value: selected.manufacturing, color: '#ef4444' },
     { label: '취급소 (주유)', value: selected.handling.gasStation, color: '#f97316' },
     { label: '취급소 (판매)', value: selected.handling.sales, color: '#eab308' },
@@ -84,12 +77,20 @@ export default function HazmatView() {
     { label: '저장소 (지하탱크)', value: selected.storage.underground, color: '#6366f1' },
     { label: '저장소 (이동탱크)', value: selected.storage.mobile, color: '#8b5cf6' },
     { label: '저장소 (옥외)', value: selected.storage.outdoor, color: '#a855f7' },
-  ], [selected]);
+  ] : [], [selected]);
 
   // 소방서별 바 차트 데이터
   const sortedDepts = useMemo(() =>
     [...allDepts].sort((a, b) => b.total - a.total),
   [allDepts]);
+
+  if (!summary || !selected) {
+    return (
+      <div className="text-error bg-surface-container-lowest rounded-xl p-6">
+        위험물시설 데이터를 불러올 수 없습니다.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

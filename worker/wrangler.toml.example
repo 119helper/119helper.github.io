@@ -23,3 +23,11 @@ ENVIRONMENT = "production"
 # wrangler secret put EMERGENCY_API_KEY
 # wrangler secret put FIRE_INFO_API_KEY
 # wrangler secret put ANNUAL_FIRE_API_KEY
+# wrangler secret put FIRE_OBJECT_API_KEY
+# wrangler secret put FIRE_DAMAGE_API_KEY
+# wrangler secret put WILDFIRE_API_KEY
+# wrangler secret put TSUNAMI_SHELTER_API_KEY
+# wrangler secret put DISASTER_API_KEY
+# wrangler secret put EQUIPMENT_API_KEY
+# wrangler secret put CONSUMER_HAZARD_API_KEY
+# wrangler secret put AMBULANCE_API_KEY
