@@ -3,7 +3,7 @@
   "short_name": "119Helper",
   "description": "소방관 실시간 관제 대시보드. 기상정보, 응급실 현황, 소화전 위치, 교대근무 달력",
   "start_url": "/",
-  "display": "standalone",
+  "display": "browser",
   "background_color": "#0a0e1a",
   "theme_color": "#4f8cff",
   "orientation": "portrait-primary",

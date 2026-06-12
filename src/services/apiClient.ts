@@ -5,9 +5,6 @@
  * 프론트엔드에는 API 키가 존재하지 않습니다.
  */
 
-import tsunamiData from '../../public/data/tsunami.json';
-import { civilData } from '../data/civilData';
-
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://119-helper-api.teemozipsa.workers.dev';
 const API_TIMEOUT_MS = 15_000;
 const CACHE_PREFIX = '119_cache_v1_';
@@ -250,12 +247,16 @@ export async function fetchConfig(forceRefresh?: boolean) { return apiFetch<{ ka
 export async function fetchShelters(ctprvnNm: string, signguNm?: string, numOfRows = '100', pageNo = '1') {
   return apiFetch<any[]>('/api/shelter', { ctprvnNm, signguNm: signguNm || '', numOfRows, pageNo });
 }
-export async function fetchTsunamiShelters() { return tsunamiData; }
+export async function fetchTsunamiShelters() {
+  const { default: tsunamiData } = await import('../../public/data/tsunami.json');
+  return tsunamiData;
+}
 
 // ═══════ 민방위대피시설 ═══════
 export async function fetchCivilShelters(ctprvnNm?: string, sgnNm?: string) {
   void ctprvnNm;
   void sgnNm;
+  const { civilData } = await import('../data/civilData');
   return civilData;
 }
 

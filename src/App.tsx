@@ -1,38 +1,49 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import './index.css';
-import Calculators from './components/Calculators';
-import Calendar from './components/Calendar';
-import WeatherDashboard from './components/WeatherDashboard';
-import ERDashboard from './components/ERDashboard';
-import DashboardView from './components/DashboardView';
-import EmergencyAnalysis from './components/EmergencyAnalysis';
-import FireAnalysis from './components/FireAnalysis';
 import GlobalSearch from './components/GlobalSearch';
 import SettingsModal from './components/SettingsModal';
-import MultiUseView from './components/MultiUseView';
-import HazmatView from './components/HazmatView';
-import AnnualFireView from './components/AnnualFireView';
-import FireDamageView from './components/FireDamageView';
-import ConsumerHazardView from './components/ConsumerHazardView';
+import ErrorBoundary from './components/ErrorBoundary';
 import { fetchFireWaterFacilities, fetchCityIndex, isSplitCity } from './services/fireWaterApi';
 import type { CityIndex } from './services/fireWaterApi';
 import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS } from './services/weatherApi';
 import { getRealtimeAirQuality } from './services/airQualityApi';
 import type { FireFacility } from './data/mockData';
-import FacilitySearchView from './components/FacilitySearchView';
-import ManualView from './components/ManualView';
-import FieldTimer from './components/FieldTimer';
-import NewsDashboard from './components/NewsDashboard';
-import PolicyDashboard from './components/PolicyDashboard';
-import { WildfireView } from './components/WildfireView';
-import LawDashboard from './components/LawDashboard';
-import EquipmentChecklist from './components/EquipmentChecklist';
-import EquipmentCertSearch from './components/EquipmentCertSearch';
 import { loadNotificationSettings } from './services/notificationSettings';
 import { fetchDisasterMsgs } from './services/disasterMsgApi';
+import { loadKakaoMapSDK } from './utils/kakaoLoader';
 
 import type { TabId, NavigateTarget } from './types/navigation';
 type ShelterCategory = 'building' | 'hydrants' | 'waterTowers' | 'civil' | 'tsunami' | 'restrooms';
+type GpsStatus = 'loading' | 'granted' | 'denied' | 'idle' | 'unsupported';
+type LocationNoticeKind = 'info' | 'warning';
+interface KakaoRegionResult {
+  region_type?: string;
+  region_1depth_name: string;
+  region_2depth_name?: string;
+  region_3depth_name?: string;
+}
+
+const DashboardView = lazy(() => import('./components/DashboardView'));
+const WeatherDashboard = lazy(() => import('./components/WeatherDashboard'));
+const FacilitySearchView = lazy(() => import('./components/FacilitySearchView'));
+const ERDashboard = lazy(() => import('./components/ERDashboard'));
+const EmergencyAnalysis = lazy(() => import('./components/EmergencyAnalysis'));
+const FireAnalysis = lazy(() => import('./components/FireAnalysis'));
+const FireDamageView = lazy(() => import('./components/FireDamageView'));
+const ConsumerHazardView = lazy(() => import('./components/ConsumerHazardView'));
+const MultiUseView = lazy(() => import('./components/MultiUseView'));
+const WildfireView = lazy(() => import('./components/WildfireView').then(module => ({ default: module.WildfireView })));
+const HazmatView = lazy(() => import('./components/HazmatView'));
+const AnnualFireView = lazy(() => import('./components/AnnualFireView'));
+const ManualView = lazy(() => import('./components/ManualView'));
+const Calculators = lazy(() => import('./components/Calculators'));
+const FieldTimer = lazy(() => import('./components/FieldTimer'));
+const Calendar = lazy(() => import('./components/Calendar'));
+const NewsDashboard = lazy(() => import('./components/NewsDashboard'));
+const EquipmentChecklist = lazy(() => import('./components/EquipmentChecklist'));
+const EquipmentCertSearch = lazy(() => import('./components/EquipmentCertSearch'));
+const LawDashboard = lazy(() => import('./components/LawDashboard'));
+const PolicyDashboard = lazy(() => import('./components/PolicyDashboard'));
 
 // 알림 시스템 타입
 interface Notification {
@@ -115,6 +126,32 @@ const cityNames: Record<string, string> = {
   gwangju: '광주', daejeon: '대전', ulsan: '울산', sejong: '세종', jeju: '제주',
 };
 
+const KAKAO_REGION_TO_CITY: Record<string, string> = {
+  서울특별시: 'seoul',
+  부산광역시: 'busan',
+  대구광역시: 'daegu',
+  인천광역시: 'incheon',
+  광주광역시: 'gwangju',
+  대전광역시: 'daejeon',
+  울산광역시: 'ulsan',
+  세종특별자치시: 'sejong',
+  제주특별자치도: 'jeju',
+};
+
+const SUPPORTED_CITY_COORDS: Record<string, { lat: number; lng: number }> = {
+  seoul: { lat: 37.5665, lng: 126.978 },
+  busan: { lat: 35.1796, lng: 129.0756 },
+  daegu: { lat: 35.8714, lng: 128.6014 },
+  incheon: { lat: 37.4563, lng: 126.7052 },
+  gwangju: { lat: 35.1595, lng: 126.8526 },
+  daejeon: { lat: 36.3504, lng: 127.3845 },
+  ulsan: { lat: 35.5384, lng: 129.3114 },
+  sejong: { lat: 36.48, lng: 127.0 },
+  jeju: { lat: 33.4996, lng: 126.5312 },
+};
+
+const MAX_FALLBACK_DISTANCE_KM = 30;
+
 function formatTimeAgo(date: Date): string {
   const diff = Math.floor((Date.now() - date.getTime()) / 1000);
   if (diff < 60) return '방금 전';
@@ -138,6 +175,69 @@ function getTabLabel(tab: TabId | string) {
   return '대시보드';
 }
 
+function getDistanceKm(from: { lat: number; lng: number }, to: { lat: number; lng: number }) {
+  const earthRadiusKm = 6371;
+  const toRad = (degree: number) => degree * Math.PI / 180;
+  const dLat = toRad(to.lat - from.lat);
+  const dLng = toRad(to.lng - from.lng);
+  const lat1 = toRad(from.lat);
+  const lat2 = toRad(to.lat);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function getNearestSupportedCity(latitude: number, longitude: number) {
+  const current = { lat: latitude, lng: longitude };
+  return Object.entries(SUPPORTED_CITY_COORDS).reduce(
+    (nearest, [key, coords]) => {
+      const distanceKm = getDistanceKm(current, coords);
+      return distanceKm < nearest.distanceKm ? { key, distanceKm } : nearest;
+    },
+    { key: 'seoul', distanceKm: Number.POSITIVE_INFINITY }
+  );
+}
+
+async function resolveCityByKakao(latitude: number, longitude: number) {
+  await loadKakaoMapSDK();
+
+  return new Promise<{ cityKey?: string; regionLabel: string }>((resolve, reject) => {
+    const services = window.kakao?.maps?.services;
+    if (!services?.Geocoder) {
+      reject(new Error('카카오 지오코더를 사용할 수 없습니다.'));
+      return;
+    }
+
+    const geocoder = new services.Geocoder();
+    geocoder.coord2RegionCode(longitude, latitude, (result: KakaoRegionResult[], status: string) => {
+      if (status !== services.Status.OK || !result?.length) {
+        reject(new Error('현재 위치의 행정구역을 찾지 못했습니다.'));
+        return;
+      }
+
+      const region = result.find(item => item.region_type === 'H') || result[0];
+      const regionLabel = [region.region_1depth_name, region.region_2depth_name, region.region_3depth_name]
+        .filter(Boolean)
+        .join(' ');
+
+      resolve({
+        cityKey: KAKAO_REGION_TO_CITY[region.region_1depth_name],
+        regionLabel,
+      });
+    });
+  });
+}
+
+function TabLoading({ label }: { label: string }) {
+  return (
+    <div className="min-h-[280px] flex items-center justify-center text-on-surface-variant">
+      <div className="flex items-center gap-3 rounded-lg bg-surface-container px-4 py-3">
+        <span className="material-symbols-outlined animate-spin text-primary">progress_activity</span>
+        <span className="text-sm font-bold">{label} 불러오는 중</span>
+      </div>
+    </div>
+  );
+}
+
 /* ─────────── Main App ─────────── */
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
@@ -148,7 +248,8 @@ export default function App() {
   const [cityIndex, setCityIndex] = useState<CityIndex | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
   const [shelterCategory, setShelterCategory] = useState<ShelterCategory>('building');
-  const [gpsStatus, setGpsStatus] = useState<'loading' | 'granted' | 'denied' | 'idle'>('idle');
+  const [gpsStatus, setGpsStatus] = useState<GpsStatus>('idle');
+  const [locationNotice, setLocationNotice] = useState<{ kind: LocationNoticeKind; message: string } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['group-monitoring']);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -205,30 +306,62 @@ export default function App() {
 
   // GPS 자동 감지
   useEffect(() => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      setGpsStatus('unsupported');
+      setLocationNotice({ kind: 'warning', message: '이 브라우저에서는 위치 자동감지를 지원하지 않습니다. 상단 지역 선택에서 직접 지역을 지정하세요.' });
+      return;
+    }
     const saved = localStorage.getItem('119helper-city');
     if (saved) return;
 
     setGpsStatus('loading');
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const { latitude, longitude } = pos.coords;
-        const cityCoords: Record<string, [number, number]> = {
-          seoul: [37.5665, 126.978], busan: [35.1796, 129.0756],
-          daegu: [35.8714, 128.6014], incheon: [37.4563, 126.7052],
-          gwangju: [35.1595, 126.8526], daejeon: [36.3504, 127.3845],
-          ulsan: [35.5384, 129.3114], sejong: [36.48, 127.0],
-          jeju: [33.4996, 126.5312],
-        };
-        let closest = 'seoul', minDist = Infinity;
-        Object.entries(cityCoords).forEach(([key, [lat, lng]]) => {
-          const dist = Math.sqrt((latitude - lat) ** 2 + (longitude - lng) ** 2);
-          if (dist < minDist) { minDist = dist; closest = key; }
+
+        try {
+          const resolved = await resolveCityByKakao(latitude, longitude);
+          if (resolved.cityKey) {
+            setCity(resolved.cityKey);
+            setGpsStatus('granted');
+            setLocationNotice({
+              kind: 'info',
+              message: `GPS로 ${resolved.regionLabel}을 감지해 ${cityNames[resolved.cityKey]} 지역을 선택했습니다.`,
+            });
+            return;
+          }
+
+          setGpsStatus('unsupported');
+          setLocationNotice({
+            kind: 'warning',
+            message: `GPS 위치는 ${resolved.regionLabel}입니다. 현재 지원 지역 목록에 없어 자동 선택하지 않았습니다. 상단 지역 선택에서 가장 가까운 실제 관할을 직접 지정하세요.`,
+          });
+          return;
+        } catch (error) {
+          console.warn('[GPS reverse geocoding] failed:', error);
+        }
+
+        const nearest = getNearestSupportedCity(latitude, longitude);
+        if (nearest.distanceKm <= MAX_FALLBACK_DISTANCE_KM) {
+          setCity(nearest.key);
+          setGpsStatus('granted');
+          setLocationNotice({
+            kind: 'info',
+            message: `GPS 좌표가 ${cityNames[nearest.key]} 중심에서 약 ${Math.round(nearest.distanceKm)}km 이내라 해당 지역을 선택했습니다.`,
+          });
+          return;
+        }
+
+        setGpsStatus('unsupported');
+        setLocationNotice({
+          kind: 'warning',
+          message: `GPS 좌표가 지원 도시 중심에서 ${Math.round(nearest.distanceKm)}km 떨어져 있어 자동 선택하지 않았습니다. 상단 지역 선택에서 직접 지역을 지정하세요.`,
         });
-        setCity(closest);
-        setGpsStatus('granted');
       },
-      () => setGpsStatus('denied'),
+      () => {
+        setGpsStatus('denied');
+        setLocationNotice({ kind: 'warning', message: '위치 권한이 거부되어 지역을 자동 감지하지 못했습니다. 상단 지역 선택에서 직접 지역을 지정하세요.' });
+      },
       { enableHighAccuracy: false, timeout: 5000 }
     );
   }, []);
@@ -236,6 +369,8 @@ export default function App() {
   const handleCityChange = (newCity: string) => {
     setCity(newCity);
     localStorage.setItem('119helper-city', newCity);
+    setGpsStatus('idle');
+    setLocationNotice(null);
     setSelectedDistrict(null);
     setCityIndex(null);
     setFireFacilities([]);
@@ -647,10 +782,11 @@ export default function App() {
             <div className="relative" ref={regionRef}>
               <button 
                 onClick={() => setRegionOpen(!regionOpen)}
+                title={locationNotice?.message || `현재 지역: ${cityNames[city]}`}
                 className="flex items-center gap-1.5 bg-surface-container hover:bg-surface-container-high transition-colors rounded-full px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
-                <span className="material-symbols-outlined text-primary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  {gpsStatus === 'granted' ? 'my_location' : 'location_on'}
+                <span className={`material-symbols-outlined text-sm ${gpsStatus === 'unsupported' || gpsStatus === 'denied' ? 'text-amber-500' : 'text-primary'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                  {gpsStatus === 'granted' ? 'my_location' : gpsStatus === 'loading' ? 'location_searching' : gpsStatus === 'unsupported' || gpsStatus === 'denied' ? 'location_disabled' : 'location_on'}
                 </span>
                 <span className="text-on-surface text-sm font-bold pr-1">{cityNames[city]}</span>
                 <span className={`material-symbols-outlined text-on-surface-variant text-xs hidden sm:inline transition-transform duration-200 ${regionOpen ? 'rotate-180' : ''}`}>
@@ -659,7 +795,16 @@ export default function App() {
               </button>
               
               {regionOpen && (
-                <div className="absolute top-full right-0 mt-2 w-32 bg-surface-container-high border border-outline-variant/20 rounded-xl shadow-2xl overflow-hidden z-50 animate-slide-in-top">
+                <div className="absolute top-full right-0 mt-2 w-72 bg-surface-container-high border border-outline-variant/20 rounded-xl shadow-2xl overflow-hidden z-50 animate-slide-in-top">
+                  {locationNotice && (
+                    <div className={`m-1 rounded-lg px-3 py-2 text-[11px] leading-4 ${
+                      locationNotice.kind === 'warning'
+                        ? 'bg-amber-500/10 text-on-surface'
+                        : 'bg-primary/10 text-on-surface'
+                    }`}>
+                      {locationNotice.message}
+                    </div>
+                  )}
                   <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1">
                     {Object.entries(cityNames).map(([k, v]) => (
                       <button
@@ -784,9 +929,31 @@ export default function App() {
           ref={mainScrollRef}
           onScroll={handleScroll}
         >
+          {locationNotice && (
+            <div className="px-4 pt-4 md:px-6">
+              <div className={`flex items-start gap-3 rounded-lg border px-4 py-3 text-sm ${
+                locationNotice.kind === 'warning'
+                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-100'
+                  : 'border-primary/20 bg-primary/10 text-on-surface'
+              }`}>
+                <span className={`material-symbols-outlined text-xl ${locationNotice.kind === 'warning' ? 'text-amber-400' : 'text-primary'}`}>
+                  {locationNotice.kind === 'warning' ? 'warning' : 'my_location'}
+                </span>
+                <p className="leading-6">{locationNotice.message}</p>
+              </div>
+            </div>
+          )}
           <div className="p-4 md:p-6 lg:pb-6 min-h-full flex flex-col">
             <div className="flex-1">
-              {renderContent()}
+              <ErrorBoundary
+                resetKey={activeTab}
+                fallbackTitle={`${getTabLabel(activeTab)} 화면 오류`}
+                fallbackDescription="이 탭에서 오류가 발생했습니다. 왼쪽 메뉴나 하단 탭으로 다른 기능은 계속 사용할 수 있습니다."
+              >
+                <Suspense fallback={<TabLoading label={getTabLabel(activeTab)} />}>
+                  {renderContent()}
+                </Suspense>
+              </ErrorBoundary>
             </div>
             {/* Mobile Nav Spacer - Guaranteed to add scroll space at the bottom */}
             <div className="h-[72px] lg:hidden w-full shrink-0" />

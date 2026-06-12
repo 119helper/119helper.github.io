@@ -5,6 +5,8 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   base: '/',
+  // 시크릿(.env)은 MyProjects/key/119-helper 에서 로드
+  envDir: '../key/119-helper',
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {

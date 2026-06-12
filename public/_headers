@@ -1,3 +1,8 @@
+# 참고: GitHub Pages 배포에서는 이 파일이 응답 헤더로 적용되지 않는다.
+# 실제 GitHub Pages 운영 보호는 index.html의 meta CSP와 앱 부트스트랩의 프레임 차단 로직이 담당한다.
+# X-Content-Type-Options, X-Frame-Options 같은 응답 헤더가 필요하면 Cloudflare/Netlify 같은 엣지 계층에서 아래 정책을 설정해야 한다.
+
+# Cloudflare Pages/Netlify용 참고 정책:
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
