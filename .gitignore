@@ -42,3 +42,8 @@ lint_errors.txt
 lint_output.txt
 tmp_lint.txt
 .serena/ 
+
+
+# Playwright
+test-results/
+playwright-report/

@@ -13,6 +13,7 @@ import { prefetchCriticalViews } from './utils/prefetchCriticalViews';
 import { fetchDisasterMsgs } from './services/disasterMsgApi';
 import { loadKakaoMapSDK } from './utils/kakaoLoader';
 
+import { isTabId } from './types/navigation';
 import type { TabId, NavigateTarget } from './types/navigation';
 type ShelterCategory = 'building' | 'hydrants' | 'waterTowers' | 'civil' | 'tsunami' | 'restrooms';
 type GpsStatus = 'loading' | 'granted' | 'denied' | 'idle' | 'unsupported';
@@ -241,7 +242,11 @@ function TabLoading({ label }: { label: string }) {
 
 /* ─────────── Main App ─────────── */
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
+  // ?tab= 파라미터로 시작 탭 지정 가능 (manifest 바로가기 '/?tab=wildfire' 등)
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    return isTabId(tab) ? tab : 'dashboard';
+  });
   const [activeSubId, setActiveSubId] = useState<string | undefined>(undefined);
   const [city, setCity] = useState<string>(() => localStorage.getItem('119helper-city') || 'seoul');
   const [fireFacilities, setFireFacilities] = useState<FireFacility[]>([]);

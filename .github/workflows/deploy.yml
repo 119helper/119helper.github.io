@@ -34,6 +34,21 @@ jobs:
           VITE_API_BASE: https://119-helper-api.teemozipsa.workers.dev
           VITE_KAKAO_MAP_KEY: ${{ secrets.VITE_KAKAO_MAP_KEY }}
 
+      # 오프라인 동작 보증: 이 테스트가 깨지면 현장에서 신호 끊겼을 때 앱이 안 뜬다
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Offline E2E tests
+        run: npx playwright test
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7
+
   deploy:
     name: 🚀 Deploy to GitHub Pages
     needs: build
