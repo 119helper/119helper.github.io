@@ -95,9 +95,9 @@ export function loadNotificationSettings(): NotificationSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_SETTINGS };
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     // deep merge with defaults to handle new fields in updates
-    return deepMerge(DEFAULT_SETTINGS, parsed) as NotificationSettings;
+    return deepMerge(DEFAULT_SETTINGS, parsed);
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
@@ -109,20 +109,25 @@ export function saveNotificationSettings(settings: NotificationSettings): void {
 }
 
 /** 간단한 deep merge */
-function deepMerge(defaults: any, overrides: any): any {
-  const result = { ...defaults };
-  for (const key of Object.keys(defaults)) {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function deepMerge<T>(defaults: T, overrides: unknown): T {
+  if (!isPlainObject(defaults) || !isPlainObject(overrides)) return defaults;
+
+  const defaultRecord = defaults as Record<string, unknown>;
+  const result: Record<string, unknown> = { ...defaultRecord };
+  for (const key of Object.keys(defaultRecord)) {
     if (key in overrides) {
-      if (
-        typeof defaults[key] === 'object' &&
-        defaults[key] !== null &&
-        !Array.isArray(defaults[key])
-      ) {
-        result[key] = deepMerge(defaults[key], overrides[key]);
+      const defaultValue = defaultRecord[key];
+      const overrideValue = overrides[key];
+      if (isPlainObject(defaultValue)) {
+        result[key] = deepMerge(defaultValue, overrideValue);
       } else {
-        result[key] = overrides[key];
+        result[key] = overrideValue;
       }
     }
   }
-  return result;
+  return result as T;
 }

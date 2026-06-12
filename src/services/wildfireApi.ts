@@ -1,4 +1,5 @@
-import { apiFetch } from './apiClient';
+import { apiFetch, type ApiRecord } from './apiClient';
+import { z } from 'zod';
 
 export interface WildfireItem {
   id: string; // FRSTFR_INFO_ID
@@ -14,6 +15,24 @@ export interface WildfireItem {
 let cachedWildfires: WildfireItem[] | null = null;
 let lastFetchTime = 0;
 const CACHE_TTL = 3 * 60 * 1000; // 3분 캐시
+const wildfireResponseSchema = z.object({
+  body: z.array(z.record(z.string(), z.unknown())),
+  totalCount: z.coerce.number().optional(),
+}).passthrough();
+
+type WildfireApiItem = ApiRecord & {
+  EXTNGS_CMPTN_DT?: unknown;
+  FRSTFR_GNT_DT?: unknown;
+  GRS_FRSTFR_DAM_AREA?: unknown;
+  FRSTFR_INFO_ID?: unknown;
+  FRSTFR_DCLR_ADDR?: unknown;
+  FRSTFR_PSTN_YCRD?: unknown;
+  FRSTFR_PSTN_XCRD?: unknown;
+};
+
+function text(value: unknown): string {
+  return value === undefined || value === null ? '' : String(value);
+}
 
 export async function fetchWildfires(numOfRows = '200', pageNo = '1', forceRefresh = false, retryCount = 0): Promise<WildfireItem[]> {
   if (!forceRefresh && cachedWildfires && cachedWildfires.length > 0 && Date.now() - lastFetchTime < CACHE_TTL) {
@@ -21,7 +40,7 @@ export async function fetchWildfires(numOfRows = '200', pageNo = '1', forceRefre
   }
 
   try {
-    const data = await apiFetch<{ body: any[], totalCount?: number }>('/api/wildfire', { numOfRows, pageNo });
+    const data = await apiFetch<z.infer<typeof wildfireResponseSchema>>('/api/wildfire', { numOfRows, pageNo }, { schema: wildfireResponseSchema });
     if (!data || !data.body || data.body.length === 0) {
       if (retryCount < 3) {
         console.warn(`산불 데이터 빈 응답. 1초 뒤 재시도... (${retryCount + 1}/3)`);
@@ -31,9 +50,9 @@ export async function fetchWildfires(numOfRows = '200', pageNo = '1', forceRefre
       return cachedWildfires || [];
     }
 
-    const items = data.body.map((item: any) => {
-      const extinguished = item.EXTNGS_CMPTN_DT || null;
-      const occurredAtStr = item.FRSTFR_GNT_DT || '';
+    const items = data.body.map((item: WildfireApiItem) => {
+      const extinguished = text(item.EXTNGS_CMPTN_DT) || null;
+      const occurredAtStr = text(item.FRSTFR_GNT_DT);
       
       // 발생 시간 파싱 (안전한 포맷 변환)
       const occurredDate = new Date(occurredAtStr.replace(/\/?\s?/g, '').length === 14 ? 
@@ -44,7 +63,7 @@ export async function fetchWildfires(numOfRows = '200', pageNo = '1', forceRefre
         ? (Date.now() - occurredDate.getTime()) / (1000 * 60 * 60) 
         : 0;
 
-      const damageArea = item.GRS_FRSTFR_DAM_AREA ? parseFloat(item.GRS_FRSTFR_DAM_AREA) : 0;
+      const damageArea = item.GRS_FRSTFR_DAM_AREA ? Number.parseFloat(text(item.GRS_FRSTFR_DAM_AREA)) : 0;
 
       // [핵심 로직] 1헥타르(약 3000평) 미만의 작은 산불이 48시간을 넘겼다면 행정상 입력 누락(유령 산불)으로 간주
       // 단, 대형 산불(1ha 이상)은 실제로 며칠간 사투를 벌이는 경우일 수 있으므로 강제로 진화 처리하지 않음!
@@ -52,16 +71,16 @@ export async function fetchWildfires(numOfRows = '200', pageNo = '1', forceRefre
       const isOngoing = !extinguished && !isGhost;
 
       return {
-        id: item.FRSTFR_INFO_ID || Math.random().toString(),
-        address: item.FRSTFR_DCLR_ADDR || '위치 미상',
+        id: text(item.FRSTFR_INFO_ID) || Math.random().toString(),
+        address: text(item.FRSTFR_DCLR_ADDR) || '위치 미상',
         occurredAt: occurredAtStr,
         extinguishedAt: extinguished,
         isOngoing,
         damageArea,
-        lat: item.FRSTFR_PSTN_YCRD ? parseFloat(item.FRSTFR_PSTN_YCRD) : undefined,
-        lng: item.FRSTFR_PSTN_XCRD ? parseFloat(item.FRSTFR_PSTN_XCRD) : undefined,
+        lat: item.FRSTFR_PSTN_YCRD ? Number.parseFloat(text(item.FRSTFR_PSTN_YCRD)) : undefined,
+        lng: item.FRSTFR_PSTN_XCRD ? Number.parseFloat(text(item.FRSTFR_PSTN_XCRD)) : undefined,
       };
-    }).sort((a: any, b: any) => b.occurredAt.localeCompare(a.occurredAt)); // 최신순 정렬
+    }).sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)); // 최신순 정렬
 
     cachedWildfires = items;
     lastFetchTime = Date.now();

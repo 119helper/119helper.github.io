@@ -1,6 +1,6 @@
 // 지진해일 긴급 대피장소 API — Cloudflare Worker 프록시 경유
 
-import { fetchShelters } from './apiClient';
+import { fetchShelters, type ApiRecord } from './apiClient';
 
 export interface ShelterData {
   shelterName: string;     // 대피장소명
@@ -32,6 +32,34 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+type ShelterApiItem = ApiRecord & {
+  lat?: unknown;
+  latitude?: unknown;
+  lot?: unknown;
+  longitude?: unknown;
+  lon?: unknown;
+  shelterNm?: unknown;
+  shelterName?: unknown;
+  shltNm?: unknown;
+  rdnmadr?: unknown;
+  lnmadr?: unknown;
+  dtlAdres?: unknown;
+  shltSeCo?: unknown;
+  acmPrsnCo?: unknown;
+  capacity?: unknown;
+  seaLvlHght?: unknown;
+  altitude?: unknown;
+  useYn?: unknown;
+};
+
+function text(value: unknown, fallback = ''): string {
+  return value === undefined || value === null || value === '' ? fallback : String(value);
+}
+
+function numberFrom(value: unknown): number {
+  return Number.parseFloat(text(value)) || 0;
+}
+
 export async function getShelters(cityKey: string, userLat?: number, userLng?: number): Promise<ShelterData[]> {
   const ctprvnNm = CITY_TO_CTPRVN[cityKey] || '서울특별시';
 
@@ -39,17 +67,17 @@ export async function getShelters(cityKey: string, userLat?: number, userLng?: n
     const items = await fetchShelters(ctprvnNm, '', '200');
 
     const shelters: ShelterData[] = items
-      .map((item: any) => {
-        const lat = parseFloat(item.lat || item.latitude || '0');
-        const lng = parseFloat(item.lot || item.longitude || item.lon || '0');
+      .map((item: ShelterApiItem) => {
+        const lat = numberFrom(item.lat || item.latitude);
+        const lng = numberFrom(item.lot || item.longitude || item.lon);
         if (!lat || !lng) return null;
 
         const shelter: ShelterData = {
-          shelterName: item.shelterNm || item.shelterName || item.shltNm || '무명 대피소',
-          address: item.rdnmadr || item.lnmadr || item.dtlAdres || '주소 미상',
-          capacity: parseInt(item.shltSeCo || item.acmPrsnCo || item.capacity || '0') || 0,
-          altitude: parseFloat(item.seaLvlHght || item.altitude || '0') || 0,
-          isUsable: item.useYn !== 'N',
+          shelterName: text(item.shelterNm || item.shelterName || item.shltNm, '무명 대피소'),
+          address: text(item.rdnmadr || item.lnmadr || item.dtlAdres, '주소 미상'),
+          capacity: Number.parseInt(text(item.shltSeCo || item.acmPrsnCo || item.capacity), 10) || 0,
+          altitude: numberFrom(item.seaLvlHght || item.altitude),
+          isUsable: text(item.useYn) !== 'N',
           lat,
           lng,
         };

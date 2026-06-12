@@ -52,7 +52,7 @@ export default function AnnualFireView() {
     } catch (err) {
       if (seq !== requestSeqRef.current) return;
       if (isStaleDataError(err)) {
-        setData(err.cachedData);
+        setData(err.cachedData as AnnualFireStatsResponse);
         const t = err.cachedAt ? new Date(err.cachedAt).toLocaleTimeString() : '';
         setWarning(`${err.message}${t ? ` (성공: ${t})` : ''}`);
       } else {

@@ -14,10 +14,21 @@ export interface ShiftSetting {
   baseShift: ShiftType; 
 }
 
-const parseDateString = (dateStr: string) => {
+const parseDateString = (dateStr: string): Date | null => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+
   const [y, m, d] = dateStr.split('-').map(Number);
   // UTC 자정으로 설정하여 썸머타임/시간대 문제 방지
-  return new Date(Date.UTC(y, m - 1, d));
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (
+    date.getUTCFullYear() !== y ||
+    date.getUTCMonth() !== m - 1 ||
+    date.getUTCDate() !== d
+  ) {
+    return null;
+  }
+
+  return date;
 };
 
 export const getShiftForDate = (targetDateStr: string, setting: ShiftSetting): ShiftType | null => {
@@ -26,6 +37,7 @@ export const getShiftForDate = (targetDateStr: string, setting: ShiftSetting): S
   try {
     const targetDate = parseDateString(targetDateStr);
     const baseDate = parseDateString(setting.baseDate);
+    if (!targetDate || !baseDate) return null;
     
     // 두 날짜 간의 일수 차이 계산 (UTC 기준 밀리초를 일수로 환산)
     const diffInMilliseconds = targetDate.getTime() - baseDate.getTime();

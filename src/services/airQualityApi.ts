@@ -1,6 +1,7 @@
 // 에어코리아 대기질 API — Cloudflare Worker 프록시 경유
 
 import { fetchAirQuality, isStaleDataError, tagStale } from './apiClient';
+import type { ApiRecord } from './apiClient';
 
 export interface AirQualityData {
   stationName: string;
@@ -35,20 +36,36 @@ function getSidoName(addressName: string): string {
   return '전국';
 }
 
-function toAirQualityData(items: any[]): AirQualityData | null {
+type AirQualityApiItem = ApiRecord & {
+  stationName?: unknown;
+  dataTime?: unknown;
+  pm10Value?: unknown;
+  pm25Value?: unknown;
+  o3Value?: unknown;
+  khaiValue?: unknown;
+  khaiGrade?: unknown;
+  pm10Grade?: unknown;
+  pm25Grade?: unknown;
+};
+
+function text(value: unknown, fallback = ''): string {
+  return value === undefined || value === null || value === '' ? fallback : String(value);
+}
+
+function toAirQualityData(items: AirQualityApiItem[]): AirQualityData | null {
   if (!items || items.length === 0) return null;
-  const validItem = items.find((item: any) => item.pm10Value !== '-' && item.pm10Value !== '' && item.khaiGrade !== '') || items[0];
+  const validItem = items.find(item => text(item.pm10Value) !== '-' && text(item.pm10Value) !== '' && text(item.khaiGrade) !== '') || items[0];
 
   return {
-    stationName: validItem.stationName || '알 수 없음',
-    dataTime: validItem.dataTime || '',
-    pm10Value: validItem.pm10Value || '-',
-    pm25Value: validItem.pm25Value || '-',
-    o3Value: validItem.o3Value || '-',
-    khaiValue: validItem.khaiValue || '-',
-    khaiGrade: validItem.khaiGrade || '-',
-    pm10Grade: validItem.pm10Grade || '-',
-    pm25Grade: validItem.pm25Grade || '-',
+    stationName: text(validItem.stationName, '알 수 없음'),
+    dataTime: text(validItem.dataTime),
+    pm10Value: text(validItem.pm10Value, '-'),
+    pm25Value: text(validItem.pm25Value, '-'),
+    o3Value: text(validItem.o3Value, '-'),
+    khaiValue: text(validItem.khaiValue, '-'),
+    khaiGrade: text(validItem.khaiGrade, '-'),
+    pm10Grade: text(validItem.pm10Grade, '-'),
+    pm25Grade: text(validItem.pm25Grade, '-'),
   };
 }
 
@@ -56,12 +73,12 @@ export async function getRealtimeAirQuality(addressName: string): Promise<AirQua
   const sidoName = getSidoName(addressName);
 
   try {
-    const items = await fetchAirQuality(sidoName) as any[];
+    const items = await fetchAirQuality(sidoName);
     return toAirQualityData(items);
   } catch (e) {
     // 네트워크 실패 시 캐시 폴백 데이터를 신선도 태그와 함께 반환
     if (isStaleDataError(e)) {
-      const recovered = toAirQualityData(e.cachedData as any[]);
+      const recovered = toAirQualityData(e.cachedData as AirQualityApiItem[]);
       if (recovered) return tagStale(recovered, e.cachedAt);
     }
     console.error('에어코리아 API 호출 실패:', e);

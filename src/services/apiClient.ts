@@ -5,14 +5,20 @@
  * 프론트엔드에는 API 키가 존재하지 않습니다.
  */
 
+import { createStore, del, get, keys, set } from 'idb-keyval';
+import { z } from 'zod';
+
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://119-helper-api.teemozipsa.workers.dev';
 const API_TIMEOUT_MS = 15_000;
 const CACHE_PREFIX = '119_cache_v1_';
+const CACHE_VERSION = 1;
+const CACHE_EVICT_RATIO = 0.2;
+const cacheStore = createStore('119-helper-cache', 'api-cache');
 
 export class StaleDataError extends Error {
-  cachedData: any;
+  cachedData: unknown;
   cachedAt: number;
-  constructor(cachedData: any, message: string, cachedAt: number) {
+  constructor(cachedData: unknown, message: string, cachedAt: number) {
     super(message);
     this.name = 'StaleDataError';
     this.cachedData = cachedData;
@@ -20,8 +26,11 @@ export class StaleDataError extends Error {
   }
 }
 
-export function isStaleDataError(err: any): err is StaleDataError {
-  return err instanceof StaleDataError || (err && typeof err === 'object' && err.name === 'StaleDataError' && 'cachedData' in err);
+export function isStaleDataError(err: unknown): err is StaleDataError {
+  if (err instanceof StaleDataError) return true;
+  if (!err || typeof err !== 'object') return false;
+  const candidate = err as { name?: unknown };
+  return candidate.name === 'StaleDataError' && 'cachedData' in err;
 }
 
 // ═══════ 데이터 신선도 태깅 ═══════
@@ -61,87 +70,262 @@ function reportNetworkHealth(ok: boolean) {
 interface CacheItem {
   version: number;
   cachedAt: number;
-  data: any;
+  data: unknown;
 }
 
-export interface ApiFetchOptions {
+export interface ApiFetchOptions<T = unknown> {
   useCache?: boolean;
   cacheTtlMs?: number;
   customCacheKey?: string;
   timeoutMs?: number;
   forceRefresh?: boolean;
+  schema?: z.ZodType<T>;
+}
+
+const apiRecordSchema = z.record(z.string(), z.unknown());
+const apiRecordArraySchema = z.array(apiRecordSchema);
+const xmlResponseSchema = z.object({ xml: z.string() }).passthrough();
+const configResponseSchema = z.object({ kakaoMapKey: z.string() }).passthrough();
+const weatherBriefingSchema = z.object({ briefing: z.string().catch('') }).passthrough();
+
+export type ApiRecord = z.infer<typeof apiRecordSchema>;
+
+export interface PaginatedItemsResponse<T = ApiRecord> {
+  items: T[];
+  totalCount: number;
+}
+
+const paginatedApiRecordSchema = z.object({
+  items: apiRecordArraySchema,
+  totalCount: z.coerce.number().catch(0),
+}).passthrough() satisfies z.ZodType<PaginatedItemsResponse>;
+
+function findResultCode(value: unknown, depth = 0): string | null {
+  if (!value || typeof value !== 'object' || depth > 5) return null;
+
+  for (const [key, child] of Object.entries(value)) {
+    const normalizedKey = key.toLowerCase();
+    if ((normalizedKey === 'resultcode' || normalizedKey === 'errorcode') && (typeof child === 'string' || typeof child === 'number')) {
+      return String(child);
+    }
+
+    if (normalizedKey === 'error' && typeof child === 'string') {
+      const match = child.match(/^API_RESULT_(.+)$/);
+      if (match) return match[1];
+    }
+  }
+
+  for (const child of Object.values(value)) {
+    const found = findResultCode(child, depth + 1);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+function extractPublicDataResultCode(body: string): string | null {
+  if (!body) return null;
+
+  try {
+    const parsed: unknown = JSON.parse(body);
+    const code = findResultCode(parsed);
+    if (code) return code;
+  } catch {
+    // Body may be XML or a composed error string.
+  }
+
+  const xmlMatch = body.match(/<(?:resultCode|errorCode)>\s*([^<\s]+)\s*<\/(?:resultCode|errorCode)>/i);
+  if (xmlMatch) return xmlMatch[1];
+
+  const workerMatch = body.match(/API_RESULT_([A-Z0-9_-]+)/i);
+  return workerMatch?.[1] ?? null;
 }
 
 function humanizeApiError(status: number, body: string): string {
   const text = body.toLowerCase();
+  const resultCode = extractPublicDataResultCode(body);
+
+  if (resultCode === '22') {
+    return 'API 호출 한도를 초과했습니다. 잠시 후 다시 시도해주세요.';
+  }
+  if (resultCode === '30') {
+    return 'API 키가 유효하지 않거나 서비스 승인 대기 중입니다.';
+  }
+  if (resultCode === '03') {
+    return '제공된 데이터가 없습니다.';
+  }
+  if (resultCode && ['01', '02', '04'].includes(resultCode)) {
+    return '공공데이터 서버 연결 오류 또는 응답 지연입니다.';
+  }
   
   if (text.includes('invalid_json')) {
     return '공공데이터 서버 응답 오류 (JSON 파싱 실패)입니다. 잠시 후 다시 시도해주세요.';
   }
-  if (status === 429 || text.includes('limit') || text.includes('초과') || text.includes('22')) {
+  if (text.includes('schema_validation')) {
+    return '공공데이터 응답 형식이 예상과 다릅니다. 캐시를 보존하고 잠시 후 다시 시도합니다.';
+  }
+  if (status === 429 || text.includes('limit') || text.includes('초과')) {
     return 'API 호출 한도를 초과했습니다. 잠시 후 다시 시도해주세요.';
   }
-  if (status === 401 || status === 403 || text.includes('service_key') || text.includes('access_denied') || text.includes('승인') || text.includes('인증') || text.includes('30')) {
+  if (status === 401 || status === 403 || text.includes('service_key') || text.includes('access_denied') || text.includes('승인') || text.includes('인증')) {
     return 'API 키가 유효하지 않거나 서비스 승인 대기 중입니다.';
   }
-  if (status === 404 || text.includes('no data') || text.includes('빈 응답') || text.includes('결과가 없습니다') || text.includes('empty_data') || text.includes('03')) {
+  if (status === 404 || text.includes('no data') || text.includes('빈 응답') || text.includes('결과가 없습니다') || text.includes('empty_data')) {
     return '제공된 데이터가 없습니다.';
   }
-  if (status >= 500 || text.includes('timeout') || text.includes('failed to fetch') || text.includes('network') || status === 0 || text.includes('01') || text.includes('02') || text.includes('04')) {
+  if (status >= 500 || text.includes('timeout') || text.includes('failed to fetch') || text.includes('network') || status === 0) {
     return '공공데이터 서버 연결 오류 또는 응답 지연입니다.';
   }
   return `API 오류 (${status}): 서버에서 데이터를 처리할 수 없습니다.`;
 }
 
-function saveToCache(key: string, data: any) {
-  try {
-    const item: CacheItem = { version: 1, cachedAt: Date.now(), data };
-    localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(item));
-  } catch (e: any) {
-    // Handle QuotaExceededError
-    if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-      try {
-        const keysToRemove = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k && k.startsWith(CACHE_PREFIX)) keysToRemove.push(k);
-        }
-        // Remove 20% of oldest items or just clear them all to be safe and simple
-        keysToRemove.forEach(k => localStorage.removeItem(k));
-        const item: CacheItem = { version: 1, cachedAt: Date.now(), data };
-        localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(item));
-      } catch {
-        // Ignore if still fails
-      }
-    }
-  }
+function isQuotaExceededError(error: unknown): boolean {
+  return typeof DOMException !== 'undefined' && error instanceof DOMException
+    ? error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED'
+    : typeof error === 'object'
+      && error !== null
+      && 'name' in error
+      && ((error as { name?: unknown }).name === 'QuotaExceededError' || (error as { name?: unknown }).name === 'NS_ERROR_DOM_QUOTA_REACHED');
 }
 
-function getFromCache(key: string, ttlMs?: number): { data: any; cachedAt: number } | null {
+function isCacheItem(value: unknown): value is CacheItem {
+  if (!value || typeof value !== 'object') return false;
+  const item = value as Partial<CacheItem>;
+  return item.version === CACHE_VERSION
+    && typeof item.cachedAt === 'number'
+    && 'data' in item;
+}
+
+function localStorageKey(key: string): string {
+  return CACHE_PREFIX + key;
+}
+
+function getLocalStorageItem(storageKey: string): CacheItem | null {
   try {
-    const raw = localStorage.getItem(CACHE_PREFIX + key);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
-    const item: CacheItem = JSON.parse(raw);
-    if (item.version !== 1) return null;
-    if (ttlMs && Date.now() - item.cachedAt > ttlMs) {
-      // TTL expired, do not return for normal fetch, but allow for fallback if we don't pass ttlMs
-      return null;
-    }
-    return { data: item.data, cachedAt: item.cachedAt };
+    const item: unknown = JSON.parse(raw);
+    if (isCacheItem(item)) return item;
+    localStorage.removeItem(storageKey);
   } catch {
-    // If parse fails or structure is broken, clean it up
     try {
-      localStorage.removeItem(CACHE_PREFIX + key);
+      localStorage.removeItem(storageKey);
     } catch {
       // localStorage may be unavailable in restricted contexts.
     }
-    return null;
+  }
+  return null;
+}
+
+function saveToLocalStorage(storageKey: string, item: CacheItem): void {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(item));
+  } catch (error) {
+    if (!isQuotaExceededError(error)) return;
+
+    try {
+      evictOldestLocalStorageItems();
+      localStorage.setItem(storageKey, JSON.stringify(item));
+    } catch {
+      // Best-effort cache only.
+    }
   }
 }
 
-const inFlightRequests = new Map<string, Promise<any>>();
+function evictOldestLocalStorageItems(): void {
+  const entries: { key: string; cachedAt: number }[] = [];
 
-export async function apiFetch<T>(path: string, params?: Record<string, string>, options?: ApiFetchOptions): Promise<T> {
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key?.startsWith(CACHE_PREFIX)) continue;
+    const item = getLocalStorageItem(key);
+    if (item) entries.push({ key, cachedAt: item.cachedAt });
+  }
+
+  entries.sort((a, b) => a.cachedAt - b.cachedAt);
+  const removeCount = Math.max(1, Math.ceil(entries.length * CACHE_EVICT_RATIO));
+  entries.slice(0, removeCount).forEach(entry => localStorage.removeItem(entry.key));
+}
+
+async function evictOldestIndexedDbItems(): Promise<void> {
+  const allKeys = await keys(cacheStore);
+  const cacheKeys = allKeys.filter((key): key is string => typeof key === 'string' && key.startsWith(CACHE_PREFIX));
+  const entries = await Promise.all(cacheKeys.map(async key => {
+    const item = await get<unknown>(key, cacheStore).catch(() => null);
+    return isCacheItem(item) ? { key, cachedAt: item.cachedAt } : null;
+  }));
+  const validEntries = entries.filter((entry): entry is { key: string; cachedAt: number } => entry !== null);
+
+  validEntries.sort((a, b) => a.cachedAt - b.cachedAt);
+  const removeCount = Math.max(1, Math.ceil(validEntries.length * CACHE_EVICT_RATIO));
+  await Promise.all(validEntries.slice(0, removeCount).map(entry => del(entry.key, cacheStore)));
+}
+
+function isFresh(item: CacheItem, ttlMs?: number): boolean {
+  return !ttlMs || Date.now() - item.cachedAt <= ttlMs;
+}
+
+async function saveCacheItem(storageKey: string, item: CacheItem): Promise<void> {
+  try {
+    await set(storageKey, item, cacheStore);
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {
+      // Old localStorage migration cleanup is best-effort.
+    }
+    return;
+  } catch (error) {
+    if (isQuotaExceededError(error)) {
+      try {
+        await evictOldestIndexedDbItems();
+        await set(storageKey, item, cacheStore);
+        return;
+      } catch {
+        // Fall through to localStorage fallback.
+      }
+    }
+  }
+
+  saveToLocalStorage(storageKey, item);
+}
+
+async function saveToCache(key: string, data: unknown): Promise<void> {
+  const storageKey = localStorageKey(key);
+  const item: CacheItem = { version: CACHE_VERSION, cachedAt: Date.now(), data };
+  await saveCacheItem(storageKey, item);
+}
+
+async function getFromCache(key: string, ttlMs?: number): Promise<{ data: unknown; cachedAt: number } | null> {
+  const storageKey = localStorageKey(key);
+
+  try {
+    const item = await get<unknown>(storageKey, cacheStore);
+    if (isCacheItem(item)) {
+      if (isFresh(item, ttlMs)) return { data: item.data, cachedAt: item.cachedAt };
+      return null;
+    }
+    if (item !== undefined) await del(storageKey, cacheStore);
+  } catch {
+    // IndexedDB can be unavailable in private/restricted contexts; try legacy fallback.
+  }
+
+  const legacyItem = getLocalStorageItem(storageKey);
+  if (!legacyItem) return null;
+
+  void saveCacheItem(storageKey, legacyItem);
+  try {
+    localStorage.removeItem(storageKey);
+  } catch {
+    // Migration cleanup is best-effort.
+  }
+
+  if (isFresh(legacyItem, ttlMs)) return { data: legacyItem.data, cachedAt: legacyItem.cachedAt };
+  return null;
+}
+
+const inFlightRequests = new Map<string, Promise<unknown>>();
+
+export async function apiFetch<T>(path: string, params?: Record<string, string>, options?: ApiFetchOptions<T>): Promise<T> {
   const url = new URL(`${API_BASE}${path}`);
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
@@ -156,6 +340,7 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
     customCacheKey,
     timeoutMs = API_TIMEOUT_MS,
     forceRefresh = false,
+    schema,
   } = options || {};
 
   const safeKey = customCacheKey || encodeURIComponent(url.pathname + url.search);
@@ -169,9 +354,9 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
   const promise = (async () => {
     // 1. Try Cache if within TTL
     if (useCache && !forceRefresh) {
-      const cached = getFromCache(cacheKey, cacheTtlMs);
+      const cached = await getFromCache(cacheKey, cacheTtlMs);
       if (cached) {
-        return cached.data;
+        return cached.data as T;
       }
     }
 
@@ -192,7 +377,7 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
         throw new Error('HTTP_ERROR');
       }
 
-      let data;
+      let data: unknown;
       try {
         data = bodyText ? JSON.parse(bodyText) : null;
       } catch {
@@ -205,24 +390,34 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
         throw new Error('API_LOGIC_ERROR');
       }
 
-      if (useCache) {
-        saveToCache(cacheKey, data);
+      if (schema) {
+        const parsed = schema.safeParse(data);
+        if (!parsed.success) {
+          console.warn(`[API Schema Error] ${url.pathname} | ${parsed.error.issues.slice(0, 3).map(issue => issue.path.join('.') || '<root>').join(', ')}`);
+          throw new Error('SCHEMA_VALIDATION_ERROR');
+        }
+        data = parsed.data;
       }
-      return data;
-    } catch (err: any) {
-      if (err.name === 'AbortError') isTimeout = true;
+
+      if (useCache) {
+        await saveToCache(cacheKey, data);
+      }
+      return data as T;
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') isTimeout = true;
 
       // res가 없으면 fetch 자체가 실패한 것 = 네트워크 레벨 장애 (타임아웃 포함)
       if (!res) reportNetworkHealth(false);
 
-      const causeText = isTimeout ? 'timeout' : (err.message + ' ' + bodyText);
+      const errMessage = err instanceof Error ? err.message : String(err);
+      const causeText = isTimeout ? 'timeout' : `${errMessage} ${bodyText}`;
       const errMsg = humanizeApiError(res?.status || 0, causeText);
 
       console.warn(`[API Fetch Failed] ${url.pathname} -> ${errMsg}`);
 
       if (useCache) {
         // Retrieve expired cache if available as fallback
-        const fallback = getFromCache(cacheKey); // No TTL check
+        const fallback = await getFromCache(cacheKey); // No TTL check
         if (fallback) {
           throw new StaleDataError(fallback.data, errMsg, fallback.cachedAt);
         }
@@ -242,26 +437,40 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
   }
 }
 
-async function apiFetchXml(path: string, params?: Record<string, string>, options?: ApiFetchOptions): Promise<string> {
-  const data = await apiFetch<{ xml: string }>(path, params, options);
+async function apiFetchXml(path: string, params?: Record<string, string>, options?: ApiFetchOptions<{ xml: string }>): Promise<string> {
+  const data = await apiFetch<{ xml: string }>(path, params, { ...options, schema: options?.schema ?? xmlResponseSchema });
   return data.xml;
 }
 
 // ═══════ 날씨 (TTL 짧게 30분) ═══════
 const WEATHER_OPTS: ApiFetchOptions = { cacheTtlMs: 1000 * 60 * 30 };
-export async function fetchWeatherNow(nx: number, ny: number) { return apiFetch<any[]>('/api/weather/now', { nx: String(nx), ny: String(ny) }, WEATHER_OPTS); }
-export async function fetchWeatherUltra(nx: number, ny: number) { return apiFetch<any[]>('/api/weather/ultra', { nx: String(nx), ny: String(ny) }, WEATHER_OPTS); }
-export async function fetchWeatherForecast(nx: number, ny: number) { return apiFetch<any[]>('/api/weather/forecast', { nx: String(nx), ny: String(ny) }, WEATHER_OPTS); }
-export async function fetchMidLand(regId: string) { return apiFetch<any[]>('/api/weather/mid-land', { regId }, WEATHER_OPTS); }
-export async function fetchMidTemp(regId: string) { return apiFetch<any[]>('/api/weather/mid-temp', { regId }, WEATHER_OPTS); }
-export async function fetchWeatherBriefing(stnId: string) { return apiFetch<{ briefing: string }>('/api/weather/briefing', { stnId }, WEATHER_OPTS); }
+export async function fetchWeatherNow(nx: number, ny: number): Promise<ApiRecord[]> {
+  return apiFetch<ApiRecord[]>('/api/weather/now', { nx: String(nx), ny: String(ny) }, { ...WEATHER_OPTS, schema: apiRecordArraySchema });
+}
+export async function fetchWeatherUltra(nx: number, ny: number): Promise<ApiRecord[]> {
+  return apiFetch<ApiRecord[]>('/api/weather/ultra', { nx: String(nx), ny: String(ny) }, { ...WEATHER_OPTS, schema: apiRecordArraySchema });
+}
+export async function fetchWeatherForecast(nx: number, ny: number): Promise<ApiRecord[]> {
+  return apiFetch<ApiRecord[]>('/api/weather/forecast', { nx: String(nx), ny: String(ny) }, { ...WEATHER_OPTS, schema: apiRecordArraySchema });
+}
+export async function fetchMidLand(regId: string): Promise<ApiRecord[]> {
+  return apiFetch<ApiRecord[]>('/api/weather/mid-land', { regId }, { ...WEATHER_OPTS, schema: apiRecordArraySchema });
+}
+export async function fetchMidTemp(regId: string): Promise<ApiRecord[]> {
+  return apiFetch<ApiRecord[]>('/api/weather/mid-temp', { regId }, { ...WEATHER_OPTS, schema: apiRecordArraySchema });
+}
+export async function fetchWeatherBriefing(stnId: string): Promise<{ briefing: string }> {
+  return apiFetch<{ briefing: string }>('/api/weather/briefing', { stnId }, { ...WEATHER_OPTS, schema: weatherBriefingSchema });
+}
 
 // ═══════ 대기질 (TTL 짧게 30분) ═══════
 const AIR_OPTS: ApiFetchOptions = { cacheTtlMs: 1000 * 60 * 30 };
-export async function fetchAirQuality(sido: string) { return apiFetch<any[]>('/api/air', { sido }, AIR_OPTS); }
+export async function fetchAirQuality(sido: string): Promise<ApiRecord[]> {
+  return apiFetch<ApiRecord[]>('/api/air', { sido }, { ...AIR_OPTS, schema: apiRecordArraySchema });
+}
 
 // ═══════ 응급실 (TTL 짧게 5분) ═══════
-const ER_OPTS: ApiFetchOptions = { cacheTtlMs: 1000 * 60 * 5 };
+const ER_OPTS: ApiFetchOptions<{ xml: string }> = { cacheTtlMs: 1000 * 60 * 5 };
 export async function fetchERBeds(sido: string, gugun?: string) { return apiFetchXml('/api/er/beds', { sido, gugun: gugun || '' }, ER_OPTS); }
 export async function fetchERList(sido: string, gugun?: string) { return apiFetchXml('/api/er/list', { sido, gugun: gugun || '' }, ER_OPTS); }
 export async function fetchERMessages(sido: string, gugun?: string) { return apiFetchXml('/api/er/messages', { sido, gugun: gugun || '' }, ER_OPTS); }
@@ -269,21 +478,25 @@ export async function fetchERSevereIllness(sido: string, gugun?: string) { retur
 
 // ═══════ 건축물대장 (변경 적음 7일) ═══════
 export async function fetchBuildingInfo(params: { sigunguCd: string; bjdongCd: string; platGbCd: string; bun: string; ji: string; }, forceRefresh?: boolean) {
-  return apiFetch<any[]>('/api/building', params, { forceRefresh });
+  return apiFetch<ApiRecord[]>('/api/building', params, { forceRefresh, schema: apiRecordArraySchema });
 }
 
 // ═══════ 소방용수 (7일) ═══════
-export async function fetchFireWater(city: string) { return apiFetch<any[]>('/api/firewater', { city }); }
+export async function fetchFireWater(city: string): Promise<ApiRecord[]> {
+  return apiFetch<ApiRecord[]>('/api/firewater', { city }, { schema: apiRecordArraySchema });
+}
 
 // ═══════ 공휴일 (30일) ═══════
 export async function fetchHolidays(year: number, month: number) { return apiFetchXml('/api/holiday', { year: String(year), month: String(month) }, { cacheTtlMs: 1000 * 60 * 60 * 24 * 30 }); }
 
 // ═══════ 설정 (카카오맵 키) ═══════
-export async function fetchConfig(forceRefresh?: boolean) { return apiFetch<{ kakaoMapKey: string }>('/api/config', undefined, { useCache: false, forceRefresh }); }
+export async function fetchConfig(forceRefresh?: boolean) {
+  return apiFetch<{ kakaoMapKey: string }>('/api/config', undefined, { useCache: false, forceRefresh, schema: configResponseSchema });
+}
 
 // ═══════ 대피소 (지진해일) (7일) ═══════
 export async function fetchShelters(ctprvnNm: string, signguNm?: string, numOfRows = '100', pageNo = '1') {
-  return apiFetch<any[]>('/api/shelter', { ctprvnNm, signguNm: signguNm || '', numOfRows, pageNo });
+  return apiFetch<ApiRecord[]>('/api/shelter', { ctprvnNm, signguNm: signguNm || '', numOfRows, pageNo }, { schema: apiRecordArraySchema });
 }
 export async function fetchTsunamiShelters() {
   const { default: tsunamiData } = await import('../../public/data/tsunami.json');
@@ -294,36 +507,46 @@ export async function fetchTsunamiShelters() {
 export async function fetchCivilShelters(ctprvnNm?: string, sgnNm?: string) {
   void ctprvnNm;
   void sgnNm;
-  const { civilData } = await import('../data/civilData');
-  return civilData;
+  const response = await fetch('/data/civil.json');
+  if (!response.ok) {
+    throw new Error(`민방위 대피시설 데이터를 불러오지 못했습니다. (${response.status})`);
+  }
+
+  const data: unknown = await response.json();
+  const parsed = apiRecordArraySchema.safeParse(data);
+  if (!parsed.success) {
+    throw new Error('민방위 대피시설 데이터 형식이 올바르지 않습니다.');
+  }
+
+  return parsed.data;
 }
 
 // ═══════ 다중이용업소 (7일) ═══════
 export async function fetchMultiUseFacilities(ctprvnNm: string, signguNm?: string) {
-  return apiFetch<any[]>('/api/multiuse', { ctprvnNm, signguNm: signguNm || '' });
+  return apiFetch<ApiRecord[]>('/api/multiuse', { ctprvnNm, signguNm: signguNm || '' }, { schema: apiRecordArraySchema });
 }
 
 // ═══════ 구급통계 (7일) ═══════
 export async function fetchEmergencyStats(op: string, params?: Record<string, string>, forceRefresh?: boolean) {
-  return apiFetch<{ items: any[]; totalCount: number }>(`/api/emergency/stats/${op}`, params, { forceRefresh });
+  return apiFetch<PaginatedItemsResponse>(`/api/emergency/stats/${op}`, params, { forceRefresh, schema: paginatedApiRecordSchema });
 }
 
 // ═══════ 구급정보 (7일) ═══════
 export async function fetchEmergencyInfo(op: string, params?: Record<string, string>, forceRefresh?: boolean) {
-  return apiFetch<{ items: any[]; totalCount: number }>(`/api/emergency/info/${op}`, params, { forceRefresh });
+  return apiFetch<PaginatedItemsResponse>(`/api/emergency/info/${op}`, params, { forceRefresh, schema: paginatedApiRecordSchema });
 }
 
 // ═══════ 화재정보 (TTL 30분 - 실시간) ═══════
 export async function fetchFireInfo(op: string, params?: Record<string, string>, forceRefresh?: boolean) {
-  return apiFetch<{ items: any[]; totalCount: number }>(`/api/fire/${op}`, params, { cacheTtlMs: 1000 * 60 * 30, forceRefresh });
+  return apiFetch<PaginatedItemsResponse>(`/api/fire/${op}`, params, { cacheTtlMs: 1000 * 60 * 30, forceRefresh, schema: paginatedApiRecordSchema });
 }
 
 // ═══════ 특정소방대상물 (7일) ═══════
 export async function fetchFireObjectAccom(ctpvNm: string, numOfRows = '100', pageNo = '1', forceRefresh?: boolean) {
-  return apiFetch<{ items: any[]; totalCount: number }>('/api/fire-object/accom', { ctpvNm, numOfRows, pageNo }, { forceRefresh });
+  return apiFetch<PaginatedItemsResponse>('/api/fire-object/accom', { ctpvNm, numOfRows, pageNo }, { forceRefresh, schema: paginatedApiRecordSchema });
 }
 export async function fetchFireObjectFireSys(ctpvNm: string, numOfRows = '100', pageNo = '1', forceRefresh?: boolean) {
-  return apiFetch<{ items: any[]; totalCount: number }>('/api/fire-object/fire-sys', { ctpvNm, numOfRows, pageNo }, { forceRefresh });
+  return apiFetch<PaginatedItemsResponse>('/api/fire-object/fire-sys', { ctpvNm, numOfRows, pageNo }, { forceRefresh, schema: paginatedApiRecordSchema });
 }
 
 // ═══════ 지역별 화재피해 현황 (1일) ═══════

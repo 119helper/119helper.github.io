@@ -1,4 +1,5 @@
 import { apiFetch } from './apiClient';
+import { z } from 'zod';
 
 export interface DisasterMsg {
   create_date: string;
@@ -10,9 +11,26 @@ export interface DisasterMsg {
   msgType?: string; // e.g., "긴급", "안전" (Extracted or mapped if possible, currently we might have to infer it)
 }
 
+const disasterMsgSchema = z.object({
+  create_date: z.string().catch(''),
+  location_id: z.string().catch(''),
+  location_name: z.string().catch(''),
+  md101_sn: z.string().catch(''),
+  msg: z.string().catch(''),
+  send_platform: z.string().catch(''),
+  msgType: z.string().optional(),
+}).passthrough();
+
+const disasterResponseSchema = z.object({
+  DisasterMsg: z.tuple([
+    z.unknown(),
+    z.object({ row: z.array(disasterMsgSchema).catch([]) }).passthrough(),
+  ]).optional(),
+}).passthrough();
+
 export const fetchDisasterMsgs = async (): Promise<DisasterMsg[]> => {
   try {
-    const data: any = await apiFetch('/api/disaster-msg');
+    const data = await apiFetch<z.infer<typeof disasterResponseSchema>>('/api/disaster-msg', undefined, { schema: disasterResponseSchema });
     
     if (data && Array.isArray(data.DisasterMsg?.[1]?.row)) {
       return data.DisasterMsg[1].row;

@@ -73,7 +73,7 @@ export interface LawDetailResponse {
     조문?: {
       조문단위?: LawArticle | LawArticle[];
     };
-    부칙?: any;
+    부칙?: unknown;
   };
   // 에러
   result?: string;

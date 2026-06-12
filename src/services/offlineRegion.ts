@@ -99,8 +99,9 @@ async function buildUrlList(city: string): Promise<string[]> {
     urls.push(restroomIndexUrl, ...restroomUrls);
   }
 
-  // 3. 지진해일 대피소 (전국 단일 파일)
+  // 3. 대피소 (전국 단일 파일)
   urls.push('/data/tsunami.json');
+  urls.push('/data/civil.json');
 
   return urls;
 }
@@ -151,11 +152,6 @@ export async function downloadRegionData(
   };
 
   await Promise.all([worker(), worker(), worker()]);
-
-  // 4. 대피소 데이터 번들 청크(민방위 등)도 미리 로드 — SW 자산 캐시에 적재됨
-  try {
-    await import('../data/civilData');
-  } catch { /* best-effort */ }
 
   const status: OfflineRegionStatus = {
     city,

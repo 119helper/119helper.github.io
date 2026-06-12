@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchFireDamage, type FireDamageItem, isStaleDataError } from '../services/apiClient';
+import { fetchFireDamage, type FireDamageItem, type FireDamageResponse, isStaleDataError } from '../services/apiClient';
 
 /* ─── 색상 팔레트 ─── */
 const PALETTE = [
@@ -15,7 +15,7 @@ const SIDO_LIST = [
 ];
 
 /* ─── 유틸 ─── */
-function num(v: any): number { return parseInt(v) || 0; }
+function num(v: unknown): number { return Number.parseInt(String(v ?? ''), 10) || 0; }
 
 function formatDate(raw: string): string {
   if (!raw || raw.length < 8) return raw || '-';
@@ -118,7 +118,7 @@ export default function FireDamageView() {
     setError(null);
     setWarning(null);
 
-    let res;
+    let res: FireDamageResponse | undefined;
     try {
       const params: Record<string, string> = {
         pageNo: String(page),
@@ -128,13 +128,13 @@ export default function FireDamageView() {
         params.lawAddrName = selectedSido;
       }
       res = await fetchFireDamage(params, forceRefresh);
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (isStaleDataError(e)) {
-        res = e.cachedData;
+        res = e.cachedData as FireDamageResponse;
         const t = e.cachedAt ? new Date(e.cachedAt).toLocaleTimeString() : '';
         setWarning(`${e.message}${t ? ` (성공: ${t})` : ''}`);
       } else {
-        setError(e?.message || '데이터 조회 실패');
+        setError(e instanceof Error ? e.message : '데이터 조회 실패');
         setItems([]);
         setLoading(false);
         return;

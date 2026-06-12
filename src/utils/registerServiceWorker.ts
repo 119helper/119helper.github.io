@@ -12,7 +12,7 @@ export function registerServiceWorker(onUpdateReady: () => void) {
   if (!import.meta.env.PROD) return;
   if (!('serviceWorker' in navigator)) return;
 
-  window.addEventListener('load', () => {
+  const register = () => {
     navigator.serviceWorker
       .register('/sw.js')
       .then((registration) => {
@@ -37,15 +37,21 @@ export function registerServiceWorker(onUpdateReady: () => void) {
       .catch((err) => {
         console.warn('[SW] 등록 실패:', err);
       });
+  };
 
-    // 새 SW가 제어권을 가져오면 한 번만 새로고침
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing) return;
-      refreshing = true;
-      window.location.reload();
-    });
+  // 새 SW가 제어권을 가져오면 한 번만 새로고침
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
   });
+
+  if (document.readyState === 'loading') {
+    window.addEventListener('load', register, { once: true });
+  } else {
+    register();
+  }
 }
 
 export function applyUpdate() {

@@ -15,6 +15,10 @@ interface CacheEntry {
   data: NewsItem[];
   timestamp: number;
 }
+
+interface ParsedNewsItem extends Omit<NewsItem, 'pubDate'> {
+  pubDateStr: string;
+}
 const CACHE_TTL = 3 * 60 * 1000; // 3분 캐시
 
 const localNewsCache: Record<string, CacheEntry> = {};
@@ -38,7 +42,7 @@ function extractImageUrl(item: Element): string {
   return '';
 }
 
-async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boolean, limit: number, retries = 2, options?: { filterBadImages?: boolean }): Promise<any[]> {
+async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boolean, limit: number, retries = 2, options?: { filterBadImages?: boolean }): Promise<ParsedNewsItem[]> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       if (attempt > 0) {
@@ -53,7 +57,7 @@ async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boo
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlText, 'application/xml');
       const itemNodes = xmlDoc.getElementsByTagName('item');
-      const items = [];
+      const items: Element[] = [];
       for (let i = 0; i < Math.min(itemNodes.length, limit); i++) {
         items.push(itemNodes[i]);
       }
@@ -163,7 +167,7 @@ async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boo
   return [];
 }
 
-function processAndSort(arrays: any[][]): NewsItem[] {
+function processAndSort(arrays: ParsedNewsItem[][]): NewsItem[] {
   const combined = arrays.flat().sort((a, b) => {
     const d1 = new Date(a.pubDateStr).getTime();
     const d2 = new Date(b.pubDateStr).getTime();

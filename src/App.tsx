@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import './index.css';
 import GlobalSearch from './components/GlobalSearch';
 import SettingsModal from './components/SettingsModal';
@@ -13,9 +13,11 @@ import { prefetchCriticalViews } from './utils/prefetchCriticalViews';
 import { fetchDisasterMsgs } from './services/disasterMsgApi';
 import { loadKakaoMapSDK } from './utils/kakaoLoader';
 
+import { BOTTOM_TABS, NAV_ITEMS, cityNames, getTabLabel } from './app/navigation';
+import { renderTabRoute, type RouteContext } from './app/routes';
+import { buildTabHash, readTabLocation } from './app/tabHash';
 import { isTabId } from './types/navigation';
-import type { TabId, NavigateTarget } from './types/navigation';
-type ShelterCategory = 'building' | 'hydrants' | 'waterTowers' | 'civil' | 'tsunami' | 'restrooms';
+import type { ShelterCategory, TabId, NavigateTarget } from './types/navigation';
 type GpsStatus = 'loading' | 'granted' | 'denied' | 'idle' | 'unsupported';
 type LocationNoticeKind = 'info' | 'warning';
 interface KakaoRegionResult {
@@ -24,28 +26,6 @@ interface KakaoRegionResult {
   region_2depth_name?: string;
   region_3depth_name?: string;
 }
-
-const DashboardView = lazy(() => import('./components/DashboardView'));
-const WeatherDashboard = lazy(() => import('./components/WeatherDashboard'));
-const FacilitySearchView = lazy(() => import('./components/FacilitySearchView'));
-const ERDashboard = lazy(() => import('./components/ERDashboard'));
-const EmergencyAnalysis = lazy(() => import('./components/EmergencyAnalysis'));
-const FireAnalysis = lazy(() => import('./components/FireAnalysis'));
-const FireDamageView = lazy(() => import('./components/FireDamageView'));
-const ConsumerHazardView = lazy(() => import('./components/ConsumerHazardView'));
-const MultiUseView = lazy(() => import('./components/MultiUseView'));
-const WildfireView = lazy(() => import('./components/WildfireView').then(module => ({ default: module.WildfireView })));
-const HazmatView = lazy(() => import('./components/HazmatView'));
-const AnnualFireView = lazy(() => import('./components/AnnualFireView'));
-const ManualView = lazy(() => import('./components/ManualView'));
-const Calculators = lazy(() => import('./components/Calculators'));
-const FieldTimer = lazy(() => import('./components/FieldTimer'));
-const Calendar = lazy(() => import('./components/Calendar'));
-const NewsDashboard = lazy(() => import('./components/NewsDashboard'));
-const EquipmentChecklist = lazy(() => import('./components/EquipmentChecklist'));
-const EquipmentCertSearch = lazy(() => import('./components/EquipmentCertSearch'));
-const LawDashboard = lazy(() => import('./components/LawDashboard'));
-const PolicyDashboard = lazy(() => import('./components/PolicyDashboard'));
 
 // 알림 시스템 타입
 interface Notification {
@@ -57,76 +37,6 @@ interface Notification {
   timestamp: Date;
   isNew: boolean;
 }
-
-interface NavSubItem {
-  id: TabId;
-  label: string;
-}
-
-interface NavItem {
-  id: string; // Group ID or TabId
-  icon: string;
-  label: string;
-  filled?: boolean;
-  subItems?: NavSubItem[];
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', icon: 'dashboard', label: '대시보드', filled: true },
-  { id: 'shelter', icon: 'location_city', label: '시설 조회' },
-  {
-    id: 'group-monitoring', icon: 'monitor', label: '모니터링',
-    subItems: [
-      { id: 'weather', label: '날씨' },
-      { id: 'wildfire', label: '산불현황' },
-      { id: 'er', label: '응급실 현황' },
-      { id: 'news', label: '뉴스' },
-    ]
-  },
-  {
-    id: 'group-tools', icon: 'build', label: '현장도구',
-    subItems: [
-      { id: 'field-timer', label: '현장 타이머' },
-      { id: 'checklist', label: '장비점검' },
-      { id: 'calculator', label: '계산기' },
-    ]
-  },
-  {
-    id: 'group-admin', icon: 'folder_open', label: '업무지원',
-    subItems: [
-      { id: 'manual', label: '대응 매뉴얼' },
-      { id: 'law', label: '실전 법률방어' },
-      { id: 'policy', label: '법안지침' },
-      { id: 'calendar', label: '일정관리' },
-    ]
-  },
-  {
-    id: 'group-statistics', icon: 'bar_chart', label: '통계',
-    subItems: [
-      { id: 'annual-fire', label: '연간 화재통계' },
-      { id: 'fire-analysis', label: '화재 분석' },
-      { id: 'fire-damage', label: '지역별 화재피해' },
-      { id: 'emergency', label: '구급 출동 분석' },
-      { id: 'hazmat', label: '위험물시설' },
-      { id: 'multiuse', label: '다중이용업소' },
-      { id: 'hazards', label: '생활위해사고' },
-    ]
-  }
-];
-
-// 모바일 바텀 네비게이션 탭
-const BOTTOM_TABS: { id: TabId | 'more'; icon: string; label: string }[] = [
-  { id: 'dashboard', icon: 'dashboard', label: '대시보드' },
-  { id: 'shelter', icon: 'location_city', label: '시설' },
-  { id: 'er', icon: 'local_hospital', label: '응급실' },
-  { id: 'wildfire', icon: 'local_fire_department', label: '산불' },
-  { id: 'more', icon: 'menu', label: '더보기' },
-];
-
-const cityNames: Record<string, string> = {
-  seoul: '서울', busan: '부산', daegu: '대구', incheon: '인천',
-  gwangju: '광주', daejeon: '대전', ulsan: '울산', sejong: '세종', jeju: '제주',
-};
 
 const KAKAO_REGION_TO_CITY: Record<string, string> = {
   서울특별시: 'seoul',
@@ -166,15 +76,6 @@ function getSafeRefreshInterval() {
   const raw = Number.parseInt(localStorage.getItem('119helper-refresh') || '5', 10);
   if (!Number.isFinite(raw) || raw < 0) return 5;
   return raw;
-}
-
-function getTabLabel(tab: TabId | string) {
-  for (const item of NAV_ITEMS) {
-    if (item.id === tab) return item.label;
-    const sub = item.subItems?.find(s => s.id === tab);
-    if (sub) return sub.label;
-  }
-  return '대시보드';
 }
 
 function getDistanceKm(from: { lat: number; lng: number }, to: { lat: number; lng: number }) {
@@ -242,18 +143,16 @@ function TabLoading({ label }: { label: string }) {
 
 /* ─────────── Main App ─────────── */
 export default function App() {
-  // ?tab= 파라미터로 시작 탭 지정 가능 (manifest 바로가기 '/?tab=wildfire' 등)
-  const [activeTab, setActiveTab] = useState<TabId>(() => {
-    const tab = new URLSearchParams(window.location.search).get('tab');
-    return isTabId(tab) ? tab : 'dashboard';
-  });
-  const [activeSubId, setActiveSubId] = useState<string | undefined>(undefined);
+  // #tab 해시 또는 ?tab= 파라미터로 시작 탭 지정 가능 (manifest 바로가기 '/?tab=wildfire' 등)
+  const initialRoute = readTabLocation();
+  const [activeTab, setActiveTab] = useState<TabId>(initialRoute.tab);
+  const [activeSubId, setActiveSubId] = useState<string | undefined>(initialRoute.subId);
   const [city, setCity] = useState<string>(() => localStorage.getItem('119helper-city') || 'seoul');
   const [fireFacilities, setFireFacilities] = useState<FireFacility[]>([]);
   const [isLoadingFacilities, setIsLoadingFacilities] = useState(false);
   const [cityIndex, setCityIndex] = useState<CityIndex | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
-  const [shelterCategory, setShelterCategory] = useState<ShelterCategory>('building');
+  const [shelterCategory, setShelterCategory] = useState<ShelterCategory>(initialRoute.shelterCategory ?? 'building');
   const [gpsStatus, setGpsStatus] = useState<GpsStatus>('idle');
   const [locationNotice, setLocationNotice] = useState<{ kind: LocationNoticeKind; message: string } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -275,6 +174,31 @@ export default function App() {
   useEffect(() => {
     prefetchCriticalViews();
   }, []);
+
+  useEffect(() => {
+    const syncFromLocation = () => {
+      const next = readTabLocation();
+      setActiveTab(next.tab);
+      setActiveSubId(next.subId);
+      if (next.tab === 'shelter') {
+        setShelterCategory(next.shelterCategory ?? 'building');
+      }
+    };
+
+    window.addEventListener('hashchange', syncFromLocation);
+    window.addEventListener('popstate', syncFromLocation);
+    return () => {
+      window.removeEventListener('hashchange', syncFromLocation);
+      window.removeEventListener('popstate', syncFromLocation);
+    };
+  }, []);
+
+  useEffect(() => {
+    const nextHash = buildTabHash(activeTab, activeSubId, shelterCategory);
+    if (window.location.hash === nextHash) return;
+
+    window.history.pushState(null, '', `${window.location.pathname}${window.location.search}${nextHash}`);
+  }, [activeTab, activeSubId, shelterCategory]);
 
   // ─── 테마 시스템 ───
   const [theme, setTheme] = useState<string>(() => {
@@ -599,8 +523,10 @@ export default function App() {
     } else if (tab === 'shelter' && subId) {
       setShelterCategory(subId as ShelterCategory);
       setActiveTab('shelter');
+    } else if (isTabId(tab)) {
+      setActiveTab(tab);
     } else {
-      setActiveTab(tab as TabId);
+      setActiveTab('dashboard');
     }
     setActiveSubId(subId);
     setSidebarOpen(false);
@@ -618,41 +544,17 @@ export default function App() {
     mainScrollRef.current?.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
   };
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard': return <DashboardView onNavigate={handleNavigate} city={city} fireFacilities={fireFacilities} isLoadingFacilities={isLoadingFacilities} cityIndex={cityIndex} />;
-      case 'weather': return <WeatherDashboard city={city} />;
-      case 'shelter': return (
-        <FacilitySearchView
-          city={city}
-          fireFacilities={fireFacilities}
-          isLoadingFacilities={isLoadingFacilities}
-          cityIndex={cityIndex}
-          selectedDistrict={selectedDistrict}
-          onDistrictChange={loadDistrict}
-          initialCategory={shelterCategory}
-        />
-      );
-      case 'er': return <ERDashboard city={city} />;
-      case 'emergency': return <EmergencyAnalysis />;
-      case 'fire-analysis': return <FireAnalysis />;
-      case 'fire-damage': return <FireDamageView />;
-      case 'hazards': return <ConsumerHazardView />;
-      case 'multiuse': return <MultiUseView city={city} />;
-      case 'wildfire': return <WildfireView cityName={cityNames[city]} />;
-      case 'hazmat': return <HazmatView />;
-      case 'annual-fire': return <AnnualFireView />;
-      case 'manual': return <ManualView />;
-      case 'calculator': return <Calculators subId={activeSubId} />;
-      case 'field-timer': return <FieldTimer />;
-      case 'calendar': return <Calendar />;
-      case 'news': return <NewsDashboard city={city} />;
-      case 'checklist': return <EquipmentChecklist />;
-      case 'equipment-cert': return <EquipmentCertSearch />;
-      case 'law': return <LawDashboard subId={activeSubId} />;
-      case 'policy': return <PolicyDashboard />;
-      default: return <DashboardView onNavigate={handleNavigate} city={city} fireFacilities={fireFacilities} isLoadingFacilities={isLoadingFacilities} cityIndex={cityIndex} />;
-    }
+  const routeContext: RouteContext = {
+    activeSubId,
+    city,
+    cityLabel: cityNames[city],
+    fireFacilities,
+    isLoadingFacilities,
+    cityIndex,
+    selectedDistrict,
+    shelterCategory,
+    onDistrictChange: loadDistrict,
+    onNavigate: handleNavigate,
   };
 
   return (
@@ -962,7 +864,7 @@ export default function App() {
                 fallbackDescription="이 탭에서 오류가 발생했습니다. 왼쪽 메뉴나 하단 탭으로 다른 기능은 계속 사용할 수 있습니다."
               >
                 <Suspense fallback={<TabLoading label={getTabLabel(activeTab)} />}>
-                  {renderContent()}
+                  {renderTabRoute(activeTab, routeContext)}
                 </Suspense>
               </ErrorBoundary>
             </div>

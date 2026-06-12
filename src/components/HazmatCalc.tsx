@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { ERG_CHEMICALS } from '../data/ergChemicals';
+import {
+  buildHazmatProtectiveZonePath,
+  getHazmatDistances,
+  type SpillSize,
+} from '../utils/fieldCalculations';
 
 
 export default function HazmatCalc() {
@@ -9,7 +14,7 @@ export default function HazmatCalc() {
   
   // States
   const [selectedChem, setSelectedChem] = useState('UN1005');
-  const [spillSize, setSpillSize] = useState<'small' | 'large'>('small');
+  const [spillSize, setSpillSize] = useState<SpillSize>('small');
   const [windSpeed, setWindSpeed] = useState('5');
   const [windDirection, setWindDirection] = useState('0'); // 0: North, 90: East, etc.
   
@@ -98,13 +103,12 @@ export default function HazmatCalc() {
     const chemData = ERG_CHEMICALS[selectedChem];
     if (!chemData) return;
 
-    const isolationDist = spillSize === 'small' ? chemData.isolationSmall : chemData.isolationLarge;
-    const protectionDist = spillSize === 'small' ? chemData.protectionSmall : chemData.protectionLarge;
+    const { isolationM, protectionM } = getHazmatDistances(chemData, spillSize);
     
     // Draw Circle (Initial Isolation Zone)
     const newCircle = new window.kakao.maps.Circle({
       center: centerPos,
-      radius: isolationDist,
+      radius: isolationM,
       strokeWeight: 2,
       strokeColor: '#FF0000',
       strokeOpacity: 0.8,
@@ -114,32 +118,11 @@ export default function HazmatCalc() {
       map: map
     });
 
-    // Draw Polygon (Downwind Protective Zone)
-    // Wind Direction is WHERE WIND COMES FROM (0=North coming) -> Blows TO South (180 deg)
-    const windFromAngle = parseFloat(windDirection) || 0;
-    const windToAngle = (windFromAngle + 180) % 360;
-    
-    // Create cone polygon points
-    // Base of cone is not point 0. It is a wedge.
-    // For simplicity, we draw a triangle / cone from the edge of the circle up to the protectiondist
-    // Let's draw arc of protection region
-    const calcOffset = (lat: number, lng: number, distance: number, angleDeg: number) => {
-      const angleRad = angleDeg * Math.PI / 180;
-      const latChange = (distance * Math.cos(angleRad)) / 111320;
-      const lngChange = (distance * Math.sin(angleRad)) / (111320 * Math.cos(lat * Math.PI / 180));
-      return new window.kakao.maps.LatLng(lat + latChange, lng + lngChange);
-    };
-
-    const spreadAngle = 30; // +/- 30 degrees (총 60도 부채꼴)
-    const polyPath = [];
-
-    // Start at origin (or could start at isolation zone edge, but origin is fine for simple visual)
-    polyPath.push(centerPos);
-    
-    // Create arc points
-    for (let angle = windToAngle - spreadAngle; angle <= windToAngle + spreadAngle; angle += 5) {
-      polyPath.push(calcOffset(originPoint.lat, originPoint.lng, protectionDist, angle));
-    }
+    const polyPath = buildHazmatProtectiveZonePath(
+      originPoint,
+      protectionM,
+      parseFloat(windDirection),
+    ).map(point => new window.kakao.maps.LatLng(point.lat, point.lng));
 
     const newPolygon = new window.kakao.maps.Polygon({
       path: polyPath,
@@ -192,8 +175,7 @@ export default function HazmatCalc() {
     );
   }
 
-  const currentIsolation = spillSize === 'small' ? currentChem.isolationSmall : currentChem.isolationLarge;
-  const currentProtection = spillSize === 'small' ? currentChem.protectionSmall : currentChem.protectionLarge;
+  const { isolationM: currentIsolation, protectionM: currentProtection } = getHazmatDistances(currentChem, spillSize);
 
   return (
     <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6 space-y-4">

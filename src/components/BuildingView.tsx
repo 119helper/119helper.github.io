@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { fetchBuildingRegister, type BuildingRegisterInfo } from '../services/buildingApi';
-import { fetchFireObjectAccom, fetchFireObjectFireSys, isStaleDataError } from '../services/apiClient';
+import { fetchFireObjectAccom, fetchFireObjectFireSys, isStaleDataError, type PaginatedItemsResponse } from '../services/apiClient';
 
 interface FireObjectAccom {
   bldNm?: string;
@@ -146,7 +146,8 @@ export default function BuildingView() {
           if (accomRes.status === 'fulfilled') {
             setFireAccom(accomRes.value.items || []);
           } else if (isStaleDataError(accomRes.reason)) {
-            setFireAccom(accomRes.reason.cachedData?.items || []);
+            const cached = accomRes.reason.cachedData as PaginatedItemsResponse<FireObjectAccom>;
+            setFireAccom(cached.items || []);
             const t = accomRes.reason.cachedAt ? ` (성공: ${new Date(accomRes.reason.cachedAt).toLocaleTimeString()})` : '';
             setFireError(`${accomRes.reason.message}${t}`);
           } else {
@@ -157,7 +158,8 @@ export default function BuildingView() {
           if (sysRes.status === 'fulfilled') {
             setFireSys(sysRes.value.items || []);
           } else if (isStaleDataError(sysRes.reason)) {
-            setFireSys(sysRes.reason.cachedData?.items || []);
+            const cached = sysRes.reason.cachedData as PaginatedItemsResponse<FireObjectFireSys>;
+            setFireSys(cached.items || []);
             const t = sysRes.reason.cachedAt ? ` (성공: ${new Date(sysRes.reason.cachedAt).toLocaleTimeString()})` : '';
             setFireError(`${sysRes.reason.message}${t}`);
           } else {
