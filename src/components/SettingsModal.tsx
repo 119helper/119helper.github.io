@@ -5,6 +5,7 @@ import {
   type NotificationSettings,
 } from '../services/notificationSettings';
 import { SHIFT_CYCLE_DANGBIBI, type ShiftSetting, type ShiftType } from '../utils/shiftCalculator';
+import OfflineDataSection from './OfflineDataSection';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -120,6 +121,11 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
           ))}
         </select>
       </div>
+
+      <hr className="border-outline-variant/10" />
+
+      {/* 관할 지역 오프라인 데이터 */}
+      <OfflineDataSection city={city} cityNames={cityNames} />
 
       <hr className="border-outline-variant/10" />
 
