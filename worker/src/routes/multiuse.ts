@@ -8,6 +8,8 @@
  * Swagger: https://infuser.odcloud.kr/oas/docs?namespace=15066545/v1
  */
 
+import { encodeServiceKey, parsePublicDataJson } from './publicData';
+
 // 연도별 UDDI 엔드포인트
 const MULTIUSE_ENDPOINTS: Record<string, string> = {
   '2024': 'uddi:68611b5a-b208-436c-9e32-990df1907bfe',  // 20240101
@@ -22,18 +24,19 @@ export async function handleMultiUse(url: URL, apiKey: string): Promise<{ data: 
 
   const uddi = MULTIUSE_ENDPOINTS[year] || MULTIUSE_ENDPOINTS['2024'];
 
+  const serviceKey = encodeServiceKey(apiKey, 'MULTI_USE_API_KEY');
   const params = new URLSearchParams({
-    serviceKey: apiKey,
     page,
     perPage,
   });
 
   const res = await fetch(
-    `https://api.odcloud.kr/api/15066545/v1/${uddi}?${params}`,
+    `https://api.odcloud.kr/api/15066545/v1/${uddi}?serviceKey=${serviceKey}&${params}`,
     { headers: { 'User-Agent': '119-helper-worker/1.0' } }
   );
-  if (!res.ok) throw new Error(`MultiUse API ${res.status}`);
-  const json: any = await res.json();
+  const text = await res.text();
+  if (!res.ok) throw new Error(`MultiUse API ${res.status}: ${text.replace(/\s+/g, ' ').slice(0, 140)}`);
+  const json: any = parsePublicDataJson(text, 'MultiUse');
 
   // odcloud 응답 형식: { currentCount, data: [...], matchCount, page, perPage, totalCount }
   const items = json?.data || [];

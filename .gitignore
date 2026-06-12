@@ -29,6 +29,8 @@ public/firewater/*.json
 
 # API Keys
 .env
+.dev.vars
+worker/.dev.vars
 
 # Worker
 worker/node_modules

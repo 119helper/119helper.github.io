@@ -57,7 +57,21 @@ async function getNewsWithCache(type: string, query: string, env: any, forceFetc
   try {
     // 2. Fetch 뉴스 데이터
     if (type === 'nfa') {
-      xmlText = await fetchRss('https://www.korea.kr/rss/dept_nfa.xml');
+      // korea.kr은 해외(Cloudflare) IP를 간헐 차단 → 실패 시 네이버/빙 검색으로 폴백
+      try {
+        xmlText = await fetchRss('https://www.korea.kr/rss/dept_nfa.xml');
+      } catch (nfaErr: any) {
+        console.warn(`[news] korea.kr NFA RSS failed: ${nfaErr?.message}. Falling back to search.`);
+        if (env.NAVER_CLIENT_ID && env.NAVER_CLIENT_SECRET) {
+          try {
+            xmlText = await fetchNaverAsXml('소방청', env.NAVER_CLIENT_ID, env.NAVER_CLIENT_SECRET);
+          } catch {
+            xmlText = await fetchBingNewsFallback('소방청');
+          }
+        } else {
+          xmlText = await fetchBingNewsFallback('소방청');
+        }
+      }
     } else {
       // 우선 Naver API 시도
       if (env.NAVER_CLIENT_ID && env.NAVER_CLIENT_SECRET) {

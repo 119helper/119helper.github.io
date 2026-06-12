@@ -552,7 +552,7 @@ export async function fetchFireObjectFireSys(ctpvNm: string, numOfRows = '100', 
 // ═══════ 지역별 화재피해 현황 (1일) ═══════
 export interface FireDamageItem { ocrnYmdhh: string; gutFsttOgidNm: string; deadPercnt: string; injrdprPercnt: string; prptDmgSbttAmt: string; lawAddrName: string; }
 export interface FireDamageResponse { items: FireDamageItem[]; totalCount: number; pageNo: number; numOfRows: number; error?: string; errorCode?: string; }
-export async function fetchFireDamage(params?: { pageNo?: string; numOfRows?: string; lawAddrName?: string; }, forceRefresh?: boolean): Promise<FireDamageResponse> {
+export async function fetchFireDamage(params?: { pageNo?: string; numOfRows?: string; lawAddrName?: string; sidoNm?: string; startYmd?: string; endYmd?: string; }, forceRefresh?: boolean): Promise<FireDamageResponse> {
   return apiFetch<FireDamageResponse>('/api/fire-damage', params, { cacheTtlMs: 1000 * 60 * 60 * 24, forceRefresh });
 }
 

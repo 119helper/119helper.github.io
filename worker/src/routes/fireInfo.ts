@@ -3,6 +3,8 @@
  * Base: https://apis.data.go.kr/1661000/FireInformationService
  */
 
+import { encodeServiceKey, parsePublicDataJson } from './publicData';
+
 const BASE = 'https://apis.data.go.kr/1661000/FireInformationService';
 
 // 18개 오퍼레이션 매핑
@@ -35,30 +37,40 @@ export async function handleFireInfo(
   const opName = OPS[opKey];
   if (!opName) throw new Error(`Unknown fire info operation: ${opKey}`);
 
-  const params = new URLSearchParams({ serviceKey: apiKey, type: 'json' });
-  // 공통 파라미터
-  for (const key of ['pageNo', 'numOfRows', 'searchStDt', 'searchEdDt', 'sido', 'fireStn']) {
+  // 2026-03 개편 명세: serviceKey, pageNo, numOfRows, resultType(xml/json), ocrn_ymd(발생일자, 필수)
+  const params = new URLSearchParams({ resultType: 'json' });
+  for (const key of ['pageNo', 'numOfRows', 'ocrn_ymd']) {
     const v = url.searchParams.get(key);
     if (v) params.set(key, v);
+  }
+  // 레거시 호환: searchStDt가 오면 발생일자로 사용
+  if (!params.has('ocrn_ymd')) {
+    const legacy = url.searchParams.get('searchStDt');
+    if (legacy) params.set('ocrn_ymd', legacy);
+  }
+  // 기본값: 어제 (일간 업데이트 데이터)
+  if (!params.has('ocrn_ymd')) {
+    const d = new Date(Date.now() + 9 * 3600_000 - 86400_000); // KST 어제
+    params.set('ocrn_ymd', `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`);
   }
   if (!params.has('pageNo')) params.set('pageNo', '1');
   if (!params.has('numOfRows')) params.set('numOfRows', '1000');
 
-  const res = await fetch(`${BASE}/${opName}?${params}`, {
+  const serviceKey = encodeServiceKey(apiKey, 'FIRE_INFO_API_KEY');
+  const res = await fetch(`${BASE}/${opName}?serviceKey=${serviceKey}&${params}`, {
     headers: { 'User-Agent': '119-helper-worker/1.0' },
   });
-  if (!res.ok) throw new Error(`FireInfo/${opName} ${res.status}`);
-
   const text = await res.text();
-  let data: any;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    data = { response: { body: { items: { item: [] }, totalCount: 0 } } };
-  }
+  if (!res.ok) throw new Error(`FireInfo/${opName} ${res.status}: ${text.replace(/\s+/g, ' ').slice(0, 140)}`);
 
-  const items = data?.response?.body?.items?.item || [];
-  const totalCount = data?.response?.body?.totalCount || 0;
+  const data: any = parsePublicDataJson(text, `FireInfo/${opName}`);
 
-  return { data: { items: Array.isArray(items) ? items : [items], totalCount }, cacheTtl: 3600 };
+  // 응답 구조 방어적 파싱 (response 래핑형 / 평탄형 모두 지원)
+  const root = data?.response || data || {};
+  const body = root.body || {};
+  const rawItems = body?.items?.item ?? body?.items ?? root?.items?.item ?? root?.items ?? (Array.isArray(body) ? body : []);
+  const items = (Array.isArray(rawItems) ? rawItems : [rawItems]).filter(Boolean);
+  const totalCount = Number(root.totalCount ?? body.totalCount) || items.length;
+
+  return { data: { items, totalCount }, cacheTtl: 3600 };
 }

@@ -1,5 +1,6 @@
 import { Env } from '../index';
 import { jsonResponse, errorResponse } from '../middleware/cors';
+import { encodeServiceKey } from './publicData';
 
 export async function handleEquipment(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -32,16 +33,15 @@ export async function handleEquipment(request: Request, env: Env): Promise<Respo
 
     // 공공데이터 요청을 위한 새로운 URLSearchParams 생성
     const params = new URLSearchParams();
-    // 발급받은 API 키 그대로 주입
-    params.append('serviceKey', env.EQUIPMENT_API_KEY);
 
     // 전달받은 모든 인자들을 공공데이터 포털 형식에 맞게 복사 (serviceKey 제외)
     searchParams.forEach((value, key) => {
-      params.append(key, value);
+      if (key !== 'serviceKey') params.append(key, value);
     });
 
-    // URL 조립
-    const finalUrl = `${targetUrl}?${params.toString()}`;
+    // URL 조립 — serviceKey는 이중 인코딩 방지를 위해 수동 concat
+    const serviceKey = encodeServiceKey(env.EQUIPMENT_API_KEY, 'EQUIPMENT_API_KEY');
+    const finalUrl = `${targetUrl}?serviceKey=${serviceKey}&${params.toString()}`;
 
     // Cloudflare Edge Cache: 1시간
     const cacheUrl = new Request(finalUrl, request);

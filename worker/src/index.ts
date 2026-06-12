@@ -86,10 +86,13 @@ export default {
 
     try {
       const cacheUrl = new URL(url.toString());
-      cacheUrl.searchParams.delete('_t'); // 브라?? 캐시버스???라미터 무시
-      
+      cacheUrl.searchParams.delete('_t'); // 브라우저 캐시버스터 파라미터 무시
+
+      // 전역 엣지 캐시 버전 — 과거에 빈 배열/에러 응답이 정상처럼 캐싱된 것을 일괄 무효화
+      cacheUrl.searchParams.set('_ev', '2');
+
       if (path.startsWith('/api/fire-annual/')) {
-        cacheUrl.searchParams.set('_cv', '3'); // 기존 캐시 버전 관???
+        cacheUrl.searchParams.set('_cv', '3'); // 기존 캐시 버전 관리용
       }
 
       const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });

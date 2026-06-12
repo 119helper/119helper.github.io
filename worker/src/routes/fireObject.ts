@@ -8,6 +8,8 @@
  *    End Point: https://apis.data.go.kr/1661000/SpecificFireObjectFirefightingSysInfoService/getAccomFirefightingSysList
  */
 
+import { encodeServiceKey, findPublicDataError } from './publicData';
+
 const FIRE_OBJ_BASE = 'https://apis.data.go.kr/1661000';
 
 export async function handleFireObject(
@@ -21,8 +23,8 @@ export async function handleFireObject(
   const pageNo = url.searchParams.get('pageNo') || '1';
   const resultType = 'JSON';
 
+  const serviceKey = encodeServiceKey(apiKey, 'FIRE_OBJECT_API_KEY');
   const params = new URLSearchParams({
-    serviceKey: apiKey,
     pageNo,
     numOfRows,
     resultType,
@@ -34,11 +36,11 @@ export async function handleFireObject(
 
   switch (path) {
     case '/api/fire-object/accom':
-      apiUrl = `${FIRE_OBJ_BASE}/SpecificFireObjectInfoService/getAccomList?${params}`;
+      apiUrl = `${FIRE_OBJ_BASE}/SpecificFireObjectInfoService/getAccomList?serviceKey=${serviceKey}&${params}`;
       break;
 
     case '/api/fire-object/fire-sys':
-      apiUrl = `${FIRE_OBJ_BASE}/SpecificFireObjectFirefightingSysInfoService/getAccomFirefightingSysList?${params}`;
+      apiUrl = `${FIRE_OBJ_BASE}/SpecificFireObjectFirefightingSysInfoService/getAccomFirefightingSysList?serviceKey=${serviceKey}&${params}`;
       break;
 
     default:
@@ -57,6 +59,10 @@ export async function handleFireObject(
   if (!res.ok) throw new Error(`FireObject API ${res.status}`);
 
   const text = await res.text();
+
+  // 게이트웨이/서비스 에러 표면화 (키 미등록·미승인·한도초과 등)
+  const upstreamError = findPublicDataError(text);
+  if (upstreamError) throw new Error(`FireObject: ${upstreamError}`);
 
   // JSON 응답 시도
   if (text.trim().startsWith('{')) {

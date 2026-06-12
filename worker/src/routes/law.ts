@@ -46,6 +46,11 @@ async function searchLaw(url: URL): Promise<Response> {
       throw new Error('domain_verification_failed');
     }
 
+    // 업스트림 게이트웨이 에러 텍스트("error code: 520" 등)를 정상 응답처럼 캐싱하지 않도록 차단
+    if (!res.ok || isGatewayErrorText(text)) {
+      throw new Error(`law_upstream_error: ${text.slice(0, 60)}`);
+    }
+
     return new Response(text, {
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
@@ -79,6 +84,9 @@ async function searchLaw(url: URL): Promise<Response> {
     const fallbackText = await fallbackRes.text();
     if (fallbackText.includes('사용자 정보 검증에 실패')) {
       return jsonError('법제처 API 도메인 인증 실패. 관리자에게 문의하세요.', 503);
+    }
+    if (isGatewayErrorText(fallbackText)) {
+      return jsonError('법제처 서버 일시 오류입니다. 잠시 후 다시 시도해주세요.', 502);
     }
 
     return new Response(fallbackText, {
@@ -119,6 +127,10 @@ async function getLawDetail(url: URL): Promise<Response> {
         return jsonError('법제처 API 인증 실패', 503);
       }
 
+      if (isGatewayErrorText(fallbackText)) {
+        return jsonError('법제처 서버 일시 오류입니다. 잠시 후 다시 시도해주세요.', 502);
+      }
+
       return new Response(fallbackText, {
         headers: {
           'Content-Type': detectContentType(fallbackText),
@@ -126,6 +138,10 @@ async function getLawDetail(url: URL): Promise<Response> {
           'Cache-Control': 'public, max-age=86400',
         },
       });
+    }
+
+    if (!res.ok || isGatewayErrorText(text)) {
+      return jsonError('법제처 서버 일시 오류입니다. 잠시 후 다시 시도해주세요.', 502);
     }
 
     return new Response(text, {
@@ -138,6 +154,12 @@ async function getLawDetail(url: URL): Promise<Response> {
   } catch (e: any) {
     return jsonError(e.message || 'Law detail error', 502);
   }
+}
+
+/** Cloudflare 등 게이트웨이가 뱉는 plain-text 에러 본문 감지 ("error code: 520" 등) */
+function isGatewayErrorText(text: string): boolean {
+  const head = text.trimStart().slice(0, 40).toLowerCase();
+  return head.startsWith('error code:') || head.startsWith('<html');
 }
 
 function detectContentType(text: string): string {

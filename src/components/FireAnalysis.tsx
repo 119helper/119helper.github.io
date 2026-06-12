@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchFireInfo, isStaleDataError } from '../services/apiClient';
+import { fetchAnnualFireStats, isStaleDataError } from '../services/apiClient';
 
 /* ─── 색상 팔레트 ─── */
 const PALETTE = [
@@ -9,20 +9,14 @@ const PALETTE = [
 ];
 
 /* ─── 날짜 헬퍼 ─── */
+const LATEST_AVAILABLE_YEAR = 2024;
+
 function getRecentYears(count: number): string[] {
   const years: string[] = [];
-  const now = new Date();
   for (let i = 0; i < count; i++) {
-    years.push(String(now.getFullYear() - i));
+    years.push(String(LATEST_AVAILABLE_YEAR - i));
   }
   return years;
-}
-
-function getDateRange(year: string): { searchStDt: string; searchEdDt: string } {
-  return {
-    searchStDt: `${year}0101`,
-    searchEdDt: `${year}1231`,
-  };
 }
 
 /* ─── 도넛 차트 ─── */
@@ -63,7 +57,6 @@ function DonutChart({ data, labelKey, valueKey, title }: { data: any[]; labelKey
     </div>
   );
 }
-
 /* ─── 수평 바 차트 ─── */
 function HBarChart({ data, labelKey, valueKey }: { data: any[]; labelKey: string; valueKey: string }) {
   const max = Math.max(...data.map(d => Number(d[valueKey]) || 0), 1);
@@ -140,7 +133,7 @@ function StatCard({ icon, iconColor, label, value, sub, loading }: {
 /* ═══════ 메인 컴포넌트 ═══════ */
 export default function FireAnalysis() {
   const years = getRecentYears(6);
-  const [selectedYear, setSelectedYear] = useState(years[1] || years[0]); // 작년 기본
+  const [selectedYear, setSelectedYear] = useState(years[0]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -156,105 +149,34 @@ export default function FireAnalysis() {
   const fetchAll = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     setApiError(null);
-    const range = getDateRange(selectedYear);
 
     try {
       setWarning(null);
-      const results = await Promise.allSettled([
-        fetchFireInfo('sido-summary', range, forceRefresh),   // 0: 시도단위 화재발생현황
-        fetchFireInfo('cause', range, forceRefresh),          // 1: 발화요인별
-        fetchFireInfo('place', range, forceRefresh),          // 2: 화재장소별
-        fetchFireInfo('sido-casualty', range, forceRefresh),  // 3: 시도별 인명피해
-        fetchFireInfo('building', range, forceRefresh),       // 4: 건물구조별
-        fetchFireInfo('property', range, forceRefresh),       // 5: 재산피해
-      ]);
+      let data;
+      try {
+        data = await fetchAnnualFireStats(selectedYear, forceRefresh);
+      } catch (err) {
+        if (!isStaleDataError(err)) throw err;
+        data = err.cachedData as Awaited<ReturnType<typeof fetchAnnualFireStats>>;
+        const t = err.cachedAt ? new Date(err.cachedAt).toLocaleTimeString() : '';
+        setWarning(`${err.message}${t ? ` (마지막 성공 시각: ${t})` : ''}`);
+      }
 
-      let hasStaleData = false;
-      let staleMessage = '';
-
-      const processedResults = results.map(r => {
-        if (r.status === 'fulfilled') return r;
-        if (r.status === 'rejected' && isStaleDataError(r.reason)) {
-          hasStaleData = true;
-          staleMessage = r.reason.message;
-          const t = r.reason.cachedAt ? new Date(r.reason.cachedAt).toLocaleTimeString() : '';
-          staleMessage = `${r.reason.message}${t ? ` (마지막 성공 시각: ${t})` : ''}`;
-          return { status: 'fulfilled', value: r.reason.cachedData } as PromiseFulfilledResult<any>;
-        }
-        return r;
+      setSummary({
+        total: data.summary.totalFires,
+        death: data.summary.totalDeaths,
+        injury: data.summary.totalInjuries,
+        propertyDmg: data.summary.totalPropertyDamage,
+        selfExtinguish: 0,
+        falseReport: 0,
       });
-
-      // 전체 실패 여부 확인
-      const allFailed = processedResults.every(r => r.status === 'rejected');
-      if (allFailed) {
-        const firstErr = (processedResults[0] as PromiseRejectedResult).reason;
-        setApiError(firstErr?.message || '화재정보 API에 연결할 수 없습니다.');
-        setLoading(false);
-        return;
-      }
-      if (hasStaleData) {
-        setWarning(staleMessage);
-      }
-
-      // 시도 요약 → 전국 합산
-      if (processedResults[0].status === 'fulfilled') {
-        const items = processedResults[0].value?.items || [];
-        let total = 0, death = 0, injury = 0, propertyDmg = 0, selfExtinguish = 0, falseReport = 0;
-        const sidoArr: any[] = [];
-        items.forEach((it: any) => {
-          const fires = num(it.fireCnt || it.화재접수건수);
-          const d = num(it.deathCnt || it.사망자수);
-          const inj = num(it.injuryCnt || it.부상자수);
-          const prop = num(it.realEstateDmg || it.부동산피해금액) + num(it.movablePropertyDmg || it.동산피해금액);
-          const self = num(it.selfExtinguishCnt || it.자체진화건);
-          const fal = num(it.falseReportCnt || it.허위신고건수);
-          total += fires; death += d; injury += inj; propertyDmg += prop; selfExtinguish += self; falseReport += fal;
-          if (it.sidoNm || it.시도명) {
-            sidoArr.push({ name: it.sidoNm || it.시도명, fires, death: d, injury: inj, property: prop });
-          }
-        });
-        setSummary({ total, death, injury, propertyDmg, selfExtinguish, falseReport });
-        setSidoData(sidoArr.sort((a, b) => b.fires - a.fires));
-      }
-
-      // 발화요인별
-      if (processedResults[1].status === 'fulfilled') {
-        const items = processedResults[1].value?.items || [];
-        setCauseData(items.map((it: any) => ({
-          cause: it.igntnFctrNm || it.발화요인 || '기타',
-          count: num(it.fireCnt || it.화재건수),
-        })).filter((x: any) => x.count > 0).sort((a: any, b: any) => b.count - a.count));
-      }
-
-      // 화재장소별
-      if (processedResults[2].status === 'fulfilled') {
-        const items = processedResults[2].value?.items || [];
-        setPlaceData(items.map((it: any) => ({
-          place: it.firePlceNm || it.화재장소 || '기타',
-          count: num(it.fireCnt || it.화재건수),
-        })).filter((x: any) => x.count > 0).sort((a: any, b: any) => b.count - a.count));
-      }
-
-      // 시도별 인명피해
-      if (processedResults[3].status === 'fulfilled') {
-        const items = processedResults[3].value?.items || [];
-        setCasualtyData(items.map((it: any) => ({
-          sido: it.sidoNm || it.시도명 || '기타',
-          death: num(it.deathCnt || it.사망자수),
-          injury: num(it.injuryCnt || it.부상자수),
-        })).filter((x: any) => (x.death + x.injury) > 0).sort((a: any, b: any) => (b.death + b.injury) - (a.death + a.injury)));
-      }
-
-      // 건물구조별
-      if (processedResults[4].status === 'fulfilled') {
-        const items = processedResults[4].value?.items || [];
-        setBuildingData(items.map((it: any) => ({
-          structure: it.bldgStrcNm || it.건물구조 || '기타',
-          count: num(it.fireCnt || it.화재건수),
-        })).filter((x: any) => x.count > 0).sort((a: any, b: any) => b.count - a.count));
-      }
-
-      // 재산피해 — 합산은 위에서 이미 처리
+      setSidoData(data.bySido.map(it => ({ name: it.name, fires: it.count, death: 0, injury: 0, property: 0 })));
+      setCauseData(data.byCause.map(it => ({ cause: it.name || '기타', count: it.count })));
+      setPlaceData(data.byPlace.map(it => ({ place: it.name || '기타', count: it.count })));
+      setCasualtyData(data.casualtiesBySido
+        .map(it => ({ sido: it.name || '기타', death: it.deaths, injury: it.injuries }))
+        .filter(it => it.death + it.injury > 0));
+      setBuildingData(data.byFireType.map(it => ({ structure: it.name || '기타', count: it.count })));
     } catch (e: any) {
       console.error('화재 데이터 조회 오류:', e);
       setApiError(e?.message || '알 수 없는 오류가 발생했습니다.');
@@ -273,7 +195,7 @@ export default function FireAnalysis() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-extrabold text-on-surface font-headline">🔥 화재 분석</h2>
-          <p className="text-sm text-on-surface-variant mt-1">소방청 화재정보서비스 · 전국 데이터</p>
+          <p className="text-sm text-on-surface-variant mt-1">소방청 연간화재통계 · 전국 데이터</p>
         </div>
         <div className="flex items-center gap-3">
           <select
@@ -299,8 +221,8 @@ export default function FireAnalysis() {
         <StatCard icon="payments" iconColor="text-amber-400" label="재산 피해"
           value={summary.propertyDmg > 100000000 ? `${(summary.propertyDmg / 100000000).toFixed(1)}억` : `${(summary.propertyDmg / 10000).toFixed(0)}만`}
           sub="원" loading={loading} />
-        <StatCard icon="fire_extinguisher" iconColor="text-green-400" label="자체 진화" value={summary.selfExtinguish} loading={loading} />
-        <StatCard icon="report" iconColor="text-gray-400" label="허위 신고" value={summary.falseReport} loading={loading} />
+        <StatCard icon="fire_extinguisher" iconColor="text-green-400" label="자체 진화" value="-" loading={loading} />
+        <StatCard icon="report" iconColor="text-gray-400" label="허위 신고" value="-" loading={loading} />
       </div>
 
       {/* API 에러 배너 */}
@@ -334,7 +256,7 @@ export default function FireAnalysis() {
           <span className="material-symbols-outlined text-5xl text-on-surface-variant/30 mb-3 block">info</span>
           <h3 className="text-lg font-bold text-on-surface mb-2">{selectedYear}년 화재 데이터가 아직 없습니다</h3>
           <p className="text-sm text-on-surface-variant max-w-lg mx-auto">
-            소방청 화재 통계는 보통 전년도까지의 데이터를 제공합니다. 연도 선택에서 더 이전 연도를 선택해 보세요.
+            소방청 연간화재통계는 현재 2015~2024년 데이터를 제공합니다. 연도 선택에서 더 이전 연도를 선택해 보세요.
           </p>
         </div>
       )}
@@ -446,9 +368,4 @@ export default function FireAnalysis() {
       )}
     </div>
   );
-}
-
-/* ─── 헬퍼 ─── */
-function num(v: any): number {
-  return parseInt(v) || 0;
 }

@@ -6,6 +6,8 @@
  * Worker에서 대량 데이터를 집계하여 프론트엔드에 요약 데이터를 전달합니다.
  */
 
+import { encodeServiceKey } from './publicData';
+
 const BASE = 'https://api.odcloud.kr/api/15060386/v1';
 
 // 연도별 UDDI 매핑
@@ -139,8 +141,10 @@ export async function handleAnnualFireStats(
     throw new Error(`지원하지 않는 연도입니다: ${year} (2015~2024 가능)`);
   }
 
+  const serviceKey = encodeServiceKey(apiKey, 'ANNUAL_FIRE_API_KEY');
+
   // 먼저 총 건수 확인
-  const countUrl = `${BASE}/${uddi}?serviceKey=${encodeURIComponent(apiKey)}&page=1&perPage=1`;
+  const countUrl = `${BASE}/${uddi}?serviceKey=${serviceKey}&page=1&perPage=1`;
   const countRes = await fetch(countUrl, {
     headers: { 'User-Agent': '119-helper-worker/1.0' },
   });
@@ -159,7 +163,7 @@ export async function handleAnnualFireStats(
 
   // 병렬로 모든 페이지 요청 (Workers 유료 플랜 30s 제한 내)
   const fetchPromises = Array.from({ length: totalPages }, async (_, i) => {
-    const pageUrl = `${BASE}/${uddi}?serviceKey=${encodeURIComponent(apiKey)}&page=${i + 1}&perPage=${perPage}`;
+    const pageUrl = `${BASE}/${uddi}?serviceKey=${serviceKey}&page=${i + 1}&perPage=${perPage}`;
     const res = await fetch(pageUrl, {
       headers: { 'User-Agent': '119-helper-worker/1.0' },
     });

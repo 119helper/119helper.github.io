@@ -10,8 +10,9 @@ const PALETTE = [
 
 /* ─── 시도 목록 ─── */
 const SIDO_LIST = [
-  '전체', '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종',
-  '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주',
+  '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시', '울산광역시',
+  '세종특별자치시', '경기도', '강원특별자치도', '충청북도', '충청남도', '전북특별자치도',
+  '전라남도', '경상북도', '경상남도', '제주특별자치도',
 ];
 
 /* ─── 유틸 ─── */
@@ -110,7 +111,7 @@ export default function FireDamageView() {
   const [items, setItems] = useState<FireDamageItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
-  const [selectedSido, setSelectedSido] = useState('전체');
+  const [selectedSido, setSelectedSido] = useState('서울특별시');
   const PAGE_SIZE = 50;
 
   const fetchData = useCallback(async (forceRefresh = false) => {
@@ -123,10 +124,8 @@ export default function FireDamageView() {
       const params: Record<string, string> = {
         pageNo: String(page),
         numOfRows: String(PAGE_SIZE),
+        sidoNm: selectedSido,
       };
-      if (selectedSido !== '전체') {
-        params.lawAddrName = selectedSido;
-      }
       res = await fetchFireDamage(params, forceRefresh);
     } catch (e: unknown) {
       if (isStaleDataError(e)) {
