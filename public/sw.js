@@ -17,7 +17,16 @@ const ASSET_CACHE = `119-assets-${CACHE_VERSION}`;
 const APP_CACHES = [SHELL_CACHE, ASSET_CACHE];
 
 // 오프라인에서도 최소한 앱 셸이 뜨도록 미리 캐시할 항목
-const PRECACHE_URLS = ['/', '/index.html', '/favicon.svg', '/manifest.json'];
+// 폰트 포함: 아이콘이 폰트 기반(Material Symbols)이라 없으면 오프라인 UI가 깨짐
+const PRECACHE_URLS = [
+  '/',
+  '/index.html',
+  '/favicon.svg',
+  '/manifest.json',
+  '/fonts/material-symbols-outlined.woff2',
+  '/fonts/inter-latin.woff2',
+  '/fonts/manrope-latin.woff2',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

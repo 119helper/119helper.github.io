@@ -9,6 +9,7 @@ import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS } from './services/we
 import { getRealtimeAirQuality } from './services/airQualityApi';
 import type { FireFacility } from './data/mockData';
 import { loadNotificationSettings } from './services/notificationSettings';
+import { prefetchCriticalViews } from './utils/prefetchCriticalViews';
 import { fetchDisasterMsgs } from './services/disasterMsgApi';
 import { loadKakaoMapSDK } from './utils/kakaoLoader';
 
@@ -264,6 +265,11 @@ export default function App() {
   const notiRef = useRef<HTMLDivElement>(null);
   const mainScrollRef = useRef<HTMLDivElement>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // 오프라인 대비: 핵심 화면(계산기·매뉴얼·타이머 등) 청크 사전 로드
+  useEffect(() => {
+    prefetchCriticalViews();
+  }, []);
 
   // ─── 테마 시스템 ───
   const [theme, setTheme] = useState<string>(() => {
