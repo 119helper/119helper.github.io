@@ -193,11 +193,20 @@ export default function App() {
     };
   }, []);
 
+  // 첫 진입 시에는 replaceState로 해시를 정규화해 불필요한 히스토리 엔트리를 만들지 않는다
+  const hashInitializedRef = useRef(false);
   useEffect(() => {
     const nextHash = buildTabHash(activeTab, activeSubId, shelterCategory);
+    const isFirstSync = !hashInitializedRef.current;
+    hashInitializedRef.current = true;
     if (window.location.hash === nextHash) return;
 
-    window.history.pushState(null, '', `${window.location.pathname}${window.location.search}${nextHash}`);
+    const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;
+    if (isFirstSync) {
+      window.history.replaceState(null, '', nextUrl);
+    } else {
+      window.history.pushState(null, '', nextUrl);
+    }
   }, [activeTab, activeSubId, shelterCategory]);
 
   // ─── 테마 시스템 ───
