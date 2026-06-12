@@ -1,7 +1,15 @@
 // 기상청 API — Cloudflare Worker 프록시 경유
 // API 키: Worker 서버사이드에만 존재 (프론트엔드에 없음)
 
-import { fetchWeatherNow, fetchWeatherUltra, fetchWeatherForecast, fetchMidLand, fetchMidTemp, fetchWeatherBriefing } from './apiClient';
+import { fetchWeatherNow, fetchWeatherUltra, fetchWeatherForecast, fetchMidLand, fetchMidTemp, fetchWeatherBriefing, isStaleDataError, tagStale } from './apiClient';
+
+// 네트워크 실패 시 StaleDataError에 실린 캐시 데이터를 신선도 태그와 함께 반환
+function recoverStale<T>(error: unknown): T | null {
+  if (!isStaleDataError(error)) return null;
+  const cached = error.cachedData as T | null;
+  if (!cached) return null;
+  return tagStale(cached, error.cachedAt);
+}
 
 // ══════════ 좌표 변환 ══════════
 export function latLngToGrid(lat: number, lng: number) {
@@ -85,19 +93,31 @@ export interface HourlyForecast {
 export async function getUltraShortNow(nx = 60, ny = 127): Promise<ForecastItem[]> {
   try {
     return await fetchWeatherNow(nx, ny) as ForecastItem[];
-  } catch (e) { console.error('초단기실황 실패:', e); return []; }
+  } catch (e) {
+    const stale = recoverStale<ForecastItem[]>(e);
+    if (stale) return stale;
+    console.error('초단기실황 실패:', e); return [];
+  }
 }
 
 export async function getUltraShortFcst(nx = 60, ny = 127): Promise<ForecastItem[]> {
   try {
     return await fetchWeatherUltra(nx, ny) as ForecastItem[];
-  } catch (e) { console.error('초단기예보 실패:', e); return []; }
+  } catch (e) {
+    const stale = recoverStale<ForecastItem[]>(e);
+    if (stale) return stale;
+    console.error('초단기예보 실패:', e); return [];
+  }
 }
 
 export async function getShortTermFcst(nx = 60, ny = 127): Promise<ForecastItem[]> {
   try {
     return await fetchWeatherForecast(nx, ny) as ForecastItem[];
-  } catch (e) { console.error('단기예보 실패:', e); return []; }
+  } catch (e) {
+    const stale = recoverStale<ForecastItem[]>(e);
+    if (stale) return stale;
+    console.error('단기예보 실패:', e); return [];
+  }
 }
 
 export async function getWeatherBriefing(): Promise<string> {
@@ -122,7 +142,11 @@ export async function getMidTermLand(regId = '11B00000'): Promise<MidTermForecas
   try {
     const items = await fetchMidLand(regId) as any[];
     return items?.[0] || null;
-  } catch { return null; }
+  } catch (e) {
+    const stale = recoverStale<any[]>(e);
+    if (stale?.[0]) return tagStale(stale[0], isStaleDataError(e) ? e.cachedAt : Date.now());
+    return null;
+  }
 }
 
 export interface MidTermTemp {
@@ -136,7 +160,11 @@ export async function getMidTermTemp(regId = '11B10101'): Promise<MidTermTemp | 
   try {
     const items = await fetchMidTemp(regId) as any[];
     return items?.[0] || null;
-  } catch { return null; }
+  } catch (e) {
+    const stale = recoverStale<any[]>(e);
+    if (stale?.[0]) return tagStale(stale[0], isStaleDataError(e) ? e.cachedAt : Date.now());
+    return null;
+  }
 }
 
 // ══════════ 파싱 유틸 (변경 없음) ══════════

@@ -1,6 +1,6 @@
 // 에어코리아 대기질 API — Cloudflare Worker 프록시 경유
 
-import { fetchAirQuality } from './apiClient';
+import { fetchAirQuality, isStaleDataError, tagStale } from './apiClient';
 
 export interface AirQualityData {
   stationName: string;
@@ -35,29 +35,35 @@ function getSidoName(addressName: string): string {
   return '전국';
 }
 
+function toAirQualityData(items: any[]): AirQualityData | null {
+  if (!items || items.length === 0) return null;
+  const validItem = items.find((item: any) => item.pm10Value !== '-' && item.pm10Value !== '' && item.khaiGrade !== '') || items[0];
+
+  return {
+    stationName: validItem.stationName || '알 수 없음',
+    dataTime: validItem.dataTime || '',
+    pm10Value: validItem.pm10Value || '-',
+    pm25Value: validItem.pm25Value || '-',
+    o3Value: validItem.o3Value || '-',
+    khaiValue: validItem.khaiValue || '-',
+    khaiGrade: validItem.khaiGrade || '-',
+    pm10Grade: validItem.pm10Grade || '-',
+    pm25Grade: validItem.pm25Grade || '-',
+  };
+}
+
 export async function getRealtimeAirQuality(addressName: string): Promise<AirQualityData | null> {
   const sidoName = getSidoName(addressName);
 
   try {
     const items = await fetchAirQuality(sidoName) as any[];
-
-    if (items && items.length > 0) {
-      const validItem = items.find((item: any) => item.pm10Value !== '-' && item.pm10Value !== '' && item.khaiGrade !== '') || items[0];
-
-      return {
-        stationName: validItem.stationName || '알 수 없음',
-        dataTime: validItem.dataTime || '',
-        pm10Value: validItem.pm10Value || '-',
-        pm25Value: validItem.pm25Value || '-',
-        o3Value: validItem.o3Value || '-',
-        khaiValue: validItem.khaiValue || '-',
-        khaiGrade: validItem.khaiGrade || '-',
-        pm10Grade: validItem.pm10Grade || '-',
-        pm25Grade: validItem.pm25Grade || '-',
-      };
-    }
-    return null;
+    return toAirQualityData(items);
   } catch (e) {
+    // 네트워크 실패 시 캐시 폴백 데이터를 신선도 태그와 함께 반환
+    if (isStaleDataError(e)) {
+      const recovered = toAirQualityData(e.cachedData as any[]);
+      if (recovered) return tagStale(recovered, e.cachedAt);
+    }
     console.error('에어코리아 API 호출 실패:', e);
     return null;
   }

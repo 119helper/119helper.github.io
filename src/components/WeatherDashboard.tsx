@@ -6,6 +6,8 @@ import {
   type CurrentWeather, type HourlyForecast, type MidTermForecast, type MidTermTemp,
 } from '../services/weatherApi';
 import { getRealtimeAirQuality, type AirQualityData } from '../services/airQualityApi';
+import { getStaleAt } from '../services/apiClient';
+import StaleBadge from './StaleBadge';
 import { WindCompass } from './WindCompass';
 import WeatherAlertBanner from './WeatherAlertBanner';
 
@@ -35,6 +37,7 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastRefresh, setLastRefresh] = useState('');
+  const [staleAt, setStaleAt] = useState<number | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -86,8 +89,10 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
 
       if (nowItems.status === 'fulfilled' && nowItems.value.length > 0) {
         setCurrent(parseCurrentWeather(nowItems.value));
+        setStaleAt(getStaleAt(nowItems.value));
       } else if (fcstItems.status === 'fulfilled' && fcstItems.value.length > 0) {
         setCurrent(parseCurrentWeather(fcstItems.value));
+        setStaleAt(getStaleAt(fcstItems.value));
         setError('초단기실황 API 응답 없음 → 단기예보 데이터로 대체 중');
       } else {
         setError('기상청 서버 응답 지연 (데이터 생성 중 또는 트래픽 과부하). 잠시 후 다시 시도해주세요.');
@@ -253,6 +258,7 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
           <p className="text-sm text-on-surface-variant mt-1">
             기상청 API 연동 · 5분 주기 자동 갱신 · <span className="text-primary font-bold">{grid.name}</span>
             {lastRefresh && <span className="ml-2 text-on-surface-variant">· 갱신 {lastRefresh}</span>}
+            <StaleBadge at={staleAt} className="ml-2 align-middle" />
           </p>
         </div>
         <button onClick={fetchAll} disabled={loading} className="bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/20 transition-colors flex items-center gap-2 disabled:opacity-50">

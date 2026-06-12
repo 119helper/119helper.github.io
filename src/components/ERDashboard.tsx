@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getERRealTimeBeds, getERMessages, getERSevereIllness, CITY_TO_SIDO, type ERRealTimeData, type ERMessage, type ERSevereIllness } from '../services/erApi';
+import { getStaleAt } from '../services/apiClient';
+import StaleBadge from './StaleBadge';
 
 import PrivateAmbulanceView from './PrivateAmbulanceView';
 
@@ -55,6 +57,7 @@ export default function ERDashboard({ city }: ERViewProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState('');
+  const [staleAt, setStaleAt] = useState<number | null>(null);
 
   const fetchER = useCallback(async () => {
     setLoading(true);
@@ -65,9 +68,10 @@ export default function ERDashboard({ city }: ERViewProps) {
         getERMessages(sido),
         getERSevereIllness(sido)
       ]);
-      
+
       setErData(beds);
       setMessages(msgs);
+      setStaleAt(getStaleAt(beds));
       
       const sMap: Record<string, ERSevereIllness> = {};
       severe.forEach(item => {
@@ -145,7 +149,8 @@ export default function ERDashboard({ city }: ERViewProps) {
 
       {activeTab === 'er' ? (
         <div className="space-y-6">
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-2">
+            <StaleBadge at={staleAt} />
             <button onClick={fetchER} disabled={loading} className="bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/20 transition-colors flex items-center gap-2 disabled:opacity-50">
               <span className={`material-symbols-outlined text-lg ${loading ? 'animate-spin' : ''}`}>refresh</span>
               {lastUpdate && <span className="hidden sm:inline font-normal opacity-80 mr-1">{lastUpdate}</span>}

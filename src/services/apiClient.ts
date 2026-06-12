@@ -24,6 +24,40 @@ export function isStaleDataError(err: any): err is StaleDataError {
   return err instanceof StaleDataError || (err && typeof err === 'object' && err.name === 'StaleDataError' && 'cachedData' in err);
 }
 
+// ═══════ 데이터 신선도 태깅 ═══════
+// 서비스 레이어가 StaleDataError를 풀어 캐시 데이터를 반환할 때,
+// "언제 데이터인지"를 데이터 객체에 비열거형으로 심어 뷰가 배지로 표시할 수 있게 한다.
+// (JSON.stringify에 안 잡히므로 캐시에 재저장될 일 없음)
+const STALE_AT_KEY = '__staleAt119';
+
+export function tagStale<T>(data: T, cachedAt: number): T {
+  if (data && typeof data === 'object') {
+    try {
+      Object.defineProperty(data, STALE_AT_KEY, { value: cachedAt, enumerable: false, configurable: true });
+    } catch { /* frozen object 등 — 태깅 실패해도 데이터는 유효 */ }
+  }
+  return data;
+}
+
+export function getStaleAt(data: unknown): number | null {
+  if (data && typeof data === 'object') {
+    const v = (data as Record<string, unknown>)[STALE_AT_KEY];
+    if (typeof v === 'number') return v;
+  }
+  return null;
+}
+
+// ═══════ 네트워크 상태 신호 ═══════
+// navigator.onLine은 "와이파이는 잡혔는데 인터넷이 안 되는" 상황을 못 잡는다.
+// 실제 fetch 성공/네트워크 실패를 이벤트로 흘려 ConnectivityStatus가 판정에 합산한다.
+export const NETWORK_HEALTH_EVENT = '119:network-health';
+
+function reportNetworkHealth(ok: boolean) {
+  try {
+    window.dispatchEvent(new CustomEvent(NETWORK_HEALTH_EVENT, { detail: { ok } }));
+  } catch { /* non-browser 환경 무시 */ }
+}
+
 interface CacheItem {
   version: number;
   cachedAt: number;
@@ -150,6 +184,7 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
 
     try {
       res = await fetch(url.toString(), { cache: 'no-store', signal: controller.signal });
+      reportNetworkHealth(true); // 응답이 왔다 = 네트워크 자체는 살아 있음 (HTTP 에러와 무관)
       bodyText = await res.text().catch(() => '');
 
       if (!res.ok) {
@@ -176,6 +211,9 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
       return data;
     } catch (err: any) {
       if (err.name === 'AbortError') isTimeout = true;
+
+      // res가 없으면 fetch 자체가 실패한 것 = 네트워크 레벨 장애 (타임아웃 포함)
+      if (!res) reportNetworkHealth(false);
 
       const causeText = isTimeout ? 'timeout' : (err.message + ' ' + bodyText);
       const errMsg = humanizeApiError(res?.status || 0, causeText);

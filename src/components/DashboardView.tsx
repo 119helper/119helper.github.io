@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getRealtimeAirQuality, type AirQualityData } from '../services/airQualityApi';
 import { getERRealTimeBeds, CITY_TO_SIDO, type ERRealTimeData } from '../services/erApi';
 import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS, type CurrentWeather } from '../services/weatherApi';
+import { getStaleAt } from '../services/apiClient';
+import StaleBadge from './StaleBadge';
 import type { FireFacility } from '../data/mockData';
 import type { CityIndex } from '../services/fireWaterApi';
 import WeatherAlertBanner from './WeatherAlertBanner';
@@ -126,6 +128,13 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
   const [erList, setErList] = useState<ERRealTimeData[]>([]);
   const [weather, setWeather] = useState<CurrentWeather | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
+  // 캐시 폴백 신선도 — 날씨·대기질·응급실 중 가장 오래된 시각 (보수적 표시)
+  const [staleAt, setStaleAt] = useState<number | null>(null);
+
+  const mergeStaleAt = (data: unknown) => {
+    const s = getStaleAt(data);
+    if (s) setStaleAt(prev => (prev ? Math.min(prev, s) : s));
+  };
   
   // 섹션 접기/펴기 상태
   const [showQuickTools, setShowQuickTools] = useState(true);
@@ -167,11 +176,13 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
     setWeather(null);
     setAirQuality(null);
     setErList([]);
+    setStaleAt(null);
 
     // 실시간 날씨
     getUltraShortNow(grid.nx, grid.ny).then(items => {
       if (isMounted && seq === fetchSeqRef.current && items.length > 0) {
         setWeather(parseCurrentWeather(items));
+        mergeStaleAt(items);
       }
     }).catch(err => {
       console.warn('[DashboardView] weather failed:', err);
@@ -182,7 +193,10 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
 
     // 대기질
     getRealtimeAirQuality(cityLabel).then(data => {
-      if (isMounted && seq === fetchSeqRef.current && data) setAirQuality(data);
+      if (isMounted && seq === fetchSeqRef.current && data) {
+        setAirQuality(data);
+        mergeStaleAt(data);
+      }
     }).catch(err => {
       console.warn('[DashboardView] air quality failed:', err);
       if (isMounted && seq === fetchSeqRef.current) setAirQuality(null);
@@ -190,7 +204,10 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
     
     // 응급실
     getERRealTimeBeds(sido).then(data => {
-      if (isMounted && seq === fetchSeqRef.current && data) setErList(data);
+      if (isMounted && seq === fetchSeqRef.current && data) {
+        setErList(data);
+        mergeStaleAt(data);
+      }
     }).catch(err => {
       console.warn('[DashboardView] ER beds failed:', err);
       if (isMounted && seq === fetchSeqRef.current) setErList([]);
@@ -239,6 +256,14 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
 
   return (
     <div className="space-y-6">
+      {/* 캐시 폴백 데이터 표시 중 알림 */}
+      {staleAt && (
+        <div className="flex items-center gap-2">
+          <StaleBadge at={staleAt} />
+          <span className="text-xs text-on-surface-variant">네트워크 연결 실패 — 일부 실시간 정보가 마지막 저장값입니다.</span>
+        </div>
+      )}
+
       {/* 실시간 기상청 특보 배너 */}
       <WeatherAlertBanner city={cityLabel} />
 
