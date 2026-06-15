@@ -45,18 +45,20 @@ export interface ReportOptions {
   title: string;
   stamps: StageStamp[];
   note?: string;
+  author?: string; // 작성자 표기 (예: '소방교 홍길동 / ○○센터')
 }
 
 /**
  * 표준 양식 텍스트 보고서 초안을 생성한다.
  */
-export function buildReportDraft({ title, stamps, note }: ReportOptions): string {
+export function buildReportDraft({ title, stamps, note, author }: ReportOptions): string {
   const durations = computeStageDurations(stamps);
   const fmtClock = (ms: number) =>
     new Date(ms).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   const lines: string[] = [];
   lines.push(`[현장활동 보고서 초안] ${title}`);
+  if (author && author.trim()) lines.push(`작성자: ${author.trim()}`);
   lines.push('');
   lines.push('■ 활동 타임라인');
   durations.forEach(d => {

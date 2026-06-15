@@ -6,6 +6,7 @@ import {
 } from '../services/notificationSettings';
 import { SHIFT_CYCLE_DANGBIBI, type ShiftSetting, type ShiftType } from '../utils/shiftCalculator';
 import OfflineDataSection from './OfflineDataSection';
+import { useUserProfile, FIRE_RANKS, DUTY_ROLES, type UserProfile } from '../contexts/UserProfileContext';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -15,7 +16,7 @@ interface SettingsModalProps {
   cityNames: Record<string, string>;
 }
 
-type SettingsTab = 'general' | 'notification' | 'shift';
+type SettingsTab = 'profile' | 'general' | 'notification' | 'shift';
 
 // ── 유틸리티 함수 ──
 const DEFAULT_SHIFT_SETTING: ShiftSetting = {
@@ -366,11 +367,82 @@ function ShiftTab({ setting, setSetting }: { setting: ShiftSetting; setSetting: 
 }
 
 // ══════════════════════════════════════════
+// 내 정보 탭
+// ══════════════════════════════════════════
+function ProfileTab({ draft, setDraft }: { draft: UserProfile; setDraft: (p: UserProfile) => void }) {
+  const set = <K extends keyof UserProfile>(key: K, value: UserProfile[K]) => setDraft({ ...draft, [key]: value });
+  const fieldCls =
+    'w-full bg-surface-container text-on-surface text-sm rounded-xl px-3 py-2.5 border border-outline-variant/20 focus:outline-none focus:border-primary transition-colors';
+
+  return (
+    <div className="p-5 space-y-4">
+      <p className="text-[11px] text-on-surface-variant flex items-center gap-1.5">
+        <span className="material-symbols-outlined text-sm text-primary">lock</span>
+        입력 정보는 이 기기에만 저장되며 외부로 전송되지 않습니다.
+      </p>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-on-surface block">이름</label>
+        <input type="text" value={draft.name} onChange={e => set('name', e.target.value)} placeholder="예: 홍길동" className={fieldCls} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-on-surface block">계급</label>
+          <select value={draft.rank} onChange={e => set('rank', e.target.value)} className={fieldCls}>
+            <option value="">선택 안 함</option>
+            {FIRE_RANKS.map(r => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-on-surface block">근무팀/반 <span className="text-on-surface-variant font-normal">(선택)</span></label>
+          <input type="text" value={draft.team} onChange={e => set('team', e.target.value)} placeholder="예: 1팀" className={fieldCls} />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-on-surface block">소속</label>
+        <input type="text" value={draft.station} onChange={e => set('station', e.target.value)} placeholder="예: ○○소방서 ○○119안전센터" className={fieldCls} />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-on-surface block">주임무 <span className="text-on-surface-variant font-normal">(활동 보고서 기본값에 사용)</span></label>
+        <div className="grid grid-cols-3 gap-2">
+          {DUTY_ROLES.map(r => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => set('role', draft.role === r.id ? '' : r.id)}
+              className={`py-2 rounded-xl text-sm font-bold border transition-colors ${
+                draft.role === r.id
+                  ? 'bg-primary/10 border-primary text-primary'
+                  : 'bg-surface-container border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-high'
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-on-surface block">비상연락 <span className="text-on-surface-variant font-normal">(선택)</span></label>
+        <input type="tel" value={draft.phone} onChange={e => set('phone', e.target.value)} placeholder="예: 010-0000-0000" className={fieldCls} />
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════
 // 메인 SettingsModal
 // ══════════════════════════════════════════
 export default function SettingsModal({ isOpen, onClose, city, onCityChange, cityNames }: SettingsModalProps) {
-  const [tab, setTab] = useState<SettingsTab>('general');
+  const { profile, updateProfile } = useUserProfile();
+  const [tab, setTab] = useState<SettingsTab>('profile');
   const [draftCity, setDraftCity] = useState(city);
+  const [draftProfile, setDraftProfile] = useState<UserProfile>(profile);
   const [refreshInterval, setRefreshInterval] = useState('5');
   const [ns, setNs] = useState<NotificationSettings>(loadNotificationSettings());
   const [shiftSetting, setShiftSetting] = useState<ShiftSetting>(DEFAULT_SHIFT_SETTING);
@@ -378,6 +450,7 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
   useEffect(() => {
     if (isOpen) {
       setDraftCity(city);
+      setDraftProfile(profile);
       setRefreshInterval(normalizeRefreshInterval(localStorage.getItem('119helper-refresh') || '5'));
       setNs(loadNotificationSettings());
       
@@ -393,15 +466,16 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
         setShiftSetting(DEFAULT_SHIFT_SETTING);
       }
 
-      setTab('general');
+      setTab('profile');
     }
-  }, [isOpen, city]);
+  }, [isOpen, city, profile]);
 
   const updateNs = (patch: Partial<NotificationSettings>) =>
     setNs(prev => ({ ...prev, ...patch }));
 
   const handleSave = () => {
     onCityChange(draftCity);
+    updateProfile(draftProfile);
     saveNotificationSettings(ns);
     localStorage.setItem('119helper-refresh', normalizeRefreshInterval(refreshInterval));
     localStorage.setItem('119helper-sound', ns.soundEnabled.toString());
@@ -413,14 +487,18 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
   if (!isOpen) return null;
 
   const tabs: { id: SettingsTab; icon: string; label: string }[] = [
+    { id: 'profile', icon: 'person', label: '내 정보' },
     { id: 'general', icon: 'tune', label: '일반' },
     { id: 'shift', icon: 'calendar_month', label: '내 근무' },
     { id: 'notification', icon: 'notifications', label: '알림' },
   ];
 
   return (
-    <div className="absolute right-0 top-full mt-2 z-50 p-2">
-      <div className="bg-surface-container-high border border-outline-variant/20 rounded-2xl shadow-xl w-[360px] overflow-hidden animate-slide-in-top">
+    <>
+      {/* 모바일 배경 (탭하면 닫힘) */}
+      <div className="fixed inset-0 bg-black/40 z-40 sm:hidden" onClick={onClose} aria-hidden="true" />
+      <div className="fixed inset-x-0 bottom-0 z-50 p-2 sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2">
+        <div className="bg-surface-container-high border border-outline-variant/20 rounded-2xl shadow-xl w-full sm:w-[360px] mx-auto overflow-hidden animate-slide-in-bottom sm:animate-slide-in-top">
         {/* 헤더 */}
         <div className="p-3 border-b border-outline-variant/20 flex items-center justify-between bg-surface-container">
           <h2 className="text-lg font-bold text-on-surface flex items-center gap-2">
@@ -453,6 +531,9 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
 
         {/* 탭 콘텐츠 (스크롤) */}
         <div className="max-h-[55vh] overflow-y-auto custom-scrollbar">
+          {tab === 'profile' && (
+            <ProfileTab draft={draftProfile} setDraft={setDraftProfile} />
+          )}
           {tab === 'general' && (
             <GeneralTab
               city={draftCity} onCityChange={setDraftCity} cityNames={cityNames}
@@ -477,7 +558,8 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
             저장하기
           </button>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

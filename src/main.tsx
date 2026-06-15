@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { TimerProvider } from './contexts/TimerContext'
+import { UserProfileProvider } from './contexts/UserProfileContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import ConnectivityStatus from './components/ConnectivityStatus'
 
@@ -21,9 +22,11 @@ if (window.self !== window.top) {
         fallbackTitle="119 Helper 실행 오류"
         fallbackDescription="앱 초기화 중 오류가 발생했습니다. 새로고침 후에도 반복되면 최근 변경 사항을 확인하세요."
       >
-        <TimerProvider>
-          <App />
-        </TimerProvider>
+        <UserProfileProvider>
+          <TimerProvider>
+            <App />
+          </TimerProvider>
+        </UserProfileProvider>
       </ErrorBoundary>
       <ConnectivityStatus />
     </StrictMode>,

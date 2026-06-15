@@ -2,6 +2,9 @@ import { useState, useMemo } from 'react';
 import { ACTIVITY_PRESETS } from '../data/activityStages';
 import { buildReportDraft, formatDuration, totalDurationMs, type StageStamp } from '../utils/activityReport';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
+import { useUserProfile, type DutyRole } from '../contexts/UserProfileContext';
+
+const ROLE_TO_PRESET: Record<DutyRole, string> = { fire: 'fire', ems: 'ems', rescue: 'rescue', '': 'fire' };
 
 interface LoggedStamp {
   stageId: string;
@@ -21,7 +24,11 @@ interface ActiveSession {
 const EMPTY: ActiveSession = { presetId: 'fire', title: '', note: '', stamps: [] };
 
 export default function ActivityLog() {
-  const [session, setSession] = useLocalStorageState<ActiveSession>('119helper-activity-session', EMPTY);
+  const { authorLine, profile } = useUserProfile();
+  const [session, setSession] = useLocalStorageState<ActiveSession>('119helper-activity-session', () => ({
+    ...EMPTY,
+    presetId: ROLE_TO_PRESET[profile.role],
+  }));
   const [useGps, setUseGps] = useState(true);
   const [report, setReport] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -64,6 +71,7 @@ export default function ActivityLog() {
         title: session.title.trim() || `${preset.label} 출동`,
         stamps: sortedStamps,
         note: session.note,
+        author: authorLine,
       }),
     );
   };

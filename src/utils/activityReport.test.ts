@@ -37,4 +37,11 @@ describe('activity report utilities', () => {
     expect(report).toContain('총 활동시간: 1:08:00');
     expect(report).toContain('인명피해 없음');
   });
+
+  it('includes the author line when provided', () => {
+    const report = buildReportDraft({ title: '○○동 화재', stamps, author: '소방교 홍길동 / ○○센터' });
+    expect(report).toContain('작성자: 소방교 홍길동 / ○○센터');
+    const noAuthor = buildReportDraft({ title: '○○동 화재', stamps });
+    expect(noAuthor).not.toContain('작성자:');
+  });
 });

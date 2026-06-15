@@ -18,6 +18,7 @@ import { renderTabRoute, type RouteContext } from './app/routes';
 import { buildTabHash, readTabLocation } from './app/tabHash';
 import { isTabId } from './types/navigation';
 import type { ShelterCategory, TabId, NavigateTarget } from './types/navigation';
+import { useUserProfile } from './contexts/UserProfileContext';
 type GpsStatus = 'loading' | 'granted' | 'denied' | 'idle' | 'unsupported';
 type LocationNoticeKind = 'info' | 'warning';
 interface KakaoRegionResult {
@@ -158,6 +159,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['group-monitoring']);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const { displayName, subtitle } = useUserProfile();
   const [notiOpen, setNotiOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [refreshInterval, setRefreshInterval] = useState(getSafeRefreshInterval);
@@ -668,15 +670,21 @@ export default function App() {
             );
           })}
         </nav>
-        <div className="p-4 border-t border-outline-variant/20 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center">
+        <button
+          type="button"
+          onClick={() => { setSidebarOpen(false); setSettingsOpen(true); }}
+          className="w-full p-4 border-t border-outline-variant/20 flex items-center gap-3 hover:bg-surface-container/50 transition-colors text-left"
+          title="내 정보 편집"
+        >
+          <div className="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined text-on-surface-variant text-lg">person</span>
           </div>
-          <div>
-            <p className="text-sm font-bold text-on-surface">소방관</p>
-            <p className="text-[10px] text-on-surface-variant">사용자</p>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-on-surface truncate">{displayName}</p>
+            <p className="text-[10px] text-on-surface-variant truncate">{subtitle}</p>
           </div>
-        </div>
+          <span className="material-symbols-outlined text-on-surface-variant text-base ml-auto shrink-0">edit</span>
+        </button>
       </aside>
 
       {/* Main */}
@@ -826,11 +834,11 @@ export default function App() {
               >{theme === 'dark' ? 'dark_mode' : 'light_mode'}</span>
             </button>
 
-            {/* Settings */}
-            <div className="relative hidden sm:block" ref={settingsRef}>
-              <button 
+            {/* Settings (기어는 데스크톱 전용, 모바일은 사이드바 '내 정보'에서 열림) */}
+            <div className="relative" ref={settingsRef}>
+              <button
                 onClick={() => setSettingsOpen(!settingsOpen)}
-                className={`p-1.5 rounded-lg transition-colors ${settingsOpen ? 'bg-surface-container-high' : 'hover:bg-surface-container'}`}
+                className={`hidden sm:block p-1.5 rounded-lg transition-colors ${settingsOpen ? 'bg-surface-container-high' : 'hover:bg-surface-container'}`}
               >
                 <span className="material-symbols-outlined text-on-surface-variant text-xl">settings</span>
               </button>
