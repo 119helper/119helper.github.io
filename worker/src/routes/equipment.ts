@@ -36,7 +36,7 @@ export async function handleEquipment(request: Request, env: Env): Promise<Respo
 
     // 전달받은 모든 인자들을 공공데이터 포털 형식에 맞게 복사 (serviceKey 제외)
     searchParams.forEach((value, key) => {
-      if (key !== 'serviceKey') params.append(key, value);
+      if (key !== 'serviceKey' && !key.startsWith('_')) params.append(key, value);
     });
 
     // URL 조립 — serviceKey는 이중 인코딩 방지를 위해 수동 concat

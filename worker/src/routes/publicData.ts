@@ -15,6 +15,56 @@ export function encodeServiceKey(key: string | undefined, secretName: string): s
   return /%[0-9A-Fa-f]{2}/.test(key) ? key : encodeURIComponent(key);
 }
 
+const RETRYABLE_HTTP_STATUS = new Set([500, 502, 503, 504]);
+
+function compact(text: string): string {
+  return text.replace(/\s+/g, ' ').slice(0, 140);
+}
+
+function isGatewayErrorText(text: string): boolean {
+  return text.trimStart().toLowerCase().startsWith('error code:');
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function fetchPublicDataText(
+  url: string,
+  source: string,
+  init?: RequestInit,
+  attempts = 3,
+): Promise<string> {
+  let lastStatus = 0;
+  let lastText = '';
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const res = await fetch(url, {
+      ...init,
+      headers: {
+        'User-Agent': '119-helper-worker/1.0',
+        ...(init?.headers || {}),
+      },
+    });
+    lastStatus = res.status;
+    lastText = await res.text();
+
+    if (res.ok && !isGatewayErrorText(lastText)) {
+      return lastText;
+    }
+
+    if (!RETRYABLE_HTTP_STATUS.has(res.status) && !isGatewayErrorText(lastText)) {
+      break;
+    }
+
+    if (attempt < attempts - 1) {
+      await delay(150 * (attempt + 1));
+    }
+  }
+
+  throw new Error(`${source} API ${lastStatus}: ${compact(lastText)}`);
+}
+
 /** XML/JSON 공통 — 공공데이터 에러 응답이면 throw, 아니면 null */
 export function findPublicDataError(text: string): string | null {
   // 게이트웨이 인증 에러 (OpenAPI_ServiceResponse)
@@ -32,6 +82,12 @@ export function findPublicDataError(text: string): string | null {
   return null;
 }
 
+function isPublicDataSuccessCode(code: unknown): boolean {
+  if (code === undefined || code === null) return true;
+  const normalized = String(code).trim().toUpperCase();
+  return /^0+$/.test(normalized) || normalized === 'I100';
+}
+
 /**
  * 공공데이터 텍스트 응답을 JSON으로 파싱.
  * - XML 에러 응답이면 에러 코드를 살려서 throw (조용히 빈 배열로 바꾸지 않음)
@@ -45,12 +101,12 @@ export function parsePublicDataJson(text: string, source: string): any {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error(`${source}: INVALID_JSON 응답이 JSON이 아닙니다 — ${text.replace(/\s+/g, ' ').slice(0, 140)}`);
+    throw new Error(`${source}: INVALID_JSON 응답이 JSON이 아닙니다 — ${compact(text)}`);
   }
 
   const header = data?.response?.header || data?.header;
   const code = header?.resultCode ?? header?.returnReasonCode;
-  if (code !== undefined && code !== null && !/^0+$/.test(String(code))) {
+  if (!isPublicDataSuccessCode(code)) {
     const msg = header?.resultMsg || header?.returnAuthMsg || '';
     throw new Error(`${source}: API_RESULT_${code} ${msg}`.trim());
   }

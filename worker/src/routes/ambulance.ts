@@ -5,7 +5,7 @@
  *   GET /api/ambulance?Q0=서울특별시
  */
 
-import { encodeServiceKey, findPublicDataError } from './publicData';
+import { encodeServiceKey, fetchPublicDataText, findPublicDataError } from './publicData';
 
 const BASE = 'https://apis.data.go.kr/B552657/AmblInfoInqireService';
 
@@ -15,12 +15,7 @@ export async function handleAmbulance(url: URL, apiKey: string): Promise<{ data:
     const qs = `serviceKey=${serviceKey}&pageNo=1&numOfRows=1000&Q0=${encodeURIComponent(sido)}`;
     const apiUrl = `${BASE}/getAmblListInfoInqire?${qs}`;
 
-    const res = await fetch(apiUrl, { headers: { 'User-Agent': '119-helper-worker/1.0' } });
-    const text = await res.text();
-    if (!res.ok) {
-        throw new Error(`Ambulance API ${res.status}: ${text.replace(/\s+/g, ' ').slice(0, 140)}`);
-    }
-
+    const text = await fetchPublicDataText(apiUrl, 'Ambulance');
     const upstreamError = findPublicDataError(text);
     if (upstreamError) throw new Error(`Ambulance: ${upstreamError}`);
 

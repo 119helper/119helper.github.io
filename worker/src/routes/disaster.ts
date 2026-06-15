@@ -4,6 +4,8 @@
  * Route: GET /api/disaster-msg
  */
 
+import { fetchSafetydataJson } from './safetydata';
+
 export async function handleDisasterMsg(url: URL, apiKey?: string): Promise<{ data: unknown; cacheTtl: number }> {
   const serviceKey = apiKey || 'X46QXE6KR1HU0RTN';
   const pageNo = url.searchParams.get('pageNo') || '1';
@@ -16,13 +18,7 @@ export async function handleDisasterMsg(url: URL, apiKey?: string): Promise<{ da
     pageNo,
   });
 
-  const res = await fetch(
-    `https://www.safetydata.go.kr/V2/api/DSSP-IF-00247?${params}`,
-    { headers: { 'User-Agent': '119-helper-worker/1.0' } }
-  );
-
-  if (!res.ok) throw new Error(`DisasterMsg API ${res.status}`);
-  const json: any = await res.json();
+  const json: any = await fetchSafetydataJson('/V2/api/DSSP-IF-00247', params, { label: 'DisasterMsg API' });
   const items = json?.body || [];
 
   // 캐시: 재난문자는 비교적 실시간성이 중요하지만, API 호출 제한 방지를 위해 3분 캐시

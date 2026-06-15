@@ -4,7 +4,8 @@
  * GET /api/wildfire
  */
 
-const BASE = 'https://www.safetydata.go.kr';
+import { fetchSafetydataJson } from './safetydata';
+
 const DEFAULT_KEY = '60R7CGX9JR11RCL6';
 
 export async function handleWildfire(url: URL, apiKey?: string): Promise<{ data: unknown; cacheTtl: number }> {
@@ -18,17 +19,7 @@ export async function handleWildfire(url: URL, apiKey?: string): Promise<{ data:
     pageNo,
   });
 
-  const apiUrl = `${BASE}/V2/api/DSSP-IF-10346?${qs}`;
-
-  const res = await fetch(apiUrl, { 
-    headers: { 'User-Agent': '119-helper-worker/1.0' }
-  });
-
-  if (!res.ok) {
-    throw new Error(`Wildfire API ${res.status}: ${res.statusText}`);
-  }
-
-  const data: any = await res.json();
+  const data: any = await fetchSafetydataJson('/V2/api/DSSP-IF-10346', qs, { label: 'Wildfire API' });
 
   if (data?.header?.resultCode !== '00') {
     throw new Error(`Wildfire API error: ${data?.header?.resultMsg}`);

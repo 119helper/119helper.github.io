@@ -4,6 +4,8 @@
  * GET /api/tsunami-shelter
  */
 
+import { fetchSafetydataJson } from './safetydata';
+
 // 기본 도메인: https://www.safetydata.go.kr
 const DEFAULT_KEY = '5D5834I0Q3N1GT96'; // 사용자가 제공한 기본키
 
@@ -26,26 +28,13 @@ export async function handleTsunamiShelter(url: URL, apiKey?: string): Promise<{
 
   // SSL 이슈가 있을 수 있어 https와 http를 신중히 선택.
   // Wildfire가 성공한 것과 동일한 설정을 사용하되 더 견고하게 구성.
-  const apiUrl = `https://www.safetydata.go.kr/V2/api/DSSP-IF-10944?${qs}`;
-
   try {
-    const res = await fetch(apiUrl, {
-      method: 'GET',
+    const data: any = await fetchSafetydataJson('/V2/api/DSSP-IF-10944', qs, {
+      label: 'TsunamiShelter API',
       headers: {
-        'Accept': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      }
+      },
     });
-
-    if (!res.ok) {
-      const errorText = await res.text().catch(() => 'No response body');
-      return { 
-        data: { error: `API_HTTP_${res.status}`, message: res.statusText, detail: errorText.slice(0, 100) }, 
-        cacheTtl: 0 
-      };
-    }
-
-    const data: any = await res.json();
 
     if (data?.header?.resultCode !== '00') {
       return { 

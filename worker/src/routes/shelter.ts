@@ -1,35 +1,64 @@
 // 지진해일 긴급 대피장소 API 프록시
 // Route: GET /api/shelter?ctprvnNm=경상북도&numOfRows=100&pageNo=1
 
-import { encodeServiceKey, parsePublicDataJson } from './publicData';
+import { fetchSafetydataJson } from './safetydata';
 
-export async function handleShelter(url: URL, apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
+const SAFETYDATA_TSUNAMI_KEY = '5D5834I0Q3N1GT96';
+const SAFETYDATA_TSUNAMI_PATH = '/V2/api/DSSP-IF-10944';
+
+function normalizeSafetydataShelter(item: any) {
+  return {
+    lat: item.LA,
+    lot: item.LO,
+    latitude: item.LA,
+    longitude: item.LO,
+    shelterNm: item.SHNT_PLACE_NM,
+    shelterName: item.SHNT_PLACE_NM,
+    shltNm: item.SHNT_PLACE_NM,
+    rdnmadr: item.RN_DTL_ADRES || item.SHNT_PLACE_DTL_POSITION,
+    lnmadr: item.SHNT_PLACE_DTL_POSITION,
+    dtlAdres: item.SHNT_PLACE_DTL_POSITION,
+    shltSeCo: item.PSBL_NMPR,
+    acmPrsnCo: item.PSBL_NMPR,
+    capacity: item.PSBL_NMPR,
+    seaLvlHght: item.EV_ANTCTY,
+    altitude: item.EV_ANTCTY,
+    useYn: item.USE_AT,
+    ctprvnNm: item.CTPRVN_NM,
+  };
+}
+
+async function fetchSafetydataTsunami(params: URLSearchParams): Promise<any> {
+  return fetchSafetydataJson(SAFETYDATA_TSUNAMI_PATH, params, { label: 'Safetydata Shelter API' });
+}
+
+export async function handleShelter(url: URL, _apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
   const ctprvnNm = url.searchParams.get('ctprvnNm') || '';
   const signguNm = url.searchParams.get('signguNm') || '';
   const numOfRows = url.searchParams.get('numOfRows') || '100';
   const pageNo = url.searchParams.get('pageNo') || '1';
+  const upstreamRows = ctprvnNm || signguNm ? '1000' : numOfRows;
 
-  const serviceKey = encodeServiceKey(apiKey, 'SHELTER_API_KEY');
   const params = new URLSearchParams({
+    serviceKey: SAFETYDATA_TSUNAMI_KEY,
     pageNo,
-    numOfRows,
-    type: 'json',
+    numOfRows: upstreamRows,
   });
-  if (ctprvnNm) params.set('ctprvnNm', ctprvnNm);
-  if (signguNm) params.set('signguNm', signguNm);
 
-  // api.data.go.kr → HTTP 호출 (Cloudflare SSL 525 오류 방지)
-  const res = await fetch(
-    `http://api.data.go.kr/openapi/tn_pubr_public_shelter_api?serviceKey=${serviceKey}&${params}`,
-    {
-      headers: { 'User-Agent': '119-helper-worker/1.0' }
-    }
-  );
-  const text = await res.text();
-  if (!res.ok) throw new Error(`Shelter API ${res.status}: ${text.replace(/\s+/g, ' ').slice(0, 140)}`);
+  const json = await fetchSafetydataTsunami(params);
+  if (json?.header?.resultCode !== '00') {
+    throw new Error(`Safetydata Shelter API_RESULT_${json?.header?.resultCode}: ${json?.header?.resultMsg || 'Unknown API Error'}`);
+  }
 
-  const json: any = parsePublicDataJson(text, 'Shelter');
-  const items = json?.response?.body?.items || [];
+  const rawItems = Array.isArray(json?.body) ? json.body : [];
+  const items = rawItems
+    .filter((item: any) => {
+      const address = String(item.SHNT_PLACE_DTL_POSITION || item.RN_DTL_ADRES || '');
+      if (ctprvnNm && !address.startsWith(ctprvnNm)) return false;
+      if (signguNm && !address.includes(signguNm)) return false;
+      return true;
+    })
+    .map(normalizeSafetydataShelter);
 
-  return { data: items, cacheTtl: 86400 }; // 24시간 캐시
+  return { data: items, cacheTtl: 86400 };
 }
