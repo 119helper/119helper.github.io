@@ -25,6 +25,11 @@ const EquipmentChecklist = lazy(() => import('../components/EquipmentChecklist')
 const EquipmentCertSearch = lazy(() => import('../components/EquipmentCertSearch'));
 const LawDashboard = lazy(() => import('../components/LawDashboard'));
 const PolicyDashboard = lazy(() => import('../components/PolicyDashboard'));
+const EmsProtocol = lazy(() => import('../components/EmsProtocol'));
+const TriageView = lazy(() => import('../components/TriageView'));
+const ActivityLog = lazy(() => import('../components/ActivityLog'));
+const PrePlanView = lazy(() => import('../components/PrePlanView'));
+const SafetyMonitor = lazy(() => import('../components/SafetyMonitor'));
 
 export interface RouteContext {
   activeSubId?: string;
@@ -87,6 +92,11 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
   'equipment-cert': { render: () => <EquipmentCertSearch /> },
   law: { render: ctx => <LawDashboard subId={ctx.activeSubId} /> },
   policy: { render: () => <PolicyDashboard /> },
+  'ems-protocol': { render: ctx => <EmsProtocol subId={ctx.activeSubId} /> },
+  triage: { render: ctx => <TriageView city={ctx.city} /> },
+  'activity-log': { render: () => <ActivityLog /> },
+  preplan: { render: () => <PrePlanView /> },
+  'safety-monitor': { render: ctx => <SafetyMonitor city={ctx.city} /> },
 };
 
 export function renderTabRoute(tab: TabId, context: RouteContext): ReactNode {

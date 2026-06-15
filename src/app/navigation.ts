@@ -17,6 +17,14 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', icon: 'dashboard', label: '대시보드', filled: true },
   { id: 'shelter', icon: 'location_city', label: '시설 조회' },
   {
+    id: 'group-ems', icon: 'medical_services', label: '구급/EMS',
+    subItems: [
+      { id: 'ems-protocol', label: '응급처치·약물' },
+      { id: 'triage', label: '중증도 분류' },
+      { id: 'activity-log', label: '활동 타임라인' },
+    ],
+  },
+  {
     id: 'group-monitoring', icon: 'monitor', label: '모니터링',
     subItems: [
       { id: 'weather', label: '날씨' },
@@ -29,6 +37,7 @@ export const NAV_ITEMS: NavItem[] = [
     id: 'group-tools', icon: 'build', label: '현장도구',
     subItems: [
       { id: 'field-timer', label: '현장 타이머' },
+      { id: 'safety-monitor', label: '대원 안전' },
       { id: 'checklist', label: '장비점검' },
       { id: 'calculator', label: '계산기' },
     ],
@@ -36,6 +45,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     id: 'group-admin', icon: 'folder_open', label: '업무지원',
     subItems: [
+      { id: 'preplan', label: '대상물 정보' },
       { id: 'manual', label: '대응 매뉴얼' },
       { id: 'law', label: '실전 법률방어' },
       { id: 'policy', label: '법안지침' },
