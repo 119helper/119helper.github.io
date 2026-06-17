@@ -12,6 +12,7 @@ import { loadNotificationSettings } from './services/notificationSettings';
 import { prefetchCriticalViews } from './utils/prefetchCriticalViews';
 import { fetchDisasterMsgs } from './services/disasterMsgApi';
 import { getNearestSupportedCity, resolveCityByKakao, MAX_FALLBACK_DISTANCE_KM } from './utils/locationResolver';
+import { useNotifications, formatTimeAgo } from './hooks/useNotifications';
 
 import { BOTTOM_TABS, NAV_ITEMS, cityNames, getTabLabel } from './app/navigation';
 import { renderTabRoute, type RouteContext } from './app/routes';
@@ -21,25 +22,6 @@ import type { ShelterCategory, TabId, NavigateTarget } from './types/navigation'
 import { useUserProfile } from './contexts/UserProfileContext';
 type GpsStatus = 'loading' | 'granted' | 'denied' | 'idle' | 'unsupported';
 type LocationNoticeKind = 'info' | 'warning';
-
-// 알림 시스템 타입
-interface Notification {
-  id: string;
-  icon: string;
-  iconColor: string;
-  title: string;
-  message: string;
-  timestamp: Date;
-  isNew: boolean;
-}
-
-function formatTimeAgo(date: Date): string {
-  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (diff < 60) return '방금 전';
-  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
-  return `${Math.floor(diff / 86400)}일 전`;
-}
 
 function getSafeRefreshInterval() {
   const raw = Number.parseInt(localStorage.getItem('119helper-refresh') || '5', 10);
@@ -77,7 +59,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { displayName, subtitle } = useUserProfile();
   const [notiOpen, setNotiOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { notifications, addNotification, markAllRead, clearAll } = useNotifications();
   const [refreshInterval, setRefreshInterval] = useState(getSafeRefreshInterval);
   const lastRefreshRef = useRef<Date>(new Date());
   const refreshSeqRef = useRef(0);
@@ -237,23 +219,6 @@ export default function App() {
     setCityIndex(null);
     setFireFacilities([]);
   };
-
-  const addNotification = useCallback((id: string | undefined, icon: string, iconColor: string, title: string, message: string) => {
-    setNotifications(prev => {
-      // Deduplicate if custom ID is provided and already exists, or same title+msg exists recently
-      if (id && prev.some(n => n.id === id)) return prev;
-      if (!id && prev.some(n => n.title === title && n.message === message)) return prev;
-      
-      const newNoti: Notification = {
-        id: id || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        icon, iconColor, title, message,
-        timestamp: new Date(),
-        isNew: true,
-      };
-      const updated = [newNoti, ...prev].slice(0, 50); // Keep max 50
-      return updated;
-    });
-  }, []);
 
   // 소방용수 원시 데이터 → FireFacility 파싱 헬퍼
   const parseItems = useCallback((items: Awaited<ReturnType<typeof fetchFireWaterFacilities>>) => {
@@ -722,14 +687,14 @@ export default function App() {
                       )}
                     </div>
                     <div className="p-2 border-t border-outline-variant/20 bg-surface-container/50 flex gap-1">
-                      <button 
-                        onClick={() => setNotifications(prev => prev.map(n => ({ ...n, isNew: false })))}
+                      <button
+                        onClick={markAllRead}
                         className="flex-1 py-1.5 text-xs font-bold text-primary hover:bg-primary/10 rounded-lg transition-colors"
                       >
                         모두 읽음
                       </button>
-                      <button 
-                        onClick={() => setNotifications([])}
+                      <button
+                        onClick={clearAll}
                         className="flex-1 py-1.5 text-xs font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-lg transition-colors"
                       >
                         전체 삭제
