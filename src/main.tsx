@@ -6,6 +6,9 @@ import { TimerProvider } from './contexts/TimerContext'
 import { UserProfileProvider } from './contexts/UserProfileContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import ConnectivityStatus from './components/ConnectivityStatus'
+import { installGlobalErrorReporting } from './services/telemetry'
+
+installGlobalErrorReporting();
 
 const rootEl = document.getElementById('root');
 

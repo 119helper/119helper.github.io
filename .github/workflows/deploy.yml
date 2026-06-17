@@ -39,6 +39,8 @@ jobs:
           # API 키는 Worker 서버에만 존재. 프론트엔드에는 Worker URL만 필요.
           VITE_API_BASE: https://119-helper-api.teemozipsa.workers.dev
           VITE_KAKAO_MAP_KEY: ${{ secrets.VITE_KAKAO_MAP_KEY }}
+          # Worker의 APP_ACCESS_TOKEN과 동일해야 함 (미설정 시 토큰 검사 생략)
+          VITE_APP_TOKEN: ${{ secrets.VITE_APP_TOKEN }}
 
       # 오프라인 동작 보증: 이 테스트가 깨지면 현장에서 신호 끊겼을 때 앱이 안 뜬다
       - name: Install Playwright browser
@@ -87,6 +89,8 @@ jobs:
         env:
           VITE_API_BASE: https://119-helper-api.teemozipsa.workers.dev
           VITE_KAKAO_MAP_KEY: ${{ secrets.VITE_KAKAO_MAP_KEY }}
+          # Worker의 APP_ACCESS_TOKEN과 동일해야 함 (미설정 시 토큰 검사 생략)
+          VITE_APP_TOKEN: ${{ secrets.VITE_APP_TOKEN }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v6

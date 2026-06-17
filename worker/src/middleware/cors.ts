@@ -35,14 +35,33 @@ export function isOriginAllowed(request: Request): boolean {
   return isAllowedOrigin(origin);
 }
 
+/* ═══ 앱 토큰 (심층 방어) ═══ */
+//
+// Origin 헤더는 브라우저만 강제하므로 curl 등으로 위조 가능하다.
+// 공유 토큰(X-App-Token)을 추가로 요구해 스크래핑/무단 프록시 사용의 문턱을 높인다.
+// SPA 번들에 토큰이 노출되는 한계는 있으나, Origin 단독 검사보다 명확히 낫고
+// 토큰 회전(rotation)이 가능해진다. APP_ACCESS_TOKEN 미설정 시에는 검사하지 않아
+// 기존 배포와 하위 호환된다.
+export function isAppTokenValid(request: Request, expected: string | undefined): boolean {
+  if (!expected) return true; // 미설정 → 검사 생략 (하위 호환)
+  const provided = request.headers.get('X-App-Token') || '';
+  if (provided.length !== expected.length) return false;
+  // 타이밍 공격 완화를 위한 상수 시간 비교
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) {
+    diff |= provided.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 export function corsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get('Origin') || '';
   const isAllowed = isAllowedOrigin(origin);
 
   return {
     'Access-Control-Allow-Origin': isAllowed ? origin : '',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-App-Token',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
   };
@@ -81,12 +100,47 @@ function cleanupRateLimitMap() {
   }
 }
 
-export function checkRateLimit(request: Request): { allowed: boolean; remaining: number } {
-  cleanupRateLimitMap();
-  
-  const ip = request.headers.get('CF-Connecting-IP')
+function getClientIp(request: Request): string {
+  return request.headers.get('CF-Connecting-IP')
     || request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim()
     || 'unknown';
+}
+
+/**
+ * Cloudflare 네이티브 Rate Limiting 바인딩 인터페이스.
+ * (wrangler.toml의 [[unsafe.bindings]] type = "ratelimit" 로 설정)
+ */
+export interface RateLimitBinding {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
+
+/**
+ * 분산 rate limit 검사.
+ *
+ * 기존 in-memory Map은 Worker isolate마다·엣지 PoP마다 별도로 존재해
+ * 실제로는 "isolate당" 한도라 사실상 제한이 되지 않았다.
+ * 네이티브 바인딩은 colo 단위로 일관되며 isolate 재활용에도 살아남는다.
+ * 바인딩이 없으면(로컬 dev 등) 기존 in-memory 폴백을 사용한다.
+ */
+export async function checkRateLimitDistributed(
+  request: Request,
+  binding: RateLimitBinding | undefined
+): Promise<{ allowed: boolean }> {
+  if (binding) {
+    try {
+      const { success } = await binding.limit({ key: getClientIp(request) });
+      return { allowed: success };
+    } catch {
+      // 바인딩 호출 실패 시 in-memory 폴백
+    }
+  }
+  return { allowed: checkRateLimit(request).allowed };
+}
+
+export function checkRateLimit(request: Request): { allowed: boolean; remaining: number } {
+  cleanupRateLimitMap();
+
+  const ip = getClientIp(request);
 
   const now = Date.now();
   const entry = rateLimitMap.get(ip);

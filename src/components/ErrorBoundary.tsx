@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { reportClientError } from '../services/telemetry';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -20,6 +21,10 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[ErrorBoundary]', error, errorInfo);
+    reportClientError(error, {
+      context: 'ErrorBoundary',
+      meta: { componentStack: errorInfo.componentStack?.slice(0, 1000) },
+    });
   }
 
   componentDidUpdate(prevProps: ErrorBoundaryProps) {

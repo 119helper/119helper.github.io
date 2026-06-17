@@ -5,7 +5,8 @@
  * ?론?엔??SPA)????Worker??/api/* ?드?인?만 ?출?니??
  */
 
-import { handleOptions, jsonResponse, errorResponse, isOriginAllowed, checkRateLimit, rateLimitResponse, corsHeaders } from './middleware/cors';
+import { handleOptions, jsonResponse, errorResponse, isOriginAllowed, isAppTokenValid, checkRateLimitDistributed, rateLimitResponse, corsHeaders, type RateLimitBinding } from './middleware/cors';
+import { handleClientLog } from './routes/clientLog';
 import { handleWeather } from './routes/weather';
 import { handleAir } from './routes/air';
 import { handleER } from './routes/er';
@@ -56,6 +57,10 @@ export interface Env {
   NAVER_CLIENT_ID?: string;
   NAVER_CLIENT_SECRET?: string;
   NEWS_CACHE: KVNamespace;
+  /** 심층 방어용 공유 앱 토큰. 설정 시 X-App-Token 헤더와 일치해야 함. 미설정 시 검사 생략. */
+  APP_ACCESS_TOKEN?: string;
+  /** Cloudflare 네이티브 Rate Limiting 바인딩. 미설정 시 in-memory 폴백. */
+  RATE_LIMITER?: RateLimitBinding;
 }
 
 export default {
@@ -65,24 +70,34 @@ export default {
       return handleOptions(request);
     }
 
-    // ? 비공?API ???용??Origin??과
+    // 허용된 Origin만 통과 (브라우저 강제 헤더 — 1차 방어)
     if (!isOriginAllowed(request)) {
       return new Response('Forbidden', { status: 403 });
     }
 
-    // ??Rate Limiting (분당 60??
-    const rateCheck = checkRateLimit(request);
+    // 공유 앱 토큰 검사 (Origin 위조 대비 심층 방어). APP_ACCESS_TOKEN 미설정 시 생략.
+    if (!isAppTokenValid(request, env.APP_ACCESS_TOKEN)) {
+      return new Response('Forbidden', { status: 403 });
+    }
+
+    // 분산 Rate Limiting (네이티브 바인딩 우선, 없으면 in-memory 폴백)
+    const rateCheck = await checkRateLimitDistributed(request, env.RATE_LIMITER);
     if (!rateCheck.allowed) {
       return rateLimitResponse(request);
     }
 
-    // GET??용
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+    // 클라이언트 오류 텔레메트리 수집 (POST). 관측성 확보용.
+    if (request.method === 'POST' && path === '/api/client-log') {
+      return await handleClientLog(request);
+    }
+
+    // 그 외에는 GET만 허용
     if (request.method !== 'GET') {
       return errorResponse('Method not allowed', request, 405);
     }
-
-    const url = new URL(request.url);
-    const path = url.pathname;
 
     try {
       const cacheUrl = new URL(url.toString());

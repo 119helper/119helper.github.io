@@ -10,6 +10,14 @@ compatibility_date = "2025-03-01"
 [vars]
 ENVIRONMENT = "production"
 
+# ─── 분산 Rate Limiting (in-memory Map 대체) ───
+# isolate/PoP마다 따로 세던 기존 방식과 달리 colo 단위로 일관되게 제한한다.
+[[unsafe.bindings]]
+name = "RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1001"            # 계정 내 임의 고유 ID
+simple = { limit = 60, period = 60 }   # 60초당 60회
+
 # API 키는 시크릿으로 등록:
 # wrangler secret put KMA_API_KEY
 # wrangler secret put ER_API_KEY
@@ -31,3 +39,6 @@ ENVIRONMENT = "production"
 # wrangler secret put EQUIPMENT_API_KEY
 # wrangler secret put CONSUMER_HAZARD_API_KEY
 # wrangler secret put AMBULANCE_API_KEY
+#
+# 심층 방어용 공유 앱 토큰 (선택). 설정 시 프론트엔드 VITE_APP_TOKEN과 동일하게 맞춰야 함:
+# wrangler secret put APP_ACCESS_TOKEN

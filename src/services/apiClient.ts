@@ -7,8 +7,12 @@
 
 import { createStore, del, get, keys, set } from 'idb-keyval';
 import { z } from 'zod';
+import { reportClientError } from './telemetry';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://119-helper-api.teemozipsa.workers.dev';
+// 심층 방어용 공유 앱 토큰 (Worker의 APP_ACCESS_TOKEN과 매칭). 미설정 시 헤더 미전송.
+const APP_TOKEN = import.meta.env.VITE_APP_TOKEN || '';
+const APP_TOKEN_HEADER: Record<string, string> = APP_TOKEN ? { 'X-App-Token': APP_TOKEN } : {};
 const API_TIMEOUT_MS = 15_000;
 const CACHE_PREFIX = '119_cache_v1_';
 const CACHE_VERSION = 1;
@@ -80,6 +84,13 @@ export interface ApiFetchOptions<T = unknown> {
   timeoutMs?: number;
   forceRefresh?: boolean;
   schema?: z.ZodType<T>;
+  /**
+   * 네트워크 실패 시 만료 캐시를 폴백으로 보여줄 수 있는 최대 나이(ms).
+   * 이보다 오래된 캐시는 폴백하지 않고 일반 오류를 던진다.
+   * 응급실 병상·재난문자처럼 오래된 값이 위험을 부르는 데이터에 지정한다.
+   * 미지정 시 기존 동작(나이 제한 없음)을 유지한다.
+   */
+  maxStaleMs?: number;
 }
 
 const apiRecordSchema = z.record(z.string(), z.unknown());
@@ -341,6 +352,7 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
     timeoutMs = API_TIMEOUT_MS,
     forceRefresh = false,
     schema,
+    maxStaleMs,
   } = options || {};
 
   const safeKey = customCacheKey || encodeURIComponent(url.pathname + url.search);
@@ -368,7 +380,7 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
     let isTimeout = false;
 
     try {
-      res = await fetch(url.toString(), { cache: 'no-store', signal: controller.signal });
+      res = await fetch(url.toString(), { cache: 'no-store', signal: controller.signal, headers: APP_TOKEN_HEADER });
       reportNetworkHealth(true); // 응답이 왔다 = 네트워크 자체는 살아 있음 (HTTP 에러와 무관)
       bodyText = await res.text().catch(() => '');
 
@@ -415,11 +427,26 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
 
       console.warn(`[API Fetch Failed] ${url.pathname} -> ${errMsg}`);
 
+      // 업스트림 "계약 위반"(응답 형식 변경/키 문제)은 관측성 대상.
+      // 단순 오프라인/타임아웃 같은 현장 흔한 장애는 보고하지 않는다(노이즈 방지).
+      if (errMessage === 'SCHEMA_VALIDATION_ERROR' || errMessage === 'API_LOGIC_ERROR' || errMessage === 'INVALID_JSON') {
+        reportClientError(errMessage, {
+          context: 'apiFetch',
+          level: 'warn',
+          meta: { path: url.pathname, status: res?.status ?? 0, bodyPreview: bodyText.slice(0, 200) },
+        });
+      }
+
       if (useCache) {
         // Retrieve expired cache if available as fallback
         const fallback = await getFromCache(cacheKey); // No TTL check
         if (fallback) {
-          throw new StaleDataError(fallback.data, errMsg, fallback.cachedAt);
+          // maxStaleMs가 지정된 경우, 너무 오래된 캐시는 폴백하지 않는다.
+          // (예: 며칠 전 응급실 병상 수를 "정상"처럼 보여주는 위험 방지)
+          const tooStale = maxStaleMs !== undefined && Date.now() - fallback.cachedAt > maxStaleMs;
+          if (!tooStale) {
+            throw new StaleDataError(fallback.data, errMsg, fallback.cachedAt);
+          }
         }
       }
 
@@ -442,8 +469,8 @@ async function apiFetchXml(path: string, params?: Record<string, string>, option
   return data.xml;
 }
 
-// ═══════ 날씨 (TTL 짧게 30분) ═══════
-const WEATHER_OPTS: ApiFetchOptions = { cacheTtlMs: 1000 * 60 * 30 };
+// ═══════ 날씨 (TTL 짧게 30분, 폴백 최대 6시간) ═══════
+const WEATHER_OPTS: ApiFetchOptions = { cacheTtlMs: 1000 * 60 * 30, maxStaleMs: 1000 * 60 * 60 * 6 };
 export async function fetchWeatherNow(nx: number, ny: number): Promise<ApiRecord[]> {
   return apiFetch<ApiRecord[]>('/api/weather/now', { nx: String(nx), ny: String(ny) }, { ...WEATHER_OPTS, schema: apiRecordArraySchema });
 }
@@ -463,14 +490,14 @@ export async function fetchWeatherBriefing(stnId: string): Promise<{ briefing: s
   return apiFetch<{ briefing: string }>('/api/weather/briefing', { stnId }, { ...WEATHER_OPTS, schema: weatherBriefingSchema });
 }
 
-// ═══════ 대기질 (TTL 짧게 30분) ═══════
-const AIR_OPTS: ApiFetchOptions = { cacheTtlMs: 1000 * 60 * 30 };
+// ═══════ 대기질 (TTL 짧게 30분, 폴백 최대 6시간) ═══════
+const AIR_OPTS: ApiFetchOptions = { cacheTtlMs: 1000 * 60 * 30, maxStaleMs: 1000 * 60 * 60 * 6 };
 export async function fetchAirQuality(sido: string): Promise<ApiRecord[]> {
   return apiFetch<ApiRecord[]>('/api/air', { sido }, { ...AIR_OPTS, schema: apiRecordArraySchema });
 }
 
-// ═══════ 응급실 (TTL 짧게 5분) ═══════
-const ER_OPTS: ApiFetchOptions<{ xml: string }> = { cacheTtlMs: 1000 * 60 * 5 };
+// ═══════ 응급실 (TTL 짧게 5분, 폴백 최대 1시간 — 오래된 병상 정보는 위험) ═══════
+const ER_OPTS: ApiFetchOptions<{ xml: string }> = { cacheTtlMs: 1000 * 60 * 5, maxStaleMs: 1000 * 60 * 60 };
 export async function fetchERBeds(sido: string, gugun?: string) { return apiFetchXml('/api/er/beds', { sido, gugun: gugun || '' }, ER_OPTS); }
 export async function fetchERList(sido: string, gugun?: string) { return apiFetchXml('/api/er/list', { sido, gugun: gugun || '' }, ER_OPTS); }
 export async function fetchERMessages(sido: string, gugun?: string) { return apiFetchXml('/api/er/messages', { sido, gugun: gugun || '' }, ER_OPTS); }
