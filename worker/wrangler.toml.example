@@ -12,6 +12,8 @@ ENVIRONMENT = "production"
 
 # ─── 분산 Rate Limiting (in-memory Map 대체) ───
 # isolate/PoP마다 따로 세던 기존 방식과 달리 colo 단위로 일관되게 제한한다.
+# ⚠️ colo(지역) 단위라 글로벌 하드캡은 아님 — 분산 공격까지 막으려면
+#    Cloudflare 대시보드의 WAF Rate Limiting Rules / Turnstile을 추가로 설정할 것.
 [[unsafe.bindings]]
 name = "RATE_LIMITER"
 type = "ratelimit"

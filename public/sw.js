@@ -41,8 +41,10 @@ self.addEventListener('install', (event) => {
       Promise.allSettled(PRECACHE_URLS.map((url) => cache.add(url)))
     )
   );
-  // 새 SW가 즉시 대기 상태로 진입 (waiting) — 활성화는 사용자 동작 또는 다음 로드에서
-  self.skipWaiting();
+  // 주의: 여기서 skipWaiting()을 호출하면 새 배포가 사용자 작업 중에
+  // 화면을 강제 새로고침시킨다(현장 입력 유실 위험). 대신 새 SW는 waiting 상태로
+  // 남고, 사용자가 "업데이트" 버튼을 눌렀을 때(applyUpdate → SKIP_WAITING)만 적용한다.
+  // 기존 활성 SW가 없는 첫 방문에는 waiting 없이 바로 활성화되므로 영향 없다.
 });
 
 self.addEventListener('activate', (event) => {

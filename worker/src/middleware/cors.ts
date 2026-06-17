@@ -67,6 +67,20 @@ export function corsHeaders(request: Request): Record<string, string> {
   };
 }
 
+/**
+ * 라우트가 직접 만든 Response에 중앙 CORS 정책을 강제 적용한다.
+ * (law/equipment 등 직접 반환 라우트가 'Allow-Origin: *' 같은 느슨한 헤더를
+ *  쓰지 않도록 화이트리스트 기반 헤더로 덮어쓴다.)
+ */
+export function applyCors(response: Response, request: Request): Response {
+  const res = new Response(response.body, response);
+  const cors = corsHeaders(request);
+  for (const [k, v] of Object.entries(cors)) {
+    res.headers.set(k, String(v));
+  }
+  return res;
+}
+
 /* ═══ 보안 헤더 ═══ */
 
 function securityHeaders(): Record<string, string> {
@@ -121,6 +135,13 @@ export interface RateLimitBinding {
  * 실제로는 "isolate당" 한도라 사실상 제한이 되지 않았다.
  * 네이티브 바인딩은 colo 단위로 일관되며 isolate 재활용에도 살아남는다.
  * 바인딩이 없으면(로컬 dev 등) 기존 in-memory 폴백을 사용한다.
+ *
+ * ⚠️ 한계: 네이티브 rate limiter도 "colo(지역) 단위"라 글로벌 하드캡은 아니다.
+ *    여러 지역에 분산된 공격은 colo 수만큼 한도가 배수로 늘어난다.
+ *    진짜 글로벌 보호가 필요하면 애플리케이션 코드가 아니라
+ *    Cloudflare WAF Rate Limiting Rules 또는 Turnstile(봇 차단)로 막아야 한다.
+ *    (글로벌 단일 카운터를 Durable Object로 두면 모든 요청이 한 지점을 거쳐
+ *     지연·비용이 커지므로 지연 민감한 출동 앱에는 부적합.)
  */
 export async function checkRateLimitDistributed(
   request: Request,

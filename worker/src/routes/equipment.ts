@@ -102,9 +102,9 @@ export async function handleEquipment(request: Request, env: Env): Promise<Respo
         await cache.put(cacheUrl, response.clone());
       }
     } else {
-      // 캐시된 응답에 CORS 등 최신 헤더 적용 
+      // 캐시된 응답을 복제해 반환. CORS 헤더는 호출부(index.ts)의 applyCors가
+      // 화이트리스트 기반으로 일괄 적용한다.
       response = new Response(response.body, response);
-      response.headers.set('Access-Control-Allow-Origin', '*');
     }
 
     return response;

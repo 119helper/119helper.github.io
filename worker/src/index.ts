@@ -5,7 +5,7 @@
  * ?론?엔??SPA)????Worker??/api/* ?드?인?만 ?출?니??
  */
 
-import { handleOptions, jsonResponse, errorResponse, isOriginAllowed, isAppTokenValid, checkRateLimitDistributed, rateLimitResponse, corsHeaders, type RateLimitBinding } from './middleware/cors';
+import { handleOptions, jsonResponse, errorResponse, isOriginAllowed, isAppTokenValid, checkRateLimitDistributed, rateLimitResponse, corsHeaders, applyCors, type RateLimitBinding } from './middleware/cors';
 import { handleClientLog } from './routes/clientLog';
 import { handleWeather } from './routes/weather';
 import { handleAir } from './routes/air';
@@ -39,7 +39,6 @@ export interface Env {
   BUILDING_API_KEY: string;
   FIRE_WATER_API_KEY: string;
   HOLIDAY_API_KEY: string;
-  KAKAO_MAP_KEY: string;
   MULTI_USE_API_KEY: string;
   SHELTER_API_KEY: string;
   EMERGENCY_API_KEY: string;
@@ -130,7 +129,6 @@ export default {
       let newsResponse: Response | null = null;
 
       if (path === '/api/health') result = { data: { status: 'ok', version: '1.0.0', timestamp: new Date().toISOString() }, cacheTtl: 0 };
-      else if (path === '/api/config') result = { data: { kakaoMapKey: env.KAKAO_MAP_KEY || '' }, cacheTtl: 3600 };
       else if (path.startsWith('/api/weather/')) result = await handleWeather(path, url, env.KMA_API_KEY);
       else if (path === '/api/air') result = await handleAir(url, env.AIR_API_KEY);
       else if (path.startsWith('/api/er/')) result = await handleER(path, url, env.ER_API_KEY);
@@ -147,7 +145,7 @@ export default {
       else if (path === '/api/fire-damage') result = await handleFireDamage(url, env.FIRE_DAMAGE_API_KEY);
       else if (path.startsWith('/api/fire-annual/')) result = await handleAnnualFireStats(path, url, env.ANNUAL_FIRE_API_KEY);
       else if (path.startsWith('/api/equipment/')) {
-        return await handleEquipment(request, env);
+        return applyCors(await handleEquipment(request, env), request);
       }
       else if (path === '/api/wildfire') result = await handleWildfire(url, env.WILDFIRE_API_KEY);
       else if (path === '/api/tsunami-shelter') result = await handleTsunamiShelter(url, env.TSUNAMI_SHELTER_API_KEY);
@@ -155,7 +153,7 @@ export default {
       else if (path === '/api/consumer-hazard') result = await handleConsumerHazard(url, env.CONSUMER_HAZARD_API_KEY);
       else if (path === '/api/ambulance') result = await handleAmbulance(url, env.AMBULANCE_API_KEY);
       else if (path.startsWith('/api/law')) {
-        return await handleLaw(request);
+        return applyCors(await handleLaw(request), request);
       }
       else if (path === '/api/news') {
         isNews = true;

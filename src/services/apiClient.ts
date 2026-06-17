@@ -96,7 +96,6 @@ export interface ApiFetchOptions<T = unknown> {
 const apiRecordSchema = z.record(z.string(), z.unknown());
 const apiRecordArraySchema = z.array(apiRecordSchema);
 const xmlResponseSchema = z.object({ xml: z.string() }).passthrough();
-const configResponseSchema = z.object({ kakaoMapKey: z.string() }).passthrough();
 const weatherBriefingSchema = z.object({ briefing: z.string().catch('') }).passthrough();
 
 export type ApiRecord = z.infer<typeof apiRecordSchema>;
@@ -515,11 +514,6 @@ export async function fetchFireWater(city: string): Promise<ApiRecord[]> {
 
 // ═══════ 공휴일 (30일) ═══════
 export async function fetchHolidays(year: number, month: number) { return apiFetchXml('/api/holiday', { year: String(year), month: String(month) }, { cacheTtlMs: 1000 * 60 * 60 * 24 * 30 }); }
-
-// ═══════ 설정 (카카오맵 키) ═══════
-export async function fetchConfig(forceRefresh?: boolean) {
-  return apiFetch<{ kakaoMapKey: string }>('/api/config', undefined, { useCache: false, forceRefresh, schema: configResponseSchema });
-}
 
 // ═══════ 대피소 (지진해일) (7일) ═══════
 export async function fetchShelters(ctprvnNm: string, signguNm?: string, numOfRows = '100', pageNo = '1') {

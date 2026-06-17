@@ -11,7 +11,7 @@ import type { FireFacility } from './data/mockData';
 import { loadNotificationSettings } from './services/notificationSettings';
 import { prefetchCriticalViews } from './utils/prefetchCriticalViews';
 import { fetchDisasterMsgs } from './services/disasterMsgApi';
-import { loadKakaoMapSDK } from './utils/kakaoLoader';
+import { getNearestSupportedCity, resolveCityByKakao, MAX_FALLBACK_DISTANCE_KM } from './utils/locationResolver';
 
 import { BOTTOM_TABS, NAV_ITEMS, cityNames, getTabLabel } from './app/navigation';
 import { renderTabRoute, type RouteContext } from './app/routes';
@@ -21,12 +21,6 @@ import type { ShelterCategory, TabId, NavigateTarget } from './types/navigation'
 import { useUserProfile } from './contexts/UserProfileContext';
 type GpsStatus = 'loading' | 'granted' | 'denied' | 'idle' | 'unsupported';
 type LocationNoticeKind = 'info' | 'warning';
-interface KakaoRegionResult {
-  region_type?: string;
-  region_1depth_name: string;
-  region_2depth_name?: string;
-  region_3depth_name?: string;
-}
 
 // 알림 시스템 타입
 interface Notification {
@@ -38,32 +32,6 @@ interface Notification {
   timestamp: Date;
   isNew: boolean;
 }
-
-const KAKAO_REGION_TO_CITY: Record<string, string> = {
-  서울특별시: 'seoul',
-  부산광역시: 'busan',
-  대구광역시: 'daegu',
-  인천광역시: 'incheon',
-  광주광역시: 'gwangju',
-  대전광역시: 'daejeon',
-  울산광역시: 'ulsan',
-  세종특별자치시: 'sejong',
-  제주특별자치도: 'jeju',
-};
-
-const SUPPORTED_CITY_COORDS: Record<string, { lat: number; lng: number }> = {
-  seoul: { lat: 37.5665, lng: 126.978 },
-  busan: { lat: 35.1796, lng: 129.0756 },
-  daegu: { lat: 35.8714, lng: 128.6014 },
-  incheon: { lat: 37.4563, lng: 126.7052 },
-  gwangju: { lat: 35.1595, lng: 126.8526 },
-  daejeon: { lat: 36.3504, lng: 127.3845 },
-  ulsan: { lat: 35.5384, lng: 129.3114 },
-  sejong: { lat: 36.48, lng: 127.0 },
-  jeju: { lat: 33.4996, lng: 126.5312 },
-};
-
-const MAX_FALLBACK_DISTANCE_KM = 30;
 
 function formatTimeAgo(date: Date): string {
   const diff = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -77,58 +45,6 @@ function getSafeRefreshInterval() {
   const raw = Number.parseInt(localStorage.getItem('119helper-refresh') || '5', 10);
   if (!Number.isFinite(raw) || raw < 0) return 5;
   return raw;
-}
-
-function getDistanceKm(from: { lat: number; lng: number }, to: { lat: number; lng: number }) {
-  const earthRadiusKm = 6371;
-  const toRad = (degree: number) => degree * Math.PI / 180;
-  const dLat = toRad(to.lat - from.lat);
-  const dLng = toRad(to.lng - from.lng);
-  const lat1 = toRad(from.lat);
-  const lat2 = toRad(to.lat);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function getNearestSupportedCity(latitude: number, longitude: number) {
-  const current = { lat: latitude, lng: longitude };
-  return Object.entries(SUPPORTED_CITY_COORDS).reduce(
-    (nearest, [key, coords]) => {
-      const distanceKm = getDistanceKm(current, coords);
-      return distanceKm < nearest.distanceKm ? { key, distanceKm } : nearest;
-    },
-    { key: 'seoul', distanceKm: Number.POSITIVE_INFINITY }
-  );
-}
-
-async function resolveCityByKakao(latitude: number, longitude: number) {
-  await loadKakaoMapSDK();
-
-  return new Promise<{ cityKey?: string; regionLabel: string }>((resolve, reject) => {
-    const services = window.kakao?.maps?.services;
-    if (!services?.Geocoder) {
-      reject(new Error('카카오 지오코더를 사용할 수 없습니다.'));
-      return;
-    }
-
-    const geocoder = new services.Geocoder();
-    geocoder.coord2RegionCode(longitude, latitude, (result: KakaoRegionResult[], status: string) => {
-      if (status !== services.Status.OK || !result?.length) {
-        reject(new Error('현재 위치의 행정구역을 찾지 못했습니다.'));
-        return;
-      }
-
-      const region = result.find(item => item.region_type === 'H') || result[0];
-      const regionLabel = [region.region_1depth_name, region.region_2depth_name, region.region_3depth_name]
-        .filter(Boolean)
-        .join(' ');
-
-      resolve({
-        cityKey: KAKAO_REGION_TO_CITY[region.region_1depth_name],
-        regionLabel,
-      });
-    });
-  });
 }
 
 function TabLoading({ label }: { label: string }) {
