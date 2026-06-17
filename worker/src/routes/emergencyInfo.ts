@@ -3,7 +3,7 @@
  * Base: https://apis.data.go.kr/1661000/EmergencyInformationService
  */
 
-import { encodeServiceKey, parsePublicDataJson } from './publicData';
+import { encodeServiceKey, parsePublicDataJson, pickItemsAndCount } from './publicData';
 
 const BASE = 'https://apis.data.go.kr/1661000/EmergencyInformationService';
 
@@ -47,13 +47,8 @@ export async function handleEmergencyInfo(
   const text = await res.text();
   if (!res.ok) throw new Error(`EmergencyInfo/${opName} ${res.status}: ${text.replace(/\s+/g, ' ').slice(0, 140)}`);
 
-  const data: any = parsePublicDataJson(text, `EmergencyInfo/${opName}`);
-
-  const root = data?.response || data || {};
-  const body = root.body || {};
-  const rawItems = body?.items?.item ?? body?.items ?? root?.items?.item ?? root?.items ?? (Array.isArray(body) ? body : []);
-  const items = (Array.isArray(rawItems) ? rawItems : [rawItems]).filter(Boolean);
-  const totalCount = Number(root.totalCount ?? body.totalCount) || items.length;
+  const data = parsePublicDataJson(text, `EmergencyInfo/${opName}`);
+  const { items, totalCount } = pickItemsAndCount(data);
 
   return { data: { items, totalCount }, cacheTtl: 3600 };
 }

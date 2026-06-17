@@ -11,7 +11,7 @@
  *     body: { items: { item: {...} | [...] } } }
  */
 
-import { encodeServiceKey, parsePublicDataJson } from './publicData';
+import { encodeServiceKey, parsePublicDataJson, isRecord, asArray } from './publicData';
 
 const BASE = 'https://apis.data.go.kr/1661000/FireDamageStatus';
 
@@ -72,14 +72,15 @@ export async function handleFireDamage(
   const text = await res.text();
   if (!res.ok) throw new Error(`FireDamageStatus ${res.status}: ${text.replace(/\s+/g, ' ').slice(0, 140)}`);
 
-  const data: any = parsePublicDataJson(text, 'FireDamageStatus');
+  const data = parsePublicDataJson(text, 'FireDamageStatus');
 
   // header/totalCount는 최상위, items는 body.items.item (response 래핑 형태도 방어)
-  const root = data?.response || data || {};
-  const header = root.header || {};
-  const body = root.body || {};
-  const rawItems = body?.items?.item ?? body?.items ?? [];
-  const items = (Array.isArray(rawItems) ? rawItems : [rawItems]).filter(Boolean);
+  const root: Record<string, unknown> = isRecord(data.response) ? data.response : data;
+  const header: Record<string, unknown> = isRecord(root.header) ? root.header : {};
+  const body: Record<string, unknown> = isRecord(root.body) ? root.body : {};
+  const bodyItems = body.items;
+  const rawItems = (isRecord(bodyItems) ? bodyItems.item : undefined) ?? bodyItems ?? [];
+  const items = asArray(rawItems).filter(Boolean);
   const totalCount = Number(root.totalCount ?? body.totalCount) || 0;
 
   // 에러 응답 체크 (parsePublicDataJson이 못 잡은 형태 방어)

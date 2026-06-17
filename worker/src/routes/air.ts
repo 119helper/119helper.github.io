@@ -4,6 +4,8 @@
  * Route: GET /api/air?sido=서울
  */
 
+import { coerceEnvelope } from './publicData';
+
 export async function handleAir(url: URL, apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
   const sido = url.searchParams.get('sido') || '서울';
   const params = new URLSearchParams({
@@ -21,8 +23,8 @@ export async function handleAir(url: URL, apiKey: string): Promise<{ data: unkno
   );
 
   if (!res.ok) throw new Error(`Air API ${res.status}`);
-  const json: any = await res.json();
-  const items = json?.response?.body?.items || [];
+  const json = coerceEnvelope(await res.json());
+  const items = json.response?.body?.items ?? [];
 
   return { data: items, cacheTtl: 1800 }; // 30분 캐시
 }

@@ -4,6 +4,8 @@
  * GET /api/civil-shelter
  */
 
+import { isRecord, errorMessage } from './publicData';
+
 // 테스트로 발급받은 API 키 (safetydata.go.kr 용 16자리 키)
 const DEFAULT_KEY = '9029KGM7B3OJ838R';
 
@@ -42,30 +44,34 @@ export async function handleCivilShelter(url: URL, apiKey?: string): Promise<{ d
       };
     }
 
-    const data: any = await res.json();
+    const data: unknown = await res.json();
 
-    if (data?.header?.resultCode && data?.header?.resultCode !== '00') {
-      return { 
-        data: { error: `API_RESULT_${data?.header?.resultCode}`, message: data?.header?.resultMsg || data?.header?.errorMsg || 'Unknown API Error' }, 
-        cacheTtl: 0 
+    const header = isRecord(data) && isRecord(data.header) ? data.header : {};
+    if (header.resultCode && header.resultCode !== '00') {
+      return {
+        data: { error: `API_RESULT_${String(header.resultCode)}`, message: header.resultMsg || header.errorMsg || 'Unknown API Error' },
+        cacheTtl: 0
       };
     }
 
     // data 구조 대응 (안전보건공단/공공데이터 등 구조 다양함)
-    const items = data?.body?.[0]?.item 
-      || data?.body?.item 
-      || data?.body 
-      || data?.items 
+    const body: unknown = isRecord(data) ? data.body : undefined;
+    const first: unknown = Array.isArray(body) ? body[0] : undefined;
+    const items =
+      (isRecord(first) ? first.item : undefined)
+      || (isRecord(body) ? body.item : undefined)
+      || body
+      || (isRecord(data) ? data.items : undefined)
       || [];
 
     const itemsArray = Array.isArray(items) ? items : [items];
-    
+
     return { data: itemsArray, cacheTtl: 86400 };
 
-  } catch (err: any) {
-    return { 
-      data: { error: 'WORKER_FETCH_ERROR', message: err.message }, 
-      cacheTtl: 0 
+  } catch (err) {
+    return {
+      data: { error: 'WORKER_FETCH_ERROR', message: errorMessage(err) },
+      cacheTtl: 0
     };
   }
 }

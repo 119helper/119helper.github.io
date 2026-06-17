@@ -11,7 +11,6 @@ import type { FireFacility } from './data/mockData';
 import { loadNotificationSettings } from './services/notificationSettings';
 import { prefetchCriticalViews } from './utils/prefetchCriticalViews';
 import { fetchDisasterMsgs } from './services/disasterMsgApi';
-import { getNearestSupportedCity, resolveCityByKakao, MAX_FALLBACK_DISTANCE_KM } from './utils/locationResolver';
 import { useNotifications, formatTimeAgo } from './hooks/useNotifications';
 
 import { BOTTOM_TABS, NAV_ITEMS, cityNames, getTabLabel } from './app/navigation';
@@ -20,14 +19,8 @@ import { buildTabHash, readTabLocation } from './app/tabHash';
 import { isTabId } from './types/navigation';
 import type { ShelterCategory, TabId, NavigateTarget } from './types/navigation';
 import { useUserProfile } from './contexts/UserProfileContext';
-type GpsStatus = 'loading' | 'granted' | 'denied' | 'idle' | 'unsupported';
-type LocationNoticeKind = 'info' | 'warning';
-
-function getSafeRefreshInterval() {
-  const raw = Number.parseInt(localStorage.getItem('119helper-refresh') || '5', 10);
-  if (!Number.isFinite(raw) || raw < 0) return 5;
-  return raw;
-}
+import { useGeolocation } from './hooks/useGeolocation';
+import { useAutoRefresh } from './hooks/useAutoRefresh';
 
 function TabLoading({ label }: { label: string }) {
   return (
@@ -52,15 +45,13 @@ export default function App() {
   const [cityIndex, setCityIndex] = useState<CityIndex | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
   const [shelterCategory, setShelterCategory] = useState<ShelterCategory>(initialRoute.shelterCategory ?? 'building');
-  const [gpsStatus, setGpsStatus] = useState<GpsStatus>('idle');
-  const [locationNotice, setLocationNotice] = useState<{ kind: LocationNoticeKind; message: string } | null>(null);
+  const { gpsStatus, locationNotice, setGpsStatus, setLocationNotice } = useGeolocation(setCity);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['group-monitoring']);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { displayName, subtitle } = useUserProfile();
   const [notiOpen, setNotiOpen] = useState(false);
   const { notifications, addNotification, markAllRead, clearAll } = useNotifications();
-  const [refreshInterval, setRefreshInterval] = useState(getSafeRefreshInterval);
   const lastRefreshRef = useRef<Date>(new Date());
   const refreshSeqRef = useRef(0);
   const [regionOpen, setRegionOpen] = useState(false);
@@ -146,68 +137,6 @@ export default function App() {
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // GPS 자동 감지
-  useEffect(() => {
-    if (!navigator.geolocation) {
-      setGpsStatus('unsupported');
-      setLocationNotice({ kind: 'warning', message: '이 브라우저에서는 위치 자동감지를 지원하지 않습니다. 상단 지역 선택에서 직접 지역을 지정하세요.' });
-      return;
-    }
-    const saved = localStorage.getItem('119helper-city');
-    if (saved) return;
-
-    setGpsStatus('loading');
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-
-        try {
-          const resolved = await resolveCityByKakao(latitude, longitude);
-          if (resolved.cityKey) {
-            setCity(resolved.cityKey);
-            setGpsStatus('granted');
-            setLocationNotice({
-              kind: 'info',
-              message: `GPS로 ${resolved.regionLabel}을 감지해 ${cityNames[resolved.cityKey]} 지역을 선택했습니다.`,
-            });
-            return;
-          }
-
-          setGpsStatus('unsupported');
-          setLocationNotice({
-            kind: 'warning',
-            message: `GPS 위치는 ${resolved.regionLabel}입니다. 현재 지원 지역 목록에 없어 자동 선택하지 않았습니다. 상단 지역 선택에서 가장 가까운 실제 관할을 직접 지정하세요.`,
-          });
-          return;
-        } catch (error) {
-          console.warn('[GPS reverse geocoding] failed:', error);
-        }
-
-        const nearest = getNearestSupportedCity(latitude, longitude);
-        if (nearest.distanceKm <= MAX_FALLBACK_DISTANCE_KM) {
-          setCity(nearest.key);
-          setGpsStatus('granted');
-          setLocationNotice({
-            kind: 'info',
-            message: `GPS 좌표가 ${cityNames[nearest.key]} 중심에서 약 ${Math.round(nearest.distanceKm)}km 이내라 해당 지역을 선택했습니다.`,
-          });
-          return;
-        }
-
-        setGpsStatus('unsupported');
-        setLocationNotice({
-          kind: 'warning',
-          message: `GPS 좌표가 지원 도시 중심에서 ${Math.round(nearest.distanceKm)}km 떨어져 있어 자동 선택하지 않았습니다. 상단 지역 선택에서 직접 지역을 지정하세요.`,
-        });
-      },
-      () => {
-        setGpsStatus('denied');
-        setLocationNotice({ kind: 'warning', message: '위치 권한이 거부되어 지역을 자동 감지하지 못했습니다. 상단 지역 선택에서 직접 지역을 지정하세요.' });
-      },
-      { enableHighAccuracy: false, timeout: 5000 }
-    );
   }, []);
 
   const handleCityChange = (newCity: string) => {
@@ -378,34 +307,8 @@ export default function App() {
     }
   }, [city, selectedDistrict, parseItems, addNotification]);
 
-  // 최초 + city 변경 시 데이터 로드
-  useEffect(() => {
-    refreshData();
-  }, [refreshData]);
-
-  // refreshInterval 자동 갱신
-  useEffect(() => {
-    if (refreshInterval <= 0) return; // 수동 갱신
-    const id = setInterval(() => {
-      refreshData();
-    }, refreshInterval * 60 * 1000);
-    return () => clearInterval(id);
-  }, [refreshInterval, refreshData]);
-
-  // localStorage 변경 감지 (설정 저장 시)
-  useEffect(() => {
-    const handleStorage = () => {
-      const val = getSafeRefreshInterval();
-      setRefreshInterval(val);
-    };
-    window.addEventListener('storage', handleStorage);
-    // 같은 탭에서도 감지하기 위해 폴링
-    const pollId = setInterval(() => {
-      const val = getSafeRefreshInterval();
-      setRefreshInterval(prev => prev !== val ? val : prev);
-    }, 2000);
-    return () => { window.removeEventListener('storage', handleStorage); clearInterval(pollId); };
-  }, []);
+  // 최초/도시변경 즉시 갱신 + 주기 갱신 + 설정 변경 감지 (훅이 캡슐화)
+  useAutoRefresh(refreshData);
 
   const handleNavigate = (tab: NavigateTarget | string, subId?: string) => {
     // hydrants/waterTowers/building → shelter 탭으로 통합 매핑

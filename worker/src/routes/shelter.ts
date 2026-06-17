@@ -2,11 +2,12 @@
 // Route: GET /api/shelter?ctprvnNm=경상북도&numOfRows=100&pageNo=1
 
 import { fetchSafetydataJson } from './safetydata';
+import { isRecord } from './publicData';
 
 const SAFETYDATA_TSUNAMI_KEY = '5D5834I0Q3N1GT96';
 const SAFETYDATA_TSUNAMI_PATH = '/V2/api/DSSP-IF-10944';
 
-function normalizeSafetydataShelter(item: any) {
+function normalizeSafetydataShelter(item: Record<string, unknown>) {
   return {
     lat: item.LA,
     lot: item.LO,
@@ -28,7 +29,7 @@ function normalizeSafetydataShelter(item: any) {
   };
 }
 
-async function fetchSafetydataTsunami(params: URLSearchParams): Promise<any> {
+async function fetchSafetydataTsunami(params: URLSearchParams): Promise<unknown> {
   return fetchSafetydataJson(SAFETYDATA_TSUNAMI_PATH, params, { label: 'Safetydata Shelter API' });
 }
 
@@ -46,13 +47,16 @@ export async function handleShelter(url: URL, _apiKey: string): Promise<{ data: 
   });
 
   const json = await fetchSafetydataTsunami(params);
-  if (json?.header?.resultCode !== '00') {
-    throw new Error(`Safetydata Shelter API_RESULT_${json?.header?.resultCode}: ${json?.header?.resultMsg || 'Unknown API Error'}`);
+  const header = isRecord(json) && isRecord(json.header) ? json.header : {};
+  if (header.resultCode !== '00') {
+    throw new Error(`Safetydata Shelter API_RESULT_${String(header.resultCode)}: ${String(header.resultMsg ?? 'Unknown API Error')}`);
   }
 
-  const rawItems = Array.isArray(json?.body) ? json.body : [];
+  const body: unknown = isRecord(json) ? json.body : undefined;
+  const rawItems = Array.isArray(body) ? body : [];
   const items = rawItems
-    .filter((item: any) => {
+    .filter(isRecord)
+    .filter((item) => {
       const address = String(item.SHNT_PLACE_DTL_POSITION || item.RN_DTL_ADRES || '');
       if (ctprvnNm && !address.startsWith(ctprvnNm)) return false;
       if (signguNm && !address.includes(signguNm)) return false;

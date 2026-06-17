@@ -5,6 +5,7 @@
  */
 
 import { fetchSafetydataJson } from './safetydata';
+import { isRecord } from './publicData';
 
 const DEFAULT_KEY = '60R7CGX9JR11RCL6';
 
@@ -19,10 +20,11 @@ export async function handleWildfire(url: URL, apiKey?: string): Promise<{ data:
     pageNo,
   });
 
-  const data: any = await fetchSafetydataJson('/V2/api/DSSP-IF-10346', qs, { label: 'Wildfire API' });
+  const data = await fetchSafetydataJson('/V2/api/DSSP-IF-10346', qs, { label: 'Wildfire API' });
 
-  if (data?.header?.resultCode !== '00') {
-    throw new Error(`Wildfire API error: ${data?.header?.resultMsg}`);
+  const header = isRecord(data) && isRecord(data.header) ? data.header : {};
+  if (header.resultCode !== '00') {
+    throw new Error(`Wildfire API error: ${String(header.resultMsg ?? '')}`);
   }
 
   return { data, cacheTtl: 300 }; // 5분 캐시

@@ -151,8 +151,8 @@ async function getLawDetail(url: URL): Promise<Response> {
         'Cache-Control': 'public, max-age=86400',
       },
     });
-  } catch (e: any) {
-    return jsonError(e.message || 'Law detail error', 502);
+  } catch (e) {
+    return jsonError(e instanceof Error ? e.message : 'Law detail error', 502);
   }
 }
 

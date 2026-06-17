@@ -36,10 +36,10 @@ export async function handleMultiUse(url: URL, apiKey: string): Promise<{ data: 
   );
   const text = await res.text();
   if (!res.ok) throw new Error(`MultiUse API ${res.status}: ${text.replace(/\s+/g, ' ').slice(0, 140)}`);
-  const json: any = parsePublicDataJson(text, 'MultiUse');
+  const json = parsePublicDataJson(text, 'MultiUse');
 
   // odcloud 응답 형식: { currentCount, data: [...], matchCount, page, perPage, totalCount }
-  const items = json?.data || [];
+  const items = json.data ?? [];
 
   return { data: items, cacheTtl: 86400 }; // 24시간 캐시
 }

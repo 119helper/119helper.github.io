@@ -8,7 +8,7 @@
  *    End Point: https://apis.data.go.kr/1661000/SpecificFireObjectFirefightingSysInfoService/getAccomFirefightingSysList
  */
 
-import { encodeServiceKey, findPublicDataError } from './publicData';
+import { encodeServiceKey, findPublicDataError, coerceEnvelope, isRecord } from './publicData';
 
 const FIRE_OBJ_BASE = 'https://apis.data.go.kr/1661000';
 
@@ -67,9 +67,10 @@ export async function handleFireObject(
   // JSON 응답 시도
   if (text.trim().startsWith('{')) {
     try {
-      const json: any = JSON.parse(text);
-      const items = json?.response?.body?.items?.item || json?.response?.body?.items || [];
-      const totalCount = json?.response?.body?.totalCount || 0;
+      const json = coerceEnvelope(JSON.parse(text));
+      const itemsField = json.response?.body?.items;
+      const items = (isRecord(itemsField) ? itemsField.item : undefined) || itemsField || [];
+      const totalCount = json.response?.body?.totalCount || 0;
       return { data: { items: Array.isArray(items) ? items : [items], totalCount }, cacheTtl: 86400 };
     } catch { /* JSON 파싱 실패 → XML로 fallback */ }
   }

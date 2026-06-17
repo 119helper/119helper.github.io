@@ -3,7 +3,7 @@
  * Route: GET /api/firewater?city=서울특별시
  */
 
-import { encodeServiceKey, parsePublicDataJson } from './publicData';
+import { encodeServiceKey, parsePublicDataJson, coerceEnvelope } from './publicData';
 
 const STATIC_FIREWATER_BASE = 'https://119helper.github.io/firewater';
 const CITY_MAP: Record<string, string> = {
@@ -18,7 +18,7 @@ const CITY_MAP: Record<string, string> = {
   jeju: '제주특별자치도',
 };
 
-async function fetchStaticFireWater(city: string): Promise<any[]> {
+async function fetchStaticFireWater(city: string): Promise<unknown> {
   const normalizedCity = CITY_MAP[city] || city;
   const staticUrl = `${STATIC_FIREWATER_BASE}/${encodeURIComponent(normalizedCity)}.json`;
   const res = await fetch(staticUrl, {
@@ -29,8 +29,8 @@ async function fetchStaticFireWater(city: string): Promise<any[]> {
     throw new Error(`FireWater static fallback ${res.status}`);
   }
 
-  const json: any = await res.json();
-  return json?.response?.body?.items || [];
+  const json = coerceEnvelope(await res.json());
+  return json.response?.body?.items ?? [];
 }
 
 export async function handleFireWater(url: URL, apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
@@ -60,8 +60,8 @@ export async function handleFireWater(url: URL, apiKey: string): Promise<{ data:
     }
     if (!res || !res.ok) throw new Error(`FireWater API ${res?.status}: ${text.replace(/\s+/g, ' ').slice(0, 140)}`);
 
-    const json: any = parsePublicDataJson(text, 'FireWater');
-    const items = json?.response?.body?.items || [];
+    const json = parsePublicDataJson(text, 'FireWater');
+    const items = json.response?.body?.items ?? [];
 
     return { data: items, cacheTtl: 86400 };
   } catch {

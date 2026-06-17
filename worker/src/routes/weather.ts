@@ -10,7 +10,70 @@
  *   GET /api/weather/briefing?stnId=108     → 기상개황
  */
 
+import { z } from 'zod';
+import { asArray, errorMessage, isRecord } from './publicData';
+
 const BASE = 'https://apihub.kma.go.kr';
+
+const kmaEnvelopeSchema = z.object({
+  response: z.object({
+    body: z.object({
+      items: z.object({
+        item: z.unknown().optional(),
+      }).catchall(z.unknown()).optional(),
+    }).catchall(z.unknown()).optional(),
+  }).catchall(z.unknown()).optional(),
+}).catchall(z.unknown());
+
+const openMeteoSchema = z.object({
+  current: z.object({
+    time: z.string().optional(),
+    temperature_2m: z.number().optional(),
+    relative_humidity_2m: z.number().optional(),
+    wind_speed_10m: z.number().optional(),
+    wind_direction_10m: z.number().optional(),
+    precipitation: z.number().optional(),
+    weather_code: z.number().optional(),
+  }).catchall(z.unknown()).optional(),
+  hourly: z.object({
+    time: z.array(z.string()).optional(),
+    temperature_2m: z.array(z.number()).optional(),
+    relative_humidity_2m: z.array(z.number()).optional(),
+    wind_speed_10m: z.array(z.number()).optional(),
+    wind_direction_10m: z.array(z.number()).optional(),
+    precipitation_probability: z.array(z.number()).optional(),
+    precipitation: z.array(z.number()).optional(),
+    weather_code: z.array(z.number()).optional(),
+  }).catchall(z.unknown()).optional(),
+  daily: z.object({
+    weather_code: z.array(z.number()).optional(),
+    temperature_2m_max: z.array(z.number()).optional(),
+    temperature_2m_min: z.array(z.number()).optional(),
+    precipitation_probability_max: z.array(z.number()).optional(),
+  }).catchall(z.unknown()).optional(),
+}).catchall(z.unknown());
+
+type OpenMeteoData = z.infer<typeof openMeteoSchema>;
+
+interface KmaNowRow {
+  baseDate: string;
+  baseTime: string;
+  category: string;
+  nx: number;
+  ny: number;
+  obsrValue: string;
+}
+
+interface KmaForecastRow {
+  baseDate: string;
+  baseTime: string;
+  fcstDate: string;
+  fcstTime: string;
+  nx: number;
+  ny: number;
+  category: string;
+  fcstValue: string;
+}
 
 const GRID_COORDS: Record<string, { lat: number; lng: number }> = {
   '60,127': { lat: 37.5665, lng: 126.9780 },
@@ -80,8 +143,9 @@ async function fetchKMA(path: string, params: Record<string, string>, apiKey: st
   const url = `${BASE}${path}?${qs}`;
   const res = await fetch(url, { headers: { 'User-Agent': '119-helper-worker/1.0' } });
   if (!res.ok) throw new Error(`KMA API ${res.status}: ${res.statusText}`);
-  const data: any = await res.json();
-  return data?.response?.body?.items?.item || [];
+  const data = kmaEnvelopeSchema.safeParse(await res.json());
+  if (!data.success) return [];
+  return asArray(data.data.response?.body?.items?.item);
 }
 
 function toKmaDateTime(isoTime: string): { date: string; time: string } {
@@ -101,7 +165,7 @@ function weatherCodeToKma(code: number): { sky: string; pty: string } {
   return { sky: '1', pty: '0' };
 }
 
-async function fetchOpenMeteo(nx: string, ny: string): Promise<any> {
+async function fetchOpenMeteo(nx: string, ny: string): Promise<OpenMeteoData> {
   const coord = GRID_COORDS[`${nx},${ny}`] || GRID_COORDS['60,127'];
   const params = new URLSearchParams({
     latitude: String(coord.lat),
@@ -116,7 +180,7 @@ async function fetchOpenMeteo(nx: string, ny: string): Promise<any> {
     headers: { 'User-Agent': '119-helper-worker/1.0' },
   });
   if (!res.ok) throw new Error(`OpenMeteo API ${res.status}`);
-  return await res.json();
+  return openMeteoSchema.parse(await res.json());
 }
 
 async function fallbackWeather(path: string, url: URL): Promise<{ data: unknown; cacheTtl: number }> {
@@ -128,15 +192,16 @@ async function fallbackWeather(path: string, url: URL): Promise<{ data: unknown;
   const nowSky = weatherCodeToKma(Number(now.weather_code) || 0);
 
   if (path === '/api/weather/now') {
+    const rows: KmaNowRow[] = [
+      { baseDate: nowDt.date, baseTime: nowDt.time, category: 'PTY', nx: Number(nx), ny: Number(ny), obsrValue: nowSky.pty },
+      { baseDate: nowDt.date, baseTime: nowDt.time, category: 'REH', nx: Number(nx), ny: Number(ny), obsrValue: String(Math.round(Number(now.relative_humidity_2m) || 0)) },
+      { baseDate: nowDt.date, baseTime: nowDt.time, category: 'RN1', nx: Number(nx), ny: Number(ny), obsrValue: String(Number(now.precipitation) || 0) },
+      { baseDate: nowDt.date, baseTime: nowDt.time, category: 'T1H', nx: Number(nx), ny: Number(ny), obsrValue: String(Number(now.temperature_2m) || 0) },
+      { baseDate: nowDt.date, baseTime: nowDt.time, category: 'VEC', nx: Number(nx), ny: Number(ny), obsrValue: String(Math.round(Number(now.wind_direction_10m) || 0)) },
+      { baseDate: nowDt.date, baseTime: nowDt.time, category: 'WSD', nx: Number(nx), ny: Number(ny), obsrValue: String(Number(now.wind_speed_10m) || 0) },
+    ];
     return {
-      data: [
-        { baseDate: nowDt.date, baseTime: nowDt.time, category: 'PTY', nx: Number(nx), ny: Number(ny), obsrValue: nowSky.pty },
-        { baseDate: nowDt.date, baseTime: nowDt.time, category: 'REH', nx: Number(nx), ny: Number(ny), obsrValue: String(Math.round(Number(now.relative_humidity_2m) || 0)) },
-        { baseDate: nowDt.date, baseTime: nowDt.time, category: 'RN1', nx: Number(nx), ny: Number(ny), obsrValue: String(Number(now.precipitation) || 0) },
-        { baseDate: nowDt.date, baseTime: nowDt.time, category: 'T1H', nx: Number(nx), ny: Number(ny), obsrValue: String(Number(now.temperature_2m) || 0) },
-        { baseDate: nowDt.date, baseTime: nowDt.time, category: 'VEC', nx: Number(nx), ny: Number(ny), obsrValue: String(Math.round(Number(now.wind_direction_10m) || 0)) },
-        { baseDate: nowDt.date, baseTime: nowDt.time, category: 'WSD', nx: Number(nx), ny: Number(ny), obsrValue: String(Number(now.wind_speed_10m) || 0) },
-      ],
+      data: rows,
       cacheTtl: 600,
     };
   }
@@ -144,7 +209,7 @@ async function fallbackWeather(path: string, url: URL): Promise<{ data: unknown;
   if (path === '/api/weather/ultra' || path === '/api/weather/forecast') {
     const hourly = data.hourly || {};
     const times: string[] = hourly.time || [];
-    const rows: any[] = [];
+    const rows: KmaForecastRow[] = [];
     for (let i = 0; i < Math.min(times.length, path === '/api/weather/ultra' ? 12 : 48); i++) {
       const dt = toKmaDateTime(times[i]);
       const code = Number(hourly.weather_code?.[i]) || 0;
@@ -264,16 +329,17 @@ export async function handleWeather(path: string, url: URL, apiKey: string): Pro
         `${BASE}/api/typ02/openApi/VilageFcstMsgService/getWthrSituation?${qs}`,
         { headers: { 'User-Agent': '119-helper-worker/1.0' } }
       );
-      const json: any = await res.json();
-      const text = json?.response?.body?.items?.item?.[0]?.wfSv1 || json?.response?.body?.items?.item?.[0]?.wfSv || '기상개황 데이터 없음';
+      const json = kmaEnvelopeSchema.safeParse(await res.json());
+      const item = json.success ? asArray(json.data.response?.body?.items?.item)[0] : undefined;
+      const text = isRecord(item) ? String(item.wfSv1 || item.wfSv || '기상개황 데이터 없음') : '기상개황 데이터 없음';
       return { data: { briefing: text }, cacheTtl: 3600 };
     }
 
     default:
       throw new Error(`Unknown weather route: ${path}`);
     }
-  } catch (err: any) {
-    console.warn(`KMA API failed, using fallback: ${err?.message || err}`);
+  } catch (err) {
+    console.warn(`KMA API failed, using fallback: ${errorMessage(err)}`);
     return fallbackWeather(path, url);
   }
 }

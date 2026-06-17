@@ -124,7 +124,7 @@ export default {
       }
 
       // 2. 캐시가 ?으??본 API ?출
-      let result: { data: any, cacheTtl: number } | null = null;
+      let result: { data: unknown, cacheTtl: number } | null = null;
       let isNews = false;
       let newsResponse: Response | null = null;
 

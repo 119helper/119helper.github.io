@@ -6,9 +6,46 @@
  * Worker에서 대량 데이터를 집계하여 프론트엔드에 요약 데이터를 전달합니다.
  */
 
+import { z } from 'zod';
 import { encodeServiceKey } from './publicData';
 
 const BASE = 'https://api.odcloud.kr/api/15060386/v1';
+
+const odcloudAnnualFireSchema = z.object({
+  totalCount: z.number().optional(),
+  data: z.array(z.record(z.string(), z.unknown())).optional(),
+}).catchall(z.unknown());
+
+type AnnualFireRawRecord = z.infer<typeof odcloudAnnualFireSchema>['data'] extends (infer T)[] | undefined ? T : never;
+
+interface AnnualFireRecord {
+  date: string;
+  sido: string;
+  sigungu: string;
+  fireType: string;
+  heatSourceMajor: string;
+  heatSourceMinor: string;
+  causeMajor: string;
+  causeMinor: string;
+  firstMaterialMajor: string;
+  firstMaterialMinor: string;
+  casualties: number;
+  deaths: number;
+  injuries: number;
+  propertyDamage: number;
+  placeMajor: string;
+  placeMid: string;
+  placeMinor: string;
+}
+
+function stringField(raw: AnnualFireRawRecord, key: string): string {
+  const value = raw[key];
+  return value === undefined || value === null ? '' : String(value);
+}
+
+function intField(raw: AnnualFireRawRecord, key: string): number {
+  return Number.parseInt(stringField(raw, key), 10) || 0;
+}
 
 // 연도별 UDDI 매핑
 const YEAR_UDDI: Record<string, string> = {
@@ -25,30 +62,30 @@ const YEAR_UDDI: Record<string, string> = {
 };
 
 // 필드명이 연도별로 미묘하게 다름 → 정규화
-function normalizeRecord(raw: any): any {
+function normalizeRecord(raw: AnnualFireRawRecord): AnnualFireRecord {
   return {
-    date: raw['화재발생년월일'] || raw['일시'] || '',
-    sido: raw['시도'] || '',
-    sigungu: raw['시군구'] || raw['시·군·구'] || raw['시_군_구'] || '',
-    fireType: raw['화재유형'] || '',
-    heatSourceMajor: raw['발화열원'] || raw['발화열원대분류'] || '',
-    heatSourceMinor: raw['발화열원소분류'] || '',
-    causeMajor: raw['발화요인대분류'] || '',
-    causeMinor: raw['발화요인소분류'] || '',
-    firstMaterialMajor: raw['최초착화물대분류'] || '',
-    firstMaterialMinor: raw['최초착화물소분류'] || '',
-    casualties: parseInt(raw['인명피해(명)소계']) || 0,
-    deaths: parseInt(raw['사망']) || 0,
-    injuries: parseInt(raw['부상']) || 0,
-    propertyDamage: parseInt(raw['재산피해소계']) || 0,
-    placeMajor: raw['장소대분류'] || '',
-    placeMid: raw['장소중분류'] || '',
-    placeMinor: raw['장소소분류'] || '',
+    date: stringField(raw, '화재발생년월일') || stringField(raw, '일시'),
+    sido: stringField(raw, '시도'),
+    sigungu: stringField(raw, '시군구') || stringField(raw, '시·군·구') || stringField(raw, '시_군_구'),
+    fireType: stringField(raw, '화재유형'),
+    heatSourceMajor: stringField(raw, '발화열원') || stringField(raw, '발화열원대분류'),
+    heatSourceMinor: stringField(raw, '발화열원소분류'),
+    causeMajor: stringField(raw, '발화요인대분류'),
+    causeMinor: stringField(raw, '발화요인소분류'),
+    firstMaterialMajor: stringField(raw, '최초착화물대분류'),
+    firstMaterialMinor: stringField(raw, '최초착화물소분류'),
+    casualties: intField(raw, '인명피해(명)소계'),
+    deaths: intField(raw, '사망'),
+    injuries: intField(raw, '부상'),
+    propertyDamage: intField(raw, '재산피해소계'),
+    placeMajor: stringField(raw, '장소대분류'),
+    placeMid: stringField(raw, '장소중분류'),
+    placeMinor: stringField(raw, '장소소분류'),
   };
 }
 
 // 집계 함수
-function aggregate(records: any[]) {
+function aggregate(records: AnnualFireRawRecord[]) {
   const normalized = records.map(normalizeRecord);
 
   const totalFires = normalized.length;
@@ -149,7 +186,7 @@ export async function handleAnnualFireStats(
     headers: { 'User-Agent': '119-helper-worker/1.0' },
   });
   if (!countRes.ok) throw new Error(`AnnualFireStats ${countRes.status}`);
-  const countData: any = await countRes.json();
+  const countData = odcloudAnnualFireSchema.parse(await countRes.json());
   const totalCount = countData.totalCount || 0;
 
   if (totalCount === 0) {
@@ -159,7 +196,7 @@ export async function handleAnnualFireStats(
   // 전체 데이터 페이징으로 가져오기 (5000건/페이지, 전체 가져옴)
   const perPage = 5000;
   const totalPages = Math.ceil(totalCount / perPage);
-  const allRecords: any[] = [];
+  const allRecords: AnnualFireRawRecord[] = [];
 
   // 병렬로 모든 페이지 요청 (Workers 유료 플랜 30s 제한 내)
   const fetchPromises = Array.from({ length: totalPages }, async (_, i) => {
@@ -168,7 +205,7 @@ export async function handleAnnualFireStats(
       headers: { 'User-Agent': '119-helper-worker/1.0' },
     });
     if (!res.ok) throw new Error(`AnnualFireStats page ${i + 1}: ${res.status}`);
-    const json: any = await res.json();
+    const json = odcloudAnnualFireSchema.parse(await res.json());
     return json.data || [];
   });
 

@@ -6,10 +6,28 @@ import {
   type SpillSize,
 } from '../utils/fieldCalculations';
 
+interface KakaoLatLng {
+  getLat(): number;
+  getLng(): number;
+}
+
+interface KakaoMapInstance {
+  setCenter(position: KakaoLatLng): void;
+}
+
+interface KakaoOverlay {
+  setMap(map: KakaoMapInstance | null): void;
+}
+
+interface KakaoMouseEvent {
+  latLng: KakaoLatLng;
+}
+
+const DEFAULT_ORIGIN = { lat: 37.5665, lng: 126.9780 };
 
 export default function HazmatCalc() {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<any>(null);
+  const [map, setMap] = useState<KakaoMapInstance | null>(null);
   const [mapError, setMapError] = useState('');
   
   // States
@@ -18,7 +36,7 @@ export default function HazmatCalc() {
   const [windSpeed, setWindSpeed] = useState('5');
   const [windDirection, setWindDirection] = useState('0'); // 0: North, 90: East, etc.
   
-  const [originPoint, setOriginPoint] = useState<{lat: number, lng: number} | null>({ lat: 37.5665, lng: 126.9780 }); // Default Seoul City Hall
+  const [originPoint, setOriginPoint] = useState<{lat: number, lng: number} | null>(DEFAULT_ORIGIN);
   const [isSelectingOrigin, setIsSelectingOrigin] = useState(false);
   const isSelectingRef = useRef(isSelectingOrigin);
 
@@ -28,7 +46,7 @@ export default function HazmatCalc() {
   }, [isSelectingOrigin]);
 
   // Map overlays refs
-  const overlaysRef = useRef<{marker: any, circle: any, polygon: any}>({ marker: null, circle: null, polygon: null });
+  const overlaysRef = useRef<{marker: KakaoOverlay | null, circle: KakaoOverlay | null, polygon: KakaoOverlay | null}>({ marker: null, circle: null, polygon: null });
 
   // Initialize Kakao Map
   useEffect(() => {
@@ -49,14 +67,14 @@ export default function HazmatCalc() {
 
       window.kakao.maps.load(() => {
         const options = {
-          center: new window.kakao.maps.LatLng(originPoint?.lat || 37.5665, originPoint?.lng || 126.9780),
+          center: new window.kakao.maps.LatLng(DEFAULT_ORIGIN.lat, DEFAULT_ORIGIN.lng),
           level: 4,
         };
         const initialMap = new window.kakao.maps.Map(mapRef.current, options);
         setMap(initialMap);
 
         // Map click event — uses ref to always get latest isSelectingOrigin
-        window.kakao.maps.event.addListener(initialMap, 'click', (mouseEvent: any) => {
+        window.kakao.maps.event.addListener(initialMap, 'click', (mouseEvent: KakaoMouseEvent) => {
           if (!isSelectingRef.current) return;
           const latlng = mouseEvent.latLng;
           setOriginPoint({ lat: latlng.getLat(), lng: latlng.getLng() });
@@ -200,8 +218,8 @@ export default function HazmatCalc() {
                 onChange={e => setSelectedChem(e.target.value)}
                 className="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:ring-2 focus:ring-orange-500/50"
               >
-                {Object.values(ERG_CHEMICALS).map(chem => (
-                  <option key={chem.unInfo} value={chem.unInfo}>{chem.unInfo} - {chem.name}</option>
+                {Object.entries(ERG_CHEMICALS).map(([chemicalKey, chem]) => (
+                  <option key={chemicalKey} value={chemicalKey}>{chem.unInfo} - {chem.name}</option>
                 ))}
               </select>
             </div>

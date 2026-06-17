@@ -23,7 +23,7 @@ export async function fetchSafetydataJson(
   path: string,
   params: URLSearchParams,
   { label, attempts = 5, headers }: SafetydataFetchOptions,
-): Promise<any> {
+): Promise<unknown> {
   let lastStatus = 0;
   let lastText = '';
 
@@ -45,7 +45,7 @@ export async function fetchSafetydataJson(
         continue;
       }
 
-      return JSON.parse(lastText);
+      return JSON.parse(lastText) as unknown;
     }
 
     if (attempt < attempts - 1) {

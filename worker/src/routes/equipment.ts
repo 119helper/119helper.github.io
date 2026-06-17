@@ -1,6 +1,6 @@
 import { Env } from '../index';
 import { jsonResponse, errorResponse } from '../middleware/cors';
-import { encodeServiceKey } from './publicData';
+import { encodeServiceKey, isRecord, errorMessage } from './publicData';
 
 export async function handleEquipment(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -57,7 +57,7 @@ export async function handleEquipment(request: Request, env: Env): Promise<Respo
 
       // 1. 텍스트로 먼져 파싱 시도 (JSON 파싱 에러 방어)
       const respText = await apiResponse.text();
-      let data: any;
+      let data: unknown;
       try {
         data = JSON.parse(respText);
       } catch {
@@ -69,23 +69,25 @@ export async function handleEquipment(request: Request, env: Env): Promise<Respo
       }
 
       // 공공데이터 에러 응답 분기 처리 (기본 JSON일경우)
-      if (data && typeof data === 'object') {
-        const resultCode = data.header?.resultCode || data.resultCode;
+      if (isRecord(data)) {
+        const header = isRecord(data.header) ? data.header : {};
+        const resultCode = header.resultCode || data.resultCode;
         if (resultCode && resultCode !== '00') {
            // 00은 정상, 그 외는 모두 에러
-           const msg = data.header?.resultMsg || data.resultMsg || 'Unknown API Error';
-           return errorResponse(`API Error: ${msg}`, request, 400);
+           const msg = header.resultMsg || data.resultMsg || 'Unknown API Error';
+           return errorResponse(`API Error: ${String(msg)}`, request, 400);
         }
       }
 
       // 2. 프론트엔드 호환 포맷으로 매핑
       // 공공데이터 API 응답구조 { data: [...], header: {totalCount: x} } 매핑
-      let items = [];
-      let totalCount = 0;
+      let items: unknown = [];
+      let totalCount: unknown = 0;
 
-      if (data.data && Array.isArray(data.data)) {
+      if (isRecord(data) && Array.isArray(data.data)) {
         items = data.data;
-        totalCount = data.header?.totalCount || items.length;
+        const header = isRecord(data.header) ? data.header : {};
+        totalCount = header.totalCount || data.data.length;
       } else {
         // 혹시 다른 구조일 케이스 방어
         items = data;
@@ -109,7 +111,7 @@ export async function handleEquipment(request: Request, env: Env): Promise<Respo
 
     return response;
 
-  } catch (err: any) {
-    return errorResponse(`Server Error: ${err.message}`, request, 500);
+  } catch (err) {
+    return errorResponse(`Server Error: ${errorMessage(err)}`, request, 500);
   }
 }
