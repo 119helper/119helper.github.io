@@ -489,6 +489,34 @@ export async function fetchWeatherBriefing(stnId: string): Promise<{ briefing: s
   return apiFetch<{ briefing: string }>('/api/weather/briefing', { stnId }, { ...WEATHER_OPTS, schema: weatherBriefingSchema });
 }
 
+// ═══════ 산불위험예보지수 (3시간 주기, 폴백 최대 6시간) ═══════
+export interface ForestFireRiskResponse {
+  items: ApiRecord[];
+  totalCount: number;
+  source?: string;
+  fetchedAt?: string;
+}
+
+const FOREST_FIRE_RISK_OPTS: ApiFetchOptions<ForestFireRiskResponse> = {
+  cacheTtlMs: 1000 * 60 * 60,
+  maxStaleMs: 1000 * 60 * 60 * 6,
+};
+
+const forestFireRiskResponseSchema = z.object({
+  items: apiRecordArraySchema,
+  totalCount: z.coerce.number().catch(0),
+  source: z.string().optional(),
+  fetchedAt: z.string().optional(),
+}).passthrough() satisfies z.ZodType<ForestFireRiskResponse>;
+
+export async function fetchForestFireRisk(forceRefresh?: boolean): Promise<ForestFireRiskResponse> {
+  return apiFetch<ForestFireRiskResponse>(
+    '/api/forest-fire-risk',
+    { numOfRows: '1000', pageNo: '1' },
+    { ...FOREST_FIRE_RISK_OPTS, forceRefresh, schema: forestFireRiskResponseSchema },
+  );
+}
+
 // ═══════ 대기질 (TTL 짧게 30분, 폴백 최대 6시간) ═══════
 const AIR_OPTS: ApiFetchOptions = { cacheTtlMs: 1000 * 60 * 30, maxStaleMs: 1000 * 60 * 60 * 6 };
 export async function fetchAirQuality(sido: string): Promise<ApiRecord[]> {

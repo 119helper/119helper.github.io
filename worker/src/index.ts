@@ -26,6 +26,7 @@ import { handleEquipment } from './routes/equipment';
 
 import { newsHandler, prefetchNews } from './routes/news';
 import { handleWildfire } from './routes/wildfire';
+import { handleForestFireRisk } from './routes/forestFireRisk';
 import { handleTsunamiShelter } from './routes/tsunamiShelter';
 import { handleLaw } from './routes/law';
 import { handleDisasterMsg } from './routes/disaster';
@@ -47,6 +48,7 @@ export interface Env {
   FIRE_OBJECT_API_KEY: string;
   FIRE_DAMAGE_API_KEY: string;
   WILDFIRE_API_KEY: string;
+  FOREST_FIRE_API_KEY: string;
   TSUNAMI_SHELTER_API_KEY: string;
   DISASTER_API_KEY: string;
   EQUIPMENT_API_KEY: string;
@@ -148,6 +150,7 @@ export default {
         return applyCors(await handleEquipment(request, env), request);
       }
       else if (path === '/api/wildfire') result = await handleWildfire(url, env.WILDFIRE_API_KEY);
+      else if (path === '/api/forest-fire-risk') result = await handleForestFireRisk(url, env.FOREST_FIRE_API_KEY);
       else if (path === '/api/tsunami-shelter') result = await handleTsunamiShelter(url, env.TSUNAMI_SHELTER_API_KEY);
       else if (path === '/api/disaster-msg') result = await handleDisasterMsg(url, env.DISASTER_API_KEY);
       else if (path === '/api/consumer-hazard') result = await handleConsumerHazard(url, env.CONSUMER_HAZARD_API_KEY);

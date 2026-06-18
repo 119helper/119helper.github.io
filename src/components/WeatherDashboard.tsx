@@ -11,6 +11,7 @@ import StaleBadge from './StaleBadge';
 import { WindCompass } from './WindCompass';
 import WeatherAlertBanner from './WeatherAlertBanner';
 import SunTimesCard from './SunTimesCard';
+import ForestFireRiskCard from './ForestFireRiskCard';
 
 // Fallback data when API fails
 const FALLBACK_WEATHER: CurrentWeather = {
@@ -114,7 +115,7 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
         setLoading(false);
       }
     }
-  }, [grid.nx, grid.ny, city]);
+  }, [grid.nx, grid.ny, grid.name]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -329,25 +330,7 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
 
         {/* Side Info Cards */}
         <div className="lg:col-span-4 flex flex-col gap-4">
-          {/* Fire Risk Assessment */}
-          <div className={`rounded-xl p-5 border flex-1 ${
-            current.humidity < 35 ? 'bg-red-900/30 border-red-500/30' :
-            current.humidity < 50 ? 'bg-amber-900/20 border-amber-500/20' :
-            'bg-green-900/20 border-green-500/20'
-          }`}>
-            <p className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">🔥 화재 위험도</p>
-            <p className={`text-3xl font-extrabold mt-2 font-headline ${
-              current.humidity < 35 ? 'text-red-400' :
-              current.humidity < 50 ? 'text-amber-400' : 'text-green-400'
-            }`}>
-              {current.humidity < 35 ? '높음' : current.humidity < 50 ? '보통' : '낮음'}
-            </p>
-            <p className="text-xs text-on-surface-variant mt-1">
-              습도 {current.humidity}% · 풍속 {current.windSpeed}m/s
-            </p>
-            {current.humidity < 35 && <p className="text-xs text-red-300 mt-2 font-bold">⚠️ 건조주의! 화재 확산 위험</p>}
-            {current.windSpeed > 10 && <p className="text-xs text-amber-300 mt-1 font-bold">💨 강풍! 고층 화재 주의</p>}
-          </div>
+          <ForestFireRiskCard cityLabel={grid.name} humidity={current.humidity} windSpeed={current.windSpeed} />
 
           {/* 일출 · 일몰 (위경도 기반 계산, API 불필요) */}
           <SunTimesCard city={city} cityLabel={grid.name} />
