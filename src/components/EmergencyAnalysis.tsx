@@ -1,68 +1,13 @@
-import { useState, useEffect } from 'react';
-import { fetchEmergencyStats, fetchEmergencyInfo, isStaleDataError } from '../services/apiClient';
-
-/* ─── 타입 정의 ─── */
-interface ActivityStats {
-  dispatchCnt: number;
-  transferCnt: number;
-  transferPrsnCnt: number;
-}
-
-interface DispatchTypeItem {
-  dispatchType: string;
-  dispatchCnt: number;
-  transferCnt: number;
-  transferPrsnCnt: number;
-}
-
-interface AgeGroupItem {
-  ageGroup: string;
-  dispatchCnt: number;
-  transferCnt: number;
-  transferPrsnCnt: number;
-}
-
-interface LocationItem {
-  accidentPlace: string;
-  dispatchCnt: number;
-  transferCnt: number;
-  transferPrsnCnt: number;
-}
-
-interface VehicleItem {
-  vhcleNo: string;
-  vhcleKnd: string;
-  vhcleSttus: string;
-}
-
-/* ─── 구급정보 상세 타입 ─── */
-interface ActivityDetailItem {
-  arriveYmd: string;    // 현장도착년월일
-  arriveHh: string;     // 현장도착시
-  arriveMm: string;     // 현장도착분
-  distKm: string;       // 현장과의거리(km)
-  returnYmd: string;    // 귀소년월일
-  returnHh: string;     // 귀소시
-  returnMm: string;     // 귀소분
-  sidoNm: string;       // 시도
-  fireStnNm: string;    // 소방서
-  safeCnterNm: string;  // 출동안전센터
-}
-
-interface TransferItem {
-  occrrPlce: string;    // 사고발생장소
-  occrrType: string;    // 발생유형
-  sidoNm: string;
-  fireStnNm: string;
-}
-
-interface FirstAidItem {
-  ptntAge: string;      // 환자연령
-  ptntSex: string;      // 환자성별
-  emrgFirstaidCd: string; // 응급처치코드
-  sidoNm: string;
-  fireStnNm: string;
-}
+import { useState } from 'react';
+import {
+  formatYm,
+  SIDO_LIST,
+  useEmergencyAnalysisData,
+  type ActivityDetailItem,
+  type FirstAidItem,
+  type TransferItem,
+  type ViewMode,
+} from '../hooks/useEmergencyAnalysisData';
 
 /* ─── 색상 팔레트 ─── */
 const CHART_COLORS = [
@@ -70,27 +15,6 @@ const CHART_COLORS = [
   '#f97316', '#eab308', '#22c55e', '#14b8a6', '#06b6d4',
   '#3b82f6', '#64748b',
 ];
-
-/* ─── 시도 목록 ─── */
-const SIDO_LIST = [
-  '전체', '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종',
-  '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주',
-];
-
-/* ─── 월 선택 헬퍼 ─── */
-function getRecentMonths(count: number): string[] {
-  const months: string[] = [];
-  const now = new Date();
-  for (let i = 0; i < count; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push(`${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`);
-  }
-  return months;
-}
-
-function formatYm(ym: string): string {
-  return `${ym.slice(0, 4)}년 ${parseInt(ym.slice(4))}월`;
-}
 
 /* ─── 도넛 차트 (순수 CSS) ─── */
 function DonutChart({ data, labelKey, valueKey }: { data: any[]; labelKey: string; valueKey: string }) {
@@ -517,185 +441,29 @@ function PatientSection({
   );
 }
 
-/* ═══════ 뷰 모드 ═══════ */
-type ViewMode = 'stats' | 'response-time' | 'patient' | 'search';
-
 /* ═══════ 메인 컴포넌트 ═══════ */
 export default function EmergencyAnalysis() {
-  const months = getRecentMonths(24);
-  const [selectedMonth, setSelectedMonth] = useState(months[1] || months[0]);
-  const [selectedSido, setSelectedSido] = useState('전체');
-  const [viewMode, setViewMode] = useState<ViewMode>('stats');
-  const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState<string | null>(null);
-  const [warning, setWarning] = useState<string | null>(null);
-
-  // 통계 데이터
-  const [activity, setActivity] = useState<ActivityStats>({ dispatchCnt: 0, transferCnt: 0, transferPrsnCnt: 0 });
-  const [dispatchTypes, setDispatchTypes] = useState<DispatchTypeItem[]>([]);
-  const [ageGroups, setAgeGroups] = useState<AgeGroupItem[]>([]);
-  const [locations, setLocations] = useState<LocationItem[]>([]);
-  const [vehicles, setVehicles] = useState<VehicleItem[]>([]);
-
-  // 구급정보 상세 데이터
-  const [activityDetails, setActivityDetails] = useState<ActivityDetailItem[]>([]);
-  const [transfers, setTransfers] = useState<TransferItem[]>([]);
-  const [firstAids, setFirstAids] = useState<FirstAidItem[]>([]);
-
-  const fetchAll = async (forceRefresh = false) => {
-    const statsParams: Record<string, string> = { reqYm: selectedMonth };
-    const infoParams: Record<string, string> = { reportYm: selectedMonth };
-    if (selectedSido !== '전체') {
-      statsParams.sido = selectedSido;
-      infoParams.sido = selectedSido;
-    }
-
-    try {
-      setWarning(null);
-      const results = await Promise.allSettled([
-        // 기존 통계
-        fetchEmergencyStats('activity', statsParams, forceRefresh),
-        fetchEmergencyStats('dispatch-type', statsParams, forceRefresh),
-        fetchEmergencyStats('age', statsParams, forceRefresh),
-        fetchEmergencyStats('location', statsParams, forceRefresh),
-        fetchEmergencyInfo('vehicles', selectedSido !== '전체' ? { sido: selectedSido } : {}, forceRefresh),
-        // 구급정보 상세 (새로 추가)
-        fetchEmergencyInfo('activity', infoParams, forceRefresh),
-        fetchEmergencyInfo('transfer', infoParams, forceRefresh),
-        fetchEmergencyInfo('first-aid', infoParams, forceRefresh),
-      ]);
-
-      let hasStaleData = false;
-      let staleMessage = '';
-
-      const processedResults = results.map(r => {
-        if (r.status === 'fulfilled') return r;
-        if (r.status === 'rejected' && isStaleDataError(r.reason)) {
-          hasStaleData = true;
-          const t = r.reason.cachedAt ? new Date(r.reason.cachedAt).toLocaleTimeString() : '';
-          staleMessage = `${r.reason.message}${t ? ` (마지막 성공 시각: ${t})` : ''}`;
-          return { status: 'fulfilled', value: r.reason.cachedData } as PromiseFulfilledResult<any>;
-        }
-        return r;
-      });
-
-      const allFailed = processedResults.every(r => r.status === 'rejected');
-      if (allFailed) {
-        const firstErr = (processedResults[0] as PromiseRejectedResult).reason;
-        setApiError(firstErr?.message || '구급 API에 연결할 수 없습니다.');
-        setLoading(false);
-        return;
-      }
-      if (hasStaleData) {
-        setWarning(staleMessage);
-      }
-
-      // 119구급활동현황 (통계)
-      if (processedResults[0].status === 'fulfilled') {
-        const items = processedResults[0].value?.items || [];
-        const totals: ActivityStats = { dispatchCnt: 0, transferCnt: 0, transferPrsnCnt: 0 };
-        items.forEach((it: any) => {
-          totals.dispatchCnt += parseInt(it.dispatchCnt || it.출동건수 || '0');
-          totals.transferCnt += parseInt(it.transferCnt || it.이송건수 || '0');
-          totals.transferPrsnCnt += parseInt(it.transferPrsnCnt || it.이송환자수 || '0');
-        });
-        setActivity(totals);
-      }
-
-      // 출동유형별
-      if (processedResults[1].status === 'fulfilled') {
-        const items = processedResults[1].value?.items || [];
-        setDispatchTypes(items.map((it: any) => ({
-          dispatchType: it.dispatchType || it.출동유형 || '기타',
-          dispatchCnt: parseInt(it.dispatchCnt || it.출동건수 || '0'),
-          transferCnt: parseInt(it.transferCnt || it.이송건수 || '0'),
-          transferPrsnCnt: parseInt(it.transferPrsnCnt || it.이송환자수 || '0'),
-        })).filter((it: DispatchTypeItem) => it.dispatchCnt > 0));
-      }
-
-      // 연령별
-      if (processedResults[2].status === 'fulfilled') {
-        const items = processedResults[2].value?.items || [];
-        setAgeGroups(items.map((it: any) => ({
-          ageGroup: it.ageGroup || it.연령대 || '미상',
-          dispatchCnt: parseInt(it.dispatchCnt || it.출동건수 || '0'),
-          transferCnt: parseInt(it.transferCnt || it.이송건수 || '0'),
-          transferPrsnCnt: parseInt(it.transferPrsnCnt || it.이송환자수 || '0'),
-        })).filter((it: AgeGroupItem) => it.transferPrsnCnt > 0));
-      }
-
-      // 사고장소별
-      if (processedResults[3].status === 'fulfilled') {
-        const items = processedResults[3].value?.items || [];
-        setLocations(items.map((it: any) => ({
-          accidentPlace: it.accidentPlace || it.사고장소 || '기타',
-          dispatchCnt: parseInt(it.dispatchCnt || it.출동건수 || '0'),
-          transferCnt: parseInt(it.transferCnt || it.이송건수 || '0'),
-          transferPrsnCnt: parseInt(it.transferPrsnCnt || it.이송환자수 || '0'),
-        })).filter((it: LocationItem) => it.dispatchCnt > 0));
-      }
-
-      // 구급차량
-      if (processedResults[4].status === 'fulfilled') {
-        const items = processedResults[4].value?.items || [];
-        setVehicles(items.map((it: any) => ({
-          vhcleNo: it.vhcleNo || it.차량호수 || '-',
-          vhcleKnd: it.vhcleKnd || it.차량구분 || '-',
-          vhcleSttus: it.vhcleSttus || it.차량상태 || '-',
-        })));
-      }
-
-      // 구급활동 상세 (대응시간/거리)
-      if (processedResults[5].status === 'fulfilled') {
-        const items = processedResults[5].value?.items || [];
-        setActivityDetails(items.map((it: any) => ({
-          arriveYmd: it.arriveYmd || it.현장도착년월 || '',
-          arriveHh: it.arriveHh || it.현장도착시 || '',
-          arriveMm: it.arriveMm || it.현장도착분 || '',
-          distKm: it.distKm || it.현장과의거리 || '0',
-          returnYmd: it.returnYmd || it.귀소년월 || '',
-          returnHh: it.returnHh || it.귀소시 || '',
-          returnMm: it.returnMm || it.귀소분 || '',
-          sidoNm: it.sidoNm || it.시도본부 || '',
-          fireStnNm: it.fireStnNm || it.출동소방서 || '',
-          safeCnterNm: it.safeCnterNm || it.출동안전센터 || '',
-        })));
-      }
-
-      // 환자이송정보
-      if (processedResults[6].status === 'fulfilled') {
-        const items = processedResults[6].value?.items || [];
-        setTransfers(items.map((it: any) => ({
-          occrrPlce: it.occrrPlce || it.사고발생장소 || '미상',
-          occrrType: it.occrrType || it.발생유형 || '미상',
-          sidoNm: it.sidoNm || '',
-          fireStnNm: it.fireStnNm || '',
-        })));
-      }
-
-      // 응급처치정보
-      if (processedResults[7].status === 'fulfilled') {
-        const items = processedResults[7].value?.items || [];
-        setFirstAids(items.map((it: any) => ({
-          ptntAge: it.ptntAge || it.환자연령 || '',
-          ptntSex: it.ptntSex || it.환자성별 || '미상',
-          emrgFirstaidCd: it.emrgFirstaidCd || it.응급처치코드 || '미상',
-          sidoNm: it.sidoNm || '',
-          fireStnNm: it.fireStnNm || '',
-        })));
-      }
-
-      setApiError(null);
-    } catch (e: any) {
-      console.error('구급 데이터 조회 오류:', e);
-      setApiError(e?.message || '알 수 없는 오류가 발생했습니다.');
-    }
-
-    setLoading(false);
-  };
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchAll(); }, [selectedMonth, selectedSido]);
+  const {
+    months,
+    selectedMonth,
+    selectedSido,
+    viewMode,
+    setViewMode,
+    loading,
+    apiError,
+    warning,
+    activity,
+    dispatchTypes,
+    ageGroups,
+    locations,
+    vehicles,
+    activityDetails,
+    transfers,
+    firstAids,
+    selectMonth,
+    selectSido,
+    refresh,
+  } = useEmergencyAnalysisData();
 
   const transferRate = activity.dispatchCnt > 0
     ? ((activity.transferCnt / activity.dispatchCnt) * 100).toFixed(1)
@@ -723,22 +491,14 @@ export default function EmergencyAnalysis() {
         <div className="flex items-center gap-3 flex-wrap">
           <select
             value={selectedSido}
-            onChange={e => {
-              setLoading(true);
-              setApiError(null);
-              setSelectedSido(e.target.value);
-            }}
+            onChange={e => selectSido(e.target.value)}
             className="bg-surface-container border border-outline-variant/20 text-on-surface px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-primary"
           >
             {SIDO_LIST.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <select
             value={selectedMonth}
-            onChange={e => {
-              setLoading(true);
-              setApiError(null);
-              setSelectedMonth(e.target.value);
-            }}
+            onChange={e => selectMonth(e.target.value)}
             className="bg-surface-container border border-outline-variant/20 text-on-surface px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-primary"
           >
             {months.map(m => (
@@ -746,12 +506,7 @@ export default function EmergencyAnalysis() {
             ))}
           </select>
           <button
-            onClick={() => {
-              setLoading(true);
-              setApiError(null);
-              setWarning(null);
-              fetchAll(true);
-            }}
+            onClick={() => refresh(true)}
             disabled={loading}
             className="bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/20 transition-colors flex items-center gap-2 disabled:opacity-50"
           >
@@ -811,12 +566,7 @@ export default function EmergencyAnalysis() {
           <h3 className="text-lg font-bold text-on-surface mb-2">구급통계 API 연결 실패</h3>
           <p className="text-sm text-error/80 max-w-lg mx-auto mb-1">{apiError}</p>
           <button
-            onClick={() => {
-              setLoading(true);
-              setApiError(null);
-              setWarning(null);
-              fetchAll();
-            }}
+            onClick={() => refresh()}
             className="bg-error/15 text-error px-5 py-2 rounded-lg text-sm font-bold hover:bg-error/25 transition-colors inline-flex items-center gap-2 mt-4"
           >
             <span className="material-symbols-outlined text-lg">refresh</span>

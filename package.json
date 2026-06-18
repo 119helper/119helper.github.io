@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run src",
     "test:unit": "vitest run src",
+    "test:worker": "vitest run worker/src",
     "test:e2e": "playwright test"
   },
   "dependencies": {

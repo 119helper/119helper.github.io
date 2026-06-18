@@ -196,13 +196,13 @@ export function sanitizeNumericParam(
 export function sanitizeStringParam(url: URL, key: string, maxLen = 100): string | null {
   const raw = url.searchParams.get(key);
   if (!raw) return null;
-  // 제어 문자, 스크립트 태그 등 제거
+  // 제어 문자와 HTML/SQL 문맥에서 위험한 구분자를 제거하되 주소 검색에 쓰이는 / 는 보존한다.
   return raw
-    .replace(/[<>'";\\/]/g, '')
+    .replace(/[<>'";\\]/g, '')
     // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x1f]/g, '')
-    .slice(0, maxLen)
-    .trim() || null;
+    .trim()
+    .slice(0, maxLen) || null;
 }
 
 /* ═══ 응답 헬퍼 ═══ */
