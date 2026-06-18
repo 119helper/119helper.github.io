@@ -17,7 +17,11 @@ if (!rootEl) {
 }
 
 if (window.self !== window.top) {
-  rootEl.innerHTML = '<div style="padding:24px;font-family:system-ui,sans-serif">보안 정책상 119 Helper는 다른 사이트의 프레임 안에서 실행할 수 없습니다.</div>';
+  const message = document.createElement('div');
+  message.style.padding = '24px';
+  message.style.fontFamily = 'system-ui,sans-serif';
+  message.textContent = '보안 정책상 119 Helper는 다른 사이트의 프레임 안에서 실행할 수 없습니다.';
+  rootEl.replaceChildren(message);
 } else {
   createRoot(rootEl).render(
     <StrictMode>

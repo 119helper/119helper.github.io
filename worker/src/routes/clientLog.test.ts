@@ -28,7 +28,7 @@ describe('handleClientLog', () => {
       context: 'ErrorBoundary',
       message: 'render failed',
       stack: 'stack trace',
-      url: 'https://119helper.github.io/#dashboard',
+      url: 'https://119helper.github.io/?serviceKey=secret#dashboard',
     }, {
       'User-Agent': 'vitest',
       'CF-Connecting-IP': '203.0.113.10',
@@ -89,5 +89,24 @@ describe('handleClientLog', () => {
     expect(entry.stack).toHaveLength(4000);
     expect(entry.pageUrl).toHaveLength(500);
     expect(entry.userAgent).toBe('client-agent');
+  });
+
+  it('redacts sensitive values before logging', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const response = await handleClientLog(postClientLog({
+      context: 'api',
+      message: 'failed serviceKey=abc123 phone 010-1234-5678 test@example.com',
+      stack: 'Error: token=my-token\nat fn (?api_key=abcdef)',
+      url: 'https://119helper.github.io/?token=abc123&address=secret#weather',
+    }));
+
+    expect(response.status).toBe(202);
+    const entry = JSON.parse(String(errorSpy.mock.calls[0][0])) as Record<string, string>;
+    expect(entry.message).toContain('serviceKey=[REDACTED]');
+    expect(entry.message).toContain('[PHONE]');
+    expect(entry.message).toContain('[EMAIL]');
+    expect(entry.stack).toContain('token=[REDACTED]');
+    expect(entry.pageUrl).toBe('https://119helper.github.io/#weather');
   });
 });

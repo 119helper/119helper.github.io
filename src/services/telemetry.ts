@@ -17,6 +17,42 @@ const recentSignatures = new Map<string, number>();
 let windowStart = Date.now();
 let windowCount = 0;
 
+function redactSensitiveText(value: string): string {
+  return value
+    .replace(/(serviceKey|ServiceKey|api[_-]?key|token|APP_ACCESS_TOKEN|VITE_APP_TOKEN)=([^&\s]+)/gi, '$1=[REDACTED]')
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[EMAIL]')
+    .replace(/\b01[016789][-\s]?\d{3,4}[-\s]?\d{4}\b/g, '[PHONE]')
+    .replace(/\b\d{2,3}[-\s]\d{3,4}[-\s]\d{4}\b/g, '[PHONE]');
+}
+
+function sanitizePageUrl(): string {
+  if (typeof location === 'undefined') return '';
+  return `${location.origin}${location.pathname}${location.hash}`;
+}
+
+function sanitizeStack(stack: string | undefined): string | undefined {
+  if (!stack) return undefined;
+  return redactSensitiveText(stack)
+    .split('\n')
+    .slice(0, 8)
+    .join('\n');
+}
+
+function sanitizeMeta(value: unknown, depth = 0): unknown {
+  if (depth > 3) return '[TRUNCATED]';
+  if (typeof value === 'string') return redactSensitiveText(value).slice(0, 500);
+  if (typeof value === 'number' || typeof value === 'boolean' || value === null) return value;
+  if (Array.isArray(value)) return value.slice(0, 20).map(item => sanitizeMeta(item, depth + 1));
+  if (typeof value === 'object' && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .slice(0, 20)
+        .map(([key, item]) => [key.slice(0, 80), sanitizeMeta(item, depth + 1)])
+    );
+  }
+  return undefined;
+}
+
 function shouldSend(signature: string): boolean {
   const now = Date.now();
 
@@ -43,8 +79,8 @@ export interface ClientErrorReport {
 
 export function reportClientError(error: unknown, report: ClientErrorReport): void {
   try {
-    const message = error instanceof Error ? error.message : String(error);
-    const stack = error instanceof Error ? error.stack : undefined;
+    const message = redactSensitiveText(error instanceof Error ? error.message : String(error));
+    const stack = sanitizeStack(error instanceof Error ? error.stack : undefined);
     const signature = `${report.context}:${message}`.slice(0, 200);
 
     if (!shouldSend(signature)) return;
@@ -54,8 +90,8 @@ export function reportClientError(error: unknown, report: ClientErrorReport): vo
       level: report.level ?? 'error',
       message,
       stack,
-      url: typeof location !== 'undefined' ? location.href : '',
-      meta: report.meta,
+      url: sanitizePageUrl(),
+      meta: sanitizeMeta(report.meta),
     });
 
     const url = `${API_BASE}/api/client-log`;

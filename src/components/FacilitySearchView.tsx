@@ -6,6 +6,7 @@ import type { CityIndex } from '../services/fireWaterApi';
 import FacilityList from './FacilityList';
 import { loadKakaoMapSDK } from '../utils/kakaoLoader';
 import proj4 from 'proj4';
+import BuildingView from './BuildingView';
 
 // EPSG:5179 (GRS80 UTM-K) 정의 — 공공데이터포털(재난안전데이터) 최신 좌표계
 proj4.defs("EPSG:5179", "+proj=tmerc +lat_0=38 +lon_0=127.5 +k=0.9996 +x_0=1000000 +y_0=2000000 +ellps=GRS80 +units=m +no_defs");
@@ -59,7 +60,14 @@ interface FacilityItem {
   femaleToilet?: number;
 }
 
-import BuildingView from './BuildingView';
+const escapeHtml = (value: unknown) => {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+};
 
 // 통합 카테고리 정의
 const CATEGORIES = [
@@ -360,13 +368,18 @@ export default function FacilitySearchView({
 
       const marker = new window.kakao.maps.Marker({ position: pos, map: kakaoMap, title: fac.name, image: markerImage });
       
-      const capacityInfo = fac.capacity && fac.capacity > 0 ? `<br/><span style="color:#333;">👥 수용 ${fac.capacity.toLocaleString()}명</span>` : '';
-      const restroomInfo = fac.category === 'restrooms' ? `<br/><span style="color:#333;">🚻 남 ${fac.maleToilet || 0} / 여 ${fac.femaleToilet || 0} ${fac.hasBell === 'Y' ? ' (비상벨🚨)' : ''}</span>` : '';
+      const safeName = escapeHtml(fac.name);
+      const safeAddress = escapeHtml(fac.address);
+      const safeCapacity = escapeHtml(fac.capacity?.toLocaleString());
+      const safeMaleToilet = escapeHtml(fac.maleToilet || 0);
+      const safeFemaleToilet = escapeHtml(fac.femaleToilet || 0);
+      const capacityInfo = fac.capacity && fac.capacity > 0 ? `<br/><span style="color:#333;">👥 수용 ${safeCapacity}명</span>` : '';
+      const restroomInfo = fac.category === 'restrooms' ? `<br/><span style="color:#333;">🚻 남 ${safeMaleToilet} / 여 ${safeFemaleToilet} ${fac.hasBell === 'Y' ? ' (비상벨🚨)' : ''}</span>` : '';
       
       const info = new window.kakao.maps.InfoWindow({
         content: `<div style="padding:6px 10px;font-size:12px;max-width:220px;line-height:1.4;">
-          <strong style="color:#1a73e8;">${fac.name}</strong><br/>
-          <span style="color:#666;">${fac.address}</span>
+          <strong style="color:#1a73e8;">${safeName}</strong><br/>
+          <span style="color:#666;">${safeAddress}</span>
           ${capacityInfo}${restroomInfo}
         </div>`
       });

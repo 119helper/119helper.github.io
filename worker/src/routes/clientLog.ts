@@ -23,6 +23,25 @@ interface ClientLogPayload {
 const MAX_BODY_BYTES = 16 * 1024; // 16KB — 로그 폭주/남용 방지
 const MAX_FIELD_LEN = 2000;
 
+function redactSensitiveText(value: string): string {
+  return value
+    .replace(/(serviceKey|ServiceKey|api[_-]?key|token|APP_ACCESS_TOKEN|VITE_APP_TOKEN)=([^&\s]+)/gi, '$1=[REDACTED]')
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[EMAIL]')
+    .replace(/\b01[016789][-\s]?\d{3,4}[-\s]?\d{4}\b/g, '[PHONE]')
+    .replace(/\b\d{2,3}[-\s]\d{3,4}[-\s]\d{4}\b/g, '[PHONE]');
+}
+
+function sanitizeUrl(value: unknown): string {
+  const raw = clamp(value, 500);
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    return `${parsed.origin}${parsed.pathname}${parsed.hash}`;
+  } catch {
+    return redactSensitiveText(raw.split('?')[0]);
+  }
+}
+
 function clamp(value: unknown, max = MAX_FIELD_LEN): string {
   if (typeof value !== 'string') return '';
   return value.slice(0, max);
@@ -45,9 +64,9 @@ export async function handleClientLog(request: Request): Promise<Response> {
     tag: '[client-error]',
     level: payload.level === 'warn' ? 'warn' : 'error',
     context: clamp(payload.context, 200),
-    message: clamp(payload.message),
-    stack: clamp(payload.stack, MAX_FIELD_LEN * 2),
-    pageUrl: clamp(payload.url, 500),
+    message: redactSensitiveText(clamp(payload.message)),
+    stack: redactSensitiveText(clamp(payload.stack, MAX_FIELD_LEN * 2)),
+    pageUrl: sanitizeUrl(payload.url),
     userAgent: clamp(request.headers.get('User-Agent') ?? payload.userAgent, 300),
     ip: request.headers.get('CF-Connecting-IP') ?? 'unknown',
     country: (request as Request & { cf?: { country?: string } }).cf?.country ?? 'unknown',
