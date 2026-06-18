@@ -10,6 +10,7 @@ import { getStaleAt } from '../services/apiClient';
 import StaleBadge from './StaleBadge';
 import { WindCompass } from './WindCompass';
 import WeatherAlertBanner from './WeatherAlertBanner';
+import SunTimesCard from './SunTimesCard';
 
 // Fallback data when API fails
 const FALLBACK_WEATHER: CurrentWeather = {
@@ -347,6 +348,9 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
             {current.humidity < 35 && <p className="text-xs text-red-300 mt-2 font-bold">⚠️ 건조주의! 화재 확산 위험</p>}
             {current.windSpeed > 10 && <p className="text-xs text-amber-300 mt-1 font-bold">💨 강풍! 고층 화재 주의</p>}
           </div>
+
+          {/* 일출 · 일몰 (위경도 기반 계산, API 불필요) */}
+          <SunTimesCard city={city} cityLabel={grid.name} />
 
           {/* Air Quality (AirKorea) */}
           <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 flex-1">
