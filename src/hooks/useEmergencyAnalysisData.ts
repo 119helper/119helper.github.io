@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchEmergencyInfo,
   fetchEmergencyStats,
@@ -116,6 +116,7 @@ function itemsFrom(result: EmergencySettledResult): ApiRecord[] {
 }
 
 export function useEmergencyAnalysisData() {
+  const requestSeqRef = useRef(0);
   const months = getRecentMonths(24);
   const [selectedMonth, setSelectedMonth] = useState(months[1] || months[0]);
   const [selectedSido, setSelectedSido] = useState('전체');
@@ -135,6 +136,7 @@ export function useEmergencyAnalysisData() {
   const [firstAids, setFirstAids] = useState<FirstAidItem[]>([]);
 
   const fetchAll = useCallback(async (forceRefresh = false) => {
+    const seq = ++requestSeqRef.current;
     const statsParams: Record<string, string> = { reqYm: selectedMonth };
     const infoParams: Record<string, string> = { reportYm: selectedMonth };
     if (selectedSido !== '전체') {
@@ -154,6 +156,8 @@ export function useEmergencyAnalysisData() {
         fetchEmergencyInfo('transfer', infoParams, forceRefresh),
         fetchEmergencyInfo('first-aid', infoParams, forceRefresh),
       ]);
+
+      if (seq !== requestSeqRef.current) return;
 
       let hasStaleData = false;
       let staleMessage = '';
@@ -269,30 +273,42 @@ export function useEmergencyAnalysisData() {
 
       setApiError(null);
     } catch (e: unknown) {
+      if (seq !== requestSeqRef.current) return;
       console.error('구급 데이터 조회 오류:', e);
       setApiError(e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.');
+    } finally {
+      if (seq === requestSeqRef.current) {
+        setLoading(false);
+      }
     }
-
-    setLoading(false);
   }, [selectedMonth, selectedSido]);
 
   useEffect(() => {
     void fetchAll();
   }, [fetchAll]);
 
+  useEffect(() => {
+    return () => {
+      requestSeqRef.current += 1;
+    };
+  }, []);
+
   const selectMonth = useCallback((month: string) => {
+    requestSeqRef.current += 1;
     setLoading(true);
     setApiError(null);
     setSelectedMonth(month);
   }, []);
 
   const selectSido = useCallback((sido: string) => {
+    requestSeqRef.current += 1;
     setLoading(true);
     setApiError(null);
     setSelectedSido(sido);
   }, []);
 
   const refresh = useCallback((forceRefresh = false) => {
+    requestSeqRef.current += 1;
     setLoading(true);
     setApiError(null);
     setWarning(null);

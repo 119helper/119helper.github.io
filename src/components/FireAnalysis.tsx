@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchAnnualFireStats, isStaleDataError } from '../services/apiClient';
 
 /* ─── 색상 팔레트 ─── */
@@ -132,6 +132,7 @@ function StatCard({ icon, iconColor, label, value, sub, loading }: {
 
 /* ═══════ 메인 컴포넌트 ═══════ */
 export default function FireAnalysis() {
+  const requestSeqRef = useRef(0);
   const years = getRecentYears(6);
   const [selectedYear, setSelectedYear] = useState(years[0]);
   const [loading, setLoading] = useState(true);
@@ -147,6 +148,7 @@ export default function FireAnalysis() {
   const [casualtyData, setCasualtyData] = useState<any[]>([]);
 
   const fetchAll = useCallback(async (forceRefresh = false) => {
+    const seq = ++requestSeqRef.current;
     setLoading(true);
     setApiError(null);
 
@@ -159,8 +161,11 @@ export default function FireAnalysis() {
         if (!isStaleDataError(err)) throw err;
         data = err.cachedData as Awaited<ReturnType<typeof fetchAnnualFireStats>>;
         const t = err.cachedAt ? new Date(err.cachedAt).toLocaleTimeString() : '';
+        if (seq !== requestSeqRef.current) return;
         setWarning(`${err.message}${t ? ` (마지막 성공 시각: ${t})` : ''}`);
       }
+
+      if (seq !== requestSeqRef.current) return;
 
       setSummary({
         total: data.summary.totalFires,
@@ -178,14 +183,22 @@ export default function FireAnalysis() {
         .filter(it => it.death + it.injury > 0));
       setBuildingData(data.byFireType.map(it => ({ structure: it.name || '기타', count: it.count })));
     } catch (e: any) {
+      if (seq !== requestSeqRef.current) return;
       console.error('화재 데이터 조회 오류:', e);
       setApiError(e?.message || '알 수 없는 오류가 발생했습니다.');
+    } finally {
+      if (seq === requestSeqRef.current) {
+        setLoading(false);
+      }
     }
-
-    setLoading(false);
   }, [selectedYear]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    return () => {
+      requestSeqRef.current += 1;
+    };
+  }, []);
 
   const hasAnyData = summary.total > 0 || causeData.length > 0 || placeData.length > 0;
 
@@ -200,7 +213,12 @@ export default function FireAnalysis() {
         <div className="flex items-center gap-3">
           <select
             value={selectedYear}
-            onChange={e => setSelectedYear(e.target.value)}
+            onChange={e => {
+              requestSeqRef.current += 1;
+              setLoading(true);
+              setApiError(null);
+              setSelectedYear(e.target.value);
+            }}
             className="bg-surface-container border border-outline-variant/20 text-on-surface px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-primary"
           >
             {years.map(y => <option key={y} value={y}>{y}년</option>)}

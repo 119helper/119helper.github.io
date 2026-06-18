@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { fetchBuildingRegister, type BuildingRegisterInfo } from '../services/buildingApi';
 import { fetchFireObjectAccom, fetchFireObjectFireSys, isStaleDataError, type PaginatedItemsResponse } from '../services/apiClient';
 
@@ -75,6 +75,12 @@ export default function BuildingView() {
   const [fireError, setFireError] = useState('');
 
   const requestSeqRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      requestSeqRef.current += 1;
+    };
+  }, []);
 
   const runSearch = (target: string | RecentSearchItem, forceRefresh = false) => {
     const isObj = typeof target === 'object';
