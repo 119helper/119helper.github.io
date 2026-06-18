@@ -85,13 +85,20 @@ export function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-/** 워커 시크릿 누락/인코딩 형태를 정규화한 serviceKey 반환 (URL에 직접 concat해서 사용할 것) */
-export function encodeServiceKey(key: string | undefined, secretName: string): string {
-  if (!key) {
+/** 워커 시크릿 필수값 검증. 운영 키가 코드 fallback으로 조용히 대체되지 않도록 한다. */
+export function requireSecret(key: string | undefined, secretName: string): string {
+  const value = key?.trim();
+  if (!value) {
     throw new Error(`API_KEY_NOT_CONFIGURED: 워커에 ${secretName} 시크릿이 등록되지 않았습니다 (wrangler secret put ${secretName})`);
   }
+  return value;
+}
+
+/** 워커 시크릿 누락/인코딩 형태를 정규화한 serviceKey 반환 (URL에 직접 concat해서 사용할 것) */
+export function encodeServiceKey(key: string | undefined, secretName: string): string {
+  const value = requireSecret(key, secretName);
   // 이미 퍼센트 인코딩된 형태('%2B' 등 포함)면 그대로, 아니면 1회 인코딩
-  return /%[0-9A-Fa-f]{2}/.test(key) ? key : encodeURIComponent(key);
+  return /%[0-9A-Fa-f]{2}/.test(value) ? value : encodeURIComponent(value);
 }
 
 const RETRYABLE_HTTP_STATUS = new Set([500, 502, 503, 504]);

@@ -5,9 +5,16 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = path.join(__dirname, '..', 'public', 'data', 'restrooms');
 
-const API_KEY = '189a16b141d49948bf119eeb2cb8f583b70e5be4b3d407f4cf8a5901b9283b1e';
+const API_KEY = process.env.RESTROOM_API_KEY || process.env.PUBLIC_DATA_API_KEY;
 const BASE_URL = `https://apis.data.go.kr/1741000/public_restroom_info/info`;
 const NUM_OF_ROWS = 1000;
+
+function encodeServiceKey(key) {
+  if (!key) {
+    throw new Error('RESTROOM_API_KEY 또는 PUBLIC_DATA_API_KEY 환경변수가 필요합니다.');
+  }
+  return /%[0-9A-Fa-f]{2}/.test(key) ? key : encodeURIComponent(key);
+}
 
 // 앱에서 지원하는 도시 (키값 -> 주소 파싱용 한글명)
 const SUPPORTED_CITIES = {
@@ -39,7 +46,7 @@ function optimizeItem(item) {
 }
 
 async function fetchPage(pageNo) {
-  const url = `${BASE_URL}?serviceKey=${API_KEY}&type=json&numOfRows=${NUM_OF_ROWS}&pageNo=${pageNo}`;
+  const url = `${BASE_URL}?serviceKey=${encodeServiceKey(API_KEY)}&type=json&numOfRows=${NUM_OF_ROWS}&pageNo=${pageNo}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();

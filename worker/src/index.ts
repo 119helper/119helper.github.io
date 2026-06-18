@@ -48,6 +48,7 @@ export interface Env {
   FIRE_OBJECT_API_KEY: string;
   FIRE_DAMAGE_API_KEY: string;
   WILDFIRE_API_KEY: string;
+  CIVIL_SHELTER_API_KEY: string;
   FOREST_FIRE_API_KEY: string;
   TSUNAMI_SHELTER_API_KEY: string;
   DISASTER_API_KEY: string;
@@ -140,7 +141,7 @@ export default {
       else if (path === '/api/holiday') result = await handleHoliday(url, env.HOLIDAY_API_KEY);
       else if (path === '/api/multiuse') result = await handleMultiUse(url, env.MULTI_USE_API_KEY);
       else if (path === '/api/shelter') result = await handleShelter(url, env.SHELTER_API_KEY);
-      else if (path === '/api/civil-shelter') result = await handleCivilShelter(url, undefined); // Ignore old open api key
+      else if (path === '/api/civil-shelter') result = await handleCivilShelter(url, env.CIVIL_SHELTER_API_KEY);
       else if (path.startsWith('/api/emergency/stats/')) result = await handleEmergencyStats(path, url, env.EMERGENCY_API_KEY);
       else if (path.startsWith('/api/emergency/info/')) result = await handleEmergencyInfo(path, url, env.EMERGENCY_API_KEY);
       else if (path.startsWith('/api/fire/')) result = await handleFireInfo(path, url, env.FIRE_INFO_API_KEY);

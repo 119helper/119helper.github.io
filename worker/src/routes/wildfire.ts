@@ -5,12 +5,10 @@
  */
 
 import { fetchSafetydataJson } from './safetydata';
-import { isRecord } from './publicData';
-
-const DEFAULT_KEY = '60R7CGX9JR11RCL6';
+import { isRecord, requireSecret } from './publicData';
 
 export async function handleWildfire(url: URL, apiKey?: string): Promise<{ data: unknown; cacheTtl: number }> {
-  const serviceKey = apiKey || DEFAULT_KEY;
+  const serviceKey = requireSecret(apiKey, 'WILDFIRE_API_KEY');
   const numOfRows = url.searchParams.get('numOfRows') || '200';
   const pageNo = url.searchParams.get('pageNo') || '1';
 

@@ -4,14 +4,10 @@
  * GET /api/civil-shelter
  */
 
-import { isRecord, errorMessage } from './publicData';
-
-// 테스트로 발급받은 API 키 (safetydata.go.kr 용 16자리 키)
-const DEFAULT_KEY = '9029KGM7B3OJ838R';
+import { isRecord, errorMessage, requireSecret } from './publicData';
 
 export async function handleCivilShelter(url: URL, apiKey?: string): Promise<{ data: unknown; cacheTtl: number }> {
-  // 환경변수 apiKey는 apis.data.go.kr (100+자)용이 들어올 수 있으므로, 방어 로직 추가
-  const serviceKey = (apiKey && apiKey.length < 30) ? apiKey : DEFAULT_KEY;
+  const serviceKey = requireSecret(apiKey, 'CIVIL_SHELTER_API_KEY');
   const pageNo = url.searchParams.get('pageNo') || '1';
   
   // DSSP-IF-10166는 지역 필터링(ctprvnNm)이 작동하지 않으므로, 한번에 많은 데이터를 가져갑니다.

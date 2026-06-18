@@ -36,6 +36,7 @@ simple = { limit = 60, period = 60 }   # 60초당 60회
 # wrangler secret put FIRE_OBJECT_API_KEY
 # wrangler secret put FIRE_DAMAGE_API_KEY
 # wrangler secret put WILDFIRE_API_KEY
+# wrangler secret put CIVIL_SHELTER_API_KEY
 # wrangler secret put FOREST_FIRE_API_KEY
 # wrangler secret put TSUNAMI_SHELTER_API_KEY
 # wrangler secret put DISASTER_API_KEY

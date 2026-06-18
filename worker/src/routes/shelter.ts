@@ -2,9 +2,8 @@
 // Route: GET /api/shelter?ctprvnNm=경상북도&numOfRows=100&pageNo=1
 
 import { fetchSafetydataJson } from './safetydata';
-import { isRecord } from './publicData';
+import { isRecord, requireSecret } from './publicData';
 
-const SAFETYDATA_TSUNAMI_KEY = '5D5834I0Q3N1GT96';
 const SAFETYDATA_TSUNAMI_PATH = '/V2/api/DSSP-IF-10944';
 
 function normalizeSafetydataShelter(item: Record<string, unknown>) {
@@ -33,7 +32,8 @@ async function fetchSafetydataTsunami(params: URLSearchParams): Promise<unknown>
   return fetchSafetydataJson(SAFETYDATA_TSUNAMI_PATH, params, { label: 'Safetydata Shelter API' });
 }
 
-export async function handleShelter(url: URL, _apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
+export async function handleShelter(url: URL, apiKey?: string): Promise<{ data: unknown; cacheTtl: number }> {
+  const serviceKey = requireSecret(apiKey, 'SHELTER_API_KEY');
   const ctprvnNm = url.searchParams.get('ctprvnNm') || '';
   const signguNm = url.searchParams.get('signguNm') || '';
   const numOfRows = url.searchParams.get('numOfRows') || '100';
@@ -41,7 +41,7 @@ export async function handleShelter(url: URL, _apiKey: string): Promise<{ data: 
   const upstreamRows = ctprvnNm || signguNm ? '1000' : numOfRows;
 
   const params = new URLSearchParams({
-    serviceKey: SAFETYDATA_TSUNAMI_KEY,
+    serviceKey,
     pageNo,
     numOfRows: upstreamRows,
   });

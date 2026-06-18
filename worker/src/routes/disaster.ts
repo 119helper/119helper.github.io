@@ -5,10 +5,10 @@
  */
 
 import { fetchSafetydataJson } from './safetydata';
-import { isRecord } from './publicData';
+import { isRecord, requireSecret } from './publicData';
 
 export async function handleDisasterMsg(url: URL, apiKey?: string): Promise<{ data: unknown; cacheTtl: number }> {
-  const serviceKey = apiKey || 'X46QXE6KR1HU0RTN';
+  const serviceKey = requireSecret(apiKey, 'DISASTER_API_KEY');
   const pageNo = url.searchParams.get('pageNo') || '1';
   const numOfRows = url.searchParams.get('numOfRows') || '20';
   
