@@ -6,11 +6,12 @@
 
 import { fetchSafetydataJson } from './safetydata';
 import { isRecord, requireSecret } from './publicData';
+import { sanitizeNumericParam } from '../middleware/cors';
 
 export async function handleWildfire(url: URL, apiKey?: string): Promise<{ data: unknown; cacheTtl: number }> {
   const serviceKey = requireSecret(apiKey, 'WILDFIRE_API_KEY');
-  const numOfRows = url.searchParams.get('numOfRows') || '200';
-  const pageNo = url.searchParams.get('pageNo') || '1';
+  const numOfRows = sanitizeNumericParam(url, 'numOfRows', 1, 500, 200);
+  const pageNo = sanitizeNumericParam(url, 'pageNo', 1, 1000, 1);
 
   const qs = new URLSearchParams({
     serviceKey,

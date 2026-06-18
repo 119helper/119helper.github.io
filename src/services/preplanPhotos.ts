@@ -3,9 +3,30 @@
 import { createStore, del, get, set } from 'idb-keyval';
 
 const photoStore = createStore('119-preplan', 'photos');
+export const MAX_PREPLAN_SOURCE_PHOTO_BYTES = 10 * 1024 * 1024;
+export const MAX_PREPLAN_PHOTO_DATA_URL_LENGTH = 2_500_000;
+
+function assertSupportedPhoto(file: File): void {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('지원하지 않는 사진 형식입니다.');
+  }
+  if (file.size > MAX_PREPLAN_SOURCE_PHOTO_BYTES) {
+    throw new Error('사진 파일이 너무 큽니다.');
+  }
+}
+
+function assertPhotoDataUrl(dataUrl: string): void {
+  if (dataUrl.length > MAX_PREPLAN_PHOTO_DATA_URL_LENGTH) {
+    throw new Error('사진 데이터가 너무 큽니다.');
+  }
+  if (!/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(dataUrl)) {
+    throw new Error('지원하지 않는 사진 데이터입니다.');
+  }
+}
 
 /** 첨부 사진을 리사이즈(최대 1024px, JPEG 0.7)해 dataURL로 변환한다. */
 export function resizeImage(file: File, maxSize = 1024, quality = 0.7): Promise<string> {
+  assertSupportedPhoto(file);
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -34,6 +55,7 @@ export function resizeImage(file: File, maxSize = 1024, quality = 0.7): Promise<
 }
 
 export async function savePhoto(key: string, dataUrl: string): Promise<void> {
+  assertPhotoDataUrl(dataUrl);
   await set(key, dataUrl, photoStore);
 }
 

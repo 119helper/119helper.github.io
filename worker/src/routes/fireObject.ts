@@ -9,6 +9,7 @@
  */
 
 import { encodeServiceKey, findPublicDataError, coerceEnvelope, isRecord } from './publicData';
+import { sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
 
 const FIRE_OBJ_BASE = 'https://apis.data.go.kr/1661000';
 
@@ -17,10 +18,11 @@ export async function handleFireObject(
   url: URL,
   apiKey: string
 ): Promise<{ data: unknown; cacheTtl: number }> {
-  const ctpvNm = url.searchParams.get('ctpvNm') || url.searchParams.get('ctprvn') || '';
-  const useAprvY = url.searchParams.get('useAprvY') || '';
-  const numOfRows = url.searchParams.get('numOfRows') || '100';
-  const pageNo = url.searchParams.get('pageNo') || '1';
+  const ctpvNm = sanitizeStringParam(url, 'ctpvNm', 30) || sanitizeStringParam(url, 'ctprvn', 30) || '';
+  const rawUseAprvY = sanitizeStringParam(url, 'useAprvY', 4) || '';
+  const useAprvY = /^\d{4}$/.test(rawUseAprvY) ? rawUseAprvY : '';
+  const numOfRows = sanitizeNumericParam(url, 'numOfRows', 1, 1000, 100);
+  const pageNo = sanitizeNumericParam(url, 'pageNo', 1, 1000, 1);
   const resultType = 'JSON';
 
   const serviceKey = encodeServiceKey(apiKey, 'FIRE_OBJECT_API_KEY');

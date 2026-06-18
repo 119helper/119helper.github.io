@@ -9,6 +9,7 @@
  */
 
 import { encodeServiceKey, parsePublicDataJson } from './publicData';
+import { sanitizeNumericParam } from '../middleware/cors';
 
 // 연도별 UDDI 엔드포인트
 const MULTIUSE_ENDPOINTS: Record<string, string> = {
@@ -18,9 +19,10 @@ const MULTIUSE_ENDPOINTS: Record<string, string> = {
 };
 
 export async function handleMultiUse(url: URL, apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
-  const year = url.searchParams.get('year') || '2024';
-  const page = url.searchParams.get('page') || url.searchParams.get('pageNo') || '1';
-  const perPage = url.searchParams.get('perPage') || url.searchParams.get('numOfRows') || '100';
+  const requestedYear = url.searchParams.get('year') || '2024';
+  const year = Object.hasOwn(MULTIUSE_ENDPOINTS, requestedYear) ? requestedYear : '2024';
+  const page = sanitizeNumericParam(url, url.searchParams.has('page') ? 'page' : 'pageNo', 1, 1000, 1);
+  const perPage = sanitizeNumericParam(url, url.searchParams.has('perPage') ? 'perPage' : 'numOfRows', 1, 1000, 100);
 
   const uddi = MULTIUSE_ENDPOINTS[year] || MULTIUSE_ENDPOINTS['2024'];
 

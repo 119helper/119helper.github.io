@@ -6,12 +6,13 @@
 
 import { fetchSafetydataJson } from './safetydata';
 import { isRecord, errorMessage, requireSecret } from './publicData';
+import { sanitizeNumericParam } from '../middleware/cors';
 
 export async function handleTsunamiShelter(url: URL, apiKey?: string): Promise<{ data: unknown; cacheTtl: number }> {
   const serviceKey = requireSecret(apiKey, 'TSUNAMI_SHELTER_API_KEY');
   // ctprvnNm 필터링은 DSSP-IF-10944에서 미지원하여 제거됨
-  const numOfRows = url.searchParams.get('numOfRows') || '200'; // 1000개 요청 시 정부 서버 지연이 심해 200개로 축소
-  const pageNo = url.searchParams.get('pageNo') || '1';
+  const numOfRows = sanitizeNumericParam(url, 'numOfRows', 1, 500, 200); // 1000개 요청 시 정부 서버 지연이 심해 200개로 축소
+  const pageNo = sanitizeNumericParam(url, 'pageNo', 1, 1000, 1);
 
   const qs = new URLSearchParams({
     serviceKey,

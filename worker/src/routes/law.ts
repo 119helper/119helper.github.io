@@ -9,7 +9,9 @@
  * korean-law-mcp fly.dev 서버(REST wrapper)를 경유합니다.
  */
 
-const LAW_API_BASE = 'http://www.law.go.kr/DRF';
+import { sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
+
+const LAW_API_BASE = 'https://www.law.go.kr/DRF';
 const OC = 'fire119helper';
 
 const HEADERS: Record<string, string> = {
@@ -18,10 +20,11 @@ const HEADERS: Record<string, string> = {
 
 /** 법령 검색 (목록) */
 async function searchLaw(url: URL): Promise<Response> {
-  const query = url.searchParams.get('query') || '소방';
-  const page = url.searchParams.get('page') || '1';
-  const display = url.searchParams.get('display') || '20';
-  const sort = url.searchParams.get('sort') || 'efYd';
+  const query = sanitizeStringParam(url, 'query', 80) || '소방';
+  const page = sanitizeNumericParam(url, 'page', 1, 1000, 1);
+  const display = sanitizeNumericParam(url, 'display', 1, 100, 20);
+  const requestedSort = sanitizeStringParam(url, 'sort', 12) || 'efYd';
+  const sort = ['efYd', 'lasc', 'ldes'].includes(requestedSort) ? requestedSort : 'efYd';
 
   const params = new URLSearchParams({
     OC,
@@ -72,7 +75,7 @@ async function searchLaw(url: URL): Promise<Response> {
     });
 
     const fallbackRes = await fetch(
-      `http://www.law.go.kr/DRF/lawSearch.do?OC=test&${fallbackParams}`,
+      `${LAW_API_BASE}/lawSearch.do?OC=test&${fallbackParams}`,
       { headers: HEADERS }
     );
 
@@ -101,7 +104,7 @@ async function searchLaw(url: URL): Promise<Response> {
 
 /** 법령 본문 조회 */
 async function getLawDetail(url: URL): Promise<Response> {
-  const id = url.searchParams.get('id') || '';
+  const id = sanitizeStringParam(url, 'id', 40) || '';
   if (!id) return jsonError('id (MST) is required', 400);
 
   const params = new URLSearchParams({

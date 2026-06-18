@@ -5,14 +5,15 @@
  */
 
 import { isRecord, errorMessage, requireSecret } from './publicData';
+import { sanitizeNumericParam } from '../middleware/cors';
 
 export async function handleCivilShelter(url: URL, apiKey?: string): Promise<{ data: unknown; cacheTtl: number }> {
   const serviceKey = requireSecret(apiKey, 'CIVIL_SHELTER_API_KEY');
-  const pageNo = url.searchParams.get('pageNo') || '1';
+  const pageNo = sanitizeNumericParam(url, 'pageNo', 1, 1000, 1);
   
   // DSSP-IF-10166는 지역 필터링(ctprvnNm)이 작동하지 않으므로, 한번에 많은 데이터를 가져갑니다.
   // 단, Cloudflare Worker Timeout (10초) 및 메모리 한계를 고려하여 너무 크지 않게 설정합니다.
-  const numOfRows = url.searchParams.get('numOfRows') || '2000';
+  const numOfRows = sanitizeNumericParam(url, 'numOfRows', 1, 2000, 2000);
 
   const qs = new URLSearchParams({
     serviceKey,

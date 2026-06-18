@@ -3,6 +3,7 @@
 
 import { fetchSafetydataJson } from './safetydata';
 import { isRecord, requireSecret } from './publicData';
+import { sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
 
 const SAFETYDATA_TSUNAMI_PATH = '/V2/api/DSSP-IF-10944';
 
@@ -34,10 +35,10 @@ async function fetchSafetydataTsunami(params: URLSearchParams): Promise<unknown>
 
 export async function handleShelter(url: URL, apiKey?: string): Promise<{ data: unknown; cacheTtl: number }> {
   const serviceKey = requireSecret(apiKey, 'SHELTER_API_KEY');
-  const ctprvnNm = url.searchParams.get('ctprvnNm') || '';
-  const signguNm = url.searchParams.get('signguNm') || '';
-  const numOfRows = url.searchParams.get('numOfRows') || '100';
-  const pageNo = url.searchParams.get('pageNo') || '1';
+  const ctprvnNm = sanitizeStringParam(url, 'ctprvnNm', 30) || '';
+  const signguNm = sanitizeStringParam(url, 'signguNm', 30) || '';
+  const numOfRows = sanitizeNumericParam(url, 'numOfRows', 1, 500, 100);
+  const pageNo = sanitizeNumericParam(url, 'pageNo', 1, 1000, 1);
   const upstreamRows = ctprvnNm || signguNm ? '1000' : numOfRows;
 
   const params = new URLSearchParams({

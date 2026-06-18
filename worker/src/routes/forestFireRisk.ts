@@ -6,6 +6,7 @@
  */
 
 import { encodeServiceKey, fetchPublicDataText, parsePublicDataJson, pickItemsAndCount } from './publicData';
+import { sanitizeNumericParam } from '../middleware/cors';
 
 const BASE = 'https://apis.data.go.kr/1400377/forestPointV2';
 const OPERATION = 'forestPointListGeongugSearchV2';
@@ -14,10 +15,10 @@ export async function handleForestFireRisk(url: URL, apiKey: string): Promise<{ 
   const serviceKey = encodeServiceKey(apiKey, 'FOREST_FIRE_API_KEY');
   const params = new URLSearchParams({
     ServiceKey: serviceKey,
-    pageNo: url.searchParams.get('pageNo') || '1',
-    numOfRows: url.searchParams.get('numOfRows') || '1000',
+    pageNo: sanitizeNumericParam(url, 'pageNo', 1, 1000, 1),
+    numOfRows: sanitizeNumericParam(url, 'numOfRows', 1, 1000, 1000),
     _type: 'json',
-    excludeForecast: url.searchParams.get('excludeForecast') || '0',
+    excludeForecast: sanitizeNumericParam(url, 'excludeForecast', 0, 1, 0),
   });
 
   const text = await fetchPublicDataText(`${BASE}/${OPERATION}?${params}`, 'ForestFireRisk');

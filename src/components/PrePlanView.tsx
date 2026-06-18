@@ -1,7 +1,39 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { z } from 'zod';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { type PrePlan, type PrePlanContact, createEmptyPrePlan } from '../types/preplan';
-import { resizeImage, savePhoto, getPhoto, deletePhoto } from '../services/preplanPhotos';
+import { resizeImage, savePhoto, getPhoto, deletePhoto, MAX_PREPLAN_PHOTO_DATA_URL_LENGTH } from '../services/preplanPhotos';
+
+const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
+const MAX_IMPORT_PLANS = 500;
+const MAX_IMPORT_PHOTOS = 500;
+const MAX_PHOTOS_PER_PLAN = 50;
+
+const photoKeySchema = z.string().min(1).max(120).regex(/^[A-Za-z0-9_.:-]+$/);
+const prePlanContactSchema = z.object({
+  role: z.string().max(80),
+  name: z.string().max(100),
+  phone: z.string().max(50),
+});
+const prePlanSchema = z.object({
+  id: z.string().min(1).max(80),
+  name: z.string().max(200),
+  address: z.string().max(500),
+  hazards: z.array(z.string().max(200)).max(50),
+  contacts: z.array(prePlanContactSchema).max(50),
+  facilities: z.array(z.string().max(200)).max(100),
+  accessNotes: z.string().max(5000),
+  photoKeys: z.array(photoKeySchema).max(MAX_PHOTOS_PER_PLAN),
+  updatedAt: z.number().finite().nonnegative(),
+}) satisfies z.ZodType<PrePlan>;
+const photoDataUrlSchema = z.string()
+  .max(MAX_PREPLAN_PHOTO_DATA_URL_LENGTH)
+  .regex(/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/);
+const prePlanBundleSchema = z.object({
+  version: z.number().optional(),
+  plans: z.array(prePlanSchema).max(MAX_IMPORT_PLANS),
+  photos: z.record(photoKeySchema, photoDataUrlSchema).optional(),
+});
 
 export default function PrePlanView() {
   const [plans, setPlans] = useLocalStorageState<PrePlan[]>('119helper-preplans', []);
@@ -54,16 +86,28 @@ export default function PrePlanView() {
 
   const importFile = async (file: File) => {
     try {
+      if (file.size > MAX_IMPORT_BYTES) throw new Error('파일 용량 초과');
       const text = await file.text();
-      const bundle = JSON.parse(text) as { plans?: PrePlan[]; photos?: Record<string, string> };
-      if (!Array.isArray(bundle.plans)) throw new Error('형식 오류');
-      if (bundle.photos) {
-        await Promise.all(Object.entries(bundle.photos).map(([k, v]) => savePhoto(k, v)));
+      const parsed = prePlanBundleSchema.safeParse(JSON.parse(text));
+      if (!parsed.success) throw new Error('형식 오류');
+
+      const existingIds = new Set(plans.map(p => p.id));
+      const importedPlans = parsed.data.plans.filter(p => !existingIds.has(p.id));
+      if (importedPlans.length === 0) {
+        alert('새로 가져올 대상물이 없습니다.');
+        return;
       }
+
+      const referencedPhotoKeys = new Set(importedPlans.flatMap(p => p.photoKeys));
+      const photoEntries = Object.entries(parsed.data.photos ?? {})
+        .filter(([key]) => referencedPhotoKeys.has(key));
+      if (photoEntries.length > MAX_IMPORT_PHOTOS) throw new Error('사진 개수 초과');
+      await Promise.all(photoEntries.map(([key, dataUrl]) => savePhoto(key, dataUrl)));
+
       setPlans(prev => {
         const ids = new Set(prev.map(p => p.id));
         const merged = [...prev];
-        bundle.plans!.forEach(p => {
+        importedPlans.forEach(p => {
           if (!ids.has(p.id)) merged.push(p);
         });
         return merged;

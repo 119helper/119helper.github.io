@@ -52,6 +52,24 @@ const isValidShiftSetting = (value: any): value is ShiftSetting => {
   );
 };
 
+const escapeIcsText = (value: string) =>
+  value
+    .replace(/\\/g, '\\\\')
+    .replace(/\r?\n/g, '\\n')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,');
+
+const foldIcsLine = (line: string) => {
+  const chunks: string[] = [];
+  let rest = line;
+  while (rest.length > 75) {
+    chunks.push(rest.slice(0, 75));
+    rest = ` ${rest.slice(75)}`;
+  }
+  chunks.push(rest);
+  return chunks.join('\r\n');
+};
+
 const generateICS = (schedulesToExport: Schedule[]) => {
   const lines = [
     'BEGIN:VCALENDAR',
@@ -74,14 +92,14 @@ const generateICS = (schedulesToExport: Schedule[]) => {
       `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
       `DTSTART;VALUE=DATE:${dtstart}`,
       `DTEND;VALUE=DATE:${dtend}`,
-      `SUMMARY:[${s.type}] ${s.title}`,
-      `DESCRIPTION:${s.memo.replace(/\n/g, '\\n')}`,
+      `SUMMARY:${escapeIcsText(`[${s.type}] ${s.title}`)}`,
+      `DESCRIPTION:${escapeIcsText(s.memo)}`,
       'END:VEVENT'
     );
   });
 
   lines.push('END:VCALENDAR');
-  return lines.join('\r\n');
+  return lines.map(foldIcsLine).join('\r\n');
 };
 export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());

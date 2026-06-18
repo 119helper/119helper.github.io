@@ -12,6 +12,7 @@
  */
 
 import { encodeServiceKey, parsePublicDataJson, isRecord, asArray } from './publicData';
+import { sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
 
 const BASE = 'https://apis.data.go.kr/1661000/FireDamageStatus';
 
@@ -46,6 +47,10 @@ function normalizeSidoName(value: string | null): string {
   return SIDO_NAME_MAP[trimmed] || trimmed;
 }
 
+function sanitizeYmd(value: string | null, fallback: string): string {
+  return value && /^\d{8}$/.test(value) ? value : fallback;
+}
+
 export async function handleFireDamage(
   url: URL, apiKey: string
 ): Promise<{ data: unknown; cacheTtl: number }> {
@@ -53,17 +58,19 @@ export async function handleFireDamage(
   const params = new URLSearchParams({ resultType: 'json' });
 
   // 페이지네이션
-  const pageNo = url.searchParams.get('pageNo') || '1';
-  const numOfRows = url.searchParams.get('numOfRows') || '100';
+  const pageNo = sanitizeNumericParam(url, 'pageNo', 1, 1000, 1);
+  const numOfRows = sanitizeNumericParam(url, 'numOfRows', 1, 1000, 100);
   params.set('pageNo', pageNo);
   params.set('numOfRows', numOfRows);
 
   // 필수 조회 기간 (프론트가 안 보내면 기본값)
-  params.set('startYmd', url.searchParams.get('startYmd') || DEFAULT_START);
-  params.set('endYmd', url.searchParams.get('endYmd') || DEFAULT_END);
+  params.set('startYmd', sanitizeYmd(url.searchParams.get('startYmd'), DEFAULT_START));
+  params.set('endYmd', sanitizeYmd(url.searchParams.get('endYmd'), DEFAULT_END));
 
   // sidoNm은 필수. 프론트 구버전은 lawAddrName으로 보내므로 정식 시도명으로 매핑.
-  const sidoNm = normalizeSidoName(url.searchParams.get('sidoNm') || url.searchParams.get('lawAddrName'));
+  const sidoNm = normalizeSidoName(
+    sanitizeStringParam(url, 'sidoNm', 30) || sanitizeStringParam(url, 'lawAddrName', 30)
+  );
   params.set('sidoNm', sidoNm);
 
   const res = await fetch(`${BASE}/getOcByregionFpcnd?serviceKey=${serviceKey}&${params}`, {
