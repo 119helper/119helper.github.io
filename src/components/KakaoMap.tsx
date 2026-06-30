@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import type { FireFacility } from '../data/mockData';
 import { loadKakaoMapSDK, retryKakaoLoad } from '../utils/kakaoLoader';
+import type { KakaoMapInstance, KakaoMarker, KakaoMarkerClusterer, KakaoMarkerImage, KakaoOverlay } from '../types/kakao';
 
 // 도시별 중심 좌표
 const CITY_CENTERS: Record<string, { lat: number; lng: number }> = {
@@ -42,27 +43,22 @@ interface KakaoMapProps {
   selectedId?: string | null;
 }
 
-declare global {
-  interface Window {
-    kakao: any;
-  }
-}
-
 export default function KakaoMap({ data, city, height = '300px', selectedId }: KakaoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
-  const clustererRef = useRef<any>(null);
-  const markersRef = useRef<Map<string, any>>(new Map());
-  const overlaysRef = useRef<Map<string, any>>(new Map());
-  const markerImageCacheRef = useRef<Map<string, any>>(new Map());
+  const mapRef = useRef<KakaoMapInstance | null>(null);
+  const clustererRef = useRef<KakaoMarkerClusterer | null>(null);
+  const markersRef = useRef<Map<string, KakaoMarker>>(new Map());
+  const overlaysRef = useRef<Map<string, KakaoOverlay>>(new Map());
+  const markerImageCacheRef = useRef<Map<string, KakaoMarkerImage>>(new Map());
   const markerImageUrlsRef = useRef<string[]>([]);
   const [sdkReady, setSdkReady] = useState(!!window.kakao?.maps);
   const [sdkError, setSdkError] = useState('');
 
   // Unmount 시 오브젝트 URL 정리
   useEffect(() => {
+    const markerImageUrls = markerImageUrlsRef.current;
     return () => {
-      markerImageUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+      markerImageUrls.forEach(url => URL.revokeObjectURL(url));
     };
   }, []);
 
@@ -93,9 +89,9 @@ export default function KakaoMap({ data, city, height = '300px', selectedId }: K
     map.addControl(zoomControl, window.kakao.maps.ControlPosition.RIGHT);
 
     // 마커 클러스터러 초기화
-    const hasClusterer = !!window.kakao.maps.MarkerClusterer;
-    const clusterer = hasClusterer
-      ? new window.kakao.maps.MarkerClusterer({
+    const MarkerClusterer = window.kakao.maps.MarkerClusterer;
+    const clusterer = MarkerClusterer
+      ? new MarkerClusterer({
           map: map,
           averageCenter: true,
           minLevel: 7,
@@ -147,7 +143,7 @@ export default function KakaoMap({ data, city, height = '300px', selectedId }: K
     markersRef.current = new Map();
     overlaysRef.current = new Map();
 
-    const newMarkers: any[] = [];
+    const newMarkers: KakaoMarker[] = [];
     const validItems: FireFacility[] = [];
 
     const getMarkerImage = (color: string) => {

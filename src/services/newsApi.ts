@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://119-helper-api.teemozipsa.workers.dev';
+import { API_BASE, workerHeaders } from './apiConfig';
 
 export interface NewsItem {
   id: string;
@@ -48,7 +48,7 @@ async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boo
       if (attempt > 0) {
         await new Promise(r => setTimeout(r, 1000 * attempt)); // 1s, 2s 대기
       }
-      const response = await fetch(url, { cache: 'no-store' });
+      const response = await fetch(url, { cache: 'no-store', headers: workerHeaders() });
       if (!response.ok) {
         if (attempt < retries) continue;
         return [];

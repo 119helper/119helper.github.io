@@ -5,19 +5,7 @@ import {
   getHazmatDistances,
   type SpillSize,
 } from '../utils/fieldCalculations';
-
-interface KakaoLatLng {
-  getLat(): number;
-  getLng(): number;
-}
-
-interface KakaoMapInstance {
-  setCenter(position: KakaoLatLng): void;
-}
-
-interface KakaoOverlay {
-  setMap(map: KakaoMapInstance | null): void;
-}
+import type { KakaoLatLng, KakaoMapInstance, KakaoOverlay } from '../types/kakao';
 
 interface KakaoMouseEvent {
   latLng: KakaoLatLng;
@@ -53,7 +41,8 @@ export default function HazmatCalc() {
     let retryCount = 0;
 
     const initMap = () => {
-      if (!mapRef.current) return;
+      const mapContainer = mapRef.current;
+      if (!mapContainer) return;
 
       if (!window.kakao?.maps) {
         retryCount += 1;
@@ -70,13 +59,14 @@ export default function HazmatCalc() {
           center: new window.kakao.maps.LatLng(DEFAULT_ORIGIN.lat, DEFAULT_ORIGIN.lng),
           level: 4,
         };
-        const initialMap = new window.kakao.maps.Map(mapRef.current, options);
+        const initialMap = new window.kakao.maps.Map(mapContainer, options);
         setMap(initialMap);
 
         // Map click event — uses ref to always get latest isSelectingOrigin
-        window.kakao.maps.event.addListener(initialMap, 'click', (mouseEvent: KakaoMouseEvent) => {
+        window.kakao.maps.event.addListener(initialMap, 'click', (mouseEvent) => {
+          const event = mouseEvent as KakaoMouseEvent;
           if (!isSelectingRef.current) return;
-          const latlng = mouseEvent.latLng;
+          const latlng = event.latLng;
           setOriginPoint({ lat: latlng.getLat(), lng: latlng.getLng() });
           setIsSelectingOrigin(false);
         });

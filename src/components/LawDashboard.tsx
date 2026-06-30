@@ -42,7 +42,7 @@ const formatParagraphNo = (value?: string) => {
 const getArticleKey = (article: LawArticle, index: number) => {
   return [
     article.조문번호 || 'no',
-    (article as any).조문가지번호 || '0',
+    article.조문가지번호 || '0',
     article.조문제목 || '',
     index,
   ].join('-');

@@ -17,14 +17,31 @@ const CHART_COLORS = [
 ];
 
 /* ─── 도넛 차트 (순수 CSS) ─── */
-function DonutChart({ data, labelKey, valueKey }: { data: any[]; labelKey: string; valueKey: string }) {
-  const total = data.reduce((s, d) => s + (d[valueKey] || 0), 0);
+interface DonutSlice {
+  label: string;
+  value: number;
+  pct: number;
+  start: number;
+  color: string;
+}
+
+function getChartNumber(value: unknown): number {
+  return Number(value) || 0;
+}
+
+function getChartLabel(value: unknown): string {
+  return String(value ?? '');
+}
+
+function DonutChart<T extends object>({ data, labelKey, valueKey }: { data: T[]; labelKey: keyof T & string; valueKey: keyof T & string }) {
+  const total = data.reduce((s, d) => s + getChartNumber(d[valueKey]), 0);
   if (total === 0) return <EmptyState icon="donut_large" text="데이터 없음" />;
 
-  const slices = data.reduce((acc: any[], d, i) => {
-    const pct = (d[valueKey] / total) * 100;
+  const slices = data.reduce<DonutSlice[]>((acc, d, i) => {
+    const value = getChartNumber(d[valueKey]);
+    const pct = (value / total) * 100;
     const start = acc.length > 0 ? acc[acc.length - 1].start + acc[acc.length - 1].pct : 0;
-    acc.push({ label: d[labelKey], value: d[valueKey], pct, start, color: CHART_COLORS[i % CHART_COLORS.length] });
+    acc.push({ label: getChartLabel(d[labelKey]), value, pct, start, color: CHART_COLORS[i % CHART_COLORS.length] });
     return acc;
   }, []);
 
@@ -65,17 +82,19 @@ function DonutChart({ data, labelKey, valueKey }: { data: any[]; labelKey: strin
 }
 
 /* ─── 수평 바 차트 (순수 CSS) ─── */
-function HBarChart({ data, labelKey, valueKey }: { data: any[]; labelKey: string; valueKey: string }) {
-  const max = Math.max(...data.map(d => d[valueKey] || 0), 1);
+function HBarChart<T extends object>({ data, labelKey, valueKey }: { data: T[]; labelKey: keyof T & string; valueKey: keyof T & string }) {
+  const max = Math.max(...data.map(d => getChartNumber(d[valueKey])), 1);
   if (data.length === 0) return <EmptyState icon="bar_chart" text="데이터 없음" />;
 
   return (
     <div className="space-y-2">
       {data.map((d, i) => {
-        const pct = ((d[valueKey] || 0) / max) * 100;
+        const value = getChartNumber(d[valueKey]);
+        const label = getChartLabel(d[labelKey]);
+        const pct = (value / max) * 100;
         return (
-          <div key={d[labelKey] || i} className="flex items-center gap-3">
-            <span className="text-xs text-on-surface-variant w-16 text-right truncate">{d[labelKey]}</span>
+          <div key={label || i} className="flex items-center gap-3">
+            <span className="text-xs text-on-surface-variant w-16 text-right truncate">{label}</span>
             <div className="flex-1 h-6 bg-surface-container rounded-md overflow-hidden relative">
               <div
                 className="h-full rounded-md transition-all duration-700 ease-out"
@@ -85,7 +104,7 @@ function HBarChart({ data, labelKey, valueKey }: { data: any[]; labelKey: string
                 }}
               />
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-on-surface">
-                {(d[valueKey] || 0).toLocaleString()}
+                {value.toLocaleString()}
               </span>
             </div>
           </div>
@@ -806,6 +825,11 @@ function SearchSection({ transfers, firstAids, activityDetails }: { transfers: T
 
   const currentData = dataMap[dataType];
 
+  const getCommonLocation = (item: TransferItem | FirstAidItem | ActivityDetailItem) => {
+    const center = 'safeCnterNm' in item && item.safeCnterNm ? `(${item.safeCnterNm})` : '';
+    return `${item.sidoNm} ${item.fireStnNm} ${center}`;
+  };
+
   return (
     <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden flex flex-col">
       <div className="p-6 border-b border-outline-variant/10 bg-surface-container/20 space-y-4">
@@ -876,18 +900,18 @@ function SearchSection({ transfers, firstAids, activityDetails }: { transfers: T
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10 text-sm">
-              {currentData.slice(0, 200).map((item: any, i) => (
+              {currentData.slice(0, 200).map((item, i) => (
                 <tr key={i} className="hover:bg-surface-container/30 transition-colors">
                   <td className="px-5 py-3 font-medium text-on-surface flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary/70"></span>
-                    {item.sidoNm} {item.fireStnNm} {item.safeCnterNm ? `(${item.safeCnterNm})` : ''}
+                    {getCommonLocation(item)}
                   </td>
                   
                   {dataType === 'transfer' && (
                     <>
-                      <td className="px-5 py-3 text-on-surface-variant">{item.occrrPlce || '-'}</td>
+                      <td className="px-5 py-3 text-on-surface-variant">{(item as TransferItem).occrrPlce || '-'}</td>
                       <td className="px-5 py-3">
-                        <span className="bg-surface-container-high px-2 py-1 rounded text-xs text-on-surface">{item.occrrType || '-'}</span>
+                        <span className="bg-surface-container-high px-2 py-1 rounded text-xs text-on-surface">{(item as TransferItem).occrrType || '-'}</span>
                       </td>
                     </>
                   )}
@@ -895,10 +919,10 @@ function SearchSection({ transfers, firstAids, activityDetails }: { transfers: T
                   {dataType === 'firstAid' && (
                     <>
                       <td className="px-5 py-3 text-on-surface-variant">
-                        {item.ptntAge && item.ptntAge !== '미상' ? `${item.ptntAge}대` : '미상'} / {item.ptntSex || '-'}
+                        {(item as FirstAidItem).ptntAge && (item as FirstAidItem).ptntAge !== '미상' ? `${(item as FirstAidItem).ptntAge}대` : '미상'} / {(item as FirstAidItem).ptntSex || '-'}
                       </td>
                       <td className="px-5 py-3">
-                         <span className="bg-secondary/10 text-secondary px-2 py-1 rounded text-xs">{item.emrgFirstaidCd || '-'}</span>
+                         <span className="bg-secondary/10 text-secondary px-2 py-1 rounded text-xs">{(item as FirstAidItem).emrgFirstaidCd || '-'}</span>
                       </td>
                     </>
                   )}
@@ -907,12 +931,12 @@ function SearchSection({ transfers, firstAids, activityDetails }: { transfers: T
                     <>
                       <td className="px-5 py-3 text-on-surface-variant">
                         <div className="flex gap-4">
-                          <span className="flex items-center gap-1 text-xs"><span className="material-symbols-outlined text-[14px]">login</span> {item.arriveYmd} {item.arriveHh}:{item.arriveMm}</span>
-                          <span className="flex items-center gap-1 text-xs opacity-60"><span className="material-symbols-outlined text-[14px]">logout</span> {item.returnYmd} {item.returnHh}:{item.returnMm}</span>
+                          <span className="flex items-center gap-1 text-xs"><span className="material-symbols-outlined text-[14px]">login</span> {(item as ActivityDetailItem).arriveYmd} {(item as ActivityDetailItem).arriveHh}:{(item as ActivityDetailItem).arriveMm}</span>
+                          <span className="flex items-center gap-1 text-xs opacity-60"><span className="material-symbols-outlined text-[14px]">logout</span> {(item as ActivityDetailItem).returnYmd} {(item as ActivityDetailItem).returnHh}:{(item as ActivityDetailItem).returnMm}</span>
                         </div>
                       </td>
                       <td className="px-5 py-3 text-right tabular-nums text-on-surface font-medium">
-                        {item.distKm ? `${item.distKm} km` : '-'}
+                        {(item as ActivityDetailItem).distKm ? `${(item as ActivityDetailItem).distKm} km` : '-'}
                       </td>
                     </>
                   )}

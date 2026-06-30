@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { getShelters, type ShelterData } from '../services/shelterApi';
+import type { KakaoInfoWindow, KakaoMapInstance, KakaoMarker } from '../types/kakao';
 
 interface ShelterViewProps {
   city: string;
@@ -45,11 +46,11 @@ export default function ShelterView({ city }: ShelterViewProps) {
   const [selectedShelter, setSelectedShelter] = useState<ShelterData | null>(null);
   
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
-  const infoWindowsRef = useRef<any[]>([]);
-  const myMarkerRef = useRef<any>(null);
-  const myInfoWindowRef = useRef<any>(null);
+  const mapInstanceRef = useRef<KakaoMapInstance | null>(null);
+  const markersRef = useRef<KakaoMarker[]>([]);
+  const infoWindowsRef = useRef<KakaoInfoWindow[]>([]);
+  const myMarkerRef = useRef<KakaoMarker | null>(null);
+  const myInfoWindowRef = useRef<KakaoInfoWindow | null>(null);
   const requestSeqRef = useRef(0);
 
   // GPS 위치 가져오기
@@ -88,7 +89,8 @@ export default function ShelterView({ city }: ShelterViewProps) {
 
   // 카카오맵 1회 초기화
   useEffect(() => {
-    if (!window.kakao?.maps || !mapRef.current) {
+    const mapContainer = mapRef.current;
+    if (!window.kakao?.maps || !mapContainer) {
       if (!window.kakao) {
         setMapError('카카오 지도를 불러오지 못했습니다.');
       }
@@ -97,7 +99,7 @@ export default function ShelterView({ city }: ShelterViewProps) {
     if (mapInstanceRef.current) return;
 
     window.kakao.maps.load(() => {
-      const map = new window.kakao.maps.Map(mapRef.current, {
+      const map = new window.kakao.maps.Map(mapContainer, {
         center: new window.kakao.maps.LatLng(37.5665, 126.978),
         level: 8,
       });

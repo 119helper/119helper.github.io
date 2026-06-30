@@ -29,6 +29,11 @@ const toNumber = (value: string | number | undefined | null) => {
   return Number.isFinite(n) ? n : null;
 };
 
+const getForecastValue = (record: object, key: string): string | number | undefined => {
+  const value = (record as Record<string, unknown>)[key];
+  return typeof value === 'string' || typeof value === 'number' ? value : undefined;
+};
+
 export default function WeatherDashboard({ city }: WeatherDashboardProps) {
   const [current, setCurrent] = useState<CurrentWeather>(FALLBACK_WEATHER);
   const [hourly, setHourly] = useState<HourlyForecast[]>([]);
@@ -440,16 +445,16 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
           {midLand && midTemp ? (
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
               {[3, 4, 5, 6, 7, 8, 9, 10]
-                .filter(day => (midTemp as any)[`taMin${day}`] !== undefined)
+                .filter(day => getForecastValue(midTemp, `taMin${day}`) !== undefined)
                 .map(day => {
                 const futureDate = new Date();
                 futureDate.setDate(futureDate.getDate() + day);
                 const dayName = ['일', '월', '화', '수', '목', '금', '토'][futureDate.getDay()];
-                const amWf = day >= 8 ? ((midLand as any)[`wf${day}`] || '–') : ((midLand as any)[`wf${day}Am`] || '–');
-                const pmWf = day >= 8 ? '종일' : ((midLand as any)[`wf${day}Pm`] || '–');
-                const tMin = (midTemp as any)[`taMin${day}`] ?? '–';
-                const tMax = (midTemp as any)[`taMax${day}`] ?? '–';
-                const rain = day >= 8 ? ((midLand as any)[`rnSt${day}`] ?? 0) : ((midLand as any)[`rnSt${day}Pm`] ?? 0);
+                const amWf = day >= 8 ? (getForecastValue(midLand, `wf${day}`) || '–') : (getForecastValue(midLand, `wf${day}Am`) || '–');
+                const pmWf = day >= 8 ? '종일' : (getForecastValue(midLand, `wf${day}Pm`) || '–');
+                const tMin = getForecastValue(midTemp, `taMin${day}`) ?? '–';
+                const tMax = getForecastValue(midTemp, `taMax${day}`) ?? '–';
+                const rain = toNumber(day >= 8 ? getForecastValue(midLand, `rnSt${day}`) : getForecastValue(midLand, `rnSt${day}Pm`)) ?? 0;
 
                 return (
                   <div key={day} className="bg-surface-container rounded-xl p-4 text-center border border-outline-variant/5 shadow-sm">

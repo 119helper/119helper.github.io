@@ -2,12 +2,22 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
+function stripDevCspConnectSources() {
+  return {
+    name: 'strip-dev-csp-connect-sources',
+    apply: 'build' as const,
+    transformIndexHtml(html: string) {
+      return html.replace(' http://localhost:* ws://localhost:*', '')
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   base: '/',
   // 시크릿(.env)은 MyProjects/key/119-helper 에서 로드
   envDir: '../key/119-helper',
-  plugins: [react(), tailwindcss()],
+  plugins: [stripDevCspConnectSources(), react(), tailwindcss()],
   server: {
     proxy: {
       '/api/kma': {

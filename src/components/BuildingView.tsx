@@ -13,7 +13,7 @@ interface FireObjectAccom {
   useAprDe?: string;
   spclObjNm?: string;
   rn?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface FireObjectFireSys {
@@ -21,12 +21,13 @@ interface FireObjectFireSys {
   ctprvn?: string;
   signgu?: string;
   rdnmadr?: string;
+  lnmadr?: string;
   sprinklerInstlYn?: string;
   outdoorHydrantInstlYn?: string;
   indoorHydrantInstlYn?: string;
   autoFirAlrmInstlYn?: string;
   flrCo?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface RecentSearchItem {
@@ -104,7 +105,7 @@ export default function BuildingView() {
       let apiRes: BuildingRegisterInfo | null = null;
       try {
         apiRes = await fetchBuildingRegister(parsed.sigunguCd, parsed.bjdongCd, parsed.platGbCd, parsed.bun, parsed.ji, forceRefresh);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (seq !== requestSeqRef.current) return;
         if (isStaleDataError(e)) {
           apiRes = e.cachedData as BuildingRegisterInfo;
@@ -196,18 +197,19 @@ export default function BuildingView() {
       return;
     }
 
-    if (!window.kakao?.maps?.services) {
+    const services = window.kakao?.maps?.services;
+    if (!services) {
       if (seq !== requestSeqRef.current) return;
       setErrorMsg('카카오 주소검색(Geocoder) 서비스 로드 실패. [새로고침] 해주세요.');
       setIsLoading(false);
       return;
     }
 
-    const geocoder = new window.kakao.maps.services.Geocoder();
-    geocoder.addressSearch(targetAddress, (result: any, status: any) => {
+    const geocoder = new services.Geocoder();
+    geocoder.addressSearch(targetAddress, (result, status) => {
       if (seq !== requestSeqRef.current) return;
 
-      if (status === window.kakao.maps.services.Status.OK && result[0]) {
+      if (status === services.Status.OK && result[0]) {
         const item = result[0];
         const addrObj = item.address;
 

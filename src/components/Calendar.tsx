@@ -19,14 +19,15 @@ const TYPE_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
-const isValidSchedule = (value: any): value is Schedule => {
+const isValidSchedule = (value: unknown): value is Schedule => {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<Schedule>;
   return (
-    value &&
-    typeof value.id === 'string' &&
-    typeof value.date === 'string' &&
-    typeof value.title === 'string' &&
-    ['근무', '점검', '교육', '기타'].includes(value.type) &&
-    typeof value.memo === 'string'
+    typeof candidate.id === 'string' &&
+    typeof candidate.date === 'string' &&
+    typeof candidate.title === 'string' &&
+    ['근무', '점검', '교육', '기타'].includes(candidate.type ?? '') &&
+    typeof candidate.memo === 'string'
   );
 };
 
@@ -42,13 +43,15 @@ const loadSchedules = (): Schedule[] => {
   }
 };
 
-const isValidShiftSetting = (value: any): value is ShiftSetting => {
+const isValidShiftSetting = (value: unknown): value is ShiftSetting => {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<ShiftSetting>;
   return (
-    value &&
-    typeof value.isActive === 'boolean' &&
-    typeof value.baseDate === 'string' &&
-    /^\d{4}-\d{2}-\d{2}$/.test(value.baseDate) &&
-    SHIFT_CYCLE_DANGBIBI.includes(value.baseShift)
+    typeof candidate.isActive === 'boolean' &&
+    typeof candidate.baseDate === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(candidate.baseDate) &&
+    candidate.baseShift !== undefined &&
+    SHIFT_CYCLE_DANGBIBI.includes(candidate.baseShift)
   );
 };
 

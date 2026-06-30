@@ -8,8 +8,7 @@
  * - 짧은 시간 내 동일/과다 전송은 throttle 해 로그 폭주와 루프를 막는다.
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://119-helper-api.teemozipsa.workers.dev';
-const APP_TOKEN = import.meta.env.VITE_APP_TOKEN || '';
+import { API_BASE, workerHeaders } from './apiConfig';
 
 const THROTTLE_WINDOW_MS = 10_000; // 동일 시그니처는 10초에 1회만
 const MAX_PER_WINDOW = 10;         // 윈도우당 총 전송 상한
@@ -95,11 +94,8 @@ export function reportClientError(error: unknown, report: ClientErrorReport): vo
     });
 
     const url = `${API_BASE}/api/client-log`;
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (APP_TOKEN) headers['X-App-Token'] = APP_TOKEN;
-
     // keepalive: 페이지 이탈 중에도 전송 보장. 실패는 조용히 무시.
-    void fetch(url, { method: 'POST', headers, body, keepalive: true }).catch(() => {});
+    void fetch(url, { method: 'POST', headers: workerHeaders({ 'Content-Type': 'application/json' }), body, keepalive: true }).catch(() => {});
   } catch {
     // 텔레메트리는 절대 앱을 깨뜨리지 않는다.
   }

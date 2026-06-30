@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 // --- 데이터 상수 ---
 const RANK_DATA = [
@@ -18,6 +18,17 @@ export const SHIFT_TYPES: Record<ShiftId, { id: ShiftId; label: string; hours: n
   FIRE: { id: 'FIRE', label: '당번', hours: 24, hasNight: true, color: 'bg-error-container text-on-error-container border-error/50' },
   DAY: { id: 'DAY', label: '주간', hours: 9, hasNight: false, color: 'bg-primary-container text-on-primary-container border-primary/50' },
   NIGHT: { id: 'NIGHT', label: '야간', hours: 15, hasNight: true, color: 'bg-secondary-container text-on-secondary-container border-secondary/50' },
+};
+
+const floorToTen = (num: number) => Math.floor(num / 10) * 10;
+const formatCurrency = (num: number) => new Intl.NumberFormat('ko-KR').format(Math.floor(num));
+
+const getMonthInfo = (date: Date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = new Date(year, month, 1).getDay();
+  return { daysInMonth, firstDayOfMonth, year, month };
 };
 
 export default function OvertimeCalc() {
@@ -49,9 +60,7 @@ export default function OvertimeCalc() {
   const [calNightCount, setCalNightCount] = useState(0);
   const [calHolidayCount, setCalHolidayCount] = useState(0);
 
-  const floorToTen = (num: number) => Math.floor(num / 10) * 10;
-  const calculatePay = (qty: number, rate: number) => floorToTen(qty * rate);
-  const formatCurrency = (num: number) => new Intl.NumberFormat('ko-KR').format(Math.floor(num));
+  const calculatePay = useCallback((qty: number, rate: number) => floorToTen(qty * rate), []);
 
   const handleRankChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const rankName = e.target.value;
@@ -68,14 +77,6 @@ export default function OvertimeCalc() {
 
   const handleRateChange = (field: keyof typeof rates, value: string) => {
     setRates((prev) => ({ ...prev, [field]: Number(value) }));
-  };
-
-  const getMonthInfo = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const firstDayOfMonth = new Date(year, month, 1).getDay();
-    return { daysInMonth, firstDayOfMonth, year, month };
   };
 
   const handleCalendarReset = () => {
@@ -100,13 +101,13 @@ export default function OvertimeCalc() {
     setTotalAmount(0);
   };
 
-  const checkIsHoliday = (year: number, month: number, day: number) => {
+  const checkIsHoliday = useCallback((year: number, month: number, day: number) => {
     const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const dateObj = new Date(year, month, day);
     const dayOfWeek = dateObj.getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
     return isWeekend || !!holidays[dateKey];
-  };
+  }, [holidays]);
 
   const handleDateClick = (day: number) => {
     const year = currentDate.getFullYear();
@@ -154,7 +155,7 @@ export default function OvertimeCalc() {
       }
     }
     setManualWeekdays(autoWeekdaysCount);
-  }, [currentDate, holidays]);
+  }, [checkIsHoliday, currentDate, holidays]);
 
   useEffect(() => {
     let finalOvertime = 0;
@@ -230,6 +231,8 @@ export default function OvertimeCalc() {
     otherOvertime,
     vacationDays,
     holidays,
+    calculatePay,
+    checkIsHoliday,
   ]);
 
   const renderCalendar = () => {

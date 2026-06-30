@@ -224,7 +224,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
     } catch { /* parse error fallback */ }
 
     return () => { isMounted = false; };
-  }, [city]);
+  }, [city, cityLabel]);
 
   // 분할 도시: index.json의 타입별 합계 사용
   // 비분할 도시: 로드된 데이터에서 카운트

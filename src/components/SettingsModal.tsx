@@ -25,12 +25,14 @@ const DEFAULT_SHIFT_SETTING: ShiftSetting = {
   baseShift: '당직',
 };
 
-const isValidShiftSetting = (value: any): value is ShiftSetting => {
+const isValidShiftSetting = (value: unknown): value is ShiftSetting => {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<ShiftSetting>;
   return (
-    value &&
-    typeof value.isActive === 'boolean' &&
-    typeof value.baseDate === 'string' &&
-    SHIFT_CYCLE_DANGBIBI.includes(value.baseShift)
+    typeof candidate.isActive === 'boolean' &&
+    typeof candidate.baseDate === 'string' &&
+    candidate.baseShift !== undefined &&
+    SHIFT_CYCLE_DANGBIBI.includes(candidate.baseShift)
   );
 };
 

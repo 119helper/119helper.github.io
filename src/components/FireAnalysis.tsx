@@ -20,15 +20,31 @@ function getRecentYears(count: number): string[] {
 }
 
 /* ─── 도넛 차트 ─── */
-function DonutChart({ data, labelKey, valueKey, title }: { data: any[]; labelKey: string; valueKey: string; title: string }) {
+interface ChartSlice {
+  label: string;
+  value: number;
+  pct: number;
+  start: number;
+  color: string;
+}
+
+function getChartNumber(value: unknown): number {
+  return Number(value) || 0;
+}
+
+function getChartLabel(value: unknown): string {
+  return String(value ?? '');
+}
+
+function DonutChart<T extends object>({ data, labelKey, valueKey, title }: { data: T[]; labelKey: keyof T & string; valueKey: keyof T & string; title: string }) {
   const total = data.reduce((s, d) => s + (Number(d[valueKey]) || 0), 0);
   if (total === 0) return <EmptyState icon="donut_large" text={`${title} 데이터 없음`} />;
 
-  const slices = data.filter(d => Number(d[valueKey]) > 0).reduce((acc: any[], d, i) => {
-    const val = Number(d[valueKey]) || 0;
+  const slices = data.filter(d => getChartNumber(d[valueKey]) > 0).reduce<ChartSlice[]>((acc, d, i) => {
+    const val = getChartNumber(d[valueKey]);
     const pct = (val / total) * 100;
     const start = acc.length > 0 ? acc[acc.length - 1].start + acc[acc.length - 1].pct : 0;
-    acc.push({ label: d[labelKey], value: val, pct, start, color: PALETTE[i % PALETTE.length] });
+    acc.push({ label: getChartLabel(d[labelKey]), value: val, pct, start, color: PALETTE[i % PALETTE.length] });
     return acc;
   }, []);
 
@@ -58,18 +74,19 @@ function DonutChart({ data, labelKey, valueKey, title }: { data: any[]; labelKey
   );
 }
 /* ─── 수평 바 차트 ─── */
-function HBarChart({ data, labelKey, valueKey }: { data: any[]; labelKey: string; valueKey: string }) {
-  const max = Math.max(...data.map(d => Number(d[valueKey]) || 0), 1);
+function HBarChart<T extends object>({ data, labelKey, valueKey }: { data: T[]; labelKey: keyof T & string; valueKey: keyof T & string }) {
+  const max = Math.max(...data.map(d => getChartNumber(d[valueKey])), 1);
   if (data.length === 0) return <EmptyState icon="bar_chart" text="데이터 없음" />;
 
   return (
     <div className="space-y-1.5">
       {data.slice(0, 12).map((d, i) => {
-        const val = Number(d[valueKey]) || 0;
+        const val = getChartNumber(d[valueKey]);
+        const label = getChartLabel(d[labelKey]);
         const pct = (val / max) * 100;
         return (
-          <div key={d[labelKey] || i} className="flex items-center gap-2">
-            <span className="text-[11px] text-on-surface-variant w-20 text-right truncate">{d[labelKey]}</span>
+          <div key={label || i} className="flex items-center gap-2">
+            <span className="text-[11px] text-on-surface-variant w-20 text-right truncate">{label}</span>
             <div className="flex-1 h-5 bg-surface-container rounded overflow-hidden relative">
               <div className="h-full rounded transition-all duration-700 ease-out"
                 style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${PALETTE[i % PALETTE.length]}aa, ${PALETTE[i % PALETTE.length]})` }} />
@@ -141,11 +158,11 @@ export default function FireAnalysis() {
 
   // 데이터 상태
   const [summary, setSummary] = useState({ total: 0, death: 0, injury: 0, propertyDmg: 0, selfExtinguish: 0, falseReport: 0 });
-  const [causeData, setCauseData] = useState<any[]>([]);
-  const [placeData, setPlaceData] = useState<any[]>([]);
-  const [sidoData, setSidoData] = useState<any[]>([]);
-  const [buildingData, setBuildingData] = useState<any[]>([]);
-  const [casualtyData, setCasualtyData] = useState<any[]>([]);
+  const [causeData, setCauseData] = useState<{ cause: string; count: number }[]>([]);
+  const [placeData, setPlaceData] = useState<{ place: string; count: number }[]>([]);
+  const [sidoData, setSidoData] = useState<{ name: string; fires: number; death: number; injury: number; property: number }[]>([]);
+  const [buildingData, setBuildingData] = useState<{ structure: string; count: number }[]>([]);
+  const [casualtyData, setCasualtyData] = useState<{ sido: string; death: number; injury: number }[]>([]);
 
   const fetchAll = useCallback(async (forceRefresh = false) => {
     const seq = ++requestSeqRef.current;
@@ -182,10 +199,10 @@ export default function FireAnalysis() {
         .map(it => ({ sido: it.name || '기타', death: it.deaths, injury: it.injuries }))
         .filter(it => it.death + it.injury > 0));
       setBuildingData(data.byFireType.map(it => ({ structure: it.name || '기타', count: it.count })));
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (seq !== requestSeqRef.current) return;
       console.error('화재 데이터 조회 오류:', e);
-      setApiError(e?.message || '알 수 없는 오류가 발생했습니다.');
+      setApiError(e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.');
     } finally {
       if (seq === requestSeqRef.current) {
         setLoading(false);

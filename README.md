@@ -55,10 +55,10 @@
 
 | 분류 | 기술 |
 |---|---|
-| Frontend | React 18 + TypeScript + Vite |
+| Frontend | React 19 + TypeScript + Vite |
 | Styling | TailwindCSS (Dark Theme) |
 | Map | Kakao Maps JavaScript SDK |
-| API | 기상청 API Hub, 국립중앙의료원, 에어코리아, 국토교통부 |
+| API | Cloudflare Worker 프록시 + 기상청 API Hub, 국립중앙의료원, 에어코리아, 국토교통부 |
 | CI/CD | GitHub Actions → GitHub Pages |
 | State | React Hooks (useState/useEffect) |
 
@@ -70,9 +70,22 @@
 git clone https://github.com/119helper/119helper.github.io.git
 cd 119helper.github.io
 npm install
-cp .env.example .env    # API 키 설정
+mkdir -p ../key/119-helper
+cp .env.example ../key/119-helper/.env
+# ../key/119-helper/.env 에 VITE_KAKAO_MAP_KEY, 필요 시 VITE_API_BASE/VITE_APP_TOKEN 설정
 npm run dev -- --host
 # → http://localhost:5173
+```
+
+공공데이터 API 키는 브라우저 번들에 넣지 않습니다. Worker secret으로 등록하세요.
+
+```bash
+cd worker
+npm install
+wrangler secret put KMA_API_KEY
+wrangler secret put ER_API_KEY
+npm run dev
+# 로컬 Worker를 쓸 때는 프런트 env에 VITE_API_BASE=http://localhost:8787 설정
 ```
 
 ---

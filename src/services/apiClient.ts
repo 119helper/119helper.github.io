@@ -8,11 +8,8 @@
 import { createStore, del, get, keys, set } from 'idb-keyval';
 import { z } from 'zod';
 import { reportClientError } from './telemetry';
+import { API_BASE, workerHeaders } from './apiConfig';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://119-helper-api.teemozipsa.workers.dev';
-// 심층 방어용 공유 앱 토큰 (Worker의 APP_ACCESS_TOKEN과 매칭). 미설정 시 헤더 미전송.
-const APP_TOKEN = import.meta.env.VITE_APP_TOKEN || '';
-const APP_TOKEN_HEADER: Record<string, string> = APP_TOKEN ? { 'X-App-Token': APP_TOKEN } : {};
 const API_TIMEOUT_MS = 15_000;
 const CACHE_PREFIX = '119_cache_v1_';
 const CACHE_VERSION = 1;
@@ -379,7 +376,7 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
     let isTimeout = false;
 
     try {
-      res = await fetch(url.toString(), { cache: 'no-store', signal: controller.signal, headers: APP_TOKEN_HEADER });
+      res = await fetch(url.toString(), { cache: 'no-store', signal: controller.signal, headers: workerHeaders() });
       reportNetworkHealth(true); // 응답이 왔다 = 네트워크 자체는 살아 있음 (HTTP 에러와 무관)
       bodyText = await res.text().catch(() => '');
 

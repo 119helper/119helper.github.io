@@ -9,4 +9,4 @@
   X-XSS-Protection: 1; mode=block
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(self)
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://dapi.kakao.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.kakaocdn.net https://*.daumcdn.net; connect-src 'self' https://119-helper-api.teemozipsa.workers.dev https://dapi.kakao.com; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://dapi.kakao.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.kakaocdn.net https://*.daumcdn.net https://t1.daumcdn.net; connect-src 'self' https://119-helper-api.teemozipsa.workers.dev https://dapi.kakao.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests

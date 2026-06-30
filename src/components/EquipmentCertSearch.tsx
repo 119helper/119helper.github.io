@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ShieldCheck, Search, AlertCircle, FireExtinguisher, Truck, Loader2 } from 'lucide-react';
 import { 
   fetchEquipmentCerts, 
@@ -36,14 +36,16 @@ export default function EquipmentCertSearch() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // 초기 렌더링시 차량 전체 로드
-  useEffect(() => {
-    if (activeTab === 'VEHICLE') {
-      handleSearchVehicle();
+  const handleApiError = useCallback((err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('INVALID_REQUEST_PARAMETER_ERROR') || msg.includes('API 접근이 거부되었습니다')) {
+      setErrorMsg('API 키 승인 대기 중이거나 잘못된 요청입니다. (어제 발급받으신 경우, 공공데이터 포털 동기화에 최대 24시간이 소요될 수 있습니다.)');
+    } else {
+      setErrorMsg(msg);
     }
   }, []);
 
-  const handleSearchVehicle = async () => {
+  const handleSearchVehicle = useCallback(async () => {
     setLoading(true);
     setErrorMsg(null);
     try {
@@ -51,13 +53,13 @@ export default function EquipmentCertSearch() {
       const toAprv = `${vehYear}1231`;
       const data = await fetchEquipmentCerts(fromAprv, toAprv, vehGdsCd !== 'ALL' ? vehGdsCd : undefined);
       setVehData(data.items);
-    } catch (err: any) {
+    } catch (err: unknown) {
       handleApiError(err);
       setVehData([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [handleApiError, vehGdsCd, vehYear]);
 
   const handleSearchExtinguisher = async () => {
     if (!extYear || !extNo) return;
@@ -66,7 +68,7 @@ export default function EquipmentCertSearch() {
     try {
       const data = await fetchExtinguisherCerts(extYear, extNo);
       setExtData(data.items);
-    } catch (err: any) {
+    } catch (err: unknown) {
       handleApiError(err);
       setExtData([]);
     } finally {
@@ -74,14 +76,12 @@ export default function EquipmentCertSearch() {
     }
   };
 
-  const handleApiError = (err: any) => {
-    const msg = err.message || '';
-    if (msg.includes('INVALID_REQUEST_PARAMETER_ERROR') || msg.includes('API 접근이 거부되었습니다')) {
-      setErrorMsg('API 키 승인 대기 중이거나 잘못된 요청입니다. (어제 발급받으신 경우, 공공데이터 포털 동기화에 최대 24시간이 소요될 수 있습니다.)');
-    } else {
-      setErrorMsg(msg);
+  // 초기 렌더링시 차량 전체 로드
+  useEffect(() => {
+    if (activeTab === 'VEHICLE') {
+      void handleSearchVehicle();
     }
-  };
+  }, [activeTab, handleSearchVehicle]);
 
   // 장비 통계 계산용 (제조업체별 비율 등)
   const getVehChartData = () => {

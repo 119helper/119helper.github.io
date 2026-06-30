@@ -3,9 +3,7 @@
  * Worker 프록시(/api/law/*)를 통해 법령 검색 및 본문 조회
  */
 
-const API_BASE = import.meta.env.DEV
-  ? 'http://localhost:8787'
-  : (import.meta.env.VITE_API_BASE || 'https://119-helper-api.teemozipsa.workers.dev');
+import { API_BASE, workerHeaders } from './apiConfig';
 
 // ── 검색 결과 타입 ──
 export interface LawSearchItem {
@@ -38,6 +36,7 @@ export interface LawSearchResponse {
 // ── 본문 조회 타입 ──
 export interface LawArticle {
   조문번호: string;
+  조문가지번호?: string;
   조문여부: string;
   조문제목?: string;
   조문시행일자?: string;
@@ -103,7 +102,7 @@ export async function searchLaw(
     display: String(display),
   });
 
-  const res = await fetch(`${API_BASE}/api/law/search?${params}`);
+  const res = await fetch(`${API_BASE}/api/law/search?${params}`, { headers: workerHeaders() });
   if (!res.ok) throw new Error(`Law search error ${res.status}`);
 
   const data: LawSearchResponse = await res.json();
@@ -137,7 +136,7 @@ export async function getLawDetail(mst: string): Promise<LawDetailResponse> {
   }
 
   const params = new URLSearchParams({ id: mst });
-  const res = await fetch(`${API_BASE}/api/law/detail?${params}`);
+  const res = await fetch(`${API_BASE}/api/law/detail?${params}`, { headers: workerHeaders() });
   if (!res.ok) throw new Error(`Law detail error ${res.status}`);
 
   const text = await res.text();

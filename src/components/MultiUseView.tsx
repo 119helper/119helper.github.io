@@ -69,6 +69,17 @@ interface TypeStat {
   barColor: string;
 }
 
+type MultiUseItem = Record<string, unknown>;
+
+const extractItems = (value: unknown): MultiUseItem[] => {
+  if (Array.isArray(value)) return value as MultiUseItem[];
+  if (value && typeof value === 'object' && 'items' in value) {
+    const items = (value as { items?: unknown }).items;
+    return Array.isArray(items) ? items as MultiUseItem[] : [];
+  }
+  return [];
+};
+
 interface MultiUseViewProps {
   city: string;
 }
@@ -100,10 +111,10 @@ export default function MultiUseView({ city }: MultiUseViewProps) {
       const data = await fetchMultiUseFacilities(ctprvn);
       if (seq !== requestSeqRef.current) return;
 
-      const items = Array.isArray(data) ? data : (data as any)?.items || [];
+      const items = extractItems(data);
       
       const shortName = (cityShort[city] || '서울').trim();
-      const cityItem = items.find((item: any) => {
+      const cityItem = items.find((item) => {
         const hq = String(item['소방본부'] || '').replace(/\s/g, '');
         return hq.includes(shortName);
       });
@@ -129,13 +140,13 @@ export default function MultiUseView({ city }: MultiUseViewProps) {
       
       setStats(sorted);
       setTotal(sorted.reduce((sum, s) => sum + s.count, 0));
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (seq !== requestSeqRef.current) return;
 
       if (isStaleDataError(err)) {
-        const items = Array.isArray(err.cachedData) ? err.cachedData : (err.cachedData as any)?.items || [];
+        const items = extractItems(err.cachedData);
         const shortName = (cityShort[city] || '서울').trim();
-        const cityItem = items.find((item: any) => {
+        const cityItem = items.find((item) => {
           const hq = String(item['소방본부'] || '').replace(/\s/g, '');
           return hq.includes(shortName);
         });

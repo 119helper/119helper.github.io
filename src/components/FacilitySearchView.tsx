@@ -7,6 +7,7 @@ import FacilityList from './FacilityList';
 import { loadKakaoMapSDK } from '../utils/kakaoLoader';
 import proj4 from 'proj4';
 import BuildingView from './BuildingView';
+import type { KakaoMapInstance, KakaoMarker } from '../types/kakao';
 
 // EPSG:5179 (GRS80 UTM-K) 정의 — 공공데이터포털(재난안전데이터) 최신 좌표계
 proj4.defs("EPSG:5179", "+proj=tmerc +lat_0=38 +lon_0=127.5 +k=0.9996 +x_0=1000000 +y_0=2000000 +ellps=GRS80 +units=m +no_defs");
@@ -60,6 +61,10 @@ interface FacilityItem {
   femaleToilet?: number;
 }
 
+type FacilitySourceItem = Record<string, unknown>;
+
+const fieldText = (item: FacilitySourceItem, key: string) => String(item[key] ?? '');
+
 const escapeHtml = (value: unknown) => {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -72,12 +77,12 @@ const escapeHtml = (value: unknown) => {
 // 통합 카테고리 정의
 const CATEGORIES = [
   { id: 'building', label: '건축물대장', icon: 'apartment', desc: '건축물대장 및 소방시설 현황 조회', isFireWater: false, isBuilding: true },
-  { id: 'hydrants', label: '소화전', icon: 'fire_hydrant', desc: '소화전 · 비상소화장치', isFireWater: true },
-  { id: 'waterTowers', label: '급수탑/저수조', icon: 'water_pump', desc: '급수탑 · 저수조', isFireWater: true },
-  { id: 'civil', label: '민방위 대피시설', icon: 'shield', desc: '전시/재난 대비 지하 대피시설', isFireWater: false },
-  { id: 'tsunami', label: '지진해일 대피소', icon: 'tsunami', desc: '지진해일 긴급 대피장소', isFireWater: false },
-  { id: 'restrooms', label: '공중화장실', icon: 'wc', desc: '공공 개방 화장실', isFireWater: false },
-];
+  { id: 'hydrants', label: '소화전', icon: 'fire_hydrant', desc: '소화전 · 비상소화장치', isFireWater: true, isBuilding: false },
+  { id: 'waterTowers', label: '급수탑/저수조', icon: 'water_pump', desc: '급수탑 · 저수조', isFireWater: true, isBuilding: false },
+  { id: 'civil', label: '민방위 대피시설', icon: 'shield', desc: '전시/재난 대비 지하 대피시설', isFireWater: false, isBuilding: false },
+  { id: 'tsunami', label: '지진해일 대피소', icon: 'tsunami', desc: '지진해일 긴급 대피장소', isFireWater: false, isBuilding: false },
+  { id: 'restrooms', label: '공중화장실', icon: 'wc', desc: '공공 개방 화장실', isFireWater: false, isBuilding: false },
+] as const;
 
 export default function FacilitySearchView({
   city,
@@ -97,10 +102,10 @@ export default function FacilitySearchView({
   const [filterDistrict, setFilterDistrict] = useState('전체');
   const [selectedFacility, setSelectedFacility] = useState<FacilityItem | null>(null);
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [kakaoMap, setKakaoMap] = useState<any>(null);
+  const [kakaoMap, setKakaoMap] = useState<KakaoMapInstance | null>(null);
   const [sdkReady, setSdkReady] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
-  const markersRef = useRef<any[]>([]);
+  const markersRef = useRef<KakaoMarker[]>([]);
 
   // initialCategory가 변경되면 반영
   useEffect(() => {
@@ -119,7 +124,7 @@ export default function FacilitySearchView({
         }
       });
     }
-  }, [city, activeCategory]);
+  }, [city, activeCategory, filterDistrict]);
 
   // GPS
   useEffect(() => {
@@ -136,6 +141,7 @@ export default function FacilitySearchView({
 
   // 소방용수 카테고리인지 판단
   const isFireWater = currentCat.isFireWater;
+  const isBuilding = currentCat.isBuilding;
 
   // 소방용수: 타입별 필터링된 데이터
   const filteredFireWater = isFireWater
@@ -151,7 +157,7 @@ export default function FacilitySearchView({
 
   // 대피소/화장실 데이터 로드
   const loadShelterData = useCallback(async () => {
-    if (isFireWater || (currentCat as any).isBuilding) return; // 소방용수/건축물대장은 자체 관리
+    if (isFireWater || isBuilding) return; // 소방용수/건축물대장은 자체 관리
 
     setLoading(true);
     setApiError(null);
@@ -160,27 +166,27 @@ export default function FacilitySearchView({
     setSelectedFacility(null);
 
     try {
-      let items: any[] = [];
+      let items: FacilitySourceItem[] = [];
       const ctprvnNm = cityToCtprvn[city] || '서울특별시';
 
       if (activeCategory === 'tsunami') {
-        let rawItems: any;
+        let rawItems: FacilitySourceItem[];
         try {
-          rawItems = await fetchTsunamiShelters();
-        } catch (e: any) {
+          rawItems = await fetchTsunamiShelters() as FacilitySourceItem[];
+        } catch (e: unknown) {
           if (isStaleDataError(e)) {
-            rawItems = e.cachedData;
+            rawItems = e.cachedData as FacilitySourceItem[];
             const t = e.cachedAt ? new Date(e.cachedAt).toLocaleTimeString() : '';
             setWarning(`${e.message}${t ? ` (성공: ${t})` : ''}`);
           } else throw e;
         }
         
-        items = rawItems.filter((it: any) => {
-          const addr1 = it.SHNT_PLACE_DTL_POSITION || '';
-          const addr2 = it.RN_DTL_ADRES || '';
-          const addr3 = it.LNMADR || '';
-          const addr4 = it.RDNMADR || '';
-          const ctprvn = it.CTPRVN_NM || it.ctprvnNm || '';
+        items = rawItems.filter((it) => {
+          const addr1 = fieldText(it, 'SHNT_PLACE_DTL_POSITION');
+          const addr2 = fieldText(it, 'RN_DTL_ADRES');
+          const addr3 = fieldText(it, 'LNMADR');
+          const addr4 = fieldText(it, 'RDNMADR');
+          const ctprvn = fieldText(it, 'CTPRVN_NM') || fieldText(it, 'ctprvnNm');
           
           return ctprvn === ctprvnNm ||
             addr1.startsWith(ctprvnNm) ||
@@ -189,22 +195,22 @@ export default function FacilitySearchView({
             addr4.startsWith(ctprvnNm);
         });
       } else if (activeCategory === 'civil') {
-        let rawItems: any;
+        let rawItems: FacilitySourceItem[];
         try {
-          rawItems = await fetchCivilShelters(ctprvnNm);
-        } catch (e: any) {
+          rawItems = await fetchCivilShelters(ctprvnNm) as FacilitySourceItem[];
+        } catch (e: unknown) {
           if (isStaleDataError(e)) {
-            rawItems = e.cachedData;
+            rawItems = e.cachedData as FacilitySourceItem[];
             const t = e.cachedAt ? new Date(e.cachedAt).toLocaleTimeString() : '';
             setWarning(`${e.message}${t ? ` (성공: ${t})` : ''}`);
           } else throw e;
         }
 
-        items = rawItems.filter((it: any) => {
-          const addr1 = it.LCTN_WHOL_ADDR || ''; // DSSP-IF-10166
-          const addr2 = it.RDNMADR || '';
-          const addr3 = it.rdnmadr || '';
-          const ctprvn = it.CTPRVN_NM || it.ctprvnNm || '';
+        items = rawItems.filter((it) => {
+          const addr1 = fieldText(it, 'LCTN_WHOL_ADDR'); // DSSP-IF-10166
+          const addr2 = fieldText(it, 'RDNMADR');
+          const addr3 = fieldText(it, 'rdnmadr');
+          const ctprvn = fieldText(it, 'CTPRVN_NM') || fieldText(it, 'ctprvnNm');
           return ctprvn === ctprvnNm ||
             addr1.startsWith(ctprvnNm) ||
             addr2.startsWith(ctprvnNm) ||
@@ -245,14 +251,18 @@ export default function FacilitySearchView({
 
       if (items.length > 0 && activeCategory !== 'restrooms') {
         const parsed: FacilityItem[] = items
-          .map((it: any) => {
-            let lat = parseFloat(it.lat || it.LA || it.LAT || it.ycord || it.YCRD || it.latitude || it.LAT_EPSG4326 || '0');
-            let lng = parseFloat(it.lot || it.LO || it.LOT || it.xcord || it.XCRD || it.longitude || it.LON || it.lon || it.LOT_EPST4326 || '0');
+          .map((it) => {
+            let lat = parseFloat(
+              fieldText(it, 'lat') || fieldText(it, 'LA') || fieldText(it, 'LAT') || fieldText(it, 'ycord') || fieldText(it, 'YCRD') || fieldText(it, 'latitude') || fieldText(it, 'LAT_EPSG4326') || '0'
+            );
+            let lng = parseFloat(
+              fieldText(it, 'lot') || fieldText(it, 'LO') || fieldText(it, 'LOT') || fieldText(it, 'xcord') || fieldText(it, 'XCRD') || fieldText(it, 'longitude') || fieldText(it, 'LON') || fieldText(it, 'lon') || fieldText(it, 'LOT_EPST4326') || '0'
+            );
 
             
             // EPSG:5179 좌표계 변환 (DSSP-IF-10166 대응)
-            const epsgX = parseFloat(it.CRD_INFO_X_EPSG5179 || '0');
-            const epsgY = parseFloat(it.CRD_INFO_Y_EPSG5179 || '0');
+            const epsgX = parseFloat(fieldText(it, 'CRD_INFO_X_EPSG5179') || '0');
+            const epsgY = parseFloat(fieldText(it, 'CRD_INFO_Y_EPSG5179') || '0');
             
             if ((!lat || !lng) && epsgX && epsgY) {
               const wgs = proj4("EPSG:5179", "EPSG:4326", [epsgX, epsgY]);
@@ -262,7 +272,7 @@ export default function FacilitySearchView({
             
             if (!lat || !lng) return null;
 
-            const addressStr = it.LCTN_WHOL_ADDR || it.rdnmadr || it.SHNT_PLACE_DTL_POSITION || it.RN_DTL_ADRES || it.RDNMADR || it.lnmadr || it.LNMADR || it.dtlAdres || it.ronAdres || it.adres || '주소 미상';
+            const addressStr = fieldText(it, 'LCTN_WHOL_ADDR') || fieldText(it, 'rdnmadr') || fieldText(it, 'SHNT_PLACE_DTL_POSITION') || fieldText(it, 'RN_DTL_ADRES') || fieldText(it, 'RDNMADR') || fieldText(it, 'lnmadr') || fieldText(it, 'LNMADR') || fieldText(it, 'dtlAdres') || fieldText(it, 'ronAdres') || fieldText(it, 'adres') || '주소 미상';
             
             let district = '전체';
             const addressTokens = addressStr.split(' ');
@@ -270,10 +280,10 @@ export default function FacilitySearchView({
             if (dToken) district = dToken;
 
             return {
-              name: it.FCLT_NM || it.fcltNm || it.SHNT_PLACE_NM || it.shltNm || it.SHLT_NM || it.fclt_nm || it.shelter_nm || '무명 시설',
+              name: fieldText(it, 'FCLT_NM') || fieldText(it, 'fcltNm') || fieldText(it, 'SHNT_PLACE_NM') || fieldText(it, 'shltNm') || fieldText(it, 'SHLT_NM') || fieldText(it, 'fclt_nm') || fieldText(it, 'shelter_nm') || '무명 시설',
               address: addressStr,
-              type: it.FCLT_SE || it.fcltSeNm || it.FCLT_SE_NM || it.shltSeNm || it.fclt_se_nm || it.shelter_type || '대피시설',
-              capacity: parseInt(it.MAX_ACTC_PERNE || it.shltCo || it.PSBL_NMPR || it.atchPrsnCo || it.acmPrsnCo || it.ACMP_PRSN_CO || it.acmp_prsn_co || '0') || 0,
+              type: fieldText(it, 'FCLT_SE') || fieldText(it, 'fcltSeNm') || fieldText(it, 'FCLT_SE_NM') || fieldText(it, 'shltSeNm') || fieldText(it, 'fclt_se_nm') || fieldText(it, 'shelter_type') || '대피시설',
+              capacity: parseInt(fieldText(it, 'MAX_ACTC_PERNE') || fieldText(it, 'shltCo') || fieldText(it, 'PSBL_NMPR') || fieldText(it, 'atchPrsnCo') || fieldText(it, 'acmPrsnCo') || fieldText(it, 'ACMP_PRSN_CO') || fieldText(it, 'acmp_prsn_co') || '0') || 0,
               lat,
               lng,
               category: activeCategory,
@@ -292,17 +302,17 @@ export default function FacilitySearchView({
 
         setFacilities(parsed);
       }
-    } catch (e: any) {
-      setApiError(e?.message || '시설 데이터를 불러올 수 없습니다.');
+    } catch (e: unknown) {
+      setApiError(e instanceof Error ? e.message : '시설 데이터를 불러올 수 없습니다.');
     }
     setLoading(false);
-  }, [city, activeCategory, userPos, isFireWater, filterDistrict]);
+  }, [city, activeCategory, userPos, isFireWater, isBuilding, filterDistrict]);
 
   useEffect(() => { loadShelterData(); }, [loadShelterData]);
 
   // 카카오맵 초기화 — 대피소 카테고리에서만 사용
   useEffect(() => {
-    if (isFireWater || (currentCat as any).isBuilding || loading || apiError) return;
+    if (isFireWater || isBuilding || loading || apiError) return;
     
     // SDK가 아직 준비되지 않았다면 로드
     if (!window.kakao || !window.kakao.maps) {
@@ -310,22 +320,21 @@ export default function FacilitySearchView({
       return; // 다시 렌더링될 때까지 대기
     }
     
-    if (!mapRef.current) return;
+    const mapContainer = mapRef.current;
+    if (!mapContainer) return;
     
     window.kakao.maps.load(() => {
       const cityCenter = cityCenters[city] || cityCenters.seoul;
       const center = new window.kakao.maps.LatLng(cityCenter.lat, cityCenter.lng);
 
-      if (kakaoMap && mapRef.current?.hasChildNodes()) {
+      if (kakaoMap && mapContainer.hasChildNodes()) {
         kakaoMap.panTo(center);
         return;
       }
 
-      if (mapRef.current) {
-        mapRef.current.innerHTML = ''; // 기존 맵 초기화
-      }
+      mapContainer.innerHTML = ''; // 기존 맵 초기화
       
-      const map = new window.kakao.maps.Map(mapRef.current, { center, level: 8 });
+      const map = new window.kakao.maps.Map(mapContainer, { center, level: 8 });
       setKakaoMap(map);
 
       if (userPos) {
@@ -336,11 +345,11 @@ export default function FacilitySearchView({
         });
       }
     });
-  }, [city, userPos, isFireWater, (currentCat as any).isBuilding, loading, apiError, kakaoMap, sdkReady]);
+  }, [city, userPos, isFireWater, isBuilding, loading, apiError, kakaoMap, sdkReady]);
 
   // 마커 업데이트 (대피소용)
   useEffect(() => {
-    if (isFireWater || (currentCat as any).isBuilding || !kakaoMap || !window.kakao) return;
+    if (isFireWater || isBuilding || !kakaoMap || !window.kakao) return;
     
     markersRef.current.forEach(m => m.setMap(null));
     markersRef.current = [];
@@ -390,7 +399,7 @@ export default function FacilitySearchView({
       });
       markersRef.current.push(marker);
     });
-  }, [facilities, filter, isFireWater, kakaoMap, filterDistrict]);
+  }, [facilities, filter, isFireWater, isBuilding, kakaoMap, filterDistrict]);
 
   const handleSelectFacility = (fac: FacilityItem) => {
     setSelectedFacility(fac);
@@ -420,15 +429,15 @@ export default function FacilitySearchView({
                 <span className="text-primary font-bold">{cityShort[city] || city}</span> 지역
                 {isFireWater
                   ? ` | ${currentCat.desc}`
-                  : (currentCat as any).isBuilding
+                  : isBuilding
                     ? ` | ${currentCat.desc}`
                     : !loading && !apiError ? ` | ${currentCat.label} ${filtered.length}개소` : ''
                 }
-                {!isFireWater && !(currentCat as any).isBuilding && userPos && ' | GPS 거리순'}
+                {!isFireWater && !isBuilding && userPos && ' | GPS 거리순'}
               </p>
             </div>
           </div>
-          {!isFireWater && !(currentCat as any).isBuilding && (
+          {!isFireWater && !isBuilding && (
             <button onClick={loadShelterData} disabled={loading}
               className="bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/20 transition-colors flex items-center gap-2 disabled:opacity-50">
               <span className={`material-symbols-outlined text-lg ${loading ? 'animate-spin' : ''}`}>refresh</span>
@@ -474,14 +483,14 @@ export default function FacilitySearchView({
       )}
 
       {/* ═══ 건축물대장 카테고리 ═══ */}
-      {(currentCat as any).isBuilding && (
+      {isBuilding && (
         <div className="mt-4">
           <BuildingView />
         </div>
       )}
 
       {/* ═══ 대피소 카테고리: 기존 지도+목록 뷰 ═══ */}
-      {!isFireWater && !(currentCat as any).isBuilding && (
+      {!isFireWater && !isBuilding && (
         <>
           {/* 구/군 필터 UI (대피소/화장실용) 항상 표시되도록 밖으로 뺌 */}
           <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-4 mt-4">
@@ -649,11 +658,11 @@ export default function FacilitySearchView({
                         <p className="text-[10px] text-on-surface-variant">시설유형</p>
                       </div>
                     )}
-                    {(selectedFacility as any).capacity !== undefined && (selectedFacility as any).capacity > 0 && (
+                    {selectedFacility.capacity !== undefined && selectedFacility.capacity > 0 && (
                       <>
                         <div className="w-px h-10 bg-outline-variant/20" />
                         <div className="text-center">
-                          <p className="text-2xl font-black text-primary">{(selectedFacility as any).capacity.toLocaleString()}</p>
+                          <p className="text-2xl font-black text-primary">{selectedFacility.capacity.toLocaleString()}</p>
                           <p className="text-[10px] text-on-surface-variant">수용인원</p>
                         </div>
                       </>
