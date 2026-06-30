@@ -1,13 +1,10 @@
 import { Env } from '../index';
-import { jsonResponse, errorResponse } from '../middleware/cors';
+import { jsonResponse, errorResponse, sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
 import { encodeServiceKey, isRecord, errorMessage } from './publicData';
 
 export async function handleEquipment(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname.replace('/api/equipment', '');
-
-  // 공통 Query 파라미터 (프론트엔드에서 넘어온 파라미터들)
-  const searchParams = new URLSearchParams(url.search);
 
   // 환경변수 확인
   if (!env.EQUIPMENT_API_KEY) {
@@ -16,16 +13,19 @@ export async function handleEquipment(request: Request, env: Env): Promise<Respo
 
   try {
     let targetUrl: string;
+    let allowedStringParams: string[];
 
     // 1. 소방장비 (차량 등) 인증 정보 조회
     if (path === '/cert') {
       targetUrl = 'http://apis.data.go.kr/B552486/opnFeqpmCtfcn/opnFeqpmCtfcn01';
       // 필수 파라미터: pageNo, numOfRows, fromAprv, toAprv
+      allowedStringParams = ['fromAprv', 'toAprv'];
     }
     // 2. 소화기 정비번호 발급현황
     else if (path === '/extinguisher') {
       targetUrl = 'http://apis.data.go.kr/B552486/opnGcExsrImpmAply/opnGcExsrImpmAply01';
       // 필수 파라미터: pageNo, numOfRows, exsrImpmYr, exsrImpmNo
+      allowedStringParams = ['exsrImpmYr', 'exsrImpmNo'];
     }
     else {
       return errorResponse('Not found API path under equipment.', request, 404);
@@ -33,11 +33,14 @@ export async function handleEquipment(request: Request, env: Env): Promise<Respo
 
     // 공공데이터 요청을 위한 새로운 URLSearchParams 생성
     const params = new URLSearchParams();
+    params.set('pageNo', sanitizeNumericParam(url, 'pageNo', 1, 1000, 1));
+    params.set('numOfRows', sanitizeNumericParam(url, 'numOfRows', 1, 1000, 100));
 
-    // 전달받은 모든 인자들을 공공데이터 포털 형식에 맞게 복사 (serviceKey 제외)
-    searchParams.forEach((value, key) => {
-      if (key !== 'serviceKey' && !key.startsWith('_')) params.append(key, value);
-    });
+    // 엔드포인트별 allowlist에 있는 조회 조건만 업스트림에 전달한다.
+    for (const key of allowedStringParams) {
+      const value = sanitizeStringParam(url, key, 30);
+      if (value) params.set(key, value);
+    }
 
     // URL 조립 — serviceKey는 이중 인코딩 방지를 위해 수동 concat
     const serviceKey = encodeServiceKey(env.EQUIPMENT_API_KEY, 'EQUIPMENT_API_KEY');

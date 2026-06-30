@@ -6,11 +6,12 @@
  */
 
 import { encodeServiceKey, fetchPublicDataText, findPublicDataError } from './publicData';
+import { sanitizeStringParam } from '../middleware/cors';
 
 const BASE = 'https://apis.data.go.kr/B552657/AmblInfoInqireService';
 
 export async function handleAmbulance(url: URL, apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
-    const sido = url.searchParams.get('Q0') || '서울특별시';
+    const sido = sanitizeStringParam(url, 'Q0', 40) || '서울특별시';
     const serviceKey = encodeServiceKey(apiKey, 'AMBULANCE_API_KEY');
     const qs = `serviceKey=${serviceKey}&pageNo=1&numOfRows=1000&Q0=${encodeURIComponent(sido)}`;
     const apiUrl = `${BASE}/getAmblListInfoInqire?${qs}`;

@@ -9,9 +9,11 @@
 
 import { z } from 'zod';
 import { errorMessage, isRecord } from './publicData';
+import { sanitizeStringParam } from '../middleware/cors';
 
 const CACHE_TTL = 60 * 60; // 1시간 (KV 만료 기본 단위 초)
 const STALE_TTL = 6 * 60 * 60; // 6시간 동안은 실패 시 과거 데이터라도 반환
+const ALLOWED_TYPES = new Set(['google', 'nfa']);
 
 interface NewsEnv {
   NAVER_CLIENT_ID?: string;
@@ -43,8 +45,9 @@ function isNewsCacheEntry(value: unknown): value is NewsCacheEntry {
 
 export async function newsHandler(request: Request, env: NewsEnv): Promise<Response> {
   const url = new URL(request.url);
-  const type = url.searchParams.get('type') || 'google';
-  const query = url.searchParams.get('query') || '소방관';
+  const requestedType = sanitizeStringParam(url, 'type', 12) || 'google';
+  const type = ALLOWED_TYPES.has(requestedType) ? requestedType : 'google';
+  const query = sanitizeStringParam(url, 'query', 120) || '소방관';
 
   return await getNewsWithCache(type, query, env, false);
 }
@@ -66,7 +69,7 @@ export async function prefetchNews(env: NewsEnv) {
 async function getNewsWithCache(type: string, query: string, env: NewsEnv, forceFetch: boolean): Promise<Response> {
   // 캐시 키 버전을 v4 등으로 올려서 이전 데이터(이미지 없는 데이터) 캐시를 즉시 무효화
   const CACHE_PREFIX = 'news:v5:';
-  const cacheKey = `${CACHE_PREFIX}${type}:${query}`;
+  const cacheKey = `${CACHE_PREFIX}${type}:${encodeURIComponent(query)}`;
   const kv = env.NEWS_CACHE; // binding from wrangler.toml
 
   // 1. KV 캐시 확인
@@ -192,10 +195,13 @@ async function fetchRss(url: string): Promise<string> {
 // 썸네일 URL(Og:Image)만 1.5초 내로 빠르게 훔쳐오는 스크래퍼
 async function fetchOgImage(link: string): Promise<string> {
   try {
+    const target = safeHttpUrl(link);
+    if (!target) return '';
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
 
-    const res = await fetch(link, {
+    const res = await fetch(target, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -213,10 +219,36 @@ async function fetchOgImage(link: string): Promise<string> {
     const match = html.match(/<meta[^>]*?property=["']og:image["'][^>]*?content=["']([^"']+)["']/i) || 
                   html.match(/<meta[^>]*?content=["']([^"']+)["'][^>]*?property=["']og:image["']/i) ||
                   html.match(/<meta[^>]*?name=["']twitter:image["'][^>]*?content=["']([^"']+)["']/i);
-    return match ? match[1] : '';
+    return match ? safeHttpUrl(match[1]) : '';
   } catch {
     return '';
   }
+}
+
+function safeHttpUrl(value: string): string {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
+function cdata(value: string): string {
+  return value.replace(/]]>/g, ']]]]><![CDATA[>');
+}
+
+function escapeXmlText(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function xmlTagText(xml: string, tagName: string): string {
+  const match = xml.match(new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'i'));
+  if (!match) return '';
+  return match[1].replace(/^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/i, '$1').trim();
 }
 
 // 생성되거나 파싱된 XML의 <item> 속 <link>들을 추적해 <imageUrl> 태그를 박아넣는 함수 (병렬 처리)
@@ -228,8 +260,9 @@ async function enhanceRssWithImages(xml: string): Promise<string> {
   const enhancedItems = await Promise.all(items.map(async (itemXml, index) => {
     // 1. Bing News의 <News:Image> 태그가 이미 존재하면 즉시 사용
     const bingImageMatch = itemXml.match(/<News:Image>([^<]+)<\/News:Image>/i);
-    if (bingImageMatch) {
-       return itemXml.replace(/<\/item>/i, `  <imageUrl><![CDATA[${bingImageMatch[1]}]]></imageUrl>\n    </item>`);
+    const bingImage = bingImageMatch ? safeHttpUrl(bingImageMatch[1]) : '';
+    if (bingImage) {
+       return itemXml.replace(/<\/item>/i, `  <imageUrl><![CDATA[${cdata(bingImage)}]]></imageUrl>\n    </item>`);
     }
 
     // Cloudflare Workers has a strict limit of 50 subrequests per invocation (on the free plan).
@@ -237,14 +270,10 @@ async function enhanceRssWithImages(xml: string): Promise<string> {
     // which protects the worker from crashing with HTTP 500 Subrequest limit error.
     if (index >= 15) return itemXml;
 
-    // originallink가 있으면 그것을, 없으면 link를 사용 (네이버용)
-    const originalLinkMatch = itemXml.match(/<originallink[^>]*>([^<]+)<\/originallink>/i);
-    const linkMatch = itemXml.match(/<link[^>]*>([^<]+)<\/link>/i);
-    
     let targetLink = '';
     // Priority: If link contains naver.com, use it (extremely fast and standard). Otherwise fallback to originallink, then link.
-    const linkUrl = linkMatch ? linkMatch[1] : '';
-    const originalLinkUrl = originalLinkMatch ? originalLinkMatch[1] : '';
+    const linkUrl = xmlTagText(itemXml, 'link');
+    const originalLinkUrl = xmlTagText(itemXml, 'originallink');
     
     if (linkUrl.includes('naver.com')) {
       targetLink = linkUrl;
@@ -255,13 +284,13 @@ async function enhanceRssWithImages(xml: string): Promise<string> {
     }
     
     if (!targetLink) return itemXml;
-    targetLink = targetLink.replace(/<!\[CDATA\[(.*?)\]\]>/, '$1').trim();
+    targetLink = safeHttpUrl(targetLink);
     
     const imageUrl = await fetchOgImage(targetLink);
     
     if (imageUrl) {
       // </item> 직전에 imageUrl 삽입
-      return itemXml.replace(/<\/item>/i, `  <imageUrl><![CDATA[${imageUrl}]]></imageUrl>\n    </item>`);
+      return itemXml.replace(/<\/item>/i, `  <imageUrl><![CDATA[${cdata(imageUrl)}]]></imageUrl>\n    </item>`);
     }
     return itemXml;
   }));
@@ -302,7 +331,7 @@ async function fetchNaverAsXml(query: string, clientId: string, clientSecret: st
 
   // RSS Header
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n  <channel>\n`;
-  xml += `    <title><![CDATA[Naver News - ${query}]]></title>\n`;
+  xml += `    <title><![CDATA[Naver News - ${cdata(query)}]]></title>\n`;
   xml += `    <description><![CDATA[Naver Search Result]]></description>\n`;
   xml += `    <lastBuildDate>${data.lastBuildDate || new Date().toUTCString()}</lastBuildDate>\n`;
 
@@ -310,10 +339,10 @@ async function fetchNaverAsXml(query: string, clientId: string, clientSecret: st
   for (const item of data.items satisfies NaverNewsItem[]) {
     // title/desc contains <b>keyword</b> from Naver
     xml += `    <item>\n`;
-    xml += `      <title><![CDATA[${item.title}]]></title>\n`;
-    xml += `      <originallink><![CDATA[${item.originallink}]]></originallink>\n`; // og 추출용 추가
-    xml += `      <link><![CDATA[${item.link}]]></link>\n`;
-    xml += `      <description><![CDATA[${item.description}]]></description>\n`;
+    xml += `      <title><![CDATA[${cdata(item.title)}]]></title>\n`;
+    xml += `      <originallink><![CDATA[${cdata(safeHttpUrl(item.originallink))}]]></originallink>\n`; // og 추출용 추가
+    xml += `      <link><![CDATA[${cdata(safeHttpUrl(item.link))}]]></link>\n`;
+    xml += `      <description><![CDATA[${cdata(item.description)}]]></description>\n`;
     xml += `      <pubDate>${item.pubDate}</pubDate>\n`;
     xml += `    </item>\n`;
   }
@@ -337,7 +366,7 @@ function emptyRss(query: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
-    <title>${query} - 뉴스</title>
+    <title>${escapeXmlText(query)} - 뉴스</title>
     <description>검색 결과 없음</description>
   </channel>
 </rss>`;

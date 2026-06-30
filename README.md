@@ -72,7 +72,8 @@ cd 119helper.github.io
 npm install
 mkdir -p ../key/119-helper
 cp .env.example ../key/119-helper/.env
-# ../key/119-helper/.env 에 VITE_KAKAO_MAP_KEY, 필요 시 VITE_API_BASE/VITE_APP_TOKEN 설정
+# ../key/119-helper/.env 에 VITE_KAKAO_MAP_KEY, 필요 시 VITE_API_BASE 설정
+# 운영 배포에서는 VITE_APP_TOKEN을 Worker의 APP_ACCESS_TOKEN과 동일하게 설정
 npm run dev -- --host
 # → http://localhost:5173
 ```
@@ -84,9 +85,14 @@ cd worker
 npm install
 wrangler secret put KMA_API_KEY
 wrangler secret put ER_API_KEY
+wrangler secret put APP_ACCESS_TOKEN
 npm run dev
 # 로컬 Worker를 쓸 때는 프런트 env에 VITE_API_BASE=http://localhost:8787 설정
+# 토큰 없이 로컬 테스트하려면 wrangler.toml의 ENVIRONMENT를 development로 설정
 ```
+
+운영 참고: `VITE_APP_TOKEN`은 브라우저 번들에 포함되는 공개값이므로 완전한 비밀 인증 수단이 아닙니다.
+남용 방지는 Worker의 Origin/토큰 검증과 함께 Cloudflare WAF Rate Limiting Rules 또는 봇 차단 정책으로 보강하세요.
 
 ---
 

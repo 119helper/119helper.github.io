@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { corsHeaders, isAppTokenValid, isOriginAllowed, sanitizeStringParam } from './cors';
+import { corsHeaders, isAppTokenRequired, isAppTokenValid, isOriginAllowed, sanitizeStringParam } from './cors';
 
 function requestWithOrigin(origin?: string, token?: string): Request {
   const headers = new Headers();
@@ -24,6 +24,12 @@ describe('isOriginAllowed', () => {
     expect(isOriginAllowed(requestWithOrigin('https://localhost:5173'))).toBe(false);
   });
 
+  it('rejects localhost origins in production', () => {
+    expect(isOriginAllowed(requestWithOrigin('http://localhost:5173'), 'production')).toBe(false);
+    expect(isOriginAllowed(requestWithOrigin('http://127.0.0.1:5173'), 'production')).toBe(false);
+    expect(isOriginAllowed(requestWithOrigin('https://119helper.github.io'), 'production')).toBe(true);
+  });
+
   it('rejects missing, malformed, and untrusted origins', () => {
     expect(isOriginAllowed(requestWithOrigin())).toBe(false);
     expect(isOriginAllowed(requestWithOrigin('not a url'))).toBe(false);
@@ -38,6 +44,13 @@ describe('isOriginAllowed', () => {
 });
 
 describe('isAppTokenValid', () => {
+  it('requires app tokens only in production environment', () => {
+    expect(isAppTokenRequired('production')).toBe(true);
+    expect(isAppTokenRequired('PRODUCTION')).toBe(true);
+    expect(isAppTokenRequired('development')).toBe(false);
+    expect(isAppTokenRequired(undefined)).toBe(false);
+  });
+
   it('allows requests when APP_ACCESS_TOKEN is not configured', () => {
     expect(isAppTokenValid(requestWithOrigin('https://119helper.github.io'), undefined)).toBe(true);
     expect(isAppTokenValid(requestWithOrigin('https://119helper.github.io'), '')).toBe(true);

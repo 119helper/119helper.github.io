@@ -5,7 +5,7 @@
  * ?론?엔??SPA)????Worker??/api/* ?드?인?만 ?출?니??
  */
 
-import { handleOptions, jsonResponse, errorResponse, isOriginAllowed, isAppTokenValid, checkRateLimitDistributed, rateLimitResponse, corsHeaders, applyCors, type RateLimitBinding } from './middleware/cors';
+import { handleOptions, jsonResponse, errorResponse, isOriginAllowed, isAppTokenRequired, isAppTokenValid, checkRateLimitDistributed, rateLimitResponse, corsHeaders, applyCors, type RateLimitBinding } from './middleware/cors';
 import { handleClientLog } from './routes/clientLog';
 import { handleWeather } from './routes/weather';
 import { handleAir } from './routes/air';
@@ -59,7 +59,7 @@ export interface Env {
   NAVER_CLIENT_ID?: string;
   NAVER_CLIENT_SECRET?: string;
   NEWS_CACHE: KVNamespace;
-  /** 심층 방어용 공유 앱 토큰. 설정 시 X-App-Token 헤더와 일치해야 함. 미설정 시 검사 생략. */
+  /** 심층 방어용 공유 앱 토큰. 운영 환경에서는 필수이며 X-App-Token 헤더와 일치해야 함. */
   APP_ACCESS_TOKEN?: string;
   /** Cloudflare 네이티브 Rate Limiting 바인딩. 미설정 시 in-memory 폴백. */
   RATE_LIMITER?: RateLimitBinding;
@@ -69,15 +69,20 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     // Preflight
     if (request.method === 'OPTIONS') {
-      return handleOptions(request);
+      return handleOptions(request, env.ENVIRONMENT);
     }
 
     // 허용된 Origin만 통과 (브라우저 강제 헤더 — 1차 방어)
-    if (!isOriginAllowed(request)) {
+    if (!isOriginAllowed(request, env.ENVIRONMENT)) {
       return new Response('Forbidden', { status: 403 });
     }
 
-    // 공유 앱 토큰 검사 (Origin 위조 대비 심층 방어). APP_ACCESS_TOKEN 미설정 시 생략.
+    // 운영 환경에서는 공유 앱 토큰 누락을 설정 오류로 취급한다.
+    if (isAppTokenRequired(env.ENVIRONMENT) && !env.APP_ACCESS_TOKEN?.trim()) {
+      return errorResponse('APP_ACCESS_TOKEN is not configured for production', request, 500, env.ENVIRONMENT);
+    }
+
+    // 공유 앱 토큰 검사 (Origin 위조 대비 심층 방어). 로컬/테스트 미설정 시 생략.
     if (!isAppTokenValid(request, env.APP_ACCESS_TOKEN)) {
       return new Response('Forbidden', { status: 403 });
     }
@@ -85,7 +90,7 @@ export default {
     // 분산 Rate Limiting (네이티브 바인딩 우선, 없으면 in-memory 폴백)
     const rateCheck = await checkRateLimitDistributed(request, env.RATE_LIMITER);
     if (!rateCheck.allowed) {
-      return rateLimitResponse(request);
+      return rateLimitResponse(request, env.ENVIRONMENT);
     }
 
     const url = new URL(request.url);
@@ -98,7 +103,7 @@ export default {
 
     // 그 외에는 GET만 허용
     if (request.method !== 'GET') {
-      return errorResponse('Method not allowed', request, 405);
+      return errorResponse('Method not allowed', request, 405, env.ENVIRONMENT);
     }
 
     try {
@@ -119,7 +124,7 @@ export default {
       const cached = await cache.match(cacheKey);
       if (cached) {
         const res = new Response(cached.body, cached);
-        const cors = corsHeaders(request);
+        const cors = corsHeaders(request, env.ENVIRONMENT);
         for (const [k, v] of Object.entries(cors)) {
           res.headers.set(k, String(v));
         }
@@ -148,7 +153,7 @@ export default {
       else if (path === '/api/fire-damage') result = await handleFireDamage(url, env.FIRE_DAMAGE_API_KEY);
       else if (path.startsWith('/api/fire-annual/')) result = await handleAnnualFireStats(path, url, env.ANNUAL_FIRE_API_KEY);
       else if (path.startsWith('/api/equipment/')) {
-        return applyCors(await handleEquipment(request, env), request);
+        return applyCors(await handleEquipment(request, env), request, env.ENVIRONMENT);
       }
       else if (path === '/api/wildfire') result = await handleWildfire(url, env.WILDFIRE_API_KEY);
       else if (path === '/api/forest-fire-risk') result = await handleForestFireRisk(url, env.FOREST_FIRE_API_KEY);
@@ -157,13 +162,13 @@ export default {
       else if (path === '/api/consumer-hazard') result = await handleConsumerHazard(url, env.CONSUMER_HAZARD_API_KEY);
       else if (path === '/api/ambulance') result = await handleAmbulance(url, env.AMBULANCE_API_KEY);
       else if (path.startsWith('/api/law')) {
-        return applyCors(await handleLaw(request), request);
+        return applyCors(await handleLaw(request), request, env.ENVIRONMENT);
       }
       else if (path === '/api/news') {
         isNews = true;
         newsResponse = await newsHandler(request, env);
       } else {
-        return errorResponse(`Not found: ${path}`, request, 404);
+        return errorResponse(`Not found: ${path}`, request, 404, env.ENVIRONMENT);
       }
 
       // 3. 응답 생성 및 캐시 저장
@@ -177,7 +182,7 @@ export default {
           await cache.put(cacheKey, cacheableResponse);
         }
       } else if (result) {
-        response = jsonResponse(result.data, request, 200, result.cacheTtl);
+        response = jsonResponse(result.data, request, 200, result.cacheTtl, env.ENVIRONMENT);
         
         // ?상 ?답(?이????error ?성 ?음)???만 Edge ?경??캐싱
         const isErrorData = result.data && typeof result.data === 'object' && 'error' in result.data;
@@ -187,12 +192,12 @@ export default {
           await cache.put(cacheKey, cacheableResponse);
         }
       } else {
-        return errorResponse('No data returned from API', request, 500);
+        return errorResponse('No data returned from API', request, 500, env.ENVIRONMENT);
       }
 
       // 보조 CORS ?더 ?용
       const finalRes = new Response(response.body, response);
-      const cors = corsHeaders(request);
+      const cors = corsHeaders(request, env.ENVIRONMENT);
       for (const [k, v] of Object.entries(cors)) {
         finalRes.headers.set(k, String(v));
       }
@@ -205,7 +210,7 @@ export default {
       const safeMessage = message.includes('authKey') || message.includes('serviceKey')
         ? 'API 인증 오류. 관리자에게 문의하세요'
         : message;
-      return errorResponse(safeMessage, request, 502);
+      return errorResponse(safeMessage, request, 502, env.ENVIRONMENT);
     }
   },
   

@@ -8,8 +8,17 @@
  */
 
 import { encodeServiceKey } from './publicData';
+import { sanitizeStringParam } from '../middleware/cors';
 
 const ER_BASE = 'https://apis.data.go.kr/B552657/ErmctInfoInqireService';
+
+function sanitizeCoordinate(url: URL, key: string, min: number, max: number, fallback: string): string {
+  const raw = url.searchParams.get(key);
+  if (!raw) return fallback;
+  const num = Number(raw);
+  if (!Number.isFinite(num) || num < min || num > max) return fallback;
+  return String(num);
+}
 
 /**
  * 업스트림 호출 + 응답 검증 (+1회 재시도)
@@ -32,8 +41,8 @@ export async function handleER(path: string, url: URL, apiKey: string): Promise<
 
   switch (path) {
     case '/api/er/beds': {
-      const sido = url.searchParams.get('sido') || '서울특별시';
-      const gugun = url.searchParams.get('gugun') || '';
+      const sido = sanitizeStringParam(url, 'sido', 40) || '서울특별시';
+      const gugun = sanitizeStringParam(url, 'gugun', 40) || '';
       let erUrl = `${ER_BASE}/getEmrrmRltmUsefulSckbdInfoInqire?serviceKey=${serviceKey}&STAGE1=${encodeURIComponent(sido)}&pageNo=1&numOfRows=50`;
       if (gugun) erUrl += `&STAGE2=${encodeURIComponent(gugun)}`;
 
@@ -42,8 +51,8 @@ export async function handleER(path: string, url: URL, apiKey: string): Promise<
     }
 
     case '/api/er/list': {
-      const sido = url.searchParams.get('sido') || '서울특별시';
-      const gugun = url.searchParams.get('gugun') || '';
+      const sido = sanitizeStringParam(url, 'sido', 40) || '서울특별시';
+      const gugun = sanitizeStringParam(url, 'gugun', 40) || '';
       let erUrl = `${ER_BASE}/getEgytListInfoInqire?serviceKey=${serviceKey}&Q0=${encodeURIComponent(sido)}&pageNo=1&numOfRows=50`;
       if (gugun) erUrl += `&Q1=${encodeURIComponent(gugun)}`;
 
@@ -52,8 +61,8 @@ export async function handleER(path: string, url: URL, apiKey: string): Promise<
     }
 
     case '/api/er/location': {
-      const lat = url.searchParams.get('lat') || '37.5665';
-      const lng = url.searchParams.get('lng') || '126.9780';
+      const lat = sanitizeCoordinate(url, 'lat', 33, 39, '37.5665');
+      const lng = sanitizeCoordinate(url, 'lng', 124, 132, '126.9780');
       const erUrl = `${ER_BASE}/getEgytLcinfoInqire?serviceKey=${serviceKey}&WGS84_LON=${lng}&WGS84_LAT=${lat}&pageNo=1&numOfRows=20`;
 
       const text = await fetchErXml(erUrl);
@@ -61,8 +70,8 @@ export async function handleER(path: string, url: URL, apiKey: string): Promise<
     }
 
     case '/api/er/messages': {
-      const sido = url.searchParams.get('sido') || '서울특별시';
-      const gugun = url.searchParams.get('gugun') || '';
+      const sido = sanitizeStringParam(url, 'sido', 40) || '서울특별시';
+      const gugun = sanitizeStringParam(url, 'gugun', 40) || '';
       let erUrl = `${ER_BASE}/getEmrrmSrsillDissMsgInqire?serviceKey=${serviceKey}&Q0=${encodeURIComponent(sido)}&pageNo=1&numOfRows=100`;
       if (gugun) erUrl += `&Q1=${encodeURIComponent(gugun)}`;
 
@@ -71,8 +80,8 @@ export async function handleER(path: string, url: URL, apiKey: string): Promise<
     }
 
     case '/api/er/severe-illness': {
-      const sido = url.searchParams.get('sido') || '서울특별시';
-      const gugun = url.searchParams.get('gugun') || '';
+      const sido = sanitizeStringParam(url, 'sido', 40) || '서울특별시';
+      const gugun = sanitizeStringParam(url, 'gugun', 40) || '';
       let erUrl = `${ER_BASE}/getSrsillDissAceptncPosblInfoInqire?serviceKey=${serviceKey}&STAGE1=${encodeURIComponent(sido)}&pageNo=1&numOfRows=500`;
       if (gugun) erUrl += `&STAGE2=${encodeURIComponent(gugun)}`;
 

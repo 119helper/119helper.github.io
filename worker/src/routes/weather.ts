@@ -12,11 +12,16 @@
 
 import { z } from 'zod';
 import { asArray, errorMessage, isRecord } from './publicData';
+import { sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
 
 const BASE = 'https://apihub.kma.go.kr';
 
 const kmaEnvelopeSchema = z.object({
   response: z.object({
+    header: z.object({
+      resultCode: z.unknown().optional(),
+      resultMsg: z.unknown().optional(),
+    }).catchall(z.unknown()).optional(),
     body: z.object({
       items: z.object({
         item: z.unknown().optional(),
@@ -138,14 +143,35 @@ function getMidTermFc(): string {
 
 // ═══════ 공통 fetch ═══════
 
+function isKmaSuccessCode(code: unknown): boolean {
+  if (code === undefined || code === null) return true;
+  return /^0+$/.test(String(code).trim());
+}
+
+function parseKmaEnvelope(raw: unknown, source: string): z.infer<typeof kmaEnvelopeSchema> {
+  const parsed = kmaEnvelopeSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new Error(`${source}: KMA_SCHEMA_VALIDATION_ERROR`);
+  }
+
+  const header = parsed.data.response?.header;
+  const resultCode = header?.resultCode;
+  if (!isKmaSuccessCode(resultCode)) {
+    throw new Error(`${source}: KMA_RESULT_${String(resultCode)} ${String(header?.resultMsg ?? '')}`.trim());
+  }
+
+  return parsed.data;
+}
+
 async function fetchKMA(path: string, params: Record<string, string>, apiKey: string): Promise<unknown> {
   const qs = new URLSearchParams({ authKey: apiKey, dataType: 'JSON', ...params });
   const url = `${BASE}${path}?${qs}`;
   const res = await fetch(url, { headers: { 'User-Agent': '119-helper-worker/1.0' } });
   if (!res.ok) throw new Error(`KMA API ${res.status}: ${res.statusText}`);
-  const data = kmaEnvelopeSchema.safeParse(await res.json());
-  if (!data.success) return [];
-  return asArray(data.data.response?.body?.items?.item);
+  const data = parseKmaEnvelope(await res.json(), path);
+  const items = asArray(data.response?.body?.items?.item);
+  if (items.length === 0) throw new Error(`${path}: KMA_EMPTY_ITEMS`);
+  return items;
 }
 
 function toKmaDateTime(isoTime: string): { date: string; time: string } {
@@ -184,8 +210,8 @@ async function fetchOpenMeteo(nx: string, ny: string): Promise<OpenMeteoData> {
 }
 
 async function fallbackWeather(path: string, url: URL): Promise<{ data: unknown; cacheTtl: number }> {
-  const nx = url.searchParams.get('nx') || '60';
-  const ny = url.searchParams.get('ny') || '127';
+  const nx = sanitizeNumericParam(url, 'nx', 1, 200, 60);
+  const ny = sanitizeNumericParam(url, 'ny', 1, 200, 127);
   const data = await fetchOpenMeteo(nx, ny);
   const now = data.current || {};
   const nowDt = toKmaDateTime(now.time || new Date().toISOString());
@@ -202,7 +228,7 @@ async function fallbackWeather(path: string, url: URL): Promise<{ data: unknown;
     ];
     return {
       data: rows,
-      cacheTtl: 600,
+      cacheTtl: 0,
     };
   }
 
@@ -224,12 +250,12 @@ async function fallbackWeather(path: string, url: URL): Promise<{ data: unknown;
       rows.push({ ...common, category: 'SKY', fcstValue: sky.sky });
       rows.push({ ...common, category: 'PTY', fcstValue: sky.pty });
     }
-    return { data: rows, cacheTtl: path === '/api/weather/ultra' ? 600 : 1800 };
+    return { data: rows, cacheTtl: 0 };
   }
 
   if (path === '/api/weather/mid-land') {
     const daily = data.daily || {};
-    const result: Record<string, unknown> = { regId: url.searchParams.get('regId') || '11B00000' };
+    const result: Record<string, unknown> = { regId: sanitizeStringParam(url, 'regId', 12) || '11B00000' };
     for (let day = 3; day <= 7; day++) {
       const idx = day - 1;
       const sky = weatherCodeToKma(Number(daily.weather_code?.[idx]) || 0);
@@ -239,22 +265,22 @@ async function fallbackWeather(path: string, url: URL): Promise<{ data: unknown;
       result[`wf${day}Am`] = wf;
       result[`wf${day}Pm`] = wf;
     }
-    return { data: [result], cacheTtl: 21600 };
+    return { data: [result], cacheTtl: 0 };
   }
 
   if (path === '/api/weather/mid-temp') {
     const daily = data.daily || {};
-    const result: Record<string, unknown> = { regId: url.searchParams.get('regId') || '11B10101' };
+    const result: Record<string, unknown> = { regId: sanitizeStringParam(url, 'regId', 12) || '11B10101' };
     for (let day = 3; day <= 7; day++) {
       const idx = day - 1;
       result[`taMin${day}`] = Math.round(Number(daily.temperature_2m_min?.[idx]) || 0);
       result[`taMax${day}`] = Math.round(Number(daily.temperature_2m_max?.[idx]) || 0);
     }
-    return { data: [result], cacheTtl: 21600 };
+    return { data: [result], cacheTtl: 0 };
   }
 
   if (path === '/api/weather/briefing') {
-    return { data: { briefing: '기상청 API Hub 키 오류로 공개 기상 예보 fallback을 표시 중입니다.' }, cacheTtl: 3600 };
+    return { data: { briefing: '기상청 API Hub 키 오류로 공개 기상 예보 fallback을 표시 중입니다.' }, cacheTtl: 0 };
   }
 
   throw new Error(`Unknown weather route: ${path}`);
@@ -263,8 +289,8 @@ async function fallbackWeather(path: string, url: URL): Promise<{ data: unknown;
 // ═══════ Route Handler ═══════
 
 export async function handleWeather(path: string, url: URL, apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
-  const nx = url.searchParams.get('nx') || '60';
-  const ny = url.searchParams.get('ny') || '127';
+  const nx = sanitizeNumericParam(url, 'nx', 1, 200, 60);
+  const ny = sanitizeNumericParam(url, 'ny', 1, 200, 127);
 
   try {
     switch (path) {
@@ -299,7 +325,7 @@ export async function handleWeather(path: string, url: URL, apiKey: string): Pro
     }
 
     case '/api/weather/mid-land': {
-      const regId = url.searchParams.get('regId') || '11B00000';
+      const regId = sanitizeStringParam(url, 'regId', 12) || '11B00000';
       const tmFc = getMidTermFc();
       const data = await fetchKMA(
         '/api/typ02/openApi/MidFcstInfoService/getMidLandFcst',
@@ -310,7 +336,7 @@ export async function handleWeather(path: string, url: URL, apiKey: string): Pro
     }
 
     case '/api/weather/mid-temp': {
-      const regId = url.searchParams.get('regId') || '11B10101';
+      const regId = sanitizeStringParam(url, 'regId', 12) || '11B10101';
       const tmFc = getMidTermFc();
       const data = await fetchKMA(
         '/api/typ02/openApi/MidFcstInfoService/getMidTa',
@@ -321,7 +347,7 @@ export async function handleWeather(path: string, url: URL, apiKey: string): Pro
     }
 
     case '/api/weather/briefing': {
-      const stnId = url.searchParams.get('stnId') || '108';
+      const stnId = sanitizeNumericParam(url, 'stnId', 1, 999, 108);
       const qs = new URLSearchParams({
         authKey: apiKey, dataType: 'JSON', numOfRows: '1', pageNo: '1', stnId,
       });
@@ -329,8 +355,9 @@ export async function handleWeather(path: string, url: URL, apiKey: string): Pro
         `${BASE}/api/typ02/openApi/VilageFcstMsgService/getWthrSituation?${qs}`,
         { headers: { 'User-Agent': '119-helper-worker/1.0' } }
       );
-      const json = kmaEnvelopeSchema.safeParse(await res.json());
-      const item = json.success ? asArray(json.data.response?.body?.items?.item)[0] : undefined;
+      if (!res.ok) throw new Error(`KMA briefing ${res.status}: ${res.statusText}`);
+      const json = parseKmaEnvelope(await res.json(), 'KMA briefing');
+      const item = asArray(json.response?.body?.items?.item)[0];
       const text = isRecord(item) ? String(item.wfSv1 || item.wfSv || '기상개황 데이터 없음') : '기상개황 데이터 없음';
       return { data: { briefing: text }, cacheTtl: 3600 };
     }

@@ -4,6 +4,7 @@
  */
 
 import { encodeServiceKey, parsePublicDataJson, pickItemsAndCount } from './publicData';
+import { sanitizeNumericParam } from '../middleware/cors';
 
 const BASE = 'https://apis.data.go.kr/1661000/FireInformationService';
 
@@ -29,6 +30,16 @@ const OPS: Record<string, string> = {
   'hazmat':         'getOcRockMnfctyPcnd',        // 위험물제조소등현황
 };
 
+function defaultOcrnYmd(): string {
+  const d = new Date(Date.now() + 9 * 3600_000 - 86400_000); // KST 어제
+  return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+function sanitizeYmd(value: string | null): string | null {
+  const trimmed = value?.trim();
+  return trimmed && /^\d{8}$/.test(trimmed) ? trimmed : null;
+}
+
 export async function handleFireInfo(
   path: string, url: URL, apiKey: string
 ): Promise<{ data: unknown; cacheTtl: number }> {
@@ -39,22 +50,9 @@ export async function handleFireInfo(
 
   // 2026-03 개편 명세: serviceKey, pageNo, numOfRows, resultType(xml/json), ocrn_ymd(발생일자, 필수)
   const params = new URLSearchParams({ resultType: 'json' });
-  for (const key of ['pageNo', 'numOfRows', 'ocrn_ymd']) {
-    const v = url.searchParams.get(key);
-    if (v) params.set(key, v);
-  }
-  // 레거시 호환: searchStDt가 오면 발생일자로 사용
-  if (!params.has('ocrn_ymd')) {
-    const legacy = url.searchParams.get('searchStDt');
-    if (legacy) params.set('ocrn_ymd', legacy);
-  }
-  // 기본값: 어제 (일간 업데이트 데이터)
-  if (!params.has('ocrn_ymd')) {
-    const d = new Date(Date.now() + 9 * 3600_000 - 86400_000); // KST 어제
-    params.set('ocrn_ymd', `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`);
-  }
-  if (!params.has('pageNo')) params.set('pageNo', '1');
-  if (!params.has('numOfRows')) params.set('numOfRows', '1000');
+  params.set('pageNo', sanitizeNumericParam(url, 'pageNo', 1, 1000, 1));
+  params.set('numOfRows', sanitizeNumericParam(url, 'numOfRows', 1, 1000, 1000));
+  params.set('ocrn_ymd', sanitizeYmd(url.searchParams.get('ocrn_ymd')) || sanitizeYmd(url.searchParams.get('searchStDt')) || defaultOcrnYmd());
 
   const serviceKey = encodeServiceKey(apiKey, 'FIRE_INFO_API_KEY');
   const res = await fetch(`${BASE}/${opName}?serviceKey=${serviceKey}&${params}`, {

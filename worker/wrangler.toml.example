@@ -44,5 +44,5 @@ simple = { limit = 60, period = 60 }   # 60초당 60회
 # wrangler secret put CONSUMER_HAZARD_API_KEY
 # wrangler secret put AMBULANCE_API_KEY
 #
-# 심층 방어용 공유 앱 토큰 (선택). 설정 시 프론트엔드 VITE_APP_TOKEN과 동일하게 맞춰야 함:
+# 심층 방어용 공유 앱 토큰 (운영 필수). 프론트엔드 VITE_APP_TOKEN과 동일하게 맞춰야 함:
 # wrangler secret put APP_ACCESS_TOKEN

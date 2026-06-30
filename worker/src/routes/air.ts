@@ -5,9 +5,10 @@
  */
 
 import { coerceEnvelope } from './publicData';
+import { sanitizeStringParam } from '../middleware/cors';
 
 export async function handleAir(url: URL, apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
-  const sido = url.searchParams.get('sido') || '서울';
+  const sido = sanitizeStringParam(url, 'sido', 20) || '서울';
   const params = new URLSearchParams({
     serviceKey: apiKey,
     returnType: 'json',

@@ -6,14 +6,29 @@
  * 응답 형식: XML (Hub 서비스는 JSON 미지원)
  */
 
+function sanitizeDigits(value: string | null, length: number, fallback: string): string {
+  const trimmed = value?.trim() || '';
+  return new RegExp(`^\\d{1,${length}}$`).test(trimmed) ? trimmed.padStart(length, '0') : fallback;
+}
+
+function sanitizeExactDigits(value: string | null, length: number): string {
+  const trimmed = value?.trim() || '';
+  return new RegExp(`^\\d{${length}}$`).test(trimmed) ? trimmed : '';
+}
+
+function sanitizePlatGbCd(value: string | null): string {
+  const trimmed = value?.trim() || '0';
+  return ['0', '1', '2'].includes(trimmed) ? trimmed : '0';
+}
+
 export async function handleBuilding(url: URL, apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
   const params = new URLSearchParams({
     serviceKey: apiKey,
-    sigunguCd: url.searchParams.get('sigunguCd') || '',
-    bjdongCd: url.searchParams.get('bjdongCd') || '',
-    platGbCd: url.searchParams.get('platGbCd') || '0',
-    bun: (url.searchParams.get('bun') || '0').padStart(4, '0'),
-    ji: (url.searchParams.get('ji') || '0').padStart(4, '0'),
+    sigunguCd: sanitizeExactDigits(url.searchParams.get('sigunguCd'), 5),
+    bjdongCd: sanitizeExactDigits(url.searchParams.get('bjdongCd'), 5),
+    platGbCd: sanitizePlatGbCd(url.searchParams.get('platGbCd')),
+    bun: sanitizeDigits(url.searchParams.get('bun'), 4, '0000'),
+    ji: sanitizeDigits(url.searchParams.get('ji'), 4, '0000'),
     numOfRows: '5',
     pageNo: '1',
   });

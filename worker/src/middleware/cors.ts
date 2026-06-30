@@ -9,6 +9,9 @@
 
 const ALLOWED_ORIGINS = [
   'https://119helper.github.io',        // 프로덕션
+];
+
+const DEVELOPMENT_ORIGINS = [
   'http://localhost:5173',               // 개발 서버
   'http://127.0.0.1:5173',               // 개발 서버 (IP)
   'http://localhost:4173',               // 프리뷰 서버
@@ -16,8 +19,14 @@ const ALLOWED_ORIGINS = [
 
 /* ═══ CORS ═══ */
 
-function isAllowedOrigin(origin: string): boolean {
+function isProductionEnvironment(environment: string | undefined): boolean {
+  return environment?.trim().toLowerCase() === 'production';
+}
+
+function isAllowedOrigin(origin: string, environment?: string): boolean {
   if (ALLOWED_ORIGINS.includes(origin)) return true;
+  if (isProductionEnvironment(environment)) return false;
+  if (DEVELOPMENT_ORIGINS.includes(origin)) return true;
 
   try {
     const url = new URL(origin);
@@ -29,10 +38,10 @@ function isAllowedOrigin(origin: string): boolean {
   }
 }
 
-export function isOriginAllowed(request: Request): boolean {
+export function isOriginAllowed(request: Request, environment?: string): boolean {
   const origin = request.headers.get('Origin') || '';
   if (!origin) return false;
-  return isAllowedOrigin(origin);
+  return isAllowedOrigin(origin, environment);
 }
 
 /* ═══ 앱 토큰 (심층 방어) ═══ */
@@ -40,10 +49,14 @@ export function isOriginAllowed(request: Request): boolean {
 // Origin 헤더는 브라우저만 강제하므로 curl 등으로 위조 가능하다.
 // 공유 토큰(X-App-Token)을 추가로 요구해 스크래핑/무단 프록시 사용의 문턱을 높인다.
 // SPA 번들에 토큰이 노출되는 한계는 있으나, Origin 단독 검사보다 명확히 낫고
-// 토큰 회전(rotation)이 가능해진다. APP_ACCESS_TOKEN 미설정 시에는 검사하지 않아
-// 기존 배포와 하위 호환된다.
+// 토큰 회전(rotation)이 가능해진다. 운영 환경에서는 APP_ACCESS_TOKEN을 필수로
+// 요구하고, 로컬/테스트 환경에서는 미설정 시 기존처럼 검사를 생략한다.
+export function isAppTokenRequired(environment: string | undefined): boolean {
+  return isProductionEnvironment(environment);
+}
+
 export function isAppTokenValid(request: Request, expected: string | undefined): boolean {
-  if (!expected) return true; // 미설정 → 검사 생략 (하위 호환)
+  if (!expected) return true; // 로컬/테스트 환경 하위 호환
   const provided = request.headers.get('X-App-Token') || '';
   if (provided.length !== expected.length) return false;
   // 타이밍 공격 완화를 위한 상수 시간 비교
@@ -54,9 +67,9 @@ export function isAppTokenValid(request: Request, expected: string | undefined):
   return diff === 0;
 }
 
-export function corsHeaders(request: Request): Record<string, string> {
+export function corsHeaders(request: Request, environment?: string): Record<string, string> {
   const origin = request.headers.get('Origin') || '';
-  const isAllowed = isAllowedOrigin(origin);
+  const isAllowed = isAllowedOrigin(origin, environment);
 
   return {
     'Access-Control-Allow-Origin': isAllowed ? origin : '',
@@ -72,9 +85,9 @@ export function corsHeaders(request: Request): Record<string, string> {
  * (law/equipment 등 직접 반환 라우트가 'Allow-Origin: *' 같은 느슨한 헤더를
  *  쓰지 않도록 화이트리스트 기반 헤더로 덮어쓴다.)
  */
-export function applyCors(response: Response, request: Request): Response {
+export function applyCors(response: Response, request: Request, environment?: string): Response {
   const res = new Response(response.body, response);
-  const cors = corsHeaders(request);
+  const cors = corsHeaders(request, environment);
   for (const [k, v] of Object.entries(cors)) {
     res.headers.set(k, String(v));
   }
@@ -207,20 +220,20 @@ export function sanitizeStringParam(url: URL, key: string, maxLen = 100): string
 
 /* ═══ 응답 헬퍼 ═══ */
 
-export function handleOptions(request: Request): Response {
-  if (!isOriginAllowed(request)) {
+export function handleOptions(request: Request, environment?: string): Response {
+  if (!isOriginAllowed(request, environment)) {
     return new Response('Forbidden', { status: 403 });
   }
   return new Response(null, {
     status: 204,
-    headers: corsHeaders(request),
+    headers: corsHeaders(request, environment),
   });
 }
 
-export function jsonResponse(data: unknown, request: Request, status = 200, cacheTtl = 0): Response {
+export function jsonResponse(data: unknown, request: Request, status = 200, cacheTtl = 0, environment?: string): Response {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json; charset=utf-8',
-    ...corsHeaders(request),
+    ...corsHeaders(request, environment),
     ...securityHeaders(),
   };
   if (cacheTtl > 0) {
@@ -229,15 +242,15 @@ export function jsonResponse(data: unknown, request: Request, status = 200, cach
   return new Response(JSON.stringify(data), { status, headers });
 }
 
-export function errorResponse(message: string, request: Request, status = 500): Response {
-  return jsonResponse({ error: message }, request, status);
+export function errorResponse(message: string, request: Request, status = 500, environment?: string): Response {
+  return jsonResponse({ error: message }, request, status, 0, environment);
 }
 
-export function rateLimitResponse(request: Request): Response {
+export function rateLimitResponse(request: Request, environment?: string): Response {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json; charset=utf-8',
     'Retry-After': '60',
-    ...corsHeaders(request),
+    ...corsHeaders(request, environment),
     ...securityHeaders(),
   };
   return new Response(

@@ -4,6 +4,7 @@
  */
 
 import { encodeServiceKey, parsePublicDataJson, pickItemsAndCount } from './publicData';
+import { sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
 
 const BASE = 'https://apis.data.go.kr/1661000/EmergencyStatisticsService';
 
@@ -29,19 +30,19 @@ export async function handleEmergencyStats(
 
   // 명세(2022 개편): serviceKey, pageNo, numOfRows, resultType, sidoHqOgidNm(시도본부), rcptYm(접수년월), rsacGutFsttOgidNm(출동소방서)
   const params = new URLSearchParams({ resultType: 'json' });
-  for (const key of ['pageNo', 'numOfRows', 'sidoHqOgidNm', 'rcptYm', 'rsacGutFsttOgidNm']) {
-    const v = url.searchParams.get(key);
+  params.set('pageNo', sanitizeNumericParam(url, 'pageNo', 1, 1000, 1));
+  params.set('numOfRows', sanitizeNumericParam(url, 'numOfRows', 1, 1000, 1000));
+  for (const key of ['sidoHqOgidNm', 'rcptYm', 'rsacGutFsttOgidNm']) {
+    const v = sanitizeStringParam(url, key, key.endsWith('Ym') ? 6 : 40);
     if (v) params.set(key, v);
   }
   // 레거시 파라미터 호환
-  const legacyYm = url.searchParams.get('reqYm');
+  const legacyYm = sanitizeStringParam(url, 'reqYm', 6);
   if (legacyYm && !params.has('rcptYm')) params.set('rcptYm', legacyYm);
-  const legacySido = url.searchParams.get('sido');
+  const legacySido = sanitizeStringParam(url, 'sido', 40);
   if (legacySido && !params.has('sidoHqOgidNm')) params.set('sidoHqOgidNm', legacySido);
-  const legacyStn = url.searchParams.get('fireStn');
+  const legacyStn = sanitizeStringParam(url, 'fireStn', 40);
   if (legacyStn && !params.has('rsacGutFsttOgidNm')) params.set('rsacGutFsttOgidNm', legacyStn);
-  if (!params.has('pageNo')) params.set('pageNo', '1');
-  if (!params.has('numOfRows')) params.set('numOfRows', '1000');
 
   const serviceKey = encodeServiceKey(apiKey, 'EMERGENCY_API_KEY');
   const res = await fetch(`${BASE}/${opName}?serviceKey=${serviceKey}&${params}`, {

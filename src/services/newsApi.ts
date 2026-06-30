@@ -25,6 +25,16 @@ const localNewsCache: Record<string, CacheEntry> = {};
 let policyNewsCache: CacheEntry | null = null;
 const alertCache: Record<string, { data: NewsItem | null; timestamp: number }> = {};
 
+function safeHttpUrl(value?: string): string {
+  if (!value) return '';
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
 function extractImageUrl(item: Element): string {
   const imageUrl = item.getElementsByTagName('imageUrl')[0]?.textContent?.trim();
   if (imageUrl) return imageUrl;
@@ -127,7 +137,7 @@ async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boo
 
         let imageUrl = extractImageUrl(item);
         // CDATA 등 흔적 제거
-        imageUrl = imageUrl.replace(/<!\[CDATA\[(.*?)\]\]>/, '$1').trim();
+        imageUrl = safeHttpUrl(imageUrl.replace(/<!\[CDATA\[(.*?)\]\]>/, '$1').trim());
 
         const isBadPolicyImage = (url: string) => {
           if (!url) return true;
@@ -146,10 +156,12 @@ async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boo
           imageUrl = '';
         }
 
+        const link = safeHttpUrl(item.getElementsByTagName('link')[0]?.textContent || '');
+
         return {
-          id: item.getElementsByTagName('link')[0]?.textContent || Math.random().toString(),
+          id: link || Math.random().toString(),
           title,
-          link: item.getElementsByTagName('link')[0]?.textContent || '',
+          link,
           pubDateStr,
           source: actualSource,
           description: desc,
@@ -168,7 +180,7 @@ async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boo
 }
 
 function processAndSort(arrays: ParsedNewsItem[][]): NewsItem[] {
-  const combined = arrays.flat().sort((a, b) => {
+  const combined = arrays.flat().filter(item => item.link).sort((a, b) => {
     const d1 = new Date(a.pubDateStr).getTime();
     const d2 = new Date(b.pubDateStr).getTime();
     if (isNaN(d1)) return 1;
