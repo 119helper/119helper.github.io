@@ -127,6 +127,17 @@ jobs:
           # Worker의 APP_ACCESS_TOKEN과 동일해야 함
           VITE_APP_TOKEN: ${{ secrets.VITE_APP_TOKEN }}
 
+      - name: Production Worker smoke test
+        run: |
+          curl -fsS \
+            -H "Origin: https://119helper.github.io" \
+            -H "X-App-Token: $VITE_APP_TOKEN" \
+            "$VITE_API_BASE/api/health" \
+          | node -e "let body=''; process.stdin.on('data', d => body += d); process.stdin.on('end', () => { const data = JSON.parse(body); if (data.status !== 'ok') { console.error(body); process.exit(1); } });"
+        env:
+          VITE_API_BASE: https://119-helper-api.teemozipsa.workers.dev
+          VITE_APP_TOKEN: ${{ secrets.VITE_APP_TOKEN }}
+
       - name: Setup Pages
         uses: actions/configure-pages@v6
 

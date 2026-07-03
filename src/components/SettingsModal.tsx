@@ -47,6 +47,36 @@ const parseNumberOr = (value: string, fallback: number) => {
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
+const USER_DATA_KEYS = [
+  '119helper-profile',
+  '119helper-notes',
+  '119helper-preplans',
+  '119helper-activity-session',
+  '119helper-triage-patients',
+  '119helper-field-assessment',
+  '119helper-building-recent',
+  '119helper-schedules',
+  '119helper-equipment-checklist',
+  '119helper-sop-checklist-checked',
+  '119helper-sop-checklist-timestamps',
+  '119helper-stress-check',
+];
+
+function deleteIndexedDb(name: string): Promise<void> {
+  if (typeof indexedDB === 'undefined') return Promise.resolve();
+  return new Promise((resolve) => {
+    const req = indexedDB.deleteDatabase(name);
+    req.onsuccess = () => resolve();
+    req.onerror = () => resolve();
+    req.onblocked = () => resolve();
+  });
+}
+
+async function clearUserStoredData() {
+  USER_DATA_KEYS.forEach(key => localStorage.removeItem(key));
+  await deleteIndexedDb('119-preplan');
+}
+
 // ── 토글 스위치 ──
 function Toggle({ on, onChange, size = 'md' }: { on: boolean; onChange: (v: boolean) => void; size?: 'sm' | 'md' }) {
   const w = size === 'sm' ? 'w-9 h-5' : 'w-11 h-6';
@@ -101,10 +131,11 @@ function CategoryHeader({ icon, iconColor, label, masterOn, onMasterChange }: {
 // ══════════════════════════════════════════
 // 일반 설정 탭
 // ══════════════════════════════════════════
-function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefreshInterval, ns, updateNs }: {
+function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefreshInterval, ns, updateNs, onClearUserData }: {
   city: string; onCityChange: (c: string) => void; cityNames: Record<string, string>;
   refreshInterval: string; setRefreshInterval: (v: string) => void;
   ns: NotificationSettings; updateNs: (patch: Partial<NotificationSettings>) => void;
+  onClearUserData: () => void;
 }) {
   return (
     <div className="p-5 space-y-5">
@@ -182,6 +213,25 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
             </p>
           )}
         </div>
+      </div>
+
+      <hr className="border-outline-variant/10" />
+
+      <div className="space-y-3">
+        <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-2">
+          <span className="material-symbols-outlined text-error text-lg">delete_forever</span>
+          기기 저장 데이터
+        </span>
+        <p className="text-[11px] leading-5 text-on-surface-variant">
+          메모, 대상물 정보, 활동 타임라인, 환자 분류, 일정, 최근 검색 기록을 이 기기에서 삭제합니다.
+        </p>
+        <button
+          type="button"
+          onClick={onClearUserData}
+          className="w-full rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm font-bold text-error hover:bg-error/15 transition-colors"
+        >
+          저장 데이터 삭제
+        </button>
       </div>
     </div>
   );
@@ -486,6 +536,13 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
     onClose();
   };
 
+  const handleClearUserData = async () => {
+    const ok = window.confirm('이 기기에 저장된 메모, 대상물 정보, 활동기록, 일정, 최근 검색 기록을 삭제할까요? 삭제 후 앱을 새로고침합니다.');
+    if (!ok) return;
+    await clearUserStoredData();
+    window.location.reload();
+  };
+
   if (!isOpen) return null;
 
   const tabs: { id: SettingsTab; icon: string; label: string }[] = [
@@ -541,6 +598,7 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
               city={draftCity} onCityChange={setDraftCity} cityNames={cityNames}
               refreshInterval={refreshInterval} setRefreshInterval={setRefreshInterval}
               ns={ns} updateNs={updateNs}
+              onClearUserData={handleClearUserData}
             />
           )}
           {tab === 'shift' && (
