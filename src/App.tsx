@@ -21,6 +21,7 @@ import type { ShelterCategory, TabId, NavigateTarget } from './types/navigation'
 import { useUserProfile } from './contexts/UserProfileContext';
 import { useGeolocation } from './hooks/useGeolocation';
 import { useAutoRefresh } from './hooks/useAutoRefresh';
+import { applyPrivacyRetention } from './services/privacySettings';
 
 function TabLoading({ label }: { label: string }) {
   return (
@@ -64,6 +65,10 @@ export default function App() {
   // 오프라인 대비: 핵심 화면(계산기·매뉴얼·타이머 등) 청크 사전 로드
   useEffect(() => {
     prefetchCriticalViews();
+  }, []);
+
+  useEffect(() => {
+    applyPrivacyRetention().catch(e => console.warn('[privacy retention] failed:', e));
   }, []);
 
   useEffect(() => {

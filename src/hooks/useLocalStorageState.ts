@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from 'react';
+import {
+  canPersistStorageKey,
+  isSensitiveStorageKey,
+  isStorageExpired,
+  storageTimestampKey,
+} from '../services/privacySettings';
 
 /**
  * StickyNotes의 lazy-init + useEffect 저장 패턴을 제네릭으로 추출한 훅.
@@ -10,9 +16,14 @@ import { useState, useEffect, useCallback } from 'react';
 export function useLocalStorageState<T>(
   key: string,
   initial: T | (() => T),
-): [T, React.Dispatch<React.SetStateAction<T>>, () => void] {
+): [T, Dispatch<SetStateAction<T>>, () => void] {
   const [state, setState] = useState<T>(() => {
     try {
+      if (!canPersistStorageKey(key) || isStorageExpired(key)) {
+        localStorage.removeItem(key);
+        localStorage.removeItem(storageTimestampKey(key));
+        return initial instanceof Function ? (initial as () => T)() : initial;
+      }
       const saved = localStorage.getItem(key);
       if (saved !== null) return JSON.parse(saved) as T;
     } catch {
@@ -23,7 +34,15 @@ export function useLocalStorageState<T>(
 
   useEffect(() => {
     try {
+      if (!canPersistStorageKey(key)) {
+        localStorage.removeItem(key);
+        localStorage.removeItem(storageTimestampKey(key));
+        return;
+      }
       localStorage.setItem(key, JSON.stringify(state));
+      if (isSensitiveStorageKey(key)) {
+        localStorage.setItem(storageTimestampKey(key), String(Date.now()));
+      }
     } catch {
       /* 용량 초과 등은 조용히 무시 */
     }
@@ -32,6 +51,7 @@ export function useLocalStorageState<T>(
   const reset = useCallback(() => {
     try {
       localStorage.removeItem(key);
+      localStorage.removeItem(storageTimestampKey(key));
     } catch {
       /* */
     }

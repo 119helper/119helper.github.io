@@ -30,6 +30,9 @@ const TriageView = lazy(() => import('../components/TriageView'));
 const ActivityLog = lazy(() => import('../components/ActivityLog'));
 const PrePlanView = lazy(() => import('../components/PrePlanView'));
 const SafetyMonitor = lazy(() => import('../components/SafetyMonitor'));
+const IncidentModeView = lazy(() => import('../components/IncidentModeView'));
+const AviationView = lazy(() => import('../components/AviationView'));
+const OfflineReadinessView = lazy(() => import('../components/OfflineReadinessView'));
 
 export interface RouteContext {
   activeSubId?: string;
@@ -97,6 +100,20 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
   'activity-log': { render: () => <ActivityLog /> },
   preplan: { render: () => <PrePlanView /> },
   'safety-monitor': { render: ctx => <SafetyMonitor city={ctx.city} /> },
+  incident: {
+    render: ctx => (
+      <IncidentModeView
+        city={ctx.city}
+        cityLabel={ctx.cityLabel}
+        fireFacilities={ctx.fireFacilities}
+        isLoadingFacilities={ctx.isLoadingFacilities}
+        cityIndex={ctx.cityIndex}
+        onNavigate={ctx.onNavigate}
+      />
+    ),
+  },
+  aviation: { render: ctx => <AviationView city={ctx.city} /> },
+  'offline-readiness': { render: ctx => <OfflineReadinessView city={ctx.city} cityLabel={ctx.cityLabel} /> },
 };
 
 export function renderTabRoute(tab: TabId, context: RouteContext): ReactNode {

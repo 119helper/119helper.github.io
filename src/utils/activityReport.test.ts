@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { computeStageDurations, totalDurationMs, formatDuration, buildReportDraft, type StageStamp } from './activityReport';
+import {
+  buildReportDraft,
+  buildReportPackageText,
+  computeStageDurations,
+  formatDuration,
+  totalDurationMs,
+  type StageStamp,
+} from './activityReport';
 
 const t0 = new Date('2026-06-15T10:00:00').getTime();
 const stamps: StageStamp[] = [
@@ -43,5 +50,20 @@ describe('activity report utilities', () => {
     expect(report).toContain('작성자: 소방교 홍길동 / ○○센터');
     const noAuthor = buildReportDraft({ title: '○○동 화재', stamps });
     expect(noAuthor).not.toContain('작성자:');
+  });
+
+  it('builds a report package with incident, timer and triage summaries', () => {
+    const report = buildReportPackageText({
+      title: '○○동 화재',
+      stamps,
+      incident: { title: '○○동 화재', type: '화재', address: '서울 ○○동', startedAt: t0 },
+      timers: [{ label: '재진입 1조', remainingSeconds: 300, totalSeconds: 900, running: true }],
+      triageCounts: { red: 1, yellow: 2 },
+    });
+
+    expect(report).toContain('출동 상황판');
+    expect(report).toContain('재진입 1조');
+    expect(report).toContain('긴급 I: 1명');
+    expect(report).toContain('응급 II: 2명');
   });
 });

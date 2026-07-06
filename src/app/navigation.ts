@@ -28,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
     id: 'group-monitoring', icon: 'monitor', label: '모니터링',
     subItems: [
       { id: 'weather', label: '날씨' },
+      { id: 'aviation', label: '항공/드론' },
       { id: 'wildfire', label: '산불현황' },
       { id: 'er', label: '응급실 현황' },
       { id: 'news', label: '뉴스' },
@@ -36,6 +37,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     id: 'group-tools', icon: 'build', label: '현장도구',
     subItems: [
+      { id: 'incident', label: '출동 상황판' },
       { id: 'field-timer', label: '현장 타이머' },
       { id: 'safety-monitor', label: '대원 안전' },
       { id: 'checklist', label: '장비점검' },
@@ -49,6 +51,7 @@ export const NAV_ITEMS: NavItem[] = [
       { id: 'manual', label: '대응 매뉴얼' },
       { id: 'law', label: '실전 법률방어' },
       { id: 'policy', label: '법안지침' },
+      { id: 'offline-readiness', label: '오프라인 점검' },
       { id: 'calendar', label: '일정관리' },
     ],
   },

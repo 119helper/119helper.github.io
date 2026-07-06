@@ -15,6 +15,7 @@ import { useLocalStorageState } from '../hooks/useLocalStorageState';
 
 type Mode = 'adult' | 'child';
 type Answers = Record<string, boolean | undefined>;
+type PatientStatus = 'triaged' | 'treating' | 'waiting' | 'transferred';
 
 interface TriagePatient {
   id: string;
@@ -22,6 +23,9 @@ interface TriagePatient {
   color: TriageColor;
   label: string;
   createdAt: string;
+  status?: PatientStatus;
+  destination?: string;
+  note?: string;
 }
 
 const COLOR_CLASSES: Record<TriageColor, string> = {
@@ -32,6 +36,13 @@ const COLOR_CLASSES: Record<TriageColor, string> = {
 };
 
 const COLOR_ORDER: TriageColor[] = ['red', 'yellow', 'green', 'black'];
+const STATUS_ORDER: PatientStatus[] = ['triaged', 'treating', 'waiting', 'transferred'];
+const STATUS_LABEL: Record<PatientStatus, string> = {
+  triaged: '분류',
+  treating: '처치 중',
+  waiting: '이송 대기',
+  transferred: '인계 완료',
+};
 
 export default function TriageView({ city = 'seoul' }: { city?: string }) {
   const [mode, setMode] = useState<Mode>('adult');
@@ -43,6 +54,14 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
     return c;
   }, [patients]);
 
+  const statusCounts = useMemo(() => {
+    const c: Record<PatientStatus, number> = { triaged: 0, treating: 0, waiting: 0, transferred: 0 };
+    patients.forEach(p => {
+      c[p.status ?? 'triaged'] += 1;
+    });
+    return c;
+  }, [patients]);
+
   const addPatient = (color: TriageColor, label: string) => {
     const next: TriagePatient = {
       id: Date.now().toString(),
@@ -50,11 +69,16 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
       color,
       label: label.trim() || `환자 ${patients.length + 1}`,
       createdAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      status: 'triaged',
+      destination: '',
+      note: '',
     };
     setPatients(prev => [next, ...prev]);
   };
 
   const removePatient = (id: string) => setPatients(prev => prev.filter(p => p.id !== id));
+  const updatePatient = (id: string, patch: Partial<TriagePatient>) =>
+    setPatients(prev => prev.map(p => (p.id === id ? { ...p, ...patch } : p)));
   const clearAll = () => setPatients([]);
 
   return (
@@ -99,7 +123,12 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
       {/* 환자 목록 */}
       <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-bold text-on-surface">분류된 환자 ({patients.length})</h3>
+          <div>
+            <h3 className="text-lg font-bold text-on-surface">현장 환자 보드 ({patients.length})</h3>
+            <p className="text-xs text-on-surface-variant mt-0.5">
+              {STATUS_ORDER.map(s => `${STATUS_LABEL[s]} ${statusCounts[s]}`).join(' · ')}
+            </p>
+          </div>
           {patients.length > 0 && (
             <button onClick={clearAll} className="text-xs text-on-surface-variant hover:text-error font-bold">
               전체 삭제
@@ -109,19 +138,32 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
         {patients.length === 0 ? (
           <p className="text-sm text-on-surface-variant py-6 text-center">아직 분류된 환자가 없습니다</p>
         ) : (
-          <div className="space-y-2">
-            {patients.map(p => (
-              <div key={p.id} className={`flex items-center justify-between rounded-lg border px-4 py-2.5 ${COLOR_CLASSES[p.color]}`}>
-                <div className="flex items-center gap-3">
-                  <span className="font-extrabold">{TRIAGE_META[p.color].label}</span>
-                  <span className="text-sm text-on-surface">{p.label}</span>
-                  <span className="text-[11px] text-on-surface-variant">{p.mode === 'adult' ? '성인' : '소아'} · {p.createdAt}</span>
+          <div className="grid grid-cols-1 xl:grid-cols-4 gap-3">
+            {STATUS_ORDER.map(status => {
+              const statusPatients = patients.filter(p => (p.status ?? 'triaged') === status);
+              return (
+                <div key={status} className="rounded-xl bg-surface-container p-3 min-h-[180px]">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-extrabold text-on-surface">{STATUS_LABEL[status]}</h4>
+                    <span className="text-xs font-mono text-on-surface-variant">{statusPatients.length}</span>
+                  </div>
+                  {statusPatients.length === 0 ? (
+                    <p className="text-xs text-on-surface-variant py-6 text-center">없음</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {statusPatients.map(p => (
+                        <PatientCard
+                          key={p.id}
+                          patient={p}
+                          onChange={patch => updatePatient(p.id, patch)}
+                          onRemove={() => removePatient(p.id)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <button onClick={() => removePatient(p.id)} className="text-on-surface-variant hover:text-error">
-                  <span className="material-symbols-outlined text-lg">close</span>
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -208,6 +250,61 @@ function TriageWizard({ mode, onComplete }: { mode: Mode; onComplete: (color: Tr
           </button>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function PatientCard({
+  patient,
+  onChange,
+  onRemove,
+}: {
+  patient: TriagePatient;
+  onChange: (patch: Partial<TriagePatient>) => void;
+  onRemove: () => void;
+}) {
+  const status = patient.status ?? 'triaged';
+
+  return (
+    <div className={`rounded-xl border p-3 space-y-3 ${COLOR_CLASSES[patient.color]}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-extrabold">{TRIAGE_META[patient.color].label}</span>
+            <span className="text-xs font-bold">{TRIAGE_META[patient.color].tag}</span>
+          </div>
+          <div className="text-sm font-bold text-on-surface truncate mt-0.5">{patient.label}</div>
+          <div className="text-[11px] text-on-surface-variant">{patient.mode === 'adult' ? '성인' : '소아'} · {patient.createdAt}</div>
+        </div>
+        <button onClick={onRemove} className="text-on-surface-variant hover:text-error">
+          <span className="material-symbols-outlined text-lg">close</span>
+        </button>
+      </div>
+
+      <select
+        value={status}
+        onChange={e => onChange({ status: e.target.value as PatientStatus })}
+        className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg px-2 py-2 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+      >
+        {STATUS_ORDER.map(s => (
+          <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+        ))}
+      </select>
+
+      <input
+        type="text"
+        value={patient.destination ?? ''}
+        onChange={e => onChange({ destination: e.target.value })}
+        placeholder="이송/인계처"
+        className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg px-2 py-2 text-xs text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30"
+      />
+      <input
+        type="text"
+        value={patient.note ?? ''}
+        onChange={e => onChange({ note: e.target.value })}
+        placeholder="처치·특이사항"
+        className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg px-2 py-2 text-xs text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30"
+      />
     </div>
   );
 }

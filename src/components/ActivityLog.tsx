@@ -1,8 +1,15 @@
 import { useState, useMemo } from 'react';
 import { ACTIVITY_PRESETS } from '../data/activityStages';
-import { buildReportDraft, formatDuration, totalDurationMs, type StageStamp } from '../utils/activityReport';
+import {
+  buildReportPackageText,
+  formatDuration,
+  totalDurationMs,
+  type ReportTimerSummary,
+  type StageStamp,
+} from '../utils/activityReport';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useUserProfile, type DutyRole } from '../contexts/UserProfileContext';
+import { useTimer } from '../contexts/TimerContext';
 
 const ROLE_TO_PRESET: Record<DutyRole, string> = { fire: 'fire', ems: 'ems', rescue: 'rescue', '': 'fire' };
 
@@ -22,15 +29,49 @@ interface ActiveSession {
 }
 
 const EMPTY: ActiveSession = { presetId: 'fire', title: '', note: '', stamps: [] };
+const INCIDENT_TYPE_LABELS: Record<string, string> = { fire: '화재', ems: '구급', rescue: '구조', support: '지원' };
+
+interface StoredIncident {
+  active?: boolean;
+  type?: string;
+  title?: string;
+  address?: string;
+  startedAt?: number;
+}
+
+interface StoredTriagePatient {
+  color?: 'red' | 'yellow' | 'green' | 'black';
+}
+
+interface ActivityReportBundle {
+  generatedAt: string;
+  title: string;
+  session: ActiveSession;
+  report: string;
+  timers: ReportTimerSummary[];
+  triageCounts: Record<'red' | 'yellow' | 'green' | 'black', number>;
+  incident: StoredIncident | null;
+}
+
+function readJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) as T : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 export default function ActivityLog() {
   const { authorLine, profile } = useUserProfile();
+  const { timers } = useTimer();
   const [session, setSession] = useLocalStorageState<ActiveSession>('119helper-activity-session', () => ({
     ...EMPTY,
     presetId: ROLE_TO_PRESET[profile.role],
   }));
   const [useGps, setUseGps] = useState(true);
   const [report, setReport] = useState<string | null>(null);
+  const [reportBundle, setReportBundle] = useState<ActivityReportBundle | null>(null);
   const [copied, setCopied] = useState(false);
 
   const preset = ACTIVITY_PRESETS.find(p => p.id === session.presetId) ?? ACTIVITY_PRESETS[0];
@@ -66,14 +107,44 @@ export default function ActivityLog() {
   };
 
   const generateReport = () => {
-    setReport(
-      buildReportDraft({
-        title: session.title.trim() || `${preset.label} 출동`,
-        stamps: sortedStamps,
-        note: session.note,
-        author: authorLine,
-      }),
-    );
+    const title = session.title.trim() || `${preset.label} 출동`;
+    const incident = readJson<StoredIncident | null>('119helper-incident-session', null);
+    const triagePatients = readJson<StoredTriagePatient[]>('119helper-triage-patients', []);
+    const triageCounts: Record<'red' | 'yellow' | 'green' | 'black', number> = { red: 0, yellow: 0, green: 0, black: 0 };
+    triagePatients.forEach(patient => {
+      if (patient.color && patient.color in triageCounts) triageCounts[patient.color] += 1;
+    });
+    const timerSummaries: ReportTimerSummary[] = timers.map(t => ({
+      label: t.label,
+      remainingSeconds: t.remaining,
+      totalSeconds: t.totalSeconds,
+      running: t.isRunning,
+    }));
+
+    const nextReport = buildReportPackageText({
+      title,
+      stamps: sortedStamps,
+      note: session.note,
+      author: authorLine,
+      incident: incident?.active ? {
+        title: incident.title || title,
+        type: incident.type ? INCIDENT_TYPE_LABELS[incident.type] || incident.type : undefined,
+        address: incident.address,
+        startedAt: incident.startedAt,
+      } : null,
+      timers: timerSummaries,
+      triageCounts,
+    });
+    setReport(nextReport);
+    setReportBundle({
+      generatedAt: new Date().toISOString(),
+      title,
+      session,
+      report: nextReport,
+      timers: timerSummaries,
+      triageCounts,
+      incident: incident?.active ? incident : null,
+    });
   };
 
   const copyReport = async () => {
@@ -90,6 +161,18 @@ export default function ActivityLog() {
   const reset = () => {
     setSession({ ...EMPTY, presetId: session.presetId });
     setReport(null);
+    setReportBundle(null);
+  };
+
+  const downloadReportBundle = () => {
+    if (!reportBundle) return;
+    const blob = new Blob([JSON.stringify(reportBundle, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `activity-report-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -200,16 +283,26 @@ export default function ActivityLog() {
 
       {report && (
         <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-on-surface">보고서 초안</h3>
-            <button
-              onClick={copyReport}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold bg-primary/10 text-primary hover:bg-primary/20"
-            >
-              <span className="material-symbols-outlined text-base">{copied ? 'check' : 'content_copy'}</span>
-              {copied ? '복사됨' : '복사'}
-            </button>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-on-surface">보고서 초안</h3>
+          <div className="flex gap-2">
+              <button
+                onClick={downloadReportBundle}
+                disabled={!reportBundle}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold bg-surface-container text-on-surface-variant hover:bg-surface-container-high disabled:opacity-40"
+              >
+                <span className="material-symbols-outlined text-base">download</span>
+                JSON
+              </button>
+              <button
+                onClick={copyReport}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold bg-primary/10 text-primary hover:bg-primary/20"
+              >
+                <span className="material-symbols-outlined text-base">{copied ? 'check' : 'content_copy'}</span>
+                {copied ? '복사됨' : '복사'}
+              </button>
           </div>
+        </div>
           <textarea
             readOnly
             value={report}

@@ -13,6 +13,7 @@ import { WindCompass } from './WindCompass';
 import MiniTimerWidget from './MiniTimerWidget';
 import { EQUIPMENT_CHECKLIST_TOTAL } from '../data/equipmentChecklist';
 import type { NavigateTarget } from '../types/navigation';
+import { classifyAviationSafety } from '../utils/aviationSafety';
 
 import hydrantBg from '../assets/hydrant_bg.jpg';
 import waterTowerBg from '../assets/water_tower_bg.jpg';
@@ -52,6 +53,8 @@ const ALL_QUICK_TOOLS: QuickToolDef[] = [
   { id: 'calc_air', tab: 'calculator', subId: 'air_tank_timer', icon: 'timer', label: '공기호흡기', color: 'text-amber-400', category: '계산기', bgImage: '/images/tools/bg_checklist.png' },
   { id: 'calc_unit', tab: 'calculator', subId: 'unit_converter', icon: 'swap_horiz', label: '단위 변환', color: 'text-indigo-400', category: '계산기' },
   // 주요 탭
+  { id: 'incident', tab: 'incident', icon: 'assignment', label: '출동 상황판', color: 'text-red-400', category: '현장 도구', bgImage: '/images/tools/bg_timer.png' },
+  { id: 'aviation', tab: 'aviation', icon: 'flight_takeoff', label: '항공/드론', color: 'text-cyan-400', category: '현장 도구', bgImage: '/images/tools/bg_wildfire.png' },
   { id: 'law_defense', tab: 'law', subId: 'DEFENSE', icon: 'gavel', label: '법률 방어망', color: 'text-rose-500', category: '법률 보호', bgImage: '/images/tools/Gemini_Generated_Image_5n8rd95n8rd95n8r.png' },
   { id: 'checklist', tab: 'checklist', icon: 'check_circle', label: '장비점검', color: 'text-orange-400', category: '현장 도구', bgImage: '/images/tools/bg_checklist.png' },
   { id: 'field_timer', tab: 'field-timer', icon: 'timer', label: '현장 타이머', color: 'text-red-500', category: '현장 도구', bgImage: '/images/tools/bg_timer.png' },
@@ -65,9 +68,10 @@ const ALL_QUICK_TOOLS: QuickToolDef[] = [
   { id: 'manual', tab: 'manual', icon: 'menu_book', label: '대응 매뉴얼', color: 'text-blue-500', category: '행정/기타' },
   { id: 'calendar', tab: 'calendar', icon: 'calendar_month', label: '달력/일정', color: 'text-red-400', category: '행정/기타' },
   { id: 'policy', tab: 'policy', icon: 'gavel', label: '법안/지침', color: 'text-green-500', category: '행정/기타' },
+  { id: 'offline_readiness', tab: 'offline-readiness', icon: 'download_for_offline', label: '오프라인 점검', color: 'text-lime-400', category: '행정/기타' },
 ];
 
-const DEFAULT_TOOLS = ['facility_hydrants', 'facility_towers', 'checklist', 'calc_water', 'calc_hazmat', 'law_defense'];
+const DEFAULT_TOOLS = ['incident', 'facility_hydrants', 'facility_towers', 'checklist', 'calc_water', 'aviation', 'law_defense'];
 
 const WeatherParticles = React.memo(({ type }: { type: string }) => {
   const particleStyles = React.useMemo(() => {
@@ -236,6 +240,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
     : fireFacilities.filter(f => f.type === '급수탑' || f.type === '저수조').length;
 
   const regionImageUrl = `/images/regions/${city}.png`;
+  const aviation = weather ? classifyAviationSafety(weather.windSpeed) : null;
 
   const getBgOverlay = () => {
     if (!weather) return 'from-black/80 via-black/50 to-black/30';
@@ -353,6 +358,20 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
               <span className="text-xs text-white/70">강수</span>
               <span className="text-xs font-bold text-white">{weather?.precipitation ?? '--'}mm</span>
             </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onNavigate('aviation');
+              }}
+              className="flex items-center gap-2 bg-black/30 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10 hover:bg-black/45 transition-colors"
+            >
+              <span className="material-symbols-outlined text-sm text-cyan-200">flight_takeoff</span>
+              <span className="text-xs text-white/70">드론</span>
+              <span className={`text-xs font-bold ${aviation?.level === 'danger' ? 'text-red-300' : aviation?.level === 'caution' ? 'text-amber-300' : 'text-green-300'}`}>
+                {aviation?.badge ?? '확인'}
+              </span>
+            </button>
           </div>
         </div>
 
