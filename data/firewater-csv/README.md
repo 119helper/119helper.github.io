@@ -1,8 +1,13 @@
 # 소방용수시설 CSV 데이터 관리
 
-이 폴더에 각 도시의 소방용수시설 CSV 파일을 넣으면,  
-`scripts/convert-firewater-csv.js`가 급수탑·저수조·비상소화장치를 추출하여  
-`public/firewater/` JSON에 자동 병합합니다.
+현재 운영 갱신의 기본 경로는 공공데이터 API 동기화입니다.
+
+```bash
+FIRE_WATER_API_KEY=... node scripts/sync-firewater.js
+```
+
+이 폴더의 CSV 변환 스크립트는 API 장애 또는 자치단체 파일데이터만 존재하는 경우의 수동 보정용입니다.
+각 도시의 소방용수시설 CSV 파일을 넣으면 `scripts/convert-firewater-csv.js`가 급수탑·저수조·비상소화장치를 추출하여 `public/firewater/` JSON에 병합합니다.
 
 ## 📥 CSV 다운로드 링크 (도시별)
 
@@ -48,7 +53,8 @@ for f in data/firewater-csv/*.csv; do node scripts/convert-firewater-csv.js "$f"
 
 ### 자동 최신화 (GitHub Actions)
 - `.github/workflows/update-firewater.yml` → **분기별 (1/4/7/10월)** 자동 실행
-- 이 폴더에 새 CSV 커밋 → 다음 실행 시 자동 변환 & 배포
+- `FIRE_WATER_API_KEY` secret으로 공공데이터 API를 호출해 `public/firewater/`를 재생성
+- workflow 수동 실행 시 `source_date` 입력으로 원본 기준일을 명시 가능
 
 ## ⚠️ 주의
 - **UTF-8 인코딩** 필수 (EUC-KR은 변환 필요)

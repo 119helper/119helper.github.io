@@ -20,6 +20,17 @@ type = "ratelimit"
 namespace_id = "1001"            # 계정 내 임의 고유 ID
 simple = { limit = 60, period = 60 }   # 60초당 60회
 
+# 뉴스 RSS 캐시 및 실패 시 stale fallback용 KV namespace.
+# GitHub Actions 배포에서는 NEWS_CACHE_KV_ID / NEWS_CACHE_KV_PREVIEW_ID secret으로
+# CI용 wrangler 설정 파일을 생성한다.
+[[kv_namespaces]]
+binding = "NEWS_CACHE"
+id = "YOUR_NEWS_CACHE_KV_NAMESPACE_ID"
+preview_id = "YOUR_NEWS_CACHE_KV_PREVIEW_NAMESPACE_ID"
+
+[triggers]
+crons = ["*/30 * * * *"]
+
 # API 키는 시크릿으로 등록:
 # wrangler secret put KMA_API_KEY
 # wrangler secret put ER_API_KEY

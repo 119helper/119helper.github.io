@@ -5,11 +5,12 @@
  * 데이터를 미리 받아두면, 출동 중 신호가 끊겨도 시설 조회가 동작한다.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   downloadRegionData, clearRegionData, getRegionStatus, isOfflineDataSupported,
   type DownloadProgress, type OfflineRegionStatus,
 } from '../services/offlineRegion';
+import { formatDatasetDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
 
 export default function OfflineDataSection({ city, cityNames }: {
   city: string;
@@ -19,6 +20,21 @@ export default function OfflineDataSection({ city, cityNames }: {
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
+  const [freshnessItems, setFreshnessItems] = useState<Array<{ id: string; meta: DatasetFreshness }>>([]);
+
+  useEffect(() => {
+    let alive = true;
+    Promise.all(
+      ['hydrants', 'restrooms', 'civil', 'tsunami'].map(async id => ({
+        id,
+        meta: await getDatasetFreshness(id, city),
+      }))
+    ).then(items => {
+      if (!alive) return;
+      setFreshnessItems(items.filter((item): item is { id: string; meta: DatasetFreshness } => item.meta !== null));
+    });
+    return () => { alive = false; };
+  }, [city]);
 
   if (!isOfflineDataSupported()) return null;
 
@@ -67,6 +83,23 @@ export default function OfflineDataSection({ city, cityNames }: {
             <span className="font-bold text-on-surface">{cityNames[status.city] || status.city}</span> 데이터
             {' '}{status.fileCount}개 파일 · {new Date(status.downloadedAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 저장
           </span>
+        </div>
+      )}
+
+      {freshnessItems.length > 0 && (
+        <div className="space-y-1 rounded-xl bg-surface-container px-3 py-2 text-[11px] text-on-surface-variant">
+          {freshnessItems.map(({ id, meta }) => {
+            const expired = isFreshnessExpired(meta);
+            return (
+              <div key={id} className="flex items-center justify-between gap-2">
+                <span className="font-medium text-on-surface">{meta.label}</span>
+                <span className={expired ? 'font-bold text-amber-400' : ''}>
+                  기준일 {formatDatasetDate(meta.sourceDate)} · 생성 {formatDatasetDate(meta.generatedAt)}
+                  {expired ? ' · 갱신 필요' : ''}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 

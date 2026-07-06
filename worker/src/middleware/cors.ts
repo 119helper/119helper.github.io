@@ -211,6 +211,7 @@ export function sanitizeStringParam(url: URL, key: string, maxLen = 100): string
   if (!raw) return null;
   // 제어 문자와 HTML/SQL 문맥에서 위험한 구분자를 제거하되 주소 검색에 쓰이는 / 는 보존한다.
   return raw
+    .replace(/<\/?[A-Za-z][A-Za-z0-9:-]*(?:\s+[^<>]*)?>/g, '')
     .replace(/[<>'";\\]/g, '')
     // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x1f]/g, '')
