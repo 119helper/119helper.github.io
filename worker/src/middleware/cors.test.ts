@@ -71,7 +71,7 @@ describe('sanitizeStringParam', () => {
   it('removes control characters and dangerous delimiters', () => {
     const url = new URL('https://api.example.test/?q=%3Cscript%3E%22%27%3B%5Cabc%00def');
 
-    expect(sanitizeStringParam(url, 'q')).toBe('scriptabcdef');
+    expect(sanitizeStringParam(url, 'q')).toBe('abcdef');
   });
 
   it('preserves Korean address separators used in search terms', () => {

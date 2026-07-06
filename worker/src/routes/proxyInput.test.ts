@@ -65,7 +65,7 @@ describe('proxy input sanitization', () => {
     const upstream = new URL(String(fetchMock.mock.calls[0][0]));
     expect(upstream.searchParams.get('pageNo')).toBe('1');
     expect(upstream.searchParams.get('numOfRows')).toBe('1000');
-    expect(upstream.searchParams.get('sidoHqOgidNm')).toBe('b서울/b');
+    expect(upstream.searchParams.get('sidoHqOgidNm')).toBe('서울');
     expect(upstream.searchParams.get('rcptYm')).toBe('202606');
     expect(upstream.searchParams.get('rsacGutFsttOgidNm')).toBe('강남서');
   });

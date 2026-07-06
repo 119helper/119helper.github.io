@@ -94,6 +94,20 @@ npm run dev
 운영 참고: `VITE_APP_TOKEN`은 브라우저 번들에 포함되는 공개값이므로 완전한 비밀 인증 수단이 아닙니다.
 남용 방지는 Worker의 Origin/토큰 검증과 함께 Cloudflare WAF Rate Limiting Rules 또는 봇 차단 정책으로 보강하세요.
 
+GitHub Actions 운영 배포에는 다음 secret도 필요합니다.
+
+- `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
+- `NEWS_CACHE_KV_ID`, `NEWS_CACHE_KV_PREVIEW_ID`
+- `FIRE_WATER_API_KEY` (분기별 소방용수시설 정적 데이터 동기화용)
+
+소방용수시설 정적 데이터는 공공데이터 API에서 직접 갱신합니다.
+
+```bash
+FIRE_WATER_API_KEY=... node scripts/sync-firewater.js
+```
+
+운영 리스크와 후속 보완 과제는 [`docs/operational_risks.md`](docs/operational_risks.md)에 정리되어 있습니다.
+
 ---
 
 ## 📄 라이선스

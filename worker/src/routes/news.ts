@@ -14,6 +14,10 @@ import { sanitizeStringParam } from '../middleware/cors';
 const CACHE_TTL = 60 * 60; // 1시간 (KV 만료 기본 단위 초)
 const STALE_TTL = 6 * 60 * 60; // 6시간 동안은 실패 시 과거 데이터라도 반환
 const ALLOWED_TYPES = new Set(['google', 'nfa']);
+const OG_IMAGE_FETCH_LIMIT = 6;
+const OG_IMAGE_CONCURRENCY = 3;
+const OG_IMAGE_TIMEOUT_MS = 1500;
+const OG_HTML_MAX_BYTES = 128 * 1024;
 
 interface NewsEnv {
   NAVER_CLIENT_ID?: string;
@@ -192,29 +196,57 @@ async function fetchRss(url: string): Promise<string> {
   return text;
 }
 
-// 썸네일 URL(Og:Image)만 1.5초 내로 빠르게 훔쳐오는 스크래퍼
+function isPrivateIpv4(hostname: string): boolean {
+  const match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!match) return false;
+  const [a, b] = match.slice(1).map(Number);
+  return a === 10
+    || a === 127
+    || (a === 172 && b >= 16 && b <= 31)
+    || (a === 192 && b === 168)
+    || (a === 169 && b === 254)
+    || a === 0;
+}
+
+function isBlockedFetchHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return host === 'localhost'
+    || host.endsWith('.localhost')
+    || host.endsWith('.local')
+    || host === '::1'
+    || host === '[::1]'
+    || isPrivateIpv4(host);
+}
+
+// 썸네일 URL(Og:Image)만 짧은 제한 안에서 가져오는 best-effort 스크래퍼
 async function fetchOgImage(link: string): Promise<string> {
   try {
     const target = safeHttpUrl(link);
     if (!target) return '';
+    const targetUrl = new URL(target);
+    if (isBlockedFetchHost(targetUrl.hostname)) return '';
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
+    const timeout = setTimeout(() => controller.abort(), OG_IMAGE_TIMEOUT_MS);
 
     const res = await fetch(target, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache',
+        'Range': `bytes=0-${OG_HTML_MAX_BYTES - 1}`,
       },
       signal: controller.signal
     });
     
     clearTimeout(timeout);
     if (!res.ok) return '';
+    const contentLength = Number(res.headers.get('content-length') || 0);
+    if (contentLength > OG_HTML_MAX_BYTES) return '';
     
     const html = await res.text();
+    if (html.length > OG_HTML_MAX_BYTES) return '';
     // meta og:image 추출 정규식 (줄바꿈 허용, 순서 무관)
     const match = html.match(/<meta[^>]*?property=["']og:image["'][^>]*?content=["']([^"']+)["']/i) || 
                   html.match(/<meta[^>]*?content=["']([^"']+)["'][^>]*?property=["']og:image["']/i) ||
@@ -257,7 +289,10 @@ async function enhanceRssWithImages(xml: string): Promise<string> {
   const items = xml.match(itemRegex);
   if (!items) return xml;
 
-  const enhancedItems = await Promise.all(items.map(async (itemXml, index) => {
+  const enhancedItems = [...items];
+  let cursor = 0;
+
+  async function enhanceItem(itemXml: string, index: number): Promise<string> {
     // 1. Bing News의 <News:Image> 태그가 이미 존재하면 즉시 사용
     const bingImageMatch = itemXml.match(/<News:Image>([^<]+)<\/News:Image>/i);
     const bingImage = bingImageMatch ? safeHttpUrl(bingImageMatch[1]) : '';
@@ -265,10 +300,9 @@ async function enhanceRssWithImages(xml: string): Promise<string> {
        return itemXml.replace(/<\/item>/i, `  <imageUrl><![CDATA[${cdata(bingImage)}]]></imageUrl>\n    </item>`);
     }
 
-    // Cloudflare Workers has a strict limit of 50 subrequests per invocation (on the free plan).
-    // RSS feeds might contain up to 100 items. We limit image fetching to the top 15 items
-    // which protects the worker from crashing with HTTP 500 Subrequest limit error.
-    if (index >= 15) return itemXml;
+    // RSS feeds can contain many links. Keep HTML scraping intentionally small so news
+    // never dominates Worker subrequests or latency.
+    if (index >= OG_IMAGE_FETCH_LIMIT) return itemXml;
 
     let targetLink = '';
     // Priority: If link contains naver.com, use it (extremely fast and standard). Otherwise fallback to originallink, then link.
@@ -293,7 +327,16 @@ async function enhanceRssWithImages(xml: string): Promise<string> {
       return itemXml.replace(/<\/item>/i, `  <imageUrl><![CDATA[${cdata(imageUrl)}]]></imageUrl>\n    </item>`);
     }
     return itemXml;
-  }));
+  }
+
+  const workers = Array.from({ length: Math.min(OG_IMAGE_CONCURRENCY, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      enhancedItems[index] = await enhanceItem(items[index], index);
+    }
+  });
+  await Promise.all(workers);
 
   // 원본 XML 문자열 대치
   let newXml = xml;

@@ -24,7 +24,10 @@ export type TabId =
   | 'triage'
   | 'activity-log'
   | 'preplan'
-  | 'safety-monitor';
+  | 'safety-monitor'
+  | 'incident'
+  | 'aviation'
+  | 'offline-readiness';
 
 // URL ?tab= 파라미터 검증용 런타임 목록 (manifest 바로가기, E2E 테스트에서 사용)
 export const ALL_TAB_IDS: readonly TabId[] = [
@@ -33,6 +36,7 @@ export const ALL_TAB_IDS: readonly TabId[] = [
   'fire-damage', 'hazards', 'manual', 'field-timer', 'news', 'policy',
   'wildfire', 'law', 'checklist', 'equipment-cert',
   'ems-protocol', 'triage', 'activity-log', 'preplan', 'safety-monitor',
+  'incident', 'aviation', 'offline-readiness',
 ];
 
 export function isTabId(value: string | null): value is TabId {

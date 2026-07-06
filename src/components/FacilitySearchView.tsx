@@ -8,6 +8,7 @@ import { loadKakaoMapSDK } from '../utils/kakaoLoader';
 import proj4 from 'proj4';
 import BuildingView from './BuildingView';
 import type { KakaoMapInstance, KakaoMarker } from '../types/kakao';
+import { formatDatasetDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
 
 // EPSG:5179 (GRS80 UTM-K) 정의 — 공공데이터포털(재난안전데이터) 최신 좌표계
 proj4.defs("EPSG:5179", "+proj=tmerc +lat_0=38 +lon_0=127.5 +k=0.9996 +x_0=1000000 +y_0=2000000 +ellps=GRS80 +units=m +no_defs");
@@ -104,6 +105,7 @@ export default function FacilitySearchView({
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
   const [kakaoMap, setKakaoMap] = useState<KakaoMapInstance | null>(null);
   const [sdkReady, setSdkReady] = useState(false);
+  const [freshness, setFreshness] = useState<DatasetFreshness | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<KakaoMarker[]>([]);
 
@@ -138,6 +140,16 @@ export default function FacilitySearchView({
 
   // 현재 카테고리 정보
   const currentCat = CATEGORIES.find(c => c.id === activeCategory) || CATEGORIES[0];
+  const freshnessExpired = freshness ? isFreshnessExpired(freshness) : false;
+
+  useEffect(() => {
+    let alive = true;
+    setFreshness(null);
+    getDatasetFreshness(activeCategory, city).then(meta => {
+      if (alive) setFreshness(meta);
+    });
+    return () => { alive = false; };
+  }, [activeCategory, city]);
 
   // 소방용수 카테고리인지 판단
   const isFireWater = currentCat.isFireWater;
@@ -435,6 +447,20 @@ export default function FacilitySearchView({
                 }
                 {!isFireWater && !isBuilding && userPos && ' | GPS 거리순'}
               </p>
+              {freshness && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-on-surface-variant">
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-bold ${
+                    freshnessExpired
+                      ? 'border-amber-500/40 bg-amber-500/15 text-amber-400'
+                      : 'border-outline-variant/30 bg-surface-container text-on-surface-variant'
+                  }`}>
+                    <span className="material-symbols-outlined text-[13px]">database</span>
+                    기준일 {formatDatasetDate(freshness.sourceDate)}
+                  </span>
+                  <span>생성 {formatDatasetDate(freshness.generatedAt)}</span>
+                  {freshnessExpired && <span className="font-bold text-amber-400">갱신 주기 초과</span>}
+                </div>
+              )}
             </div>
           </div>
           {!isFireWater && !isBuilding && (

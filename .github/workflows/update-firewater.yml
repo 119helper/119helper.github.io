@@ -5,6 +5,14 @@ on:
   schedule:
     - cron: '0 0 1 1,4,7,10 *'
   workflow_dispatch:
+    inputs:
+      source_date:
+        description: '원본 데이터 기준일(선택, 예: 2026-07-01)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
 
 jobs:
   update-firewater:
@@ -17,21 +25,22 @@ jobs:
         with:
           node-version: '24'
 
-      - name: CSV → JSON 변환
-        run: |
-          echo "📂 data/firewater-csv/ 에 있는 CSV 파일을 변환합니다"
-          for csv in data/firewater-csv/*.csv; do
-            if [ -f "$csv" ]; then
-              echo "🔄 변환 중: $csv"
-              node scripts/convert-firewater-csv.js "$csv"
-            fi
-          done
+      - name: Validate API secret
+        run: test -n "$FIRE_WATER_API_KEY" || { echo "FIRE_WATER_API_KEY secret is required"; exit 1; }
+        env:
+          FIRE_WATER_API_KEY: ${{ secrets.FIRE_WATER_API_KEY }}
+
+      - name: 공공데이터 API → JSON 동기화
+        run: node scripts/sync-firewater.js
+        env:
+          FIRE_WATER_API_KEY: ${{ secrets.FIRE_WATER_API_KEY }}
+          FIREWATER_SOURCE_DATE: ${{ inputs.source_date }}
 
       - name: 변경 사항 확인
         id: check
         run: |
           git diff --name-only public/firewater/ | head -20
-          echo "changed=$(git diff --quiet public/firewater/ && echo 'false' || echo 'true')" >> $GITHUB_OUTPUT
+          echo "changed=$(git diff --quiet public/firewater/ && echo 'false' || echo 'true')" >> "$GITHUB_OUTPUT"
 
       - name: 커밋 & 푸시
         if: steps.check.outputs.changed == 'true'

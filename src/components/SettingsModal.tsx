@@ -7,6 +7,12 @@ import {
 import { SHIFT_CYCLE_DANGBIBI, type ShiftSetting, type ShiftType } from '../utils/shiftCalculator';
 import OfflineDataSection from './OfflineDataSection';
 import { useUserProfile, FIRE_RANKS, DUTY_ROLES, type UserProfile } from '../contexts/UserProfileContext';
+import {
+  clearSensitiveStoredData,
+  loadPrivacySettings,
+  savePrivacySettings,
+  type PrivacySettings,
+} from '../services/privacySettings';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -101,10 +107,12 @@ function CategoryHeader({ icon, iconColor, label, masterOn, onMasterChange }: {
 // ══════════════════════════════════════════
 // 일반 설정 탭
 // ══════════════════════════════════════════
-function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefreshInterval, ns, updateNs }: {
+function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefreshInterval, ns, updateNs, privacy, setPrivacy, onClearUserData }: {
   city: string; onCityChange: (c: string) => void; cityNames: Record<string, string>;
   refreshInterval: string; setRefreshInterval: (v: string) => void;
   ns: NotificationSettings; updateNs: (patch: Partial<NotificationSettings>) => void;
+  privacy: PrivacySettings; setPrivacy: (settings: PrivacySettings) => void;
+  onClearUserData: () => void;
 }) {
   return (
     <div className="p-5 space-y-5">
@@ -182,6 +190,53 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
             </p>
           )}
         </div>
+      </div>
+
+      <hr className="border-outline-variant/10" />
+
+      <div className="space-y-3">
+        <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-2">
+          <span className="material-symbols-outlined text-error text-lg">delete_forever</span>
+          기기 저장 데이터 보호
+        </span>
+        <div className="space-y-2 rounded-xl bg-surface-container px-3 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-on-surface">공용 기기 모드</p>
+              <p className="text-[10px] text-on-surface-variant">메모, 대상물, 사진, GPS 활동기록 등 민감 데이터를 저장하지 않습니다.</p>
+            </div>
+            <Toggle
+              on={privacy.publicDeviceMode}
+              onChange={v => setPrivacy({ ...privacy, publicDeviceMode: v })}
+              size="sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-on-surface-variant">자동 삭제 기간</label>
+            <select
+              value={privacy.retentionDays}
+              onChange={e => setPrivacy({ ...privacy, retentionDays: parseNumberOr(e.target.value, 30) })}
+              disabled={privacy.publicDeviceMode}
+              className="w-full bg-surface-container-high text-on-surface text-sm rounded-lg px-3 py-2 border border-outline-variant/20 focus:outline-none focus:border-primary disabled:opacity-50"
+            >
+              <option value={0}>자동 삭제 안 함</option>
+              <option value={1}>1일 보관</option>
+              <option value={7}>7일 보관</option>
+              <option value={30}>30일 보관</option>
+              <option value={90}>90일 보관</option>
+            </select>
+          </div>
+        </div>
+        <p className="text-[11px] leading-5 text-on-surface-variant">
+          메모, 대상물 정보, 활동 타임라인, 환자 분류, 일정, 최근 검색 기록을 이 기기에서 삭제합니다.
+        </p>
+        <button
+          type="button"
+          onClick={onClearUserData}
+          className="w-full rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm font-bold text-error hover:bg-error/15 transition-colors"
+        >
+          저장 데이터 삭제
+        </button>
       </div>
     </div>
   );
@@ -448,6 +503,7 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
   const [refreshInterval, setRefreshInterval] = useState('5');
   const [ns, setNs] = useState<NotificationSettings>(loadNotificationSettings());
   const [shiftSetting, setShiftSetting] = useState<ShiftSetting>(DEFAULT_SHIFT_SETTING);
+  const [privacy, setPrivacy] = useState<PrivacySettings>(loadPrivacySettings());
 
   useEffect(() => {
     if (isOpen) {
@@ -455,6 +511,7 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
       setDraftProfile(profile);
       setRefreshInterval(normalizeRefreshInterval(localStorage.getItem('119helper-refresh') || '5'));
       setNs(loadNotificationSettings());
+      setPrivacy(loadPrivacySettings());
       
       try {
         const savedShift = localStorage.getItem('119helper-shift-setting');
@@ -475,15 +532,26 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
   const updateNs = (patch: Partial<NotificationSettings>) =>
     setNs(prev => ({ ...prev, ...patch }));
 
-  const handleSave = () => {
+  const handleSave = async () => {
     onCityChange(draftCity);
     updateProfile(draftProfile);
     saveNotificationSettings(ns);
+    savePrivacySettings(privacy);
+    if (privacy.publicDeviceMode) {
+      await clearSensitiveStoredData();
+    }
     localStorage.setItem('119helper-refresh', normalizeRefreshInterval(refreshInterval));
     localStorage.setItem('119helper-sound', ns.soundEnabled.toString());
     localStorage.setItem('119helper-shift-setting', JSON.stringify(shiftSetting));
     window.dispatchEvent(new Event('119helper-settings-updated'));
     onClose();
+  };
+
+  const handleClearUserData = async () => {
+    const ok = window.confirm('이 기기에 저장된 메모, 대상물 정보, 활동기록, 일정, 최근 검색 기록을 삭제할까요? 삭제 후 앱을 새로고침합니다.');
+    if (!ok) return;
+    await clearSensitiveStoredData();
+    window.location.reload();
   };
 
   if (!isOpen) return null;
@@ -541,6 +609,8 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
               city={draftCity} onCityChange={setDraftCity} cityNames={cityNames}
               refreshInterval={refreshInterval} setRefreshInterval={setRefreshInterval}
               ns={ns} updateNs={updateNs}
+              privacy={privacy} setPrivacy={setPrivacy}
+              onClearUserData={handleClearUserData}
             />
           )}
           {tab === 'shift' && (

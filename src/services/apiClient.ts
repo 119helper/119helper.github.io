@@ -350,6 +350,7 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
     schema,
     maxStaleMs,
   } = options || {};
+  const staleLimitMs = maxStaleMs ?? cacheTtlMs;
 
   const safeKey = customCacheKey || encodeURIComponent(url.pathname + url.search);
   const cacheKey = safeKey;
@@ -437,9 +438,10 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
         // Retrieve expired cache if available as fallback
         const fallback = await getFromCache(cacheKey); // No TTL check
         if (fallback) {
-          // maxStaleMs가 지정된 경우, 너무 오래된 캐시는 폴백하지 않는다.
+          // 너무 오래된 캐시는 폴백하지 않는다.
           // (예: 며칠 전 응급실 병상 수를 "정상"처럼 보여주는 위험 방지)
-          const tooStale = maxStaleMs !== undefined && Date.now() - fallback.cachedAt > maxStaleMs;
+          // 명시값이 없으면 TTL을 폴백 한계로 써서 무기한 만료 캐시 노출을 막는다.
+          const tooStale = staleLimitMs !== undefined && Date.now() - fallback.cachedAt > staleLimitMs;
           if (!tooStale) {
             throw new StaleDataError(fallback.data, errMsg, fallback.cachedAt);
           }

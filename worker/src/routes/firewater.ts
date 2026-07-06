@@ -3,7 +3,7 @@
  * Route: GET /api/firewater?city=서울특별시
  */
 
-import { encodeServiceKey, parsePublicDataJson, coerceEnvelope } from './publicData';
+import { asArray, encodeServiceKey, isRecord, parsePublicDataJson, coerceEnvelope } from './publicData';
 
 const STATIC_FIREWATER_BASE = 'https://119helper.github.io/firewater';
 const CITY_MAP: Record<string, string> = {
@@ -61,7 +61,8 @@ export async function handleFireWater(url: URL, apiKey: string): Promise<{ data:
     if (!res || !res.ok) throw new Error(`FireWater API ${res?.status}: ${text.replace(/\s+/g, ' ').slice(0, 140)}`);
 
     const json = parsePublicDataJson(text, 'FireWater');
-    const items = json.response?.body?.items ?? [];
+    const rawItems = json.response?.body?.items;
+    const items = asArray(isRecord(rawItems) ? rawItems.item : rawItems);
 
     return { data: items, cacheTtl: 86400 };
   } catch {
