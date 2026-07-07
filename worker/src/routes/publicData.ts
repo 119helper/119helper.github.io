@@ -115,6 +115,24 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  timeoutMs = 8_000,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function fetchPublicDataText(
   url: string,
   source: string,
@@ -125,7 +143,7 @@ export async function fetchPublicDataText(
   let lastText = '';
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       ...init,
       headers: {
         'User-Agent': '119-helper-worker/1.0',

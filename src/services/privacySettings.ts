@@ -71,8 +71,7 @@ function deleteIndexedDb(name: string): Promise<void> {
 
 export async function clearSensitiveStoredData(): Promise<void> {
   SENSITIVE_STORAGE_KEYS.forEach(key => {
-    localStorage.removeItem(key);
-    localStorage.removeItem(storageTimestampKey(key));
+    removeStoredJson(key);
   });
   await deleteIndexedDb('119-preplan');
 }
@@ -96,6 +95,49 @@ export function isStorageExpired(key: string, now = Date.now()): boolean {
   return now - updatedAt > settings.retentionDays * 24 * 60 * 60 * 1000;
 }
 
+export function removeStoredJson(key: string): void {
+  localStorage.removeItem(key);
+  localStorage.removeItem(storageTimestampKey(key));
+}
+
+export function loadStoredJson<T>(
+  key: string,
+  fallback: T,
+  mapValue?: (value: unknown) => T,
+): T {
+  try {
+    if (!canPersistStorageKey(key) || isStorageExpired(key)) {
+      removeStoredJson(key);
+      return fallback;
+    }
+
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+
+    const parsed: unknown = JSON.parse(raw);
+    return mapValue ? mapValue(parsed) : parsed as T;
+  } catch {
+    removeStoredJson(key);
+    return fallback;
+  }
+}
+
+export function saveStoredJson(key: string, value: unknown): void {
+  try {
+    if (!canPersistStorageKey(key)) {
+      removeStoredJson(key);
+      return;
+    }
+
+    localStorage.setItem(key, JSON.stringify(value));
+    if (isSensitiveStorageKey(key)) {
+      localStorage.setItem(storageTimestampKey(key), String(Date.now()));
+    }
+  } catch {
+    // Storage persistence is best-effort.
+  }
+}
+
 export async function applyPrivacyRetention(now = Date.now()): Promise<void> {
   const settings = loadPrivacySettings();
 
@@ -108,8 +150,7 @@ export async function applyPrivacyRetention(now = Date.now()): Promise<void> {
 
   SENSITIVE_STORAGE_KEYS.forEach(key => {
     if (isStorageExpired(key, now)) {
-      localStorage.removeItem(key);
-      localStorage.removeItem(storageTimestampKey(key));
+      removeStoredJson(key);
     }
   });
 }

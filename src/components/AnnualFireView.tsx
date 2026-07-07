@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { fetchAnnualFireStats, isStaleDataError } from '../services/apiClient';
+import { fetchAnnualFireStats, fetchAnnualFireYears, isStaleDataError } from '../services/apiClient';
 import type { AnnualFireStatsResponse } from '../services/apiClient';
 
-const LATEST_AVAILABLE_YEAR = 2024;
-const YEARS = Array.from({ length: 10 }, (_, i) => String(LATEST_AVAILABLE_YEAR - i));
+const FALLBACK_YEARS = Array.from({ length: 10 }, (_, i) => String(2024 - i));
 
 const csvEscape = (value: unknown) => {
   const text = String(value ?? '');
@@ -27,12 +26,27 @@ function formatNumber(n: number): string {
 
 export default function AnnualFireView() {
   const [year, setYear] = useState('2024');
+  const [years, setYears] = useState<string[]>(FALLBACK_YEARS);
   const [data, setData] = useState<AnnualFireStatsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
 
   const requestSeqRef = useRef(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAnnualFireYears()
+      .then(res => {
+        if (cancelled || res.years.length === 0) return;
+        setYears(res.years);
+        setYear(current => res.years.includes(current) ? current : res.latestYear ?? res.years[0]);
+      })
+      .catch(err => console.warn('[AnnualFireView] supported years failed:', err));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const getErrorMessage = (err: unknown) => {
     return err instanceof Error ? err.message : '데이터를 불러올 수 없습니다.';
@@ -92,7 +106,7 @@ export default function AnnualFireView() {
             onChange={e => setYear(e.target.value)}
             className="bg-surface-container text-on-surface text-sm rounded-xl px-3 py-2 border border-outline-variant/20 focus:outline-none focus:border-primary font-bold"
           >
-            {YEARS.map(y => (
+            {years.map(y => (
               <option key={y} value={y}>{y}년</option>
             ))}
           </select>

@@ -14,6 +14,7 @@ import MiniTimerWidget from './MiniTimerWidget';
 import { EQUIPMENT_CHECKLIST_TOTAL } from '../data/equipmentChecklist';
 import type { NavigateTarget } from '../types/navigation';
 import { classifyAviationSafety } from '../utils/aviationSafety';
+import { loadStoredJson } from '../services/privacySettings';
 
 import hydrantBg from '../assets/hydrant_bg.jpg';
 import waterTowerBg from '../assets/water_tower_bg.jpg';
@@ -218,14 +219,13 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
     });
 
     // 개인안전장비 점검 진행률 로드
-    try {
-      const saved = localStorage.getItem('119helper-equipment-checklist');
-      if (saved && isMounted) {
-        const parsed = JSON.parse(saved);
-        const checkedCount = Object.values(parsed).filter(Boolean).length;
-        setChecklistProgress(Math.round((checkedCount / EQUIPMENT_CHECKLIST_TOTAL) * 100));
-      }
-    } catch { /* parse error fallback */ }
+    const checklist = loadStoredJson<Record<string, boolean>>('119helper-equipment-checklist', {}, parsed =>
+      parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, boolean> : {}
+    );
+    if (isMounted) {
+      const checkedCount = Object.values(checklist).filter(Boolean).length;
+      setChecklistProgress(Math.round((checkedCount / EQUIPMENT_CHECKLIST_TOTAL) * 100));
+    }
 
     return () => { isMounted = false; };
   }, [city, cityLabel]);

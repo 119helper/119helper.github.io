@@ -7,9 +7,12 @@
  */
 
 import { z } from 'zod';
-import { encodeServiceKey } from './publicData';
+import { encodeServiceKey, fetchWithTimeout } from './publicData';
 
 const BASE = 'https://api.odcloud.kr/api/15060386/v1';
+const ANNUAL_FIRE_SOURCE_NAME = '소방청_연간화재통계_20241231';
+const NEXT_EXPECTED_UPDATE = '2026-11-18';
+const PAGE_FETCH_CONCURRENCY = 3;
 
 const odcloudAnnualFireSchema = z.object({
   totalCount: z.number().optional(),
@@ -60,6 +63,8 @@ const YEAR_UDDI: Record<string, string> = {
   '2023': 'uddi:9951ec3f-d1c9-49e8-9ed4-f026c39a7925',
   '2024': 'uddi:fa73f7a3-dfa1-4b0a-ada8-dcd8333ba9e4',
 };
+
+const SUPPORTED_YEARS = Object.keys(YEAR_UDDI).sort((a, b) => Number(b) - Number(a));
 
 // 필드명이 연도별로 미묘하게 다름 → 정규화
 function normalizeRecord(raw: AnnualFireRawRecord): AnnualFireRecord {
@@ -166,27 +171,43 @@ function aggregate(records: AnnualFireRawRecord[]) {
   };
 }
 
+async function fetchAnnualFirePage(url: string, label: string): Promise<z.infer<typeof odcloudAnnualFireSchema>> {
+  const res = await fetchWithTimeout(url, {
+    headers: { 'User-Agent': '119-helper-worker/1.0' },
+  }, 10_000);
+  if (!res.ok) throw new Error(`${label}: ${res.status}`);
+  return odcloudAnnualFireSchema.parse(await res.json());
+}
+
 export async function handleAnnualFireStats(
   path: string, _url: URL, apiKey: string
 ): Promise<{ data: unknown; cacheTtl: number }> {
+  if (path === '/api/fire-annual/years') {
+    return {
+      data: {
+        years: SUPPORTED_YEARS,
+        latestYear: SUPPORTED_YEARS[0] ?? null,
+        sourceName: ANNUAL_FIRE_SOURCE_NAME,
+        nextExpectedUpdate: NEXT_EXPECTED_UPDATE,
+      },
+      cacheTtl: 86400,
+    };
+  }
+
   // path: /api/fire-annual/2024
   const segments = path.split('/');
   const year = segments[segments.length - 1];
   const uddi = YEAR_UDDI[year];
 
   if (!uddi) {
-    throw new Error(`지원하지 않는 연도입니다: ${year} (2015~2024 가능)`);
+    throw new Error(`지원하지 않는 연도입니다: ${year} (${SUPPORTED_YEARS.at(-1)}~${SUPPORTED_YEARS[0]} 가능)`);
   }
 
   const serviceKey = encodeServiceKey(apiKey, 'ANNUAL_FIRE_API_KEY');
 
   // 먼저 총 건수 확인
   const countUrl = `${BASE}/${uddi}?serviceKey=${serviceKey}&page=1&perPage=1`;
-  const countRes = await fetch(countUrl, {
-    headers: { 'User-Agent': '119-helper-worker/1.0' },
-  });
-  if (!countRes.ok) throw new Error(`AnnualFireStats ${countRes.status}`);
-  const countData = odcloudAnnualFireSchema.parse(await countRes.json());
+  const countData = await fetchAnnualFirePage(countUrl, 'AnnualFireStats count');
   const totalCount = countData.totalCount || 0;
 
   if (totalCount === 0) {
@@ -198,21 +219,31 @@ export async function handleAnnualFireStats(
   const totalPages = Math.ceil(totalCount / perPage);
   const allRecords: AnnualFireRawRecord[] = [];
 
-  // 병렬로 모든 페이지 요청 (Workers 유료 플랜 30s 제한 내)
-  const fetchPromises = Array.from({ length: totalPages }, async (_, i) => {
-    const pageUrl = `${BASE}/${uddi}?serviceKey=${serviceKey}&page=${i + 1}&perPage=${perPage}`;
-    const res = await fetch(pageUrl, {
-      headers: { 'User-Agent': '119-helper-worker/1.0' },
-    });
-    if (!res.ok) throw new Error(`AnnualFireStats page ${i + 1}: ${res.status}`);
-    const json = odcloudAnnualFireSchema.parse(await res.json());
-    return json.data || [];
-  });
-
-  const pages = await Promise.all(fetchPromises);
-  for (const page of pages) {
-    allRecords.push(...page);
+  // 업스트림/API quota를 압박하지 않도록 작은 배치로 병렬 처리한다.
+  for (let start = 0; start < totalPages; start += PAGE_FETCH_CONCURRENCY) {
+    const pageNumbers = Array.from(
+      { length: Math.min(PAGE_FETCH_CONCURRENCY, totalPages - start) },
+      (_, i) => start + i + 1
+    );
+    const pages = await Promise.all(pageNumbers.map(async pageNo => {
+      const pageUrl = `${BASE}/${uddi}?serviceKey=${serviceKey}&page=${pageNo}&perPage=${perPage}`;
+      const json = await fetchAnnualFirePage(pageUrl, `AnnualFireStats page ${pageNo}`);
+      return json.data || [];
+    }));
+    for (const page of pages) {
+      allRecords.push(...page);
+    }
   }
 
-  return { data: { year, totalRecords: totalCount, ...aggregate(allRecords) }, cacheTtl: 86400 };
+  return {
+    data: {
+      year,
+      totalRecords: totalCount,
+      supportedYears: SUPPORTED_YEARS,
+      sourceName: ANNUAL_FIRE_SOURCE_NAME,
+      nextExpectedUpdate: NEXT_EXPECTED_UPDATE,
+      ...aggregate(allRecords),
+    },
+    cacheTtl: 86400,
+  };
 }

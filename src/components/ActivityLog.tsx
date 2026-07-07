@@ -10,6 +10,7 @@ import {
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useUserProfile, type DutyRole } from '../contexts/UserProfileContext';
 import { useTimer } from '../contexts/TimerContext';
+import { loadStoredJson } from '../services/privacySettings';
 
 const ROLE_TO_PRESET: Record<DutyRole, string> = { fire: 'fire', ems: 'ems', rescue: 'rescue', '': 'fire' };
 
@@ -54,12 +55,7 @@ interface ActivityReportBundle {
 }
 
 function readJson<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) as T : fallback;
-  } catch {
-    return fallback;
-  }
+  return loadStoredJson<T>(key, fallback);
 }
 
 export default function ActivityLog() {

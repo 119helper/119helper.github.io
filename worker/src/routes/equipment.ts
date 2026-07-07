@@ -1,6 +1,6 @@
 import { Env } from '../index';
 import { jsonResponse, errorResponse, sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
-import { encodeServiceKey, isRecord, errorMessage } from './publicData';
+import { encodeServiceKey, fetchWithTimeout, isRecord, errorMessage } from './publicData';
 
 export async function handleEquipment(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -52,7 +52,7 @@ export async function handleEquipment(request: Request, env: Env): Promise<Respo
     let response = await cache.match(cacheUrl);
 
     if (!response) {
-      const apiResponse = await fetch(finalUrl);
+      const apiResponse = await fetchWithTimeout(finalUrl);
 
       if (!apiResponse.ok) {
         return errorResponse(`공공데이터 API 서버 오류: ${apiResponse.status}`, request, apiResponse.status);

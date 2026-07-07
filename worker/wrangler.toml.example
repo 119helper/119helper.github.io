@@ -3,12 +3,19 @@
 
 name = "119-helper-api"
 main = "src/index.ts"
-compatibility_date = "2025-03-01"
+compatibility_date = "2026-07-07"
+compatibility_flags = ["nodejs_compat"]
 
 # account_id = "YOUR_CF_ACCOUNT_ID"  # ← 본인 CF 계정 ID
 
 [vars]
 ENVIRONMENT = "production"
+
+[observability]
+enabled = true
+
+[observability.logs]
+head_sampling_rate = 1
 
 # ─── 분산 Rate Limiting (in-memory Map 대체) ───
 # isolate/PoP마다 따로 세던 기존 방식과 달리 colo 단위로 일관되게 제한한다.

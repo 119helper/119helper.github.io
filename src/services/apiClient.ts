@@ -606,6 +606,21 @@ export async function fetchFireDamage(params?: { pageNo?: string; numOfRows?: st
 
 // ═══════ 연간화재통계 (30일) ═══════
 export interface AnnualFireStatsResponse { year: string; totalRecords: number; summary: { totalFires: number; totalDeaths: number; totalInjuries: number; totalCasualties: number; totalPropertyDamage: number; }; bySido: { name: string; count: number }[]; byFireType: { name: string; count: number }[]; byPlace: { name: string; count: number }[]; byCause: { name: string; count: number }[]; byMonth: { month: string; count: number }[]; casualtiesBySido: { name: string; deaths: number; injuries: number }[]; }
+export interface AnnualFireYearsResponse { years: string[]; latestYear: string | null; sourceName?: string; nextExpectedUpdate?: string; }
+
+const annualFireYearsSchema = z.object({
+  years: z.array(z.string()),
+  latestYear: z.string().nullable(),
+  sourceName: z.string().optional(),
+  nextExpectedUpdate: z.string().optional(),
+}).passthrough() satisfies z.ZodType<AnnualFireYearsResponse>;
+
+export async function fetchAnnualFireYears(): Promise<AnnualFireYearsResponse> {
+  return apiFetch<AnnualFireYearsResponse>('/api/fire-annual/years', undefined, {
+    cacheTtlMs: 1000 * 60 * 60 * 24,
+    schema: annualFireYearsSchema,
+  });
+}
 
 export async function fetchAnnualFireStats(year: string, forceRefresh?: boolean): Promise<AnnualFireStatsResponse> {
   return apiFetch<AnnualFireStatsResponse>(`/api/fire-annual/${year}`, undefined, { timeoutMs: 30_000, cacheTtlMs: 1000 * 60 * 60 * 24 * 30, forceRefresh });

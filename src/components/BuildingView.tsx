@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { fetchBuildingRegister, type BuildingRegisterInfo } from '../services/buildingApi';
 import { fetchFireObjectAccom, fetchFireObjectFireSys, isStaleDataError, type PaginatedItemsResponse } from '../services/apiClient';
+import { loadStoredJson, removeStoredJson, saveStoredJson } from '../services/privacySettings';
 
 interface FireObjectAccom {
   bldNm?: string;
@@ -43,21 +44,30 @@ interface RecentSearchItem {
   };
 }
 
-const loadRecentSearches = (): RecentSearchItem[] => {
-  try {
-    const saved = localStorage.getItem('119helper-building-recent');
-    if (!saved) return [];
+const isRecentSearchItem = (value: unknown): value is RecentSearchItem => {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<RecentSearchItem>;
+  if (typeof candidate.address !== 'string') return false;
+  if (candidate.params === undefined) return true;
+  return typeof candidate.params === 'object' && candidate.params !== null
+    && typeof candidate.params.sigunguCd === 'string'
+    && typeof candidate.params.bjdongCd === 'string'
+    && typeof candidate.params.platGbCd === 'string'
+    && typeof candidate.params.bun === 'string'
+    && typeof candidate.params.ji === 'string'
+    && typeof candidate.params.sido === 'string'
+    && typeof candidate.params.address_name === 'string';
+};
 
-    const parsed = JSON.parse(saved);
+const loadRecentSearches = (): RecentSearchItem[] => {
+  return loadStoredJson<RecentSearchItem[]>('119helper-building-recent', [], parsed => {
     if (!Array.isArray(parsed)) return [];
-    
-    return parsed.map(v => {
+
+    return parsed.map((v): RecentSearchItem | null => {
       if (typeof v === 'string') return { address: v };
-      return v;
-    }).slice(0, 10);
-  } catch {
-    return [];
-  }
+      return isRecentSearchItem(v) ? v : null;
+    }).filter((v): v is RecentSearchItem => v !== null).slice(0, 10);
+  });
 };
 
 export default function BuildingView() {
@@ -123,7 +133,7 @@ export default function BuildingView() {
         setRecentSearches(prev => {
           const newItem: RecentSearchItem = { address: targetAddress, params: parsed };
           const updated = [newItem, ...prev.filter(item => item.address !== targetAddress)].slice(0, 10);
-          localStorage.setItem('119helper-building-recent', JSON.stringify(updated));
+          saveStoredJson('119helper-building-recent', updated);
           return updated;
         });
       } else if (!errorMsg) {
@@ -337,7 +347,7 @@ export default function BuildingView() {
             </h3>
             <button 
               type="button"
-              onClick={() => { setRecentSearches([]); localStorage.removeItem('119helper-building-recent'); }}
+              onClick={() => { setRecentSearches([]); removeStoredJson('119helper-building-recent'); }}
               className="text-xs text-on-surface-variant hover:text-error transition-colors font-medium border border-transparent hover:border-error/30 px-2 py-1 rounded-md"
             >
               기록 삭제

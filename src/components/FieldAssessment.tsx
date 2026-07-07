@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
+import { useLocalStorageState } from '../hooks/useLocalStorageState';
 
 // 8단계 평가 항목 정의
 const EVALUATION_STEPS = [
@@ -172,21 +173,10 @@ const STATUS_STYLES: Record<EvalStatus, { bg: string; text: string; dot: string;
 const STORAGE_KEY = '119helper-field-assessment';
 
 export default function FieldAssessment() {
-  const [values, setValues] = useState<Record<string, string>>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [values, setValues, resetValues] = useLocalStorageState<Record<string, string>>(STORAGE_KEY, {});
   const [activeStep, setActiveStep] = useState(1);
   const [showSummary, setShowSummary] = useState(false);
   const summaryRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
-  }, [values]);
 
   const handleSelect = (key: string, value: string) => {
     setValues(prev => ({ ...prev, [key]: prev[key] === value ? '' : value }));
@@ -202,8 +192,7 @@ export default function FieldAssessment() {
 
   const handleReset = () => {
     if (window.confirm('평가 내용을 모두 초기화하시겠습니까?')) {
-      setValues({});
-      localStorage.removeItem(STORAGE_KEY);
+      resetValues();
       setActiveStep(1);
       setShowSummary(false);
     }

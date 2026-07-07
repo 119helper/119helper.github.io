@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { loadStoredJson, saveStoredJson } from '../services/privacySettings';
 
 // ─── SOP 데이터 ───
 interface SOPStep {
@@ -169,6 +170,8 @@ const SOP_LIST: SOPData[] = [
 ];
 
 const STORAGE_KEY = '119helper-sop-checklist';
+const CHECKED_STORAGE_KEY = `${STORAGE_KEY}-checked`;
+const TIMESTAMPS_STORAGE_KEY = `${STORAGE_KEY}-timestamps`;
 
 const toValidDate = (value: unknown) => {
   const d = new Date(String(value));
@@ -179,44 +182,37 @@ export default function SOPChecklist() {
   const [selectedSOP, setSelectedSOP] = useState<string | null>(null);
   
   const [checked, setChecked] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem(`${STORAGE_KEY}-checked`);
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
+    return loadStoredJson<Record<string, boolean>>(CHECKED_STORAGE_KEY, {}, parsed =>
+      parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? parsed as Record<string, boolean>
+        : {}
+    );
   });
 
   const [timestamps, setTimestamps] = useState<Record<string, Date>>(() => {
-    try {
-      const saved = localStorage.getItem(`${STORAGE_KEY}-timestamps`);
-      if (!saved) return {};
-  
-      const parsed = JSON.parse(saved) as Record<string, string>;
+    return loadStoredJson<Record<string, Date>>(TIMESTAMPS_STORAGE_KEY, {}, parsed => {
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+
       const entries = Object.entries(parsed)
         .map(([key, value]) => {
           const date = toValidDate(value);
           return date ? [key, date] : null;
         })
         .filter(Boolean) as [string, Date][];
-  
+
       return Object.fromEntries(entries);
-    } catch {
-      return {};
-    }
+    });
   });
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}-checked`, JSON.stringify(checked));
+    saveStoredJson(CHECKED_STORAGE_KEY, checked);
   }, [checked]);
 
   useEffect(() => {
-    localStorage.setItem(
-      `${STORAGE_KEY}-timestamps`,
-      JSON.stringify(
-        Object.fromEntries(
-          Object.entries(timestamps).map(([key, value]) => [key, value.toISOString()])
-        )
+    saveStoredJson(
+      TIMESTAMPS_STORAGE_KEY,
+      Object.fromEntries(
+        Object.entries(timestamps).map(([key, value]) => [key, value.toISOString()])
       )
     );
   }, [timestamps]);

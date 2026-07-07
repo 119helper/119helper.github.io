@@ -8,6 +8,7 @@ import { formatDuration } from '../utils/activityReport';
 import type { CityIndex } from '../services/fireWaterApi';
 import type { FireFacility } from '../data/mockData';
 import type { NavigateTarget } from '../types/navigation';
+import { loadStoredJson } from '../services/privacySettings';
 
 type IncidentType = 'fire' | 'ems' | 'rescue' | 'support';
 
@@ -46,14 +47,7 @@ interface IncidentModeViewProps {
 }
 
 function readCount(key: string): number {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return 0;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.length : 0;
-  } catch {
-    return 0;
-  }
+  return loadStoredJson<unknown[]>(key, [], parsed => Array.isArray(parsed) ? parsed : []).length;
 }
 
 export default function IncidentModeView({

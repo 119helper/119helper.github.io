@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getStaticHolidays } from '../data/holidays';
 import { getShiftForDate, SHIFT_CYCLE_DANGBIBI, type ShiftSetting } from '../utils/shiftCalculator';
+import { loadStoredJson, saveStoredJson } from '../services/privacySettings';
 
 interface Schedule {
   id: string;
@@ -32,15 +33,9 @@ const isValidSchedule = (value: unknown): value is Schedule => {
 };
 
 const loadSchedules = (): Schedule[] => {
-  try {
-    const saved = localStorage.getItem('119helper-schedules');
-    if (!saved) return [];
-
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed.filter(isValidSchedule) : [];
-  } catch {
-    return [];
-  }
+  return loadStoredJson<Schedule[]>('119helper-schedules', [], parsed =>
+    Array.isArray(parsed) ? parsed.filter(isValidSchedule) : []
+  );
 };
 
 const isValidShiftSetting = (value: unknown): value is ShiftSetting => {
@@ -136,7 +131,7 @@ export default function Calendar() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('119helper-schedules', JSON.stringify(schedules));
+    saveStoredJson('119helper-schedules', schedules);
   }, [schedules]);
 
   const year = currentDate.getFullYear();

@@ -11,7 +11,7 @@
  */
 
 import { z } from 'zod';
-import { asArray, errorMessage, isRecord } from './publicData';
+import { asArray, errorMessage, fetchWithTimeout, isRecord } from './publicData';
 import { sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
 
 const BASE = 'https://apihub.kma.go.kr';
@@ -166,7 +166,7 @@ function parseKmaEnvelope(raw: unknown, source: string): z.infer<typeof kmaEnvel
 async function fetchKMA(path: string, params: Record<string, string>, apiKey: string): Promise<unknown> {
   const qs = new URLSearchParams({ authKey: apiKey, dataType: 'JSON', ...params });
   const url = `${BASE}${path}?${qs}`;
-  const res = await fetch(url, { headers: { 'User-Agent': '119-helper-worker/1.0' } });
+  const res = await fetchWithTimeout(url, { headers: { 'User-Agent': '119-helper-worker/1.0' } });
   if (!res.ok) throw new Error(`KMA API ${res.status}: ${res.statusText}`);
   const data = parseKmaEnvelope(await res.json(), path);
   const items = asArray(data.response?.body?.items?.item);
@@ -202,7 +202,7 @@ async function fetchOpenMeteo(nx: string, ny: string): Promise<OpenMeteoData> {
     timezone: 'Asia/Seoul',
     forecast_days: '7',
   });
-  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, {
+  const res = await fetchWithTimeout(`https://api.open-meteo.com/v1/forecast?${params}`, {
     headers: { 'User-Agent': '119-helper-worker/1.0' },
   });
   if (!res.ok) throw new Error(`OpenMeteo API ${res.status}`);
@@ -351,7 +351,7 @@ export async function handleWeather(path: string, url: URL, apiKey: string): Pro
       const qs = new URLSearchParams({
         authKey: apiKey, dataType: 'JSON', numOfRows: '1', pageNo: '1', stnId,
       });
-      const res = await fetch(
+      const res = await fetchWithTimeout(
         `${BASE}/api/typ02/openApi/VilageFcstMsgService/getWthrSituation?${qs}`,
         { headers: { 'User-Agent': '119-helper-worker/1.0' } }
       );

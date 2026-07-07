@@ -1,19 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { CHECKLIST_SECTIONS } from '../data/equipmentChecklist';
+import { useLocalStorageState } from '../hooks/useLocalStorageState';
 
 const EquipmentChecklist: React.FC = () => {
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem('119helper-equipment-checklist');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('119helper-equipment-checklist', JSON.stringify(checkedItems));
-  }, [checkedItems]);
+  const [checkedItems, setCheckedItems] = useLocalStorageState<Record<string, boolean>>('119helper-equipment-checklist', {});
 
   const toggleCheck = (id: string) => {
     setCheckedItems(prev => ({ ...prev, [id]: !prev[id] }));

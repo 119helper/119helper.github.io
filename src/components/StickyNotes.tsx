@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
+import { useLocalStorageState } from '../hooks/useLocalStorageState';
 
 interface Note {
   id: string;
@@ -20,12 +21,7 @@ interface StickyNotesProps {
 }
 
 export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
-  const [notes, setNotes] = useState<Note[]>(() => {
-    try {
-      const saved = localStorage.getItem('119helper-notes');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
+  const [notes, setNotes] = useLocalStorageState<Note[]>('119helper-notes', []);
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
 
@@ -33,10 +29,6 @@ export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const dragNode = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    localStorage.setItem('119helper-notes', JSON.stringify(notes));
-  }, [notes]);
 
   const addNote = () => {
     const newNote: Note = {

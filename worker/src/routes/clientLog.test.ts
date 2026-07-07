@@ -29,6 +29,11 @@ describe('handleClientLog', () => {
       message: 'render failed',
       stack: 'stack trace',
       url: 'https://119helper.github.io/?serviceKey=secret#dashboard',
+      meta: {
+        path: '/api/weather/now',
+        status: 502,
+        bodyPreview: 'token=secret&phone=010-1234-5678',
+      },
     }, {
       'User-Agent': 'vitest',
       'CF-Connecting-IP': '203.0.113.10',
@@ -47,6 +52,11 @@ describe('handleClientLog', () => {
       pageUrl: 'https://119helper.github.io/#dashboard',
       userAgent: 'vitest',
       ip: '203.0.113.10',
+    });
+    expect(entry.meta).toMatchObject({
+      path: '/api/weather/now',
+      status: 502,
+      bodyPreview: 'token=[REDACTED]&phone=[PHONE]',
     });
   });
 
