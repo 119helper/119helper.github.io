@@ -3,7 +3,7 @@
  * Route: GET /api/firewater?city=서울특별시
  */
 
-import { asArray, encodeServiceKey, isRecord, parsePublicDataJson, coerceEnvelope } from './publicData';
+import { asArray, encodeServiceKey, fetchWithTimeout, isRecord, parsePublicDataJson, coerceEnvelope } from './publicData';
 
 const STATIC_FIREWATER_BASE = 'https://119helper.github.io/firewater';
 const CITY_MAP: Record<string, string> = {
@@ -21,7 +21,7 @@ const CITY_MAP: Record<string, string> = {
 async function fetchStaticFireWater(city: string): Promise<unknown> {
   const normalizedCity = CITY_MAP[city] || city;
   const staticUrl = `${STATIC_FIREWATER_BASE}/${encodeURIComponent(normalizedCity)}.json`;
-  const res = await fetch(staticUrl, {
+  const res = await fetchWithTimeout(staticUrl, {
     headers: { 'User-Agent': '119-helper-worker/1.0' },
   });
 
@@ -54,7 +54,7 @@ export async function handleFireWater(url: URL, apiKey: string): Promise<{ data:
     let res: Response | null = null;
     let text = '';
     for (const apiUrl of paths) {
-      res = await fetch(apiUrl, { headers: { 'User-Agent': '119-helper-worker/1.0' } });
+      res = await fetchWithTimeout(apiUrl, { headers: { 'User-Agent': '119-helper-worker/1.0' } });
       text = await res.text();
       if (res.ok && !text.trimStart().toLowerCase().startsWith('error code:')) break;
     }

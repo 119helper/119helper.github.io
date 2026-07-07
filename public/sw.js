@@ -21,6 +21,8 @@ const SHELL_CACHE = `119-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `119-assets-${CACHE_VERSION}`;
 const DATA_CACHE = '119-data-v1'; // 버전 독립 — 받아둔 관할 데이터 보존
 const KEEP_CACHES = [SHELL_CACHE, ASSET_CACHE, DATA_CACHE];
+const DATA_CACHE_MAX_ENTRIES = 800;
+const DATA_CACHE_PRUNE_COUNT = 80;
 
 // 오프라인에서도 최소한 앱 셸이 뜨도록 미리 캐시할 항목
 // 폰트 포함: 아이콘이 폰트 기반(Material Symbols)이라 없으면 오프라인 UI가 깨짐
@@ -76,6 +78,35 @@ function isStaticFile(url) {
   return /\.(?:js|mjs|css|woff2?|ttf|otf|png|jpe?g|svg|webp|gif|ico|json)$/i.test(url.pathname);
 }
 
+async function pruneDataCache(cache) {
+  const requests = await cache.keys();
+  if (requests.length <= DATA_CACHE_MAX_ENTRIES) return;
+  const removeCount = Math.min(DATA_CACHE_PRUNE_COUNT, requests.length - DATA_CACHE_MAX_ENTRIES + DATA_CACHE_PRUNE_COUNT);
+  await Promise.all(requests.slice(0, removeCount).map((request) => cache.delete(request)));
+}
+
+async function safeCachePut(cacheName, request, response) {
+  const cache = await caches.open(cacheName);
+  try {
+    await cache.put(request, response.clone());
+    if (cacheName === DATA_CACHE) {
+      await pruneDataCache(cache);
+    }
+  } catch (err) {
+    if (cacheName === DATA_CACHE) {
+      try {
+        const requests = await cache.keys();
+        await Promise.all(requests.slice(0, DATA_CACHE_PRUNE_COUNT).map((entry) => cache.delete(entry)));
+        await cache.put(request, response.clone());
+      } catch (retryErr) {
+        console.warn('[SW] cache put failed after prune:', retryErr);
+      }
+    } else {
+      console.warn('[SW] cache put failed:', err);
+    }
+  }
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
@@ -94,8 +125,7 @@ self.addEventListener('fetch', (event) => {
       (async () => {
         try {
           const fresh = await fetch(request);
-          const cache = await caches.open(SHELL_CACHE);
-          cache.put('/index.html', fresh.clone());
+          event.waitUntil(safeCachePut(SHELL_CACHE, '/index.html', fresh.clone()));
           return fresh;
         } catch {
           const cache = await caches.open(SHELL_CACHE);
@@ -122,7 +152,7 @@ self.addEventListener('fetch', (event) => {
         if (cached) return cached;
         try {
           const fresh = await fetch(request);
-          if (fresh.ok) cache.put(request, fresh.clone());
+          if (fresh.ok) event.waitUntil(safeCachePut(ASSET_CACHE, request, fresh.clone()));
           return fresh;
         } catch {
           return Response.error();
@@ -141,8 +171,10 @@ self.addEventListener('fetch', (event) => {
         const cached = await cache.match(request);
 
         const revalidate = fetch(request)
-          .then((fresh) => {
-            if (fresh.ok) cache.put(request, fresh.clone());
+          .then(async (fresh) => {
+            if (fresh.ok) {
+              await safeCachePut(DATA_CACHE, request, fresh.clone());
+            }
             return fresh;
           })
           .catch(() => null);

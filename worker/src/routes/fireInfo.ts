@@ -3,7 +3,7 @@
  * Base: https://apis.data.go.kr/1661000/FireInformationService
  */
 
-import { encodeServiceKey, parsePublicDataJson, pickItemsAndCount } from './publicData';
+import { encodeServiceKey, fetchWithTimeout, parsePublicDataJson, pickItemsAndCount } from './publicData';
 import { sanitizeNumericParam } from '../middleware/cors';
 
 const BASE = 'https://apis.data.go.kr/1661000/FireInformationService';
@@ -55,7 +55,7 @@ export async function handleFireInfo(
   params.set('ocrn_ymd', sanitizeYmd(url.searchParams.get('ocrn_ymd')) || sanitizeYmd(url.searchParams.get('searchStDt')) || defaultOcrnYmd());
 
   const serviceKey = encodeServiceKey(apiKey, 'FIRE_INFO_API_KEY');
-  const res = await fetch(`${BASE}/${opName}?serviceKey=${serviceKey}&${params}`, {
+  const res = await fetchWithTimeout(`${BASE}/${opName}?serviceKey=${serviceKey}&${params}`, {
     headers: { 'User-Agent': '119-helper-worker/1.0' },
   });
   const text = await res.text();

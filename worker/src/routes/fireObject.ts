@@ -8,7 +8,7 @@
  *    End Point: https://apis.data.go.kr/1661000/SpecificFireObjectFirefightingSysInfoService/getAccomFirefightingSysList
  */
 
-import { encodeServiceKey, findPublicDataError, coerceEnvelope, isRecord } from './publicData';
+import { encodeServiceKey, findPublicDataError, coerceEnvelope, fetchWithTimeout, isRecord } from './publicData';
 import { sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
 
 const FIRE_OBJ_BASE = 'https://apis.data.go.kr/1661000';
@@ -49,7 +49,7 @@ export async function handleFireObject(
       throw new Error(`Unknown fire-object route: ${path}`);
   }
 
-  const res = await fetch(apiUrl, {
+  const res = await fetchWithTimeout(apiUrl, {
     method: 'GET',
     redirect: 'follow',
     headers: {

@@ -65,8 +65,16 @@ export interface Env {
   RATE_LIMITER?: RateLimitBinding;
 }
 
+async function cachePutBestEffort(cache: Cache, request: Request, response: Response): Promise<void> {
+  try {
+    await cache.put(request, response);
+  } catch (error) {
+    console.warn('[Worker cache] put failed', error);
+  }
+}
+
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     // Preflight
     if (request.method === 'OPTIONS') {
       return handleOptions(request, env.ENVIRONMENT);
@@ -179,7 +187,7 @@ export default {
         if (response.status === 200) {
           const cacheableResponse = response.clone();
           cacheableResponse.headers.set('Cache-Control', 'public, max-age=3600');
-          await cache.put(cacheKey, cacheableResponse);
+          ctx.waitUntil(cachePutBestEffort(cache, cacheKey, cacheableResponse));
         }
       } else if (result) {
         response = jsonResponse(result.data, request, 200, result.cacheTtl, env.ENVIRONMENT);
@@ -189,7 +197,7 @@ export default {
         if (result.cacheTtl > 0 && !isErrorData) {
           const cacheableResponse = response.clone();
           cacheableResponse.headers.set('Cache-Control', `public, max-age=${result.cacheTtl}`);
-          await cache.put(cacheKey, cacheableResponse);
+          ctx.waitUntil(cachePutBestEffort(cache, cacheKey, cacheableResponse));
         }
       } else {
         return errorResponse('No data returned from API', request, 500, env.ENVIRONMENT);

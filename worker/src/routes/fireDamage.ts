@@ -11,7 +11,7 @@
  *     body: { items: { item: {...} | [...] } } }
  */
 
-import { encodeServiceKey, parsePublicDataJson, isRecord, asArray } from './publicData';
+import { encodeServiceKey, fetchWithTimeout, parsePublicDataJson, isRecord, asArray } from './publicData';
 import { sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
 
 const BASE = 'https://apis.data.go.kr/1661000/FireDamageStatus';
@@ -73,7 +73,7 @@ export async function handleFireDamage(
   );
   params.set('sidoNm', sidoNm);
 
-  const res = await fetch(`${BASE}/getOcByregionFpcnd?serviceKey=${serviceKey}&${params}`, {
+  const res = await fetchWithTimeout(`${BASE}/getOcByregionFpcnd?serviceKey=${serviceKey}&${params}`, {
     headers: { 'User-Agent': '119-helper-worker/1.0' },
   });
   const text = await res.text();

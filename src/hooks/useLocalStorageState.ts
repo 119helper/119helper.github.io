@@ -3,6 +3,7 @@ import {
   canPersistStorageKey,
   isSensitiveStorageKey,
   isStorageExpired,
+  removeStoredJson,
   storageTimestampKey,
 } from '../services/privacySettings';
 
@@ -17,26 +18,29 @@ export function useLocalStorageState<T>(
   key: string,
   initial: T | (() => T),
 ): [T, Dispatch<SetStateAction<T>>, () => void] {
+  const initialValue = useCallback(
+    () => initial instanceof Function ? (initial as () => T)() : initial,
+    [initial],
+  );
+
   const [state, setState] = useState<T>(() => {
     try {
       if (!canPersistStorageKey(key) || isStorageExpired(key)) {
-        localStorage.removeItem(key);
-        localStorage.removeItem(storageTimestampKey(key));
-        return initial instanceof Function ? (initial as () => T)() : initial;
+        removeStoredJson(key);
+        return initialValue();
       }
       const saved = localStorage.getItem(key);
       if (saved !== null) return JSON.parse(saved) as T;
     } catch {
       /* 손상된 데이터는 무시하고 기본값 사용 */
     }
-    return initial instanceof Function ? (initial as () => T)() : initial;
+    return initialValue();
   });
 
   useEffect(() => {
     try {
       if (!canPersistStorageKey(key)) {
-        localStorage.removeItem(key);
-        localStorage.removeItem(storageTimestampKey(key));
+        removeStoredJson(key);
         return;
       }
       localStorage.setItem(key, JSON.stringify(state));
@@ -48,15 +52,28 @@ export function useLocalStorageState<T>(
     }
   }, [key, state]);
 
+  useEffect(() => {
+    const syncPrivacyPolicy = () => {
+      if (!canPersistStorageKey(key) || isStorageExpired(key)) {
+        removeStoredJson(key);
+        setState(initialValue());
+      }
+    };
+
+    window.addEventListener('119helper-settings-updated', syncPrivacyPolicy);
+    return () => {
+      window.removeEventListener('119helper-settings-updated', syncPrivacyPolicy);
+    };
+  }, [initialValue, key]);
+
   const reset = useCallback(() => {
     try {
-      localStorage.removeItem(key);
-      localStorage.removeItem(storageTimestampKey(key));
+      removeStoredJson(key);
     } catch {
       /* */
     }
-    setState(initial instanceof Function ? (initial as () => T)() : initial);
-  }, [key, initial]);
+    setState(initialValue());
+  }, [key, initialValue]);
 
   return [state, setState, reset];
 }

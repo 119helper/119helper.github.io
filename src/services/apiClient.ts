@@ -14,6 +14,9 @@ const API_TIMEOUT_MS = 15_000;
 const CACHE_PREFIX = '119_cache_v1_';
 const CACHE_VERSION = 1;
 const CACHE_EVICT_RATIO = 0.2;
+const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
 const cacheStore = createStore('119-helper-cache', 'api-cache');
 
 export class StaleDataError extends Error {
@@ -106,6 +109,56 @@ const paginatedApiRecordSchema = z.object({
   items: apiRecordArraySchema,
   totalCount: z.coerce.number().catch(0),
 }).passthrough() satisfies z.ZodType<PaginatedItemsResponse>;
+
+const FIRE_DAMAGE_ITEM_SCHEMA = z.object({
+  ocrnYmdhh: z.coerce.string().catch(''),
+  gutFsttOgidNm: z.coerce.string().catch(''),
+  deadPercnt: z.coerce.string().catch(''),
+  injrdprPercnt: z.coerce.string().catch(''),
+  prptDmgSbttAmt: z.coerce.string().catch(''),
+  lawAddrName: z.coerce.string().catch(''),
+}).passthrough();
+
+const fireDamageResponseSchema = z.object({
+  items: z.array(FIRE_DAMAGE_ITEM_SCHEMA),
+  totalCount: z.coerce.number().catch(0),
+  pageNo: z.coerce.number().catch(1),
+  numOfRows: z.coerce.number().catch(0),
+  error: z.string().optional(),
+  errorCode: z.union([z.string(), z.number()]).optional().transform(value => value === undefined ? undefined : String(value)),
+}).passthrough();
+
+const annualNamedCountSchema = z.object({
+  name: z.coerce.string().catch(''),
+  count: z.coerce.number().catch(0),
+}).passthrough();
+
+const annualCasualtiesBySidoSchema = z.object({
+  name: z.coerce.string().catch(''),
+  deaths: z.coerce.number().catch(0),
+  injuries: z.coerce.number().catch(0),
+}).passthrough();
+
+const annualFireStatsResponseSchema = z.object({
+  year: z.coerce.string(),
+  totalRecords: z.coerce.number().catch(0),
+  summary: z.object({
+    totalFires: z.coerce.number().catch(0),
+    totalDeaths: z.coerce.number().catch(0),
+    totalInjuries: z.coerce.number().catch(0),
+    totalCasualties: z.coerce.number().catch(0),
+    totalPropertyDamage: z.coerce.number().catch(0),
+  }).passthrough(),
+  bySido: z.array(annualNamedCountSchema),
+  byFireType: z.array(annualNamedCountSchema),
+  byPlace: z.array(annualNamedCountSchema),
+  byCause: z.array(annualNamedCountSchema),
+  byMonth: z.array(z.object({
+    month: z.coerce.string().catch(''),
+    count: z.coerce.number().catch(0),
+  }).passthrough()),
+  casualtiesBySido: z.array(annualCasualtiesBySidoSchema),
+}).passthrough();
 
 function findResultCode(value: unknown, depth = 0): string | null {
   if (!value || typeof value !== 'object' || depth > 5) return null;
@@ -343,7 +396,7 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
 
   const {
     useCache = true,
-    cacheTtlMs = 1000 * 60 * 60 * 24 * 7, // Default 7 days
+    cacheTtlMs = DAY_MS,
     customCacheKey,
     timeoutMs = API_TIMEOUT_MS,
     forceRefresh = false,
@@ -352,7 +405,7 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
   } = options || {};
   const staleLimitMs = maxStaleMs ?? cacheTtlMs;
 
-  const safeKey = customCacheKey || encodeURIComponent(url.pathname + url.search);
+  const safeKey = customCacheKey || encodeURIComponent(`${url.origin}${url.pathname}${url.search}`);
   const cacheKey = safeKey;
 
   // Deduplication
@@ -468,7 +521,7 @@ async function apiFetchXml(path: string, params?: Record<string, string>, option
 }
 
 // ═══════ 날씨 (TTL 짧게 30분, 폴백 최대 6시간) ═══════
-const WEATHER_OPTS: ApiFetchOptions = { cacheTtlMs: 1000 * 60 * 30, maxStaleMs: 1000 * 60 * 60 * 6 };
+const WEATHER_OPTS: ApiFetchOptions = { cacheTtlMs: 30 * MINUTE_MS, maxStaleMs: 6 * HOUR_MS };
 export async function fetchWeatherNow(nx: number, ny: number): Promise<ApiRecord[]> {
   return apiFetch<ApiRecord[]>('/api/weather/now', { nx: String(nx), ny: String(ny) }, { ...WEATHER_OPTS, schema: apiRecordArraySchema });
 }
@@ -497,8 +550,8 @@ export interface ForestFireRiskResponse {
 }
 
 const FOREST_FIRE_RISK_OPTS: ApiFetchOptions<ForestFireRiskResponse> = {
-  cacheTtlMs: 1000 * 60 * 60,
-  maxStaleMs: 1000 * 60 * 60 * 6,
+  cacheTtlMs: HOUR_MS,
+  maxStaleMs: 6 * HOUR_MS,
 };
 
 const forestFireRiskResponseSchema = z.object({
@@ -517,13 +570,16 @@ export async function fetchForestFireRisk(forceRefresh?: boolean): Promise<Fores
 }
 
 // ═══════ 대기질 (TTL 짧게 30분, 폴백 최대 6시간) ═══════
-const AIR_OPTS: ApiFetchOptions = { cacheTtlMs: 1000 * 60 * 30, maxStaleMs: 1000 * 60 * 60 * 6 };
+const AIR_OPTS: ApiFetchOptions = { cacheTtlMs: 30 * MINUTE_MS, maxStaleMs: 6 * HOUR_MS };
 export async function fetchAirQuality(sido: string): Promise<ApiRecord[]> {
   return apiFetch<ApiRecord[]>('/api/air', { sido }, { ...AIR_OPTS, schema: apiRecordArraySchema });
 }
 
 // ═══════ 응급실 (TTL 짧게 5분, 폴백 최대 1시간 — 오래된 병상 정보는 위험) ═══════
-const ER_OPTS: ApiFetchOptions<{ xml: string }> = { cacheTtlMs: 1000 * 60 * 5, maxStaleMs: 1000 * 60 * 60 };
+const ER_OPTS: ApiFetchOptions<{ xml: string }> = { cacheTtlMs: 5 * MINUTE_MS, maxStaleMs: HOUR_MS };
+const DAILY_REFERENCE_OPTS: ApiFetchOptions = { cacheTtlMs: DAY_MS, maxStaleMs: 7 * DAY_MS };
+const HOURLY_OPERATIONAL_OPTS: ApiFetchOptions<PaginatedItemsResponse> = { cacheTtlMs: HOUR_MS, maxStaleMs: 6 * HOUR_MS };
+const FIRE_INFO_OPTS: ApiFetchOptions<PaginatedItemsResponse> = { cacheTtlMs: 30 * MINUTE_MS, maxStaleMs: 6 * HOUR_MS };
 export async function fetchERBeds(sido: string, gugun?: string) { return apiFetchXml('/api/er/beds', { sido, gugun: gugun || '' }, ER_OPTS); }
 export async function fetchERList(sido: string, gugun?: string) { return apiFetchXml('/api/er/list', { sido, gugun: gugun || '' }, ER_OPTS); }
 export async function fetchERMessages(sido: string, gugun?: string) { return apiFetchXml('/api/er/messages', { sido, gugun: gugun || '' }, ER_OPTS); }
@@ -531,20 +587,20 @@ export async function fetchERSevereIllness(sido: string, gugun?: string) { retur
 
 // ═══════ 건축물대장 (변경 적음 7일) ═══════
 export async function fetchBuildingInfo(params: { sigunguCd: string; bjdongCd: string; platGbCd: string; bun: string; ji: string; }, forceRefresh?: boolean) {
-  return apiFetch<ApiRecord[]>('/api/building', params, { forceRefresh, schema: apiRecordArraySchema });
+  return apiFetch<ApiRecord[]>('/api/building', params, { ...DAILY_REFERENCE_OPTS, forceRefresh, schema: apiRecordArraySchema });
 }
 
 // ═══════ 소방용수 (7일) ═══════
 export async function fetchFireWater(city: string): Promise<ApiRecord[]> {
-  return apiFetch<ApiRecord[]>('/api/firewater', { city }, { schema: apiRecordArraySchema });
+  return apiFetch<ApiRecord[]>('/api/firewater', { city }, { ...DAILY_REFERENCE_OPTS, schema: apiRecordArraySchema });
 }
 
 // ═══════ 공휴일 (30일) ═══════
-export async function fetchHolidays(year: number, month: number) { return apiFetchXml('/api/holiday', { year: String(year), month: String(month) }, { cacheTtlMs: 1000 * 60 * 60 * 24 * 30 }); }
+export async function fetchHolidays(year: number, month: number) { return apiFetchXml('/api/holiday', { year: String(year), month: String(month) }, { cacheTtlMs: 30 * DAY_MS, maxStaleMs: 90 * DAY_MS }); }
 
 // ═══════ 대피소 (지진해일) (7일) ═══════
 export async function fetchShelters(ctprvnNm: string, signguNm?: string, numOfRows = '100', pageNo = '1') {
-  return apiFetch<ApiRecord[]>('/api/shelter', { ctprvnNm, signguNm: signguNm || '', numOfRows, pageNo }, { schema: apiRecordArraySchema });
+  return apiFetch<ApiRecord[]>('/api/shelter', { ctprvnNm, signguNm: signguNm || '', numOfRows, pageNo }, { ...DAILY_REFERENCE_OPTS, schema: apiRecordArraySchema });
 }
 export async function fetchTsunamiShelters() {
   const { default: tsunamiData } = await import('../../public/data/tsunami.json');
@@ -571,37 +627,37 @@ export async function fetchCivilShelters(ctprvnNm?: string, sgnNm?: string) {
 
 // ═══════ 다중이용업소 (7일) ═══════
 export async function fetchMultiUseFacilities(ctprvnNm: string, signguNm?: string) {
-  return apiFetch<ApiRecord[]>('/api/multiuse', { ctprvnNm, signguNm: signguNm || '' }, { schema: apiRecordArraySchema });
+  return apiFetch<ApiRecord[]>('/api/multiuse', { ctprvnNm, signguNm: signguNm || '' }, { ...DAILY_REFERENCE_OPTS, schema: apiRecordArraySchema });
 }
 
 // ═══════ 구급통계 (7일) ═══════
 export async function fetchEmergencyStats(op: string, params?: Record<string, string>, forceRefresh?: boolean) {
-  return apiFetch<PaginatedItemsResponse>(`/api/emergency/stats/${op}`, params, { forceRefresh, schema: paginatedApiRecordSchema });
+  return apiFetch<PaginatedItemsResponse>(`/api/emergency/stats/${op}`, params, { ...HOURLY_OPERATIONAL_OPTS, forceRefresh, schema: paginatedApiRecordSchema });
 }
 
 // ═══════ 구급정보 (7일) ═══════
 export async function fetchEmergencyInfo(op: string, params?: Record<string, string>, forceRefresh?: boolean) {
-  return apiFetch<PaginatedItemsResponse>(`/api/emergency/info/${op}`, params, { forceRefresh, schema: paginatedApiRecordSchema });
+  return apiFetch<PaginatedItemsResponse>(`/api/emergency/info/${op}`, params, { ...HOURLY_OPERATIONAL_OPTS, forceRefresh, schema: paginatedApiRecordSchema });
 }
 
 // ═══════ 화재정보 (TTL 30분 - 실시간) ═══════
 export async function fetchFireInfo(op: string, params?: Record<string, string>, forceRefresh?: boolean) {
-  return apiFetch<PaginatedItemsResponse>(`/api/fire/${op}`, params, { cacheTtlMs: 1000 * 60 * 30, forceRefresh, schema: paginatedApiRecordSchema });
+  return apiFetch<PaginatedItemsResponse>(`/api/fire/${op}`, params, { ...FIRE_INFO_OPTS, forceRefresh, schema: paginatedApiRecordSchema });
 }
 
 // ═══════ 특정소방대상물 (7일) ═══════
 export async function fetchFireObjectAccom(ctpvNm: string, numOfRows = '100', pageNo = '1', forceRefresh?: boolean) {
-  return apiFetch<PaginatedItemsResponse>('/api/fire-object/accom', { ctpvNm, numOfRows, pageNo }, { forceRefresh, schema: paginatedApiRecordSchema });
+  return apiFetch<PaginatedItemsResponse>('/api/fire-object/accom', { ctpvNm, numOfRows, pageNo }, { ...DAILY_REFERENCE_OPTS, forceRefresh, schema: paginatedApiRecordSchema });
 }
 export async function fetchFireObjectFireSys(ctpvNm: string, numOfRows = '100', pageNo = '1', forceRefresh?: boolean) {
-  return apiFetch<PaginatedItemsResponse>('/api/fire-object/fire-sys', { ctpvNm, numOfRows, pageNo }, { forceRefresh, schema: paginatedApiRecordSchema });
+  return apiFetch<PaginatedItemsResponse>('/api/fire-object/fire-sys', { ctpvNm, numOfRows, pageNo }, { ...DAILY_REFERENCE_OPTS, forceRefresh, schema: paginatedApiRecordSchema });
 }
 
 // ═══════ 지역별 화재피해 현황 (1일) ═══════
 export interface FireDamageItem { ocrnYmdhh: string; gutFsttOgidNm: string; deadPercnt: string; injrdprPercnt: string; prptDmgSbttAmt: string; lawAddrName: string; }
 export interface FireDamageResponse { items: FireDamageItem[]; totalCount: number; pageNo: number; numOfRows: number; error?: string; errorCode?: string; }
 export async function fetchFireDamage(params?: { pageNo?: string; numOfRows?: string; lawAddrName?: string; sidoNm?: string; startYmd?: string; endYmd?: string; }, forceRefresh?: boolean): Promise<FireDamageResponse> {
-  return apiFetch<FireDamageResponse>('/api/fire-damage', params, { cacheTtlMs: 1000 * 60 * 60 * 24, forceRefresh });
+  return apiFetch<FireDamageResponse>('/api/fire-damage', params, { ...DAILY_REFERENCE_OPTS, forceRefresh, schema: fireDamageResponseSchema });
 }
 
 // ═══════ 연간화재통계 (30일) ═══════
@@ -617,11 +673,18 @@ const annualFireYearsSchema = z.object({
 
 export async function fetchAnnualFireYears(): Promise<AnnualFireYearsResponse> {
   return apiFetch<AnnualFireYearsResponse>('/api/fire-annual/years', undefined, {
-    cacheTtlMs: 1000 * 60 * 60 * 24,
+    cacheTtlMs: DAY_MS,
+    maxStaleMs: 7 * DAY_MS,
     schema: annualFireYearsSchema,
   });
 }
 
 export async function fetchAnnualFireStats(year: string, forceRefresh?: boolean): Promise<AnnualFireStatsResponse> {
-  return apiFetch<AnnualFireStatsResponse>(`/api/fire-annual/${year}`, undefined, { timeoutMs: 30_000, cacheTtlMs: 1000 * 60 * 60 * 24 * 30, forceRefresh });
+  return apiFetch<AnnualFireStatsResponse>(`/api/fire-annual/${year}`, undefined, {
+    timeoutMs: 30_000,
+    cacheTtlMs: 30 * DAY_MS,
+    maxStaleMs: 90 * DAY_MS,
+    forceRefresh,
+    schema: annualFireStatsResponseSchema,
+  });
 }

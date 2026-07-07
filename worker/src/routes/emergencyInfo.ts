@@ -3,7 +3,7 @@
  * Base: https://apis.data.go.kr/1661000/EmergencyInformationService
  */
 
-import { encodeServiceKey, parsePublicDataJson, pickItemsAndCount } from './publicData';
+import { encodeServiceKey, fetchWithTimeout, parsePublicDataJson, pickItemsAndCount } from './publicData';
 import { sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
 
 const BASE = 'https://apis.data.go.kr/1661000/EmergencyInformationService';
@@ -42,7 +42,7 @@ export async function handleEmergencyInfo(
   if (legacyStn && !params.has('rsacGutFsttOgidNm')) params.set('rsacGutFsttOgidNm', legacyStn);
 
   const serviceKey = encodeServiceKey(apiKey, 'EMERGENCY_API_KEY');
-  const res = await fetch(`${BASE}/${opName}?serviceKey=${serviceKey}&${params}`, {
+  const res = await fetchWithTimeout(`${BASE}/${opName}?serviceKey=${serviceKey}&${params}`, {
     headers: { 'User-Agent': '119-helper-worker/1.0' },
   });
   const text = await res.text();

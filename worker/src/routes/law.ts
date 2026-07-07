@@ -10,6 +10,7 @@
  */
 
 import { sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
+import { fetchWithTimeout } from './publicData';
 
 const LAW_API_BASE = 'https://www.law.go.kr/DRF';
 const OC = 'fire119helper';
@@ -38,7 +39,7 @@ async function searchLaw(url: URL): Promise<Response> {
 
   // 법제처 직접 호출 시도
   try {
-    const res = await fetch(`${LAW_API_BASE}/lawSearch.do?${params}`, {
+    const res = await fetchWithTimeout(`${LAW_API_BASE}/lawSearch.do?${params}`, {
       headers: HEADERS,
     });
 
@@ -74,7 +75,7 @@ async function searchLaw(url: URL): Promise<Response> {
       sort,
     });
 
-    const fallbackRes = await fetch(
+    const fallbackRes = await fetchWithTimeout(
       `${LAW_API_BASE}/lawSearch.do?OC=test&${fallbackParams}`,
       { headers: HEADERS }
     );
@@ -115,7 +116,7 @@ async function getLawDetail(url: URL): Promise<Response> {
   });
 
   try {
-    const res = await fetch(`${LAW_API_BASE}/lawService.do?${params}`, {
+    const res = await fetchWithTimeout(`${LAW_API_BASE}/lawService.do?${params}`, {
       headers: HEADERS,
     });
     const text = await res.text();
@@ -123,7 +124,7 @@ async function getLawDetail(url: URL): Promise<Response> {
     if (text.includes('사용자 정보 검증에 실패')) {
       // OC 없이 재시도
       const fallbackParams = new URLSearchParams({ target: 'law', type: 'JSON', MST: id, OC: 'test' });
-      const fallbackRes = await fetch(`${LAW_API_BASE}/lawService.do?${fallbackParams}`, { headers: HEADERS });
+      const fallbackRes = await fetchWithTimeout(`${LAW_API_BASE}/lawService.do?${fallbackParams}`, { headers: HEADERS });
       const fallbackText = await fallbackRes.text();
 
       if (fallbackText.includes('사용자 정보 검증에 실패')) {

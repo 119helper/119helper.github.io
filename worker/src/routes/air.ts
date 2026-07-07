@@ -4,7 +4,7 @@
  * Route: GET /api/air?sido=서울
  */
 
-import { coerceEnvelope } from './publicData';
+import { coerceEnvelope, fetchWithTimeout } from './publicData';
 import { sanitizeStringParam } from '../middleware/cors';
 
 export async function handleAir(url: URL, apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
@@ -18,7 +18,7 @@ export async function handleAir(url: URL, apiKey: string): Promise<{ data: unkno
     ver: '1.0',
   });
 
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty?${params}`,
     { headers: { 'User-Agent': '119-helper-worker/1.0' } }
   );

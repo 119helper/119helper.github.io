@@ -18,6 +18,8 @@ const OG_IMAGE_FETCH_LIMIT = 6;
 const OG_IMAGE_CONCURRENCY = 3;
 const OG_IMAGE_TIMEOUT_MS = 1500;
 const OG_HTML_MAX_BYTES = 128 * 1024;
+const RSS_MAX_BYTES = 512 * 1024;
+const REDIRECT_LIMIT = 3;
 
 interface NewsEnv {
   NAVER_CLIENT_ID?: string;
@@ -173,22 +175,25 @@ async function fetchRss(url: string): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
 
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-      'Accept-Language': 'ko-KR,ko;q=0.9',
-    },
-    signal: controller.signal,
-  });
-
-  clearTimeout(timeout);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+        'Accept-Language': 'ko-KR,ko;q=0.9',
+      },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     throw new Error(`RSS fetch failed: ${response.status}`);
   }
 
-  const text = await response.text();
+  const text = await readResponseText(response, RSS_MAX_BYTES);
   if (!text || text.length < 100 || !text.includes('<item>')) {
     throw new Error('Empty or invalid RSS response');
   }
@@ -208,6 +213,19 @@ function isPrivateIpv4(hostname: string): boolean {
     || a === 0;
 }
 
+function isBlockedIpv6(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  return host === '::'
+    || host === '::1'
+    || host.startsWith('fc')
+    || host.startsWith('fd')
+    || host.startsWith('fe80:')
+    || host.startsWith('::ffff:127.')
+    || host.startsWith('::ffff:10.')
+    || host.startsWith('::ffff:192.168.')
+    || /^::ffff:172\.(1[6-9]|2\d|3[01])\./.test(host);
+}
+
 function isBlockedFetchHost(hostname: string): boolean {
   const host = hostname.toLowerCase();
   return host === 'localhost'
@@ -215,43 +233,100 @@ function isBlockedFetchHost(hostname: string): boolean {
     || host.endsWith('.local')
     || host === '::1'
     || host === '[::1]'
-    || isPrivateIpv4(host);
+    || isPrivateIpv4(host)
+    || isBlockedIpv6(host);
+}
+
+function isRedirectStatus(status: number): boolean {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+}
+
+function assertFetchableHttpUrl(value: string): string {
+  const target = safeHttpUrl(value);
+  if (!target) return '';
+  const url = new URL(target);
+  if (isBlockedFetchHost(url.hostname)) return '';
+  return url.toString();
+}
+
+async function readResponseText(response: Response, maxBytes: number): Promise<string> {
+  const contentLength = Number(response.headers.get('content-length') || 0);
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new Error(`Response too large: ${contentLength}`);
+  }
+  if (!response.body) return '';
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let totalBytes = 0;
+  let text = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new Error(`Response exceeded ${maxBytes} bytes`);
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    text += decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+
+  return text;
 }
 
 // 썸네일 URL(Og:Image)만 짧은 제한 안에서 가져오는 best-effort 스크래퍼
 async function fetchOgImage(link: string): Promise<string> {
   try {
-    const target = safeHttpUrl(link);
+    let target = assertFetchableHttpUrl(link);
     if (!target) return '';
-    const targetUrl = new URL(target);
-    if (isBlockedFetchHost(targetUrl.hostname)) return '';
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), OG_IMAGE_TIMEOUT_MS);
 
-    const res = await fetch(target, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Cache-Control': 'no-cache',
-        'Range': `bytes=0-${OG_HTML_MAX_BYTES - 1}`,
-      },
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeout);
+    let res: Response | null = null;
+    try {
+      for (let redirects = 0; redirects <= REDIRECT_LIMIT; redirects += 1) {
+        res = await fetch(target, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Cache-Control': 'no-cache',
+            'Range': `bytes=0-${OG_HTML_MAX_BYTES - 1}`,
+          },
+          redirect: 'manual',
+          signal: controller.signal
+        });
+
+        if (!isRedirectStatus(res.status)) break;
+        const location = res.headers.get('Location');
+        if (!location) return '';
+        const next = new URL(location, target).toString();
+        target = assertFetchableHttpUrl(next);
+        if (!target) return '';
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (!res) return '';
     if (!res.ok) return '';
     const contentLength = Number(res.headers.get('content-length') || 0);
     if (contentLength > OG_HTML_MAX_BYTES) return '';
     
-    const html = await res.text();
+    const html = await readResponseText(res, OG_HTML_MAX_BYTES);
     if (html.length > OG_HTML_MAX_BYTES) return '';
     // meta og:image 추출 정규식 (줄바꿈 허용, 순서 무관)
     const match = html.match(/<meta[^>]*?property=["']og:image["'][^>]*?content=["']([^"']+)["']/i) || 
                   html.match(/<meta[^>]*?content=["']([^"']+)["'][^>]*?property=["']og:image["']/i) ||
                   html.match(/<meta[^>]*?name=["']twitter:image["'][^>]*?content=["']([^"']+)["']/i);
-    return match ? safeHttpUrl(match[1]) : '';
+    return match ? assertFetchableHttpUrl(match[1]) : '';
   } catch {
     return '';
   }

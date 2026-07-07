@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from './publicData';
+
 const SAFETYDATA_HOSTS = ['https://www.safetydata.go.kr', 'http://www.safetydata.go.kr'];
 const RETRYABLE_STATUS = new Set([520, 521, 522, 523, 524, 525]);
 
@@ -29,7 +31,7 @@ export async function fetchSafetydataJson(
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     for (const host of SAFETYDATA_HOSTS) {
-      const res = await fetch(`${host}${path}?${params}`, {
+      const res = await fetchWithTimeout(`${host}${path}?${params}`, {
         headers: {
           Accept: 'application/json',
           'Cache-Control': 'no-cache',
