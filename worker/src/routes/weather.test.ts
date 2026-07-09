@@ -87,4 +87,32 @@ describe('handleWeather', () => {
     expect(rows.some(row => row.category === 'TMP' && row.fcstValue === '28.4')).toBe(true);
     expect(result.cacheTtl).toBe(0);
   });
+
+  it('does not double encode a pre-encoded KMA auth key', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('apihub.kma.go.kr')) {
+        return jsonResponse({
+          response: {
+            header: { resultCode: '00' },
+            body: { items: { item: [{ category: 'T1H', obsrValue: '28.4' }] } },
+          },
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await handleWeather(
+      '/api/weather/now',
+      new URL('https://api.example.test/api/weather/now?nx=60&ny=127'),
+      'kma%2Bkey%2Fvalue',
+    );
+
+    const upstreamUrl = String(fetchMock.mock.calls[0][0]);
+    const upstream = new URL(upstreamUrl);
+    expect(upstream.searchParams.get('authKey')).toBe('kma+key/value');
+    expect(upstreamUrl).not.toContain('%252B');
+    expect(result.cacheTtl).toBe(600);
+  });
 });

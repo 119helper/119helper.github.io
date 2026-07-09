@@ -123,6 +123,7 @@ describe('proxy input sanitization', () => {
     );
 
     const upstream = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(upstream.searchParams.get('serviceKey')).toBe('building-key');
     expect(upstream.searchParams.get('sigunguCd')).toBe('');
     expect(upstream.searchParams.get('bjdongCd')).toBe('12345');
     expect(upstream.searchParams.get('platGbCd')).toBe('0');
@@ -155,6 +156,21 @@ describe('proxy input sanitization', () => {
     await handleAir(new URL('https://api.example.test/api/air?sido=%3C서울%3E%22%3B'), 'air-key');
 
     const upstream = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(upstream.searchParams.get('serviceKey')).toBe('air-key');
     expect(upstream.searchParams.get('sidoName')).toBe('서울');
+  });
+
+  it('does not double encode pre-encoded public data service keys', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => jsonResponse({
+      response: { body: { items: [] } },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await handleAir(new URL('https://api.example.test/api/air?sido=서울'), 'air%2Bkey%2Fvalue');
+
+    const upstreamUrl = String(fetchMock.mock.calls[0][0]);
+    const upstream = new URL(upstreamUrl);
+    expect(upstream.searchParams.get('serviceKey')).toBe('air+key/value');
+    expect(upstreamUrl).not.toContain('%252B');
   });
 });

@@ -11,7 +11,7 @@
  */
 
 import { z } from 'zod';
-import { asArray, errorMessage, fetchWithTimeout, isRecord } from './publicData';
+import { asArray, encodeServiceKey, errorMessage, fetchWithTimeout, isRecord } from './publicData';
 import { sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
 
 const BASE = 'https://apihub.kma.go.kr';
@@ -164,8 +164,9 @@ function parseKmaEnvelope(raw: unknown, source: string): z.infer<typeof kmaEnvel
 }
 
 async function fetchKMA(path: string, params: Record<string, string>, apiKey: string): Promise<unknown> {
-  const qs = new URLSearchParams({ authKey: apiKey, dataType: 'JSON', ...params });
-  const url = `${BASE}${path}?${qs}`;
+  const authKey = encodeServiceKey(apiKey, 'KMA_API_KEY');
+  const qs = new URLSearchParams({ dataType: 'JSON', ...params });
+  const url = `${BASE}${path}?authKey=${authKey}&${qs}`;
   const res = await fetchWithTimeout(url, { headers: { 'User-Agent': '119-helper-worker/1.0' } });
   if (!res.ok) throw new Error(`KMA API ${res.status}: ${res.statusText}`);
   const data = parseKmaEnvelope(await res.json(), path);
@@ -348,11 +349,12 @@ export async function handleWeather(path: string, url: URL, apiKey: string): Pro
 
     case '/api/weather/briefing': {
       const stnId = sanitizeNumericParam(url, 'stnId', 1, 999, 108);
+      const authKey = encodeServiceKey(apiKey, 'KMA_API_KEY');
       const qs = new URLSearchParams({
-        authKey: apiKey, dataType: 'JSON', numOfRows: '1', pageNo: '1', stnId,
+        dataType: 'JSON', numOfRows: '1', pageNo: '1', stnId,
       });
       const res = await fetchWithTimeout(
-        `${BASE}/api/typ02/openApi/VilageFcstMsgService/getWthrSituation?${qs}`,
+        `${BASE}/api/typ02/openApi/VilageFcstMsgService/getWthrSituation?authKey=${authKey}&${qs}`,
         { headers: { 'User-Agent': '119-helper-worker/1.0' } }
       );
       if (!res.ok) throw new Error(`KMA briefing ${res.status}: ${res.statusText}`);

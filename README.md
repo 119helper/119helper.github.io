@@ -99,11 +99,13 @@ GitHub Actions 운영 배포에는 다음 secret도 필요합니다.
 - `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
 - `NEWS_CACHE_KV_ID`, `NEWS_CACHE_KV_PREVIEW_ID`
 - `FIRE_WATER_API_KEY` (분기별 소방용수시설 정적 데이터 동기화용)
+- `RESTROOM_API_KEY` 또는 기존 공공데이터 포털 키(`FIRE_WATER_API_KEY`/`PUBLIC_DATA_API_KEY`) (분기별 공중화장실 정적 데이터 동기화용)
 
-소방용수시설 정적 데이터는 공공데이터 API에서 직접 갱신합니다.
+소방용수시설과 공중화장실 정적 데이터는 공공데이터 API에서 직접 갱신합니다.
 
 ```bash
 FIRE_WATER_API_KEY=... node scripts/sync-firewater.js
+RESTROOM_API_KEY=... node scripts/sync-restrooms.js
 ```
 
 운영 리스크와 후속 보완 과제는 [`docs/operational_risks.md`](docs/operational_risks.md)에 정리되어 있습니다.

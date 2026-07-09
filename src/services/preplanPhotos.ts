@@ -1,8 +1,10 @@
 // 대상물 사진 저장소 — localStorage 용량 한계를 피해 IndexedDB(idb-keyval)에 보관한다.
 
 import { createStore, del, get, set } from 'idb-keyval';
+import { canPersistStorageKey } from './privacySettings';
 
 const photoStore = createStore('119-preplan', 'photos');
+const PREPLAN_STORAGE_KEY = '119helper-preplans';
 export const MAX_PREPLAN_SOURCE_PHOTO_BYTES = 10 * 1024 * 1024;
 export const MAX_PREPLAN_PHOTO_DATA_URL_LENGTH = 2_500_000;
 
@@ -56,6 +58,9 @@ export function resizeImage(file: File, maxSize = 1024, quality = 0.7): Promise<
 
 export async function savePhoto(key: string, dataUrl: string): Promise<void> {
   assertPhotoDataUrl(dataUrl);
+  if (!canPersistStorageKey(PREPLAN_STORAGE_KEY)) {
+    throw new Error('공용 기기 모드에서는 대상물 사진을 저장하지 않습니다.');
+  }
   await set(key, dataUrl, photoStore);
 }
 

@@ -4,13 +4,13 @@
  * Route: GET /api/air?sido=서울
  */
 
-import { coerceEnvelope, fetchWithTimeout } from './publicData';
+import { coerceEnvelope, encodeServiceKey, fetchWithTimeout } from './publicData';
 import { sanitizeStringParam } from '../middleware/cors';
 
 export async function handleAir(url: URL, apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
   const sido = sanitizeStringParam(url, 'sido', 20) || '서울';
+  const serviceKey = encodeServiceKey(apiKey, 'AIR_API_KEY');
   const params = new URLSearchParams({
-    serviceKey: apiKey,
     returnType: 'json',
     numOfRows: '100',
     pageNo: '1',
@@ -19,7 +19,7 @@ export async function handleAir(url: URL, apiKey: string): Promise<{ data: unkno
   });
 
   const res = await fetchWithTimeout(
-    `https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty?${params}`,
+    `https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty?serviceKey=${serviceKey}&${params}`,
     { headers: { 'User-Agent': '119-helper-worker/1.0' } }
   );
 

@@ -4,8 +4,10 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = path.join(__dirname, '..', 'public', 'data', 'restrooms');
+const DATA_MANIFEST_PATH = path.join(__dirname, '..', 'public', 'data', 'manifest.json');
 
 const API_KEY = process.env.RESTROOM_API_KEY || process.env.PUBLIC_DATA_API_KEY;
+const SOURCE_DATE_OVERRIDE = process.env.RESTROOM_SOURCE_DATE || process.env.STATIC_DATA_SOURCE_DATE || '';
 const BASE_URL = `https://apis.data.go.kr/1741000/public_restroom_info/info`;
 const NUM_OF_ROWS = 1000;
 
@@ -45,11 +47,86 @@ function optimizeItem(item) {
   };
 }
 
+function normalizeDate(value) {
+  const text = String(value || '').trim();
+  if (!text) return null;
+
+  const ymd = text.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (ymd) return `${ymd[1]}-${ymd[2]}-${ymd[3]}`;
+
+  const separated = text.match(/^(\d{4})[-./\s년]+(\d{1,2})[-./\s월]+(\d{1,2})/);
+  if (separated) {
+    return `${separated[1]}-${String(separated[2]).padStart(2, '0')}-${String(separated[3]).padStart(2, '0')}`;
+  }
+
+  return text;
+}
+
+function sourceDateOf(item) {
+  return normalizeDate(
+    item.DATA_STD_DE ||
+    item.DATA_CRTR_YMD ||
+    item.DATA_BASE_DATE ||
+    item.referenceDate ||
+    item.dataStdde ||
+    item.baseDate ||
+    item.lastUpdtDt ||
+    item.데이터기준일자 ||
+    '',
+  );
+}
+
+function inferSourceDate(items) {
+  if (SOURCE_DATE_OVERRIDE) return normalizeDate(SOURCE_DATE_OVERRIDE);
+  const dates = items.map(sourceDateOf).filter(Boolean).sort();
+  return dates.at(-1) || null;
+}
+
+function updateDataManifest({ sourceDate, generatedAt, total }) {
+  let manifest = {
+    version: 1,
+    generatedAt,
+    datasets: {},
+  };
+
+  if (fs.existsSync(DATA_MANIFEST_PATH)) {
+    manifest = JSON.parse(fs.readFileSync(DATA_MANIFEST_PATH, 'utf8'));
+  }
+
+  manifest.generatedAt = generatedAt;
+  manifest.datasets = manifest.datasets || {};
+  manifest.datasets.restrooms = {
+    label: '공중화장실',
+    path: '/data/restrooms',
+    sourceUrl: BASE_URL,
+    sourceDate,
+    generatedAt,
+    maxAgeDays: 90,
+    total,
+  };
+
+  fs.writeFileSync(DATA_MANIFEST_PATH, JSON.stringify(manifest, null, 2), 'utf8');
+}
+
 async function fetchPage(pageNo) {
   const url = `${BASE_URL}?serviceKey=${encodeServiceKey(API_KEY)}&type=json&numOfRows=${NUM_OF_ROWS}&pageNo=${pageNo}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
+  const text = await res.text();
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.replace(/\s+/g, ' ').slice(0, 160)}`);
+
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`JSON 응답이 아닙니다. ${text.replace(/\s+/g, ' ').slice(0, 160)}`);
+  }
+
+  const header = data.response?.header || data.header || {};
+  const resultCode = String(header.resultCode || '00');
+  if (!/^0+$/.test(resultCode)) {
+    throw new Error(`API_RESULT_${resultCode} ${header.resultMsg || header.returnAuthMsg || ''}`.trim());
+  }
+
   const items = data.response?.body?.items?.item || [];
   const totalCount = data.response?.body?.totalCount || 0;
   return { items, totalCount };
@@ -79,12 +156,13 @@ async function main() {
       // 서버 부하 방지
       await new Promise(r => setTimeout(r, 200)); 
     } catch (err) {
-      console.error(`❌ Page ${pageNo} fetch failed:`, err.message);
-      break;
+      throw new Error(`Page ${pageNo} fetch failed: ${err.message}`);
     }
   }
 
   console.log(`\n✅ 총 ${allItems.length}건 데이터 다운로드 완료. 지역별 분할 시작...`);
+  const generatedAt = new Date().toISOString().slice(0, 10);
+  const sourceDate = inferSourceDate(allItems);
 
   // 도시 단위 분류 구조 준비
   const byCity = {};
@@ -128,7 +206,17 @@ async function main() {
     if (districts.length === 0) continue;
 
     let cityTotal = 0;
-    const indexData = { total: 0, districts: {} };
+    const indexData = {
+      total: 0,
+      districts: {},
+      metadata: {
+        dataset: '전국공중화장실표준데이터',
+        sourceUrl: BASE_URL,
+        city: cityKey,
+        sourceDate,
+        generatedAt,
+      },
+    };
     const cityDir = path.join(OUTPUT_DIR, cityKey);
     if (!fs.existsSync(cityDir)) fs.mkdirSync(cityDir, { recursive: true });
 
@@ -145,6 +233,7 @@ async function main() {
     console.log(`📁 ${cityKey} 저장 완료 (총 ${cityTotal}건, ${districts.length}개 구/군)`);
   }
 
+  updateDataManifest({ sourceDate, generatedAt, total: matchedCount });
   console.log('\n🎉 공중화장실 데이터 분할이 모두 완료되었습니다!');
 }
 

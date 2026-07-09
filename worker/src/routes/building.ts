@@ -6,7 +6,7 @@
  * 응답 형식: XML (Hub 서비스는 JSON 미지원)
  */
 
-import { fetchWithTimeout } from './publicData';
+import { encodeServiceKey, fetchWithTimeout } from './publicData';
 
 function sanitizeDigits(value: string | null, length: number, fallback: string): string {
   const trimmed = value?.trim() || '';
@@ -24,8 +24,8 @@ function sanitizePlatGbCd(value: string | null): string {
 }
 
 export async function handleBuilding(url: URL, apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
+  const serviceKey = encodeServiceKey(apiKey, 'BUILDING_API_KEY');
   const params = new URLSearchParams({
-    serviceKey: apiKey,
     sigunguCd: sanitizeExactDigits(url.searchParams.get('sigunguCd'), 5),
     bjdongCd: sanitizeExactDigits(url.searchParams.get('bjdongCd'), 5),
     platGbCd: sanitizePlatGbCd(url.searchParams.get('platGbCd')),
@@ -35,7 +35,7 @@ export async function handleBuilding(url: URL, apiKey: string): Promise<{ data: 
     pageNo: '1',
   });
 
-  const apiUrl = `https://apis.data.go.kr/1613000/BldRgstHubService/getBrTitleInfo?${params}`;
+  const apiUrl = `https://apis.data.go.kr/1613000/BldRgstHubService/getBrTitleInfo?serviceKey=${serviceKey}&${params}`;
   const res = await fetchWithTimeout(apiUrl, {
     method: 'GET',
     redirect: 'follow',

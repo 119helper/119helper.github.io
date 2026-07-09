@@ -196,12 +196,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Production Worker smoke test
-        run: |
-          curl -fsS \
-            -H "Origin: https://119helper.github.io" \
-            -H "X-App-Token: $VITE_APP_TOKEN" \
-            "$VITE_API_BASE/api/health" \
-          | node -e "let body=''; process.stdin.on('data', d => body += d); process.stdin.on('end', () => { const data = JSON.parse(body); if (data.status !== 'ok') { console.error(body); process.exit(1); } });"
+        run: node scripts/smoke-production-api.mjs
         env:
           VITE_API_BASE: https://119-helper-api.teemozipsa.workers.dev
           VITE_APP_TOKEN: ${{ secrets.VITE_APP_TOKEN }}
