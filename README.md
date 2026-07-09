@@ -108,6 +108,13 @@ FIRE_WATER_API_KEY=... node scripts/sync-firewater.js
 RESTROOM_API_KEY=... node scripts/sync-restrooms.js
 ```
 
+민방위/지진해일 정적 데이터 manifest는 체크인된 JSON에서 기준일과 건수를 보강할 수 있습니다. 지진해일처럼 원본 파일에 날짜 필드가 없으면 수동 기준일을 넘기세요.
+
+```bash
+node scripts/update-static-data-manifest.mjs
+TSUNAMI_SOURCE_DATE=2026-04-06 node scripts/update-static-data-manifest.mjs
+```
+
 운영 리스크와 후속 보완 과제는 [`docs/operational_risks.md`](docs/operational_risks.md)에 정리되어 있습니다.
 
 ---

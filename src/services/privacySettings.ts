@@ -1,6 +1,10 @@
 export interface PrivacySettings {
   publicDeviceMode: boolean;
   retentionDays: number;
+  appLockEnabled: boolean;
+  appLockCodeHash: string | null;
+  appLockSalt: string | null;
+  appLockTimeoutMinutes: number;
 }
 
 const PRIVACY_KEY = '119helper-privacy-settings';
@@ -8,6 +12,10 @@ const PRIVACY_KEY = '119helper-privacy-settings';
 export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
   publicDeviceMode: false,
   retentionDays: 30,
+  appLockEnabled: false,
+  appLockCodeHash: null,
+  appLockSalt: null,
+  appLockTimeoutMinutes: 15,
 };
 
 export const SENSITIVE_STORAGE_KEYS = [
@@ -35,9 +43,14 @@ export function loadPrivacySettings(): PrivacySettings {
     if (!raw) return DEFAULT_PRIVACY_SETTINGS;
     const parsed = JSON.parse(raw) as Partial<PrivacySettings>;
     const retentionDays = Number(parsed.retentionDays);
+    const lockTimeout = Number(parsed.appLockTimeoutMinutes);
     return {
       publicDeviceMode: parsed.publicDeviceMode === true,
       retentionDays: Number.isFinite(retentionDays) ? Math.max(0, Math.min(365, retentionDays)) : DEFAULT_PRIVACY_SETTINGS.retentionDays,
+      appLockEnabled: parsed.appLockEnabled === true,
+      appLockCodeHash: typeof parsed.appLockCodeHash === 'string' && parsed.appLockCodeHash ? parsed.appLockCodeHash : null,
+      appLockSalt: typeof parsed.appLockSalt === 'string' && parsed.appLockSalt ? parsed.appLockSalt : null,
+      appLockTimeoutMinutes: [0, 5, 15, 30, 60].includes(lockTimeout) ? lockTimeout : DEFAULT_PRIVACY_SETTINGS.appLockTimeoutMinutes,
     };
   } catch {
     return DEFAULT_PRIVACY_SETTINGS;
@@ -48,6 +61,10 @@ export function savePrivacySettings(settings: PrivacySettings): void {
   localStorage.setItem(PRIVACY_KEY, JSON.stringify({
     publicDeviceMode: settings.publicDeviceMode,
     retentionDays: Math.max(0, Math.min(365, settings.retentionDays)),
+    appLockEnabled: settings.appLockEnabled,
+    appLockCodeHash: settings.appLockCodeHash || null,
+    appLockSalt: settings.appLockSalt || null,
+    appLockTimeoutMinutes: [0, 5, 15, 30, 60].includes(settings.appLockTimeoutMinutes) ? settings.appLockTimeoutMinutes : DEFAULT_PRIVACY_SETTINGS.appLockTimeoutMinutes,
   }));
 }
 

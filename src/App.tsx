@@ -3,6 +3,7 @@ import './index.css';
 import GlobalSearch from './components/GlobalSearch';
 import SettingsModal from './components/SettingsModal';
 import ErrorBoundary from './components/ErrorBoundary';
+import AppLockGate from './components/AppLockGate';
 import { fetchFireWaterFacilities, fetchCityIndex, isSplitCity } from './services/fireWaterApi';
 import type { CityIndex } from './services/fireWaterApi';
 import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS } from './services/weatherApi';
@@ -358,6 +359,7 @@ export default function App() {
   };
 
   return (
+    <AppLockGate>
     <div className="flex h-[100dvh] overflow-hidden bg-background text-on-background">
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -727,5 +729,6 @@ export default function App() {
         </nav>
       </main>
     </div>
+    </AppLockGate>
   );
 }

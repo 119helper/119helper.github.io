@@ -13,6 +13,15 @@ import {
   savePrivacySettings,
   type PrivacySettings,
 } from '../services/privacySettings';
+import {
+  APP_LOCK_EVENT,
+  APP_LOCK_MIN_CODE_LENGTH,
+  clearAppUnlock,
+  createAppLockCredential,
+  isAppLockConfigured,
+  isValidAppLockCode,
+  recordAppUnlock,
+} from '../services/appLock';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -107,13 +116,17 @@ function CategoryHeader({ icon, iconColor, label, masterOn, onMasterChange }: {
 // ══════════════════════════════════════════
 // 일반 설정 탭
 // ══════════════════════════════════════════
-function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefreshInterval, ns, updateNs, privacy, setPrivacy, onClearUserData }: {
+function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefreshInterval, ns, updateNs, privacy, setPrivacy, appLockCode, setAppLockCode, onClearUserData, onLockNow }: {
   city: string; onCityChange: (c: string) => void; cityNames: Record<string, string>;
   refreshInterval: string; setRefreshInterval: (v: string) => void;
   ns: NotificationSettings; updateNs: (patch: Partial<NotificationSettings>) => void;
   privacy: PrivacySettings; setPrivacy: (settings: PrivacySettings) => void;
+  appLockCode: string; setAppLockCode: (value: string) => void;
   onClearUserData: () => void;
+  onLockNow: () => void;
 }) {
+  const appLockConfigured = isAppLockConfigured(privacy);
+
   return (
     <div className="p-5 space-y-5">
       {/* 기본 관심 지역 */}
@@ -225,6 +238,58 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
               <option value={30}>30일 보관</option>
               <option value={90}>90일 보관</option>
             </select>
+          </div>
+          <div className="border-t border-outline-variant/10 pt-3 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-on-surface">앱 잠금</p>
+                <p className="text-[10px] text-on-surface-variant">기기 분실·공유 시 캐주얼 접근을 막습니다.</p>
+              </div>
+              <Toggle
+                on={privacy.appLockEnabled}
+                onChange={v => setPrivacy({
+                  ...privacy,
+                  appLockEnabled: v,
+                  appLockCodeHash: v ? privacy.appLockCodeHash : null,
+                  appLockSalt: v ? privacy.appLockSalt : null,
+                })}
+                size="sm"
+              />
+            </div>
+            {privacy.appLockEnabled && (
+              <div className="space-y-2">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  value={appLockCode}
+                  onChange={e => setAppLockCode(e.target.value)}
+                  placeholder={appLockConfigured ? '코드 변경 시에만 입력' : `${APP_LOCK_MIN_CODE_LENGTH}자 이상 잠금 코드`}
+                  className="w-full bg-surface-container-high text-on-surface text-sm rounded-lg px-3 py-2 border border-outline-variant/20 focus:outline-none focus:border-primary"
+                />
+                <select
+                  value={privacy.appLockTimeoutMinutes}
+                  onChange={e => setPrivacy({ ...privacy, appLockTimeoutMinutes: parseNumberOr(e.target.value, 15) })}
+                  className="w-full bg-surface-container-high text-on-surface text-sm rounded-lg px-3 py-2 border border-outline-variant/20 focus:outline-none focus:border-primary"
+                >
+                  <option value={0}>탭 전환 시 잠금</option>
+                  <option value={5}>5분 미사용 후 잠금</option>
+                  <option value={15}>15분 미사용 후 잠금</option>
+                  <option value={30}>30분 미사용 후 잠금</option>
+                  <option value={60}>60분 미사용 후 잠금</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={onLockNow}
+                  disabled={!appLockConfigured}
+                  className="w-full rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/15 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  지금 잠금
+                </button>
+                <p className="text-[10px] leading-4 text-on-surface-variant">
+                  잠금 코드는 이 브라우저 저장소에 해시로 보관됩니다. 기기 암호나 OS 보안을 대체하지 않습니다.
+                </p>
+              </div>
+            )}
           </div>
         </div>
         <p className="text-[11px] leading-5 text-on-surface-variant">
@@ -504,6 +569,7 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
   const [ns, setNs] = useState<NotificationSettings>(loadNotificationSettings());
   const [shiftSetting, setShiftSetting] = useState<ShiftSetting>(DEFAULT_SHIFT_SETTING);
   const [privacy, setPrivacy] = useState<PrivacySettings>(loadPrivacySettings());
+  const [appLockCode, setAppLockCode] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -512,6 +578,7 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
       setRefreshInterval(normalizeRefreshInterval(localStorage.getItem('119helper-refresh') || '5'));
       setNs(loadNotificationSettings());
       setPrivacy(loadPrivacySettings());
+      setAppLockCode('');
       
       try {
         const savedShift = localStorage.getItem('119helper-shift-setting');
@@ -533,11 +600,42 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
     setNs(prev => ({ ...prev, ...patch }));
 
   const handleSave = async () => {
+    let nextPrivacy = privacy;
+    const trimmedLockCode = appLockCode.trim();
+
+    if (nextPrivacy.appLockEnabled) {
+      if (trimmedLockCode) {
+        if (!isValidAppLockCode(trimmedLockCode)) {
+          window.alert(`앱 잠금 코드는 ${APP_LOCK_MIN_CODE_LENGTH}자 이상이어야 합니다.`);
+          return;
+        }
+        nextPrivacy = {
+          ...nextPrivacy,
+          ...(await createAppLockCredential(trimmedLockCode)),
+        };
+      } else if (!isAppLockConfigured(nextPrivacy)) {
+        window.alert(`앱 잠금을 켜려면 ${APP_LOCK_MIN_CODE_LENGTH}자 이상 잠금 코드를 입력하세요.`);
+        return;
+      }
+    } else {
+      clearAppUnlock();
+      nextPrivacy = {
+        ...nextPrivacy,
+        appLockCodeHash: null,
+        appLockSalt: null,
+      };
+    }
+
     onCityChange(draftCity);
     updateProfile(draftProfile);
     saveNotificationSettings(ns);
-    savePrivacySettings(privacy);
-    if (privacy.publicDeviceMode) {
+    savePrivacySettings(nextPrivacy);
+    setPrivacy(nextPrivacy);
+    setAppLockCode('');
+    if (nextPrivacy.appLockEnabled && isAppLockConfigured(nextPrivacy)) {
+      recordAppUnlock();
+    }
+    if (nextPrivacy.publicDeviceMode) {
       await clearSensitiveStoredData();
     }
     localStorage.setItem('119helper-refresh', normalizeRefreshInterval(refreshInterval));
@@ -552,6 +650,12 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
     if (!ok) return;
     await clearSensitiveStoredData();
     window.location.reload();
+  };
+
+  const handleLockNow = () => {
+    if (!isAppLockConfigured(privacy)) return;
+    clearAppUnlock();
+    window.dispatchEvent(new Event(APP_LOCK_EVENT));
   };
 
   if (!isOpen) return null;
@@ -610,7 +714,9 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
               refreshInterval={refreshInterval} setRefreshInterval={setRefreshInterval}
               ns={ns} updateNs={updateNs}
               privacy={privacy} setPrivacy={setPrivacy}
+              appLockCode={appLockCode} setAppLockCode={setAppLockCode}
               onClearUserData={handleClearUserData}
+              onLockNow={handleLockNow}
             />
           )}
           {tab === 'shift' && (

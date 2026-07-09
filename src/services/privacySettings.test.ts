@@ -12,17 +12,29 @@ import {
   storageTimestampKey,
 } from './privacySettings';
 
+function settings(overrides = {}) {
+  return {
+    publicDeviceMode: false,
+    retentionDays: 30,
+    appLockEnabled: false,
+    appLockCodeHash: null,
+    appLockSalt: null,
+    appLockTimeoutMinutes: 15,
+    ...overrides,
+  };
+}
+
 describe('privacy settings', () => {
   beforeEach(() => {
     localStorage.clear();
   });
 
   it('loads defaults when unset', () => {
-    expect(loadPrivacySettings()).toEqual({ publicDeviceMode: false, retentionDays: 30 });
+    expect(loadPrivacySettings()).toEqual(settings());
   });
 
   it('blocks sensitive persistence in public device mode', () => {
-    savePrivacySettings({ publicDeviceMode: true, retentionDays: 30 });
+    savePrivacySettings(settings({ publicDeviceMode: true }));
     expect(canPersistStorageKey('119helper-notes')).toBe(false);
     expect(canPersistStorageKey('119helper-theme')).toBe(true);
   });
@@ -43,7 +55,7 @@ describe('privacy settings', () => {
   });
 
   it('centralized JSON storage respects public device mode', () => {
-    savePrivacySettings({ publicDeviceMode: true, retentionDays: 30 });
+    savePrivacySettings(settings({ publicDeviceMode: true }));
 
     saveStoredJson('119helper-notes', [{ text: 'secret' }]);
 

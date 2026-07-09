@@ -1,14 +1,15 @@
 {
   "version": 1,
-  "generatedAt": "2026-07-06",
+  "generatedAt": "2026-07-09",
   "datasets": {
     "civil": {
       "label": "민방위 대피시설",
       "path": "/data/civil.json",
       "sourceUrl": "https://www.safekorea.go.kr",
-      "sourceDate": null,
+      "sourceDate": "2026-04-04",
       "generatedAt": "2026-06-12",
-      "maxAgeDays": 90
+      "maxAgeDays": 90,
+      "total": 1498
     },
     "tsunami": {
       "label": "지진해일 대피소",
@@ -16,7 +17,8 @@
       "sourceUrl": "https://www.safekorea.go.kr",
       "sourceDate": null,
       "generatedAt": "2026-04-06",
-      "maxAgeDays": 180
+      "maxAgeDays": 180,
+      "total": 644
     },
     "restrooms": {
       "label": "공중화장실",
