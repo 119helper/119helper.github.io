@@ -92,7 +92,7 @@ npm run dev
 ```
 
 운영 참고: `VITE_APP_TOKEN`은 브라우저 번들에 포함되는 공개값이므로 완전한 비밀 인증 수단이 아닙니다.
-남용 방지는 Worker의 Origin/토큰 검증과 함께 Cloudflare WAF Rate Limiting Rules 또는 봇 차단 정책으로 보강하세요.
+현재 무료/무도메인 운영에서는 Worker의 Origin/토큰 검증과 rate limit binding을 기본 방어선으로 사용합니다. 대량 스크래핑이 실제 문제가 되면 도메인/Cloudflare zone 기반 WAF, Turnstile, 봇 차단 정책을 재검토하세요.
 
 GitHub Actions 운영 배포에는 다음 secret도 필요합니다.
 
