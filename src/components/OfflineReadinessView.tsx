@@ -9,6 +9,7 @@ import {
 } from '../services/offlineRegion';
 import {
   formatDatasetDate,
+  formatFreshnessSourceDate,
   getDatasetFreshness,
   isFreshnessExpired,
   type DatasetFreshness,
@@ -163,7 +164,7 @@ export default function OfflineReadinessView({ city, cityLabel }: OfflineReadine
                 <div className="font-bold text-sm text-on-surface">{item.meta?.label ?? item.label}</div>
                 <div className={`text-xs text-right ${expired ? 'text-amber-400 font-bold' : 'text-on-surface-variant'}`}>
                   {item.meta
-                    ? `기준 ${formatDatasetDate(item.meta.sourceDate)} · 생성 ${formatDatasetDate(item.meta.generatedAt)}${expired ? ' · 갱신 필요' : ''}`
+                    ? `${formatFreshnessSourceDate(item.meta)} · 생성 ${formatDatasetDate(item.meta.generatedAt)}${expired ? ' · 갱신 필요' : ''}`
                     : '기준일 정보 없음'}
                 </div>
               </div>

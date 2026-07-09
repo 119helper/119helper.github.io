@@ -6,6 +6,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'public', 'data');
 const MANIFEST_PATH = path.join(DATA_DIR, 'manifest.json');
+const TSUNAMI_SOURCE_URL = 'https://www.data.go.kr/data/15138870/openapi.do';
+const TSUNAMI_SOURCE_DATE_LABEL = 'API 수정일';
+const TSUNAMI_SOURCE_DATE_SOURCE = '공공데이터포털 행정안전부_지진해일 긴급대피장소 수정일';
 
 const DATE_KEYS = [
   'DAT_UPDT_PNT',
@@ -72,15 +75,21 @@ manifest.datasets.civil = {
 };
 
 const tsunamiItems = readArray('tsunami.json');
+const previousTsunami = manifest.datasets.tsunami || {};
+const tsunamiSourceDate = process.env.TSUNAMI_SOURCE_DATE || previousTsunami.sourceDate || null;
 manifest.datasets.tsunami = {
   label: '지진해일 대피소',
   path: '/data/tsunami.json',
-  sourceUrl: 'https://www.safekorea.go.kr',
-  sourceDate: process.env.TSUNAMI_SOURCE_DATE || manifest.datasets.tsunami?.sourceDate || null,
-  generatedAt: manifest.datasets.tsunami?.generatedAt || generatedAt,
+  sourceUrl: TSUNAMI_SOURCE_URL,
+  sourceDate: tsunamiSourceDate,
+  generatedAt: previousTsunami.generatedAt || generatedAt,
   maxAgeDays: 180,
   total: tsunamiItems.length,
 };
+if (tsunamiSourceDate) {
+  manifest.datasets.tsunami.sourceDateLabel = previousTsunami.sourceDateLabel || TSUNAMI_SOURCE_DATE_LABEL;
+  manifest.datasets.tsunami.sourceDateSource = previousTsunami.sourceDateSource || TSUNAMI_SOURCE_DATE_SOURCE;
+}
 
 writeJson(MANIFEST_PATH, manifest);
 

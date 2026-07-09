@@ -8,7 +8,7 @@ import { loadKakaoMapSDK } from '../utils/kakaoLoader';
 import proj4 from 'proj4';
 import BuildingView from './BuildingView';
 import type { KakaoMapInstance, KakaoMarker } from '../types/kakao';
-import { formatDatasetDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
+import { formatDatasetDate, formatFreshnessSourceDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
 
 // EPSG:5179 (GRS80 UTM-K) 정의 — 공공데이터포털(재난안전데이터) 최신 좌표계
 proj4.defs("EPSG:5179", "+proj=tmerc +lat_0=38 +lon_0=127.5 +k=0.9996 +x_0=1000000 +y_0=2000000 +ellps=GRS80 +units=m +no_defs");
@@ -455,7 +455,7 @@ export default function FacilitySearchView({
                       : 'border-outline-variant/30 bg-surface-container text-on-surface-variant'
                   }`}>
                     <span className="material-symbols-outlined text-[13px]">database</span>
-                    기준일 {formatDatasetDate(freshness.sourceDate)}
+                    {formatFreshnessSourceDate(freshness)}
                   </span>
                   <span>생성 {formatDatasetDate(freshness.generatedAt)}</span>
                   {freshnessExpired && <span className="font-bold text-amber-400">갱신 주기 초과</span>}

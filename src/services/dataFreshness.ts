@@ -1,6 +1,7 @@
 export interface DatasetFreshness {
   label: string;
   sourceDate: string | null;
+  sourceDateLabel?: string;
   generatedAt: string | null;
   maxAgeDays: number | null;
   sourceUrl?: string;
@@ -86,6 +87,10 @@ export function formatDatasetDate(value: string | null): string {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+export function formatFreshnessSourceDate(meta: DatasetFreshness): string {
+  return `${meta.sourceDateLabel ?? '기준일'} ${formatDatasetDate(meta.sourceDate)}`;
 }
 
 export function isFreshnessExpired(meta: DatasetFreshness, now = Date.now()): boolean {

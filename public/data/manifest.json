@@ -14,11 +14,13 @@
     "tsunami": {
       "label": "지진해일 대피소",
       "path": "/data/tsunami.json",
-      "sourceUrl": "https://www.safekorea.go.kr",
-      "sourceDate": null,
+      "sourceUrl": "https://www.data.go.kr/data/15138870/openapi.do",
+      "sourceDate": "2025-07-16",
       "generatedAt": "2026-04-06",
       "maxAgeDays": 180,
-      "total": 644
+      "total": 644,
+      "sourceDateLabel": "API 수정일",
+      "sourceDateSource": "공공데이터포털 행정안전부_지진해일 긴급대피장소 수정일"
     },
     "restrooms": {
       "label": "공중화장실",

@@ -10,7 +10,7 @@ import {
   downloadRegionData, clearRegionData, getRegionStatus, isOfflineDataSupported,
   type DownloadProgress, type OfflineRegionStatus,
 } from '../services/offlineRegion';
-import { formatDatasetDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
+import { formatDatasetDate, formatFreshnessSourceDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
 
 export default function OfflineDataSection({ city, cityNames }: {
   city: string;
@@ -94,7 +94,7 @@ export default function OfflineDataSection({ city, cityNames }: {
               <div key={id} className="flex items-center justify-between gap-2">
                 <span className="font-medium text-on-surface">{meta.label}</span>
                 <span className={expired ? 'font-bold text-amber-400' : ''}>
-                  기준일 {formatDatasetDate(meta.sourceDate)} · 생성 {formatDatasetDate(meta.generatedAt)}
+                  {formatFreshnessSourceDate(meta)} · 생성 {formatDatasetDate(meta.generatedAt)}
                   {expired ? ' · 갱신 필요' : ''}
                 </span>
               </div>
