@@ -3,11 +3,18 @@ import { z } from 'zod';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { type PrePlan, type PrePlanContact, createEmptyPrePlan } from '../types/preplan';
 import { resizeImage, savePhoto, getPhoto, deletePhoto, MAX_PREPLAN_PHOTO_DATA_URL_LENGTH } from '../services/preplanPhotos';
+import { confirmSensitiveExport } from '../utils/sensitiveExport';
 
 const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
 const MAX_IMPORT_PLANS = 500;
 const MAX_IMPORT_PHOTOS = 500;
 const MAX_PHOTOS_PER_PLAN = 50;
+const PREPLAN_EXPORT_DETAILS = [
+  '대상물명과 주소',
+  '관계인 이름과 연락처',
+  '위험요소, 진입로, 소방시설 위치',
+  '현장 사진',
+];
 
 const photoKeySchema = z.string().min(1).max(120).regex(/^[A-Za-z0-9_.:-]+$/);
 const prePlanContactSchema = z.object({
@@ -67,6 +74,7 @@ export default function PrePlanView() {
   };
 
   const exportAll = async () => {
+    if (!confirmSensitiveExport('대상물 정보 내보내기 파일', PREPLAN_EXPORT_DETAILS)) return;
     const photos: Record<string, string> = {};
     for (const p of plans) {
       for (const k of p.photoKeys) {

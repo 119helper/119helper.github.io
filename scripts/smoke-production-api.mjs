@@ -22,6 +22,14 @@ function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function hasXmlEnvelope(data) {
+  return isRecord(data) && typeof data.xml === 'string' && data.xml.trimStart().startsWith('<');
+}
+
+function hasPaginatedItems(data) {
+  return isRecord(data) && Array.isArray(data.items) && Number.isFinite(Number(data.totalCount));
+}
+
 const checks = [
   {
     name: 'health',
@@ -41,7 +49,21 @@ const checks = [
     name: 'er-beds',
     url: endpoint('/api/er/beds', { sido: '서울특별시' }),
     validate(data) {
-      return isRecord(data) && typeof data.xml === 'string' && data.xml.trimStart().startsWith('<');
+      return hasXmlEnvelope(data);
+    },
+  },
+  {
+    name: 'air-quality',
+    url: endpoint('/api/air', { sido: '서울' }),
+    validate(data) {
+      return Array.isArray(data);
+    },
+  },
+  {
+    name: 'holiday',
+    url: endpoint('/api/holiday', { year: new Date().getFullYear(), month: 1 }),
+    validate(data) {
+      return hasXmlEnvelope(data);
     },
   },
   {
@@ -55,7 +77,62 @@ const checks = [
     name: 'fire-info',
     url: endpoint('/api/fire/station', { numOfRows: 1, pageNo: 1 }),
     validate(data) {
-      return isRecord(data) && Array.isArray(data.items) && Number.isFinite(Number(data.totalCount));
+      return hasPaginatedItems(data);
+    },
+  },
+  {
+    name: 'fire-damage',
+    url: endpoint('/api/fire-damage', {
+      numOfRows: 1,
+      pageNo: 1,
+      sidoNm: '서울특별시',
+      startYmd: '20230101',
+      endYmd: '20231231',
+    }),
+    validate(data) {
+      return hasPaginatedItems(data);
+    },
+  },
+  {
+    name: 'multiuse',
+    url: endpoint('/api/multiuse', { year: 2024, page: 1, perPage: 1 }),
+    validate(data) {
+      return Array.isArray(data);
+    },
+  },
+  {
+    name: 'forest-fire-risk',
+    url: endpoint('/api/forest-fire-risk', { numOfRows: 1, pageNo: 1, excludeForecast: 1 }),
+    validate(data) {
+      return hasPaginatedItems(data) && typeof data.source === 'string';
+    },
+  },
+  {
+    name: 'wildfire',
+    url: endpoint('/api/wildfire', { numOfRows: 1, pageNo: 1 }),
+    validate(data) {
+      return isRecord(data) && isRecord(data.header) && /^0+$/.test(String(data.header.resultCode));
+    },
+  },
+  {
+    name: 'ambulance',
+    url: endpoint('/api/ambulance', { Q0: '서울특별시' }),
+    validate(data) {
+      return hasXmlEnvelope(data);
+    },
+  },
+  {
+    name: 'consumer-hazard',
+    url: endpoint('/api/consumer-hazard'),
+    validate(data) {
+      return isRecord(data) && isRecord(data.response);
+    },
+  },
+  {
+    name: 'fire-annual-years',
+    url: endpoint('/api/fire-annual/years'),
+    validate(data) {
+      return isRecord(data) && Array.isArray(data.years) && data.years.length > 0 && typeof data.latestYear === 'string';
     },
   },
 ];
@@ -73,12 +150,20 @@ const failures = [];
 
 for (const check of checks) {
   try {
-    const response = await fetch(check.url, {
-      headers: {
-        Origin: origin,
-        'X-App-Token': appToken,
-      },
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+    let response;
+    try {
+      response = await fetch(check.url, {
+        headers: {
+          Origin: origin,
+          'X-App-Token': appToken,
+        },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const data = await readJson(response);
     if (!response.ok) {

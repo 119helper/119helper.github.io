@@ -11,8 +11,15 @@ import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useUserProfile, type DutyRole } from '../contexts/UserProfileContext';
 import { useTimer } from '../contexts/TimerContext';
 import { loadStoredJson } from '../services/privacySettings';
+import { confirmSensitiveExport } from '../utils/sensitiveExport';
 
 const ROLE_TO_PRESET: Record<DutyRole, string> = { fire: 'fire', ems: 'ems', rescue: 'rescue', '': 'fire' };
+const ACTIVITY_REPORT_SENSITIVE_DETAILS = [
+  '현장 활동 타임라인과 특이사항',
+  'GPS 위치 기록',
+  '출동 제목, 주소, 사건 정보',
+  '환자 분류 집계와 타이머 상태',
+];
 
 interface LoggedStamp {
   stageId: string;
@@ -145,6 +152,7 @@ export default function ActivityLog() {
 
   const copyReport = async () => {
     if (!report) return;
+    if (!confirmSensitiveExport('보고서 복사', ACTIVITY_REPORT_SENSITIVE_DETAILS)) return;
     try {
       await navigator.clipboard.writeText(report);
       setCopied(true);
@@ -162,6 +170,7 @@ export default function ActivityLog() {
 
   const downloadReportBundle = () => {
     if (!reportBundle) return;
+    if (!confirmSensitiveExport('활동보고서 JSON 내보내기 파일', ACTIVITY_REPORT_SENSITIVE_DETAILS)) return;
     const blob = new Blob([JSON.stringify(reportBundle, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
