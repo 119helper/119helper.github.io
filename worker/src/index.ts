@@ -5,7 +5,7 @@
  * ?론?엔??SPA)????Worker??/api/* ?드?인?만 ?출?니??
  */
 
-import { handleOptions, jsonResponse, errorResponse, isOriginAllowed, isAppTokenRequired, isAppTokenValid, checkRateLimitDistributed, rateLimitResponse, corsHeaders, applyCors, type RateLimitBinding } from './middleware/cors';
+import { handleOptions, jsonResponse, errorResponse, isOriginAllowed, isAppTokenRequired, isAppTokenValid, checkRateLimitDistributed, rateLimitResponse, applyCors, type RateLimitBinding } from './middleware/cors';
 import { handleClientLog } from './routes/clientLog';
 import { handleWeather } from './routes/weather';
 import { handleAir } from './routes/air';
@@ -131,12 +131,7 @@ export default {
       // 1. 공용 캐시(Edge Cache) ?중 ?? ?인
       const cached = await cache.match(cacheKey);
       if (cached) {
-        const res = new Response(cached.body, cached);
-        const cors = corsHeaders(request, env.ENVIRONMENT);
-        for (const [k, v] of Object.entries(cors)) {
-          res.headers.set(k, String(v));
-        }
-        return res;
+        return applyCors(cached, request, env.ENVIRONMENT);
       }
 
       // 2. 캐시가 ?으??본 API ?출
@@ -203,13 +198,8 @@ export default {
         return errorResponse('No data returned from API', request, 500, env.ENVIRONMENT);
       }
 
-      // 보조 CORS ?더 ?용
-      const finalRes = new Response(response.body, response);
-      const cors = corsHeaders(request, env.ENVIRONMENT);
-      for (const [k, v] of Object.entries(cors)) {
-        finalRes.headers.set(k, String(v));
-      }
-      return finalRes;
+      // 보조 응답 정책 적용
+      return applyCors(response, request, env.ENVIRONMENT);
 
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Internal server error';

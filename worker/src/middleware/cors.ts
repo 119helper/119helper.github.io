@@ -81,14 +81,17 @@ export function corsHeaders(request: Request, environment?: string): Record<stri
 }
 
 /**
- * 라우트가 직접 만든 Response에 중앙 CORS 정책을 강제 적용한다.
+ * 라우트가 직접 만든 Response에 중앙 응답 정책을 강제 적용한다.
  * (law/equipment 등 직접 반환 라우트가 'Allow-Origin: *' 같은 느슨한 헤더를
- *  쓰지 않도록 화이트리스트 기반 헤더로 덮어쓴다.)
+ *  쓰지 않도록 화이트리스트 기반 CORS와 보안 헤더로 덮어쓴다.)
  */
 export function applyCors(response: Response, request: Request, environment?: string): Response {
   const res = new Response(response.body, response);
-  const cors = corsHeaders(request, environment);
-  for (const [k, v] of Object.entries(cors)) {
+  const headers = {
+    ...corsHeaders(request, environment),
+    ...securityHeaders(),
+  };
+  for (const [k, v] of Object.entries(headers)) {
     res.headers.set(k, String(v));
   }
   return res;
