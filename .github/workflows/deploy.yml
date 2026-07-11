@@ -5,6 +5,13 @@ on:
     branches: [master, main]
   pull_request:
     branches: [master, main]
+  workflow_dispatch:
+    inputs:
+      skip_worker_deploy:
+        description: 'Worker가 별도로 배포된 경우 Worker 배포 단계만 건너뜁니다'
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -132,6 +139,7 @@ jobs:
           VITE_APP_TOKEN: ${{ secrets.VITE_APP_TOKEN }}
 
       - name: Validate Worker deploy secrets
+        if: ${{ !inputs.skip_worker_deploy }}
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN secret is required"; exit 1; }
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID secret is required"; exit 1; }
@@ -144,6 +152,7 @@ jobs:
           NEWS_CACHE_KV_PREVIEW_ID: ${{ secrets.NEWS_CACHE_KV_PREVIEW_ID }}
 
       - name: Generate Worker CI config
+        if: ${{ !inputs.skip_worker_deploy }}
         working-directory: worker
         run: |
           node - <<'NODE'
@@ -189,6 +198,7 @@ jobs:
           NEWS_CACHE_KV_PREVIEW_ID: ${{ secrets.NEWS_CACHE_KV_PREVIEW_ID }}
 
       - name: Deploy Worker
+        if: ${{ !inputs.skip_worker_deploy }}
         working-directory: worker
         run: npm exec -- wrangler deploy --config wrangler.ci.toml
         env:
