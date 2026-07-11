@@ -364,13 +364,14 @@ export default function App() {
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
+          aria-hidden="true"
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <aside className={`
+      <aside aria-label="전체 메뉴" className={`
         fixed lg:static inset-y-0 left-0 z-50
         w-64 bg-surface-container-lowest flex flex-col shrink-0 border-r border-outline-variant/20
         transform transition-transform duration-200 ease-out
@@ -394,6 +395,9 @@ export default function App() {
             return (
               <div key={item.id} className="mb-1">
                 <button
+                  type="button"
+                  aria-expanded={hasSub ? isExpanded : undefined}
+                  aria-current={!hasSub && activeTab === item.id ? 'page' : undefined}
                   onClick={() => {
                     if (hasSub) {
                       setExpandedGroups(prev => 
@@ -438,6 +442,8 @@ export default function App() {
                         const isSubActive = activeTab === sub.id;
                         return (
                           <button
+                            type="button"
+                            aria-current={isSubActive ? 'page' : undefined}
                             key={sub.id}
                             onClick={() => handleNavigate(sub.id as TabId)}
                             className={`w-full flex items-center px-4 py-2.5 rounded-lg transition-all text-sm ${
@@ -485,8 +491,10 @@ export default function App() {
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {/* Mobile hamburger */}
             <button
+              type="button"
+              aria-label="전체 메뉴 열기"
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-1.5 rounded-lg hover:bg-surface-container transition-colors shrink-0"
+              className="lg:hidden w-11 h-11 rounded-lg hover:bg-surface-container transition-colors shrink-0 flex items-center justify-center"
             >
               <span className="material-symbols-outlined text-on-surface-variant text-xl">menu</span>
             </button>
@@ -502,9 +510,12 @@ export default function App() {
             {/* 📍 Global Location Selector (Custom Beautiful Dropdown) */}
             <div className="relative" ref={regionRef}>
               <button 
+                type="button"
+                aria-label={`지역 선택, 현재 ${cityNames[city]}`}
+                aria-expanded={regionOpen}
                 onClick={() => setRegionOpen(!regionOpen)}
                 title={locationNotice?.message || `현재 지역: ${cityNames[city]}`}
-                className="flex items-center gap-1.5 bg-surface-container hover:bg-surface-container-high transition-colors rounded-full px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="min-h-11 flex items-center gap-1.5 bg-surface-container hover:bg-surface-container-high transition-colors rounded-full px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
                 <span className={`material-symbols-outlined text-sm ${gpsStatus === 'unsupported' || gpsStatus === 'denied' ? 'text-amber-500' : 'text-primary'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
                   {gpsStatus === 'granted' ? 'my_location' : gpsStatus === 'loading' ? 'location_searching' : gpsStatus === 'unsupported' || gpsStatus === 'denied' ? 'location_disabled' : 'location_on'}
@@ -529,6 +540,8 @@ export default function App() {
                   <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1">
                     {Object.entries(cityNames).map(([k, v]) => (
                       <button
+                        type="button"
+                        aria-current={city === k ? 'true' : undefined}
                         key={k}
                         onClick={() => { handleCityChange(k); setRegionOpen(false); }}
                         className={`w-full flex items-center px-4 py-2.5 text-sm transition-colors rounded-lg ${
@@ -549,8 +562,11 @@ export default function App() {
             {/* Notification Bell */}
             <div className="relative" ref={notiRef}>
               <button 
+                type="button"
+                aria-label={`최근 알림${notifications.some(n => n.isNew) ? `, 새 알림 ${notifications.filter(n => n.isNew).length}개` : ''}`}
+                aria-expanded={notiOpen}
                 onClick={() => setNotiOpen(!notiOpen)}
-                className={`p-1.5 rounded-lg transition-colors ${notiOpen ? 'bg-surface-container-high' : 'hover:bg-surface-container'}`}
+                className={`w-11 h-11 flex items-center justify-center rounded-lg transition-colors ${notiOpen ? 'bg-surface-container-high' : 'hover:bg-surface-container'}`}
               >
                 <span className="material-symbols-outlined text-on-surface-variant text-xl">notifications</span>
                 {notifications.some(n => n.isNew) && (
@@ -616,8 +632,10 @@ export default function App() {
             </div>
 
             <button
+              type="button"
+              aria-label={`${theme === 'dark' ? '라이트' : '다크'} 모드로 전환`}
               onClick={() => handleThemeChange(theme === 'dark' ? 'light' : 'dark')}
-              className="p-1.5 rounded-lg hover:bg-surface-container transition-colors"
+              className="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-surface-container transition-colors"
               title={`현재: ${theme === 'dark' ? '다크' : '라이트'} 모드`}
             >
               <span className="material-symbols-outlined text-on-surface-variant text-xl"
@@ -628,8 +646,11 @@ export default function App() {
             {/* Settings (기어는 데스크톱 전용, 모바일은 사이드바 '내 정보'에서 열림) */}
             <div className="relative" ref={settingsRef}>
               <button
+                type="button"
+                aria-label="설정 열기"
+                aria-expanded={settingsOpen}
                 onClick={() => setSettingsOpen(!settingsOpen)}
-                className={`hidden sm:block p-1.5 rounded-lg transition-colors ${settingsOpen ? 'bg-surface-container-high' : 'hover:bg-surface-container'}`}
+                className={`hidden sm:flex w-11 h-11 items-center justify-center rounded-lg transition-colors ${settingsOpen ? 'bg-surface-container-high' : 'hover:bg-surface-container'}`}
               >
                 <span className="material-symbols-outlined text-on-surface-variant text-xl">settings</span>
               </button>
@@ -694,12 +715,15 @@ export default function App() {
         </button>
 
         {/* Mobile Bottom Navigation */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface-container-lowest/95 backdrop-blur-lg border-t border-outline-variant/20 safe-area-bottom">
+        <nav aria-label="주요 기능" className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface-container-lowest/95 backdrop-blur-lg border-t border-outline-variant/20 safe-area-bottom">
           <div className="flex items-center justify-around h-16 px-1">
             {BOTTOM_TABS.map(tab => {
               const isActive = tab.id !== 'more' && activeTab === tab.id;
               return (
                 <button
+                  type="button"
+                  aria-current={isActive ? 'page' : undefined}
+                  aria-label={tab.label}
                   key={tab.id}
                   onClick={() => {
                     if (tab.id === 'more') {

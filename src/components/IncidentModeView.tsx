@@ -9,6 +9,7 @@ import type { CityIndex } from '../services/fireWaterApi';
 import type { FireFacility } from '../data/mockData';
 import type { NavigateTarget } from '../types/navigation';
 import { loadStoredJson } from '../services/privacySettings';
+import { appendActivityEvent, startActivityFromIncident } from '../services/activitySession';
 
 type IncidentType = 'fire' | 'ems' | 'rescue' | 'support';
 
@@ -18,7 +19,19 @@ interface IncidentSession {
   title: string;
   address: string;
   startedAt: number;
+  endedAt?: number;
   note: string;
+  snapshot?: {
+    capturedAt: number;
+    cityLabel: string;
+    temperature: number | null;
+    humidity: number | null;
+    windSpeed: number | null;
+    erHospitals: number;
+    erBeds: number;
+    hydrants: number;
+    waterSources: number;
+  };
 }
 
 const EMPTY_SESSION: IncidentSession = {
@@ -119,22 +132,48 @@ export default function IncidentModeView({
   }, [erList]);
 
   const startSession = () => {
+    const startedAt = Date.now();
     const next: IncidentSession = {
       ...draft,
       active: true,
       title: draft.title.trim() || `${cityLabel} ${INCIDENT_TYPES.find(t => t.id === draft.type)?.label ?? '출동'}`,
       address: draft.address.trim(),
-      startedAt: Date.now(),
+      startedAt,
+      endedAt: undefined,
       note: draft.note.trim(),
+      snapshot: {
+        capturedAt: startedAt,
+        cityLabel,
+        temperature: weather?.temperature ?? null,
+        humidity: weather?.humidity ?? null,
+        windSpeed: weather?.windSpeed ?? null,
+        erHospitals: erSummary.hospitals,
+        erBeds: erSummary.erBeds,
+        hydrants: hydrantsCount,
+        waterSources: waterCount,
+      },
     };
     setSession(next);
+    startActivityFromIncident({
+      type: next.type,
+      title: next.title,
+      note: next.note,
+      startedAt,
+    });
   };
 
   const closeSession = () => {
     const ok = window.confirm('현재 출동 상황판을 종료할까요? 활동 타임라인 기록은 별도로 유지됩니다.');
     if (!ok) return;
-    setSession(EMPTY_SESSION);
+    const endedAt = Date.now();
+    appendActivityEvent('상황판 종료', endedAt);
+    setSession({ ...session, active: false, endedAt });
     setDraft(EMPTY_SESSION);
+  };
+
+  const openIncidentTool = (tab: NavigateTarget | string, label: string, subId?: string) => {
+    appendActivityEvent(`${label} 열람`);
+    onNavigate(tab, subId);
   };
 
   if (!session.active) {
@@ -164,27 +203,39 @@ export default function IncidentModeView({
             ))}
           </div>
 
-          <input
-            type="text"
-            value={draft.title}
-            onChange={e => setDraft(prev => ({ ...prev, title: e.target.value }))}
-            placeholder="출동 제목 (예: ○○동 상가 화재)"
-            className="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-          <input
-            type="text"
-            value={draft.address}
-            onChange={e => setDraft(prev => ({ ...prev, address: e.target.value }))}
-            placeholder="주소 또는 집결 위치 (선택)"
-            className="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-          <textarea
-            value={draft.note}
-            onChange={e => setDraft(prev => ({ ...prev, note: e.target.value }))}
-            placeholder="초기 상황, 신고 내용, 위험요소 메모"
-            rows={3}
-            className="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
+          <label htmlFor="incident-title" className="block text-sm font-bold text-on-surface space-y-2">
+            <span>출동 제목</span>
+            <input
+              id="incident-title"
+              type="text"
+              value={draft.title}
+              onChange={e => setDraft(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="예: ○○동 상가 화재"
+              className="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30 font-normal"
+            />
+          </label>
+          <label htmlFor="incident-address" className="block text-sm font-bold text-on-surface space-y-2">
+            <span>주소 또는 집결 위치 <span className="font-normal text-on-surface-variant">(선택)</span></span>
+            <input
+              id="incident-address"
+              type="text"
+              value={draft.address}
+              onChange={e => setDraft(prev => ({ ...prev, address: e.target.value }))}
+              placeholder="주소를 입력하세요"
+              className="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30 font-normal"
+            />
+          </label>
+          <label htmlFor="incident-note" className="block text-sm font-bold text-on-surface space-y-2">
+            <span>초기 상황 및 위험요소</span>
+            <textarea
+              id="incident-note"
+              value={draft.note}
+              onChange={e => setDraft(prev => ({ ...prev, note: e.target.value }))}
+              placeholder="신고 내용, 위험요소, 현장 메모"
+              rows={3}
+              className="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 font-normal"
+            />
+          </label>
 
           <button
             type="button"
@@ -247,15 +298,30 @@ export default function IncidentModeView({
               {session.note}
             </div>
           )}
+          {session.snapshot && (
+            <div className="rounded-xl border border-outline-variant/15 bg-surface-container/60 px-4 py-3">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-xs font-bold text-on-surface">출동 시작 기준 스냅샷</span>
+                <span className="text-[10px] text-on-surface-variant">
+                  {new Date(session.snapshot.capturedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <p className="text-xs text-on-surface-variant leading-5">
+                {session.snapshot.temperature == null ? '기상 미확인' : `${session.snapshot.temperature}°C · 습도 ${session.snapshot.humidity}% · 풍속 ${session.snapshot.windSpeed}m/s`}
+                {' · '}응급실 {session.snapshot.erHospitals}곳/{session.snapshot.erBeds}병상
+                {' · '}소화전 {session.snapshot.hydrants.toLocaleString()}개
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <QuickAction icon="apartment" label="건축물" onClick={() => onNavigate('building')} />
-            <QuickAction icon="fire_hydrant" label="소방용수" onClick={() => onNavigate('hydrants')} />
-            <QuickAction icon="checklist" label="활동기록" onClick={() => onNavigate('activity-log')} />
-            <QuickAction icon="timer" label="타이머" onClick={() => onNavigate('field-timer')} />
-            <QuickAction icon="groups" label="환자보드" onClick={() => onNavigate('triage')} />
-            <QuickAction icon="map" label="시설조회" onClick={() => onNavigate('shelter')} />
-            <QuickAction icon="menu_book" label="매뉴얼" onClick={() => onNavigate('manual')} />
-            <QuickAction icon="download_for_offline" label="오프라인" onClick={() => onNavigate('offline-readiness')} />
+            <QuickAction icon="apartment" label="건축물" onClick={() => openIncidentTool('building', '건축물')} />
+            <QuickAction icon="fire_hydrant" label="소방용수" onClick={() => openIncidentTool('hydrants', '소방용수')} />
+            <QuickAction icon="checklist" label="활동기록" onClick={() => openIncidentTool('activity-log', '활동기록')} />
+            <QuickAction icon="timer" label="타이머" onClick={() => openIncidentTool('field-timer', '타이머')} />
+            <QuickAction icon="groups" label="환자보드" onClick={() => openIncidentTool('triage', '환자보드')} />
+            <QuickAction icon="map" label="시설조회" onClick={() => openIncidentTool('shelter', '시설조회')} />
+            <QuickAction icon="menu_book" label="매뉴얼" onClick={() => openIncidentTool('manual', '매뉴얼')} />
+            <QuickAction icon="download_for_offline" label="오프라인" onClick={() => openIncidentTool('offline-readiness', '오프라인 점검')} />
           </div>
         </div>
 

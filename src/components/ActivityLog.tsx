@@ -12,6 +12,12 @@ import { useUserProfile, type DutyRole } from '../contexts/UserProfileContext';
 import { useTimer } from '../contexts/TimerContext';
 import { loadStoredJson } from '../services/privacySettings';
 import { confirmSensitiveExport } from '../utils/sensitiveExport';
+import {
+  ACTIVITY_SESSION_KEY,
+  EMPTY_ACTIVITY_SESSION,
+  type ActivitySessionState,
+  type LoggedActivityStamp,
+} from '../services/activitySession';
 
 const ROLE_TO_PRESET: Record<DutyRole, string> = { fire: 'fire', ems: 'ems', rescue: 'rescue', '': 'fire' };
 const ACTIVITY_REPORT_SENSITIVE_DETAILS = [
@@ -21,22 +27,6 @@ const ACTIVITY_REPORT_SENSITIVE_DETAILS = [
   '환자 분류 집계와 타이머 상태',
 ];
 
-interface LoggedStamp {
-  stageId: string;
-  label: string;
-  time: number;
-  lat: number | null;
-  lon: number | null;
-}
-
-interface ActiveSession {
-  presetId: string;
-  title: string;
-  note: string;
-  stamps: LoggedStamp[];
-}
-
-const EMPTY: ActiveSession = { presetId: 'fire', title: '', note: '', stamps: [] };
 const INCIDENT_TYPE_LABELS: Record<string, string> = { fire: '화재', ems: '구급', rescue: '구조', support: '지원' };
 
 interface StoredIncident {
@@ -45,6 +35,7 @@ interface StoredIncident {
   title?: string;
   address?: string;
   startedAt?: number;
+  endedAt?: number;
 }
 
 interface StoredTriagePatient {
@@ -54,7 +45,7 @@ interface StoredTriagePatient {
 interface ActivityReportBundle {
   generatedAt: string;
   title: string;
-  session: ActiveSession;
+  session: ActivitySessionState;
   report: string;
   timers: ReportTimerSummary[];
   triageCounts: Record<'red' | 'yellow' | 'green' | 'black', number>;
@@ -68,8 +59,8 @@ function readJson<T>(key: string, fallback: T): T {
 export default function ActivityLog() {
   const { authorLine, profile } = useUserProfile();
   const { timers } = useTimer();
-  const [session, setSession] = useLocalStorageState<ActiveSession>('119helper-activity-session', () => ({
-    ...EMPTY,
+  const [session, setSession] = useLocalStorageState<ActivitySessionState>(ACTIVITY_SESSION_KEY, () => ({
+    ...EMPTY_ACTIVITY_SESSION,
     presetId: ROLE_TO_PRESET[profile.role],
   }));
   const [useGps, setUseGps] = useState(true);
@@ -81,7 +72,7 @@ export default function ActivityLog() {
   const started = session.stamps.length > 0;
 
   const stampByStage = useMemo(() => {
-    const m = new Map<string, LoggedStamp>();
+    const m = new Map<string, LoggedActivityStamp>();
     session.stamps.forEach(s => m.set(s.stageId, s));
     return m;
   }, [session.stamps]);
@@ -129,11 +120,12 @@ export default function ActivityLog() {
       stamps: sortedStamps,
       note: session.note,
       author: authorLine,
-      incident: incident?.active ? {
+      incident: incident?.title ? {
         title: incident.title || title,
         type: incident.type ? INCIDENT_TYPE_LABELS[incident.type] || incident.type : undefined,
         address: incident.address,
         startedAt: incident.startedAt,
+        endedAt: incident.endedAt,
       } : null,
       timers: timerSummaries,
       triageCounts,
@@ -146,7 +138,7 @@ export default function ActivityLog() {
       report: nextReport,
       timers: timerSummaries,
       triageCounts,
-      incident: incident?.active ? incident : null,
+      incident: incident?.title ? incident : null,
     });
   };
 
@@ -163,7 +155,7 @@ export default function ActivityLog() {
   };
 
   const reset = () => {
-    setSession({ ...EMPTY, presetId: session.presetId });
+    setSession({ ...EMPTY_ACTIVITY_SESSION, presetId: session.presetId });
     setReport(null);
     setReportBundle(null);
   };

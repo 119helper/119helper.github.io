@@ -81,6 +81,7 @@ export interface ReportIncidentContext {
   type?: string;
   address?: string;
   startedAt?: number;
+  endedAt?: number;
 }
 
 export interface ReportTimerSummary {
@@ -117,6 +118,7 @@ export function buildReportPackageText(options: ReportPackageOptions): string {
     if (options.incident.type) lines.push(`- 유형: ${options.incident.type}`);
     if (options.incident.address) lines.push(`- 위치: ${options.incident.address}`);
     if (options.incident.startedAt) lines.push(`- 시작: ${formatClockDate(options.incident.startedAt)}`);
+    if (options.incident.endedAt) lines.push(`- 종료: ${formatClockDate(options.incident.endedAt)}`);
   }
 
   if (options.timers && options.timers.length > 0) {

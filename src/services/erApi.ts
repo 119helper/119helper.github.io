@@ -38,6 +38,24 @@ export interface ERRealTimeData {
   hvidate: string;
 }
 
+const MERGED_GWANGJU_SIDO = '전남광주통합특별시';
+const FORMER_GWANGJU_DISTRICTS = new Set(['동구', '서구', '남구', '북구', '광산구']);
+
+/**
+ * 앱의 `gwangju` 선택은 기존 광주 생활권을 뜻한다. 통합 시도 API에서 받은
+ * 광주·전남 전체 결과 중 기존 광주 5개 구만 남긴다.
+ */
+export function filterBedsForRequestedRegion(sido: string, beds: ERRealTimeData[]): ERRealTimeData[] {
+  if (sido !== MERGED_GWANGJU_SIDO) return beds;
+  return beds.filter(bed => {
+    const address = bed.dutyAddr?.trim() || '';
+    if (address.startsWith('광주광역시 ')) return true;
+    if (!address.startsWith(`${MERGED_GWANGJU_SIDO} `)) return false;
+    const district = address.slice(MERGED_GWANGJU_SIDO.length).trim().split(/\s+/)[0];
+    return FORMER_GWANGJU_DISTRICTS.has(district);
+  });
+}
+
 export interface ERListItem {
   rnum: string;
   dutyAddr: string;
@@ -94,54 +112,55 @@ function parseXmlItems<T>(xmlText: string): T[] {
 }
 
 // 1. 응급실 실시간 가용병상 조회
-export async function getERRealTimeBeds(sido: string = '서울특별시', gugun: string = ''): Promise<ERRealTimeData[]> {
+export async function getERRealTimeBeds(sido: string = '서울특별시', gugun: string = '', forceRefresh = false): Promise<ERRealTimeData[]> {
+  const parseBeds = (xml: string) => filterBedsForRequestedRegion(sido, parseXmlItems<ERRealTimeData>(xml));
   try {
-    const xmlText = await fetchERBeds(sido, gugun);
-    return parseXmlItems<ERRealTimeData>(xmlText);
+    const xmlText = await fetchERBeds(sido, gugun, forceRefresh);
+    return parseBeds(xmlText);
   } catch (error) {
-    const stale = recoverStaleXml(error, (xml) => parseXmlItems<ERRealTimeData>(xml));
+    const stale = recoverStaleXml(error, parseBeds);
     if (stale) return stale;
     console.error('응급실 실시간 데이터 조회 실패:', error);
-    return [];
+    throw error;
   }
 }
 
 // 3. 응급의료기관 목록 조회
-export async function getERList(sido: string = '서울특별시', gugun: string = ''): Promise<ERListItem[]> {
+export async function getERList(sido: string = '서울특별시', gugun: string = '', forceRefresh = false): Promise<ERListItem[]> {
   try {
-    const xmlText = await fetchERList(sido, gugun);
+    const xmlText = await fetchERList(sido, gugun, forceRefresh);
     return parseXmlItems<ERListItem>(xmlText);
   } catch (error) {
     const stale = recoverStaleXml(error, (xml) => parseXmlItems<ERListItem>(xml));
     if (stale) return stale;
     console.error('응급의료기관 목록 조회 실패:', error);
-    return [];
+    throw error;
   }
 }
 
 // 4. 응급실 메시지 조회
-export async function getERMessages(sido: string = '서울특별시', gugun: string = ''): Promise<ERMessage[]> {
+export async function getERMessages(sido: string = '서울특별시', gugun: string = '', forceRefresh = false): Promise<ERMessage[]> {
   try {
-    const xmlText = await fetchERMessages(sido, gugun);
+    const xmlText = await fetchERMessages(sido, gugun, forceRefresh);
     return parseXmlItems<ERMessage>(xmlText);
   } catch (error) {
     const stale = recoverStaleXml(error, (xml) => parseXmlItems<ERMessage>(xml));
     if (stale) return stale;
     console.error('응급실 메시지 조회 실패:', error);
-    return [];
+    throw error;
   }
 }
 
 // 5. 중증질환자 수용가능정보 조회
-export async function getERSevereIllness(sido: string = '서울특별시', gugun: string = ''): Promise<ERSevereIllness[]> {
+export async function getERSevereIllness(sido: string = '서울특별시', gugun: string = '', forceRefresh = false): Promise<ERSevereIllness[]> {
   try {
-    const xmlText = await fetchERSevereIllness(sido, gugun);
+    const xmlText = await fetchERSevereIllness(sido, gugun, forceRefresh);
     return parseXmlItems<ERSevereIllness>(xmlText);
   } catch (error) {
     const stale = recoverStaleXml(error, (xml) => parseXmlItems<ERSevereIllness>(xml));
     if (stale) return stale;
     console.error('중증질환 수용정보 조회 실패:', error);
-    return [];
+    throw error;
   }
 }
 
@@ -151,7 +170,8 @@ export const CITY_TO_SIDO: Record<string, string> = {
   busan: '부산광역시',
   daegu: '대구광역시',
   incheon: '인천광역시',
-  gwangju: '광주광역시',
+  // 2026-07-01 광주광역시·전라남도 통합 출범 이후 공공 API의 시도명이 변경됨.
+  gwangju: MERGED_GWANGJU_SIDO,
   daejeon: '대전광역시',
   ulsan: '울산광역시',
   sejong: '세종특별자치시',

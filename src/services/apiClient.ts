@@ -580,10 +580,18 @@ const ER_OPTS: ApiFetchOptions<{ xml: string }> = { cacheTtlMs: 5 * MINUTE_MS, m
 const DAILY_REFERENCE_OPTS: ApiFetchOptions = { cacheTtlMs: DAY_MS, maxStaleMs: 7 * DAY_MS };
 const HOURLY_OPERATIONAL_OPTS: ApiFetchOptions<PaginatedItemsResponse> = { cacheTtlMs: HOUR_MS, maxStaleMs: 6 * HOUR_MS };
 const FIRE_INFO_OPTS: ApiFetchOptions<PaginatedItemsResponse> = { cacheTtlMs: 30 * MINUTE_MS, maxStaleMs: 6 * HOUR_MS };
-export async function fetchERBeds(sido: string, gugun?: string) { return apiFetchXml('/api/er/beds', { sido, gugun: gugun || '' }, ER_OPTS); }
-export async function fetchERList(sido: string, gugun?: string) { return apiFetchXml('/api/er/list', { sido, gugun: gugun || '' }, ER_OPTS); }
-export async function fetchERMessages(sido: string, gugun?: string) { return apiFetchXml('/api/er/messages', { sido, gugun: gugun || '' }, ER_OPTS); }
-export async function fetchERSevereIllness(sido: string, gugun?: string) { return apiFetchXml('/api/er/severe-illness', { sido, gugun: gugun || '' }, ER_OPTS); }
+export async function fetchERBeds(sido: string, gugun?: string, forceRefresh = false) {
+  return apiFetchXml('/api/er/beds', { sido, gugun: gugun || '' }, { ...ER_OPTS, forceRefresh });
+}
+export async function fetchERList(sido: string, gugun?: string, forceRefresh = false) {
+  return apiFetchXml('/api/er/list', { sido, gugun: gugun || '' }, { ...ER_OPTS, forceRefresh });
+}
+export async function fetchERMessages(sido: string, gugun?: string, forceRefresh = false) {
+  return apiFetchXml('/api/er/messages', { sido, gugun: gugun || '' }, { ...ER_OPTS, forceRefresh });
+}
+export async function fetchERSevereIllness(sido: string, gugun?: string, forceRefresh = false) {
+  return apiFetchXml('/api/er/severe-illness', { sido, gugun: gugun || '' }, { ...ER_OPTS, forceRefresh });
+}
 
 // ═══════ 건축물대장 (변경 적음 7일) ═══════
 export async function fetchBuildingInfo(params: { sigunguCd: string; bjdongCd: string; platGbCd: string; bun: string; ji: string; }, forceRefresh?: boolean) {

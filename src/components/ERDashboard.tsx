@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getERRealTimeBeds, getERMessages, getERSevereIllness, CITY_TO_SIDO, type ERRealTimeData, type ERMessage, type ERSevereIllness } from '../services/erApi';
 import { getStaleAt } from '../services/apiClient';
 import StaleBadge from './StaleBadge';
@@ -58,20 +58,38 @@ export default function ERDashboard({ city }: ERViewProps) {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState('');
   const [staleAt, setStaleAt] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [supplementalWarning, setSupplementalWarning] = useState('');
+  const requestSeqRef = useRef(0);
 
-  const fetchER = useCallback(async () => {
+  const fetchER = useCallback(async (forceRefresh = false) => {
+    const seq = ++requestSeqRef.current;
     setLoading(true);
+    setLoadError('');
+    setSupplementalWarning('');
+    setExpandedRow(null);
     try {
       const sido = CITY_TO_SIDO[city] || '서울특별시';
-      const [beds, msgs, severe] = await Promise.all([
-        getERRealTimeBeds(sido),
-        getERMessages(sido),
-        getERSevereIllness(sido)
+      const [bedsResult, messagesResult, severeResult] = await Promise.allSettled([
+        getERRealTimeBeds(sido, '', forceRefresh),
+        getERMessages(sido, '', forceRefresh),
+        getERSevereIllness(sido, '', forceRefresh),
       ]);
+      if (seq !== requestSeqRef.current) return;
+
+      if (bedsResult.status === 'rejected') throw bedsResult.reason;
+
+      const beds = bedsResult.value;
+      const msgs = messagesResult.status === 'fulfilled' ? messagesResult.value : [];
+      const severe = severeResult.status === 'fulfilled' ? severeResult.value : [];
 
       setErData(beds);
       setMessages(msgs);
       setStaleAt(getStaleAt(beds));
+
+      if (messagesResult.status === 'rejected' || severeResult.status === 'rejected') {
+        setSupplementalWarning('병상 현황은 조회됐지만 공지 또는 중증질환 수용정보 일부를 불러오지 못했습니다.');
+      }
       
       const sMap: Record<string, ERSevereIllness> = {};
       severe.forEach(item => {
@@ -81,15 +99,21 @@ export default function ERDashboard({ city }: ERViewProps) {
 
       setLastUpdate(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }));
     } catch (e) {
+      if (seq !== requestSeqRef.current) return;
       console.error('ER fetch error:', e);
+      setErData([]);
+      setMessages([]);
+      setSevereData({});
+      setStaleAt(null);
+      setLoadError(e instanceof Error ? e.message : '응급실 데이터를 불러오지 못했습니다.');
     } finally {
-      setLoading(false);
+      if (seq === requestSeqRef.current) setLoading(false);
     }
   }, [city]);
 
-  useEffect(() => { fetchER(); }, [fetchER]);
+  useEffect(() => { void fetchER(false); }, [fetchER]);
   useEffect(() => {
-    const interval = setInterval(fetchER, 60 * 1000);
+    const interval = setInterval(() => { void fetchER(true); }, 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchER]);
 
@@ -151,12 +175,30 @@ export default function ERDashboard({ city }: ERViewProps) {
         <div className="space-y-6">
           <div className="flex items-center justify-end gap-2">
             <StaleBadge at={staleAt} />
-            <button onClick={fetchER} disabled={loading} className="bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/20 transition-colors flex items-center gap-2 disabled:opacity-50">
+            <button onClick={() => { void fetchER(true); }} disabled={loading} className="bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/20 transition-colors flex items-center gap-2 disabled:opacity-50">
               <span className={`material-symbols-outlined text-lg ${loading ? 'animate-spin' : ''}`}>refresh</span>
               {lastUpdate && <span className="hidden sm:inline font-normal opacity-80 mr-1">{lastUpdate}</span>}
               새로고침
             </button>
           </div>
+
+          {loadError && (
+            <div role="alert" className="rounded-xl border border-error/30 bg-error/10 px-4 py-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-error">응급실 현황을 불러오지 못했습니다.</p>
+                <p className="text-xs text-on-surface-variant mt-1 truncate">{loadError}</p>
+              </div>
+              <button type="button" onClick={() => { void fetchER(true); }} className="shrink-0 rounded-lg bg-error/15 px-3 py-2 text-sm font-bold text-error hover:bg-error/20">
+                다시 시도
+              </button>
+            </div>
+          )}
+
+          {supplementalWarning && (
+            <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-on-surface">
+              {supplementalWarning}
+            </div>
+          )}
 
           {/* Summary Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -185,10 +227,15 @@ export default function ERDashboard({ city }: ERViewProps) {
             <span className="material-symbols-outlined animate-spin text-primary text-2xl mr-3">refresh</span>
             <span className="text-on-surface-variant">응급실 데이터 로딩 중...</span>
           </div>
+        ) : loadError ? (
+          <div className="text-center py-20 text-on-surface-variant">
+            <span className="material-symbols-outlined text-4xl mb-2 block text-error">cloud_off</span>
+            위의 다시 시도 버튼을 눌러 주세요.
+          </div>
         ) : erData.length === 0 ? (
           <div className="text-center py-20 text-on-surface-variant">
             <span className="material-symbols-outlined text-4xl mb-2 block">local_hospital</span>
-            데이터가 없습니다. API 키를 확인하세요.
+            현재 선택한 지역에서 제공되는 응급실 데이터가 없습니다.
           </div>
         ) : (
           <table className="w-full">

@@ -32,6 +32,8 @@ interface DashboardProps {
   cityIndex?: CityIndex | null;
 }
 
+type LiveDataStatus = 'loading' | 'success' | 'error';
+
 interface QuickToolDef {
   id: string;
   tab: NavigateTarget;
@@ -132,7 +134,10 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
   const [airQuality, setAirQuality] = useState<AirQualityData | null>(null);
   const [erList, setErList] = useState<ERRealTimeData[]>([]);
   const [weather, setWeather] = useState<CurrentWeather | null>(null);
-  const [weatherLoading, setWeatherLoading] = useState(true);
+  const [weatherStatus, setWeatherStatus] = useState<LiveDataStatus>('loading');
+  const [airStatus, setAirStatus] = useState<LiveDataStatus>('loading');
+  const [erStatus, setErStatus] = useState<LiveDataStatus>('loading');
+  const [refreshVersion, setRefreshVersion] = useState(0);
   // 캐시 폴백 신선도 — 날씨·대기질·응급실 중 가장 오래된 시각 (보수적 표시)
   const [staleAt, setStaleAt] = useState<number | null>(null);
 
@@ -177,7 +182,9 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
     const grid = CITY_GRIDS[city] || CITY_GRIDS.seoul;
     const sido = CITY_TO_SIDO[city] || '서울특별시';
 
-    setWeatherLoading(true);
+    setWeatherStatus('loading');
+    setAirStatus('loading');
+    setErStatus('loading');
     setWeather(null);
     setAirQuality(null);
     setErList([]);
@@ -187,35 +194,49 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
     getUltraShortNow(grid.nx, grid.ny).then(items => {
       if (isMounted && seq === fetchSeqRef.current && items.length > 0) {
         setWeather(parseCurrentWeather(items));
+        setWeatherStatus('success');
         mergeStaleAt(items);
+      } else if (isMounted && seq === fetchSeqRef.current) {
+        setWeatherStatus('error');
       }
     }).catch(err => {
       console.warn('[DashboardView] weather failed:', err);
-      if (isMounted && seq === fetchSeqRef.current) setWeather(null);
-    }).finally(() => {
-      if (isMounted && seq === fetchSeqRef.current) setWeatherLoading(false);
+      if (isMounted && seq === fetchSeqRef.current) {
+        setWeather(null);
+        setWeatherStatus('error');
+      }
     });
 
     // 대기질
     getRealtimeAirQuality(cityLabel).then(data => {
       if (isMounted && seq === fetchSeqRef.current && data) {
         setAirQuality(data);
+        setAirStatus('success');
         mergeStaleAt(data);
+      } else if (isMounted && seq === fetchSeqRef.current) {
+        setAirStatus('error');
       }
     }).catch(err => {
       console.warn('[DashboardView] air quality failed:', err);
-      if (isMounted && seq === fetchSeqRef.current) setAirQuality(null);
+      if (isMounted && seq === fetchSeqRef.current) {
+        setAirQuality(null);
+        setAirStatus('error');
+      }
     });
     
     // 응급실
     getERRealTimeBeds(sido).then(data => {
       if (isMounted && seq === fetchSeqRef.current && data) {
         setErList(data);
+        setErStatus('success');
         mergeStaleAt(data);
       }
     }).catch(err => {
       console.warn('[DashboardView] ER beds failed:', err);
-      if (isMounted && seq === fetchSeqRef.current) setErList([]);
+      if (isMounted && seq === fetchSeqRef.current) {
+        setErList([]);
+        setErStatus('error');
+      }
     });
 
     // 개인안전장비 점검 진행률 로드
@@ -228,7 +249,13 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
     }
 
     return () => { isMounted = false; };
-  }, [city, cityLabel]);
+  }, [city, cityLabel, refreshVersion]);
+
+  const failedDataLabels = [
+    weatherStatus === 'error' ? '날씨' : null,
+    airStatus === 'error' ? '대기질' : null,
+    erStatus === 'error' ? '응급실' : null,
+  ].filter((label): label is string => Boolean(label));
 
   // 분할 도시: index.json의 타입별 합계 사용
   // 비분할 도시: 로드된 데이터에서 카운트
@@ -269,6 +296,22 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
         </div>
       )}
 
+      {failedDataLabels.length > 0 && (
+        <div role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-on-surface">실시간 정보 일부를 불러오지 못했습니다.</p>
+            <p className="text-xs text-on-surface-variant mt-1">{failedDataLabels.join(' · ')} — 값이 없는 상태를 0으로 해석하지 마세요.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRefreshVersion(version => version + 1)}
+            className="shrink-0 rounded-lg bg-amber-500/15 px-3 py-2 text-sm font-bold text-amber-300 hover:bg-amber-500/20"
+          >
+            다시 시도
+          </button>
+        </div>
+      )}
+
       {/* 실시간 기상청 특보 배너 */}
       <WeatherAlertBanner city={cityLabel} />
 
@@ -279,8 +322,17 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
         {/* BIG Weather Widget with Region Background Image */}
         <div 
+          role="button"
+          tabIndex={0}
+          aria-label={`${cityLabel} 기상 정보 열기`}
           className="lg:col-span-7 rounded-xl p-5 md:p-8 relative overflow-hidden cursor-pointer hover:shadow-2xl transition-shadow group"
           onClick={() => onNavigate('weather')}
+          onKeyDown={event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              onNavigate('weather');
+            }
+          }}
           style={{ minHeight: '280px' }}
         >
           {/* Background Image Layer */}
@@ -301,8 +353,10 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
                 {weather && <span className="text-[10px] text-white/50">{weather.lastUpdate} 기준</span>}
               </div>
               <h3 className="text-4xl md:text-7xl font-extrabold text-white mt-2 font-headline drop-shadow-lg">
-                {weatherLoading ? (
+                {weatherStatus === 'loading' ? (
                   <span className="text-2xl animate-pulse text-white/60">조회 중...</span>
+                ) : weatherStatus === 'error' ? (
+                  <span className="text-2xl text-amber-200">조회 실패</span>
                 ) : (
                   <>{weather?.temperature ?? '--'}<span className="text-3xl text-white/70 ml-1">°C</span></>
                 )}
@@ -338,7 +392,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
               }`}>
                 {airQuality ? (
                   <>{airQuality.pm10Value}{airQuality.pm10Value !== '-' ? '㎍/㎥' : ''}</>
-                ) : '조회 중'}
+                ) : airStatus === 'loading' ? '조회 중' : '조회 실패'}
               </span>
             </div>
             <div className="flex items-center gap-2 bg-black/30 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10">
@@ -351,7 +405,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
               }`}>
                 {airQuality ? (
                   <>{airQuality.pm25Value}{airQuality.pm25Value !== '-' ? '㎍/㎥' : ''}</>
-                ) : '조회 중'}
+                ) : airStatus === 'loading' ? '조회 중' : '조회 실패'}
               </span>
             </div>
             <div className="flex items-center gap-2 bg-black/30 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10">
@@ -385,8 +439,17 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
 
           {/* 개인안전장비 점검 미니 위젯 */}
           <div 
+            role="button"
+            tabIndex={0}
+            aria-label="개인안전장비 점검 열기"
             className="bg-surface-container border border-outline-variant/10 rounded-xl p-5 flex items-center justify-between cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02] shadow-sm relative overflow-hidden group"
             onClick={() => onNavigate('checklist')}
+            onKeyDown={event => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onNavigate('checklist');
+              }
+            }}
             style={{ minHeight: '120px' }}
           >
             {/* Background Image Layer */}
@@ -421,7 +484,19 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
           </div>
 
           {/* ER Summary */}
-          <div className="flex-1 relative overflow-hidden rounded-xl p-6 cursor-pointer hover:shadow-2xl transition-shadow group border border-outline-variant/10" onClick={() => onNavigate('er')}>
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label={`${cityLabel} 응급실 현황 열기`}
+            className="flex-1 relative overflow-hidden rounded-xl p-6 cursor-pointer hover:shadow-2xl transition-shadow group border border-outline-variant/10"
+            onClick={() => onNavigate('er')}
+            onKeyDown={event => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onNavigate('er');
+              }
+            }}
+          >
             {/* Background Image Layer */}
             <div 
               className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
@@ -439,7 +514,11 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
                     <span className="text-[10px] bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded text-white">{cityLabel}</span>
                   </div>
                   <h4 className="text-4xl font-extrabold mt-1 font-headline text-white drop-shadow-lg">
-                    {erList.length > 0 ? erList.reduce((s, e) => s + (parseInt(e.hvec) || 0), 0) : '...'}
+                    {erStatus === 'loading'
+                      ? '...'
+                      : erStatus === 'error'
+                        ? '--'
+                        : erList.reduce((s, e) => s + (parseInt(e.hvec) || 0), 0)}
                   </h4>
                 </div>
                 <div className="p-2 bg-white/10 backdrop-blur-md rounded-lg border border-white/20">
@@ -447,7 +526,13 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
                 </div>
               </div>
               <div>
-                <p className="text-xs text-white/80 mt-3 drop-shadow">{cityLabel} 관내 {erList.length > 0 ? erList.length : '...'}개 병원 기준</p>
+                <p className="text-xs text-white/80 mt-3 drop-shadow">
+                  {erStatus === 'loading'
+                    ? `${cityLabel} 응급실 조회 중`
+                    : erStatus === 'error'
+                      ? `${cityLabel} 응급실 조회 실패`
+                      : `${cityLabel} 관내 ${erList.length}개 병원 기준`}
+                </p>
                 <div className="mt-3 flex gap-2 flex-wrap">
                   {erList.slice(0, 3).map(er => {
                     const available = parseInt(er.hvec) || 0;
