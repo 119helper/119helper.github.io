@@ -611,8 +611,16 @@ export async function fetchShelters(ctprvnNm: string, signguNm?: string, numOfRo
   return apiFetch<ApiRecord[]>('/api/shelter', { ctprvnNm, signguNm: signguNm || '', numOfRows, pageNo }, { ...DAILY_REFERENCE_OPTS, schema: apiRecordArraySchema });
 }
 export async function fetchTsunamiShelters() {
-  const { default: tsunamiData } = await import('../../public/data/tsunami.json');
-  return tsunamiData;
+  const response = await fetch('/data/tsunami.json');
+  if (!response.ok) {
+    throw new Error(`지진해일 대피소 데이터를 불러오지 못했습니다. (${response.status})`);
+  }
+
+  const data: unknown = await response.json();
+  if (!Array.isArray(data)) {
+    throw new Error('지진해일 대피소 데이터 형식이 올바르지 않습니다.');
+  }
+  return data;
 }
 
 // ═══════ 민방위대피시설 ═══════

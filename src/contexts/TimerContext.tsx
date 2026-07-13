@@ -1,22 +1,14 @@
-import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from 'react';
+import {
+  loadTimerSession,
+  saveTimerSession,
+  type StopwatchLap,
+  type TimerState,
+} from '../services/timerPersistence';
 /* eslint-disable react-refresh/only-export-components */
+export type { StopwatchLap, TimerState } from '../services/timerPersistence';
 const WARN_THRESHOLD = 0.33;
 const DANGER_THRESHOLD = 0.1;
-
-export interface TimerState {
-  id: number;
-  label: string;
-  totalSeconds: number;
-  remaining: number;
-  isRunning: boolean;
-  startedAt: Date | null;
-}
-
-export interface StopwatchLap {
-  label: string;
-  time: Date;
-  elapsed: number;
-}
 
 interface TimerContextValue {
   timers: TimerState[];
@@ -55,11 +47,18 @@ export function formatTimeMs(ms: number): string {
 }
 
 export function TimerProvider({ children }: { children: ReactNode }) {
-  const [timers, setTimers] = useState<TimerState[]>([]);
-  const [stopwatchRunning, setStopwatchRunning] = useState(false);
-  const [stopwatchStart, setStopwatchStart] = useState<Date | null>(null);
-  const [stopwatchElapsed, setStopwatchElapsed] = useState(0);
-  const [laps, setLaps] = useState<StopwatchLap[]>([]);
+  const [initialSession] = useState(() => {
+    const loaded = loadTimerSession();
+    nextTimerId = Math.max(1, ...loaded.timers.map(timer => timer.id + 1));
+    return loaded;
+  });
+  const [timers, setTimers] = useState<TimerState[]>(initialSession.timers);
+  const [stopwatchRunning, setStopwatchRunning] = useState(initialSession.stopwatchRunning);
+  const [stopwatchStart, setStopwatchStart] = useState<Date | null>(initialSession.stopwatchStart);
+  const [stopwatchElapsed, setStopwatchElapsed] = useState(initialSession.stopwatchElapsed);
+  const [stopwatchAccumulated, setStopwatchAccumulated] = useState(initialSession.stopwatchElapsed);
+  const [stopwatchRunStartedAt, setStopwatchRunStartedAt] = useState<number | null>(initialSession.stopwatchRunStartedAt);
+  const [laps, setLaps] = useState<StopwatchLap[]>(initialSession.laps);
   const [, setTick] = useState(0);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -79,8 +78,29 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     wakeLockRef.current = null;
   }, []);
 
-  const stopwatchStartRef = useRef(stopwatchStart);
-  stopwatchStartRef.current = stopwatchStart;
+  const timersRef = useRef(timers);
+  timersRef.current = timers;
+
+  const timerPersistenceKey = useMemo(() => JSON.stringify(timers.map(timer => ({
+    id: timer.id,
+    label: timer.label,
+    totalSeconds: timer.totalSeconds,
+    remaining: timer.isRunning ? null : timer.remaining,
+    isRunning: timer.isRunning,
+    startedAt: timer.startedAt?.getTime() ?? null,
+    endsAt: timer.endsAt,
+  }))), [timers]);
+
+  useEffect(() => {
+    saveTimerSession({
+      timers: timersRef.current,
+      stopwatchRunning,
+      stopwatchStart,
+      stopwatchElapsed: stopwatchAccumulated,
+      stopwatchRunStartedAt,
+      laps,
+    });
+  }, [timerPersistenceKey, stopwatchRunning, stopwatchStart, stopwatchAccumulated, stopwatchRunStartedAt, laps]);
 
   const hasRunningTimer = timers.some(t => t.isRunning);
 
@@ -89,11 +109,6 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
     if (hasActive) {
       requestWakeLock();
-      
-      // 알림 권한 요청
-      if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
 
       lastTickRef.current = Date.now();
       intervalRef.current = setInterval(() => {
@@ -107,7 +122,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
             if (!t.isRunning || t.remaining <= 0) return t;
             
             const oldRemaining = t.remaining;
-            const newRemaining = Math.max(0, oldRemaining - deltaSec);
+            const newRemaining = t.endsAt
+              ? Math.max(0, Math.ceil((t.endsAt - now) / 1000))
+              : Math.max(0, oldRemaining - deltaSec);
             
             const dangerThreshold = Math.floor(t.totalSeconds * DANGER_THRESHOLD);
             const warnThreshold = Math.floor(t.totalSeconds * WARN_THRESHOLD);
@@ -129,12 +146,16 @@ export function TimerProvider({ children }: { children: ReactNode }) {
               }
             }
 
-            return { ...t, remaining: newRemaining };
+            return {
+              ...t,
+              remaining: newRemaining,
+              isRunning: newRemaining > 0,
+              endsAt: newRemaining > 0 ? t.endsAt : null,
+            };
           }));
 
-          const sw = stopwatchStartRef.current;
-          if (stopwatchRunning && sw) {
-            setStopwatchElapsed(now - sw.getTime());
+          if (stopwatchRunning && stopwatchRunStartedAt !== null) {
+            setStopwatchElapsed(stopwatchAccumulated + Math.max(0, now - stopwatchRunStartedAt));
           }
 
           setTick(t => t + 1);
@@ -148,7 +169,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [hasRunningTimer, stopwatchRunning, requestWakeLock, releaseWakeLock]);
+  }, [hasRunningTimer, stopwatchRunning, stopwatchAccumulated, stopwatchRunStartedAt, requestWakeLock, releaseWakeLock]);
 
   const addTimer = (seconds: number, label: string) => {
     const timer: TimerState = {
@@ -158,19 +179,32 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       remaining: seconds,
       isRunning: false,
       startedAt: null,
+      endsAt: null,
     };
     setTimers(prev => [...prev, timer]);
   };
 
   const toggleTimer = (id: number) => {
-    setTimers(prev => prev.map(t =>
-      t.id === id ? { ...t, isRunning: !t.isRunning, startedAt: !t.isRunning ? new Date() : t.startedAt } : t
-    ));
+    const now = Date.now();
+    setTimers(prev => prev.map(t => {
+      if (t.id !== id) return t;
+      if (t.isRunning) {
+        const remaining = t.endsAt ? Math.max(0, Math.ceil((t.endsAt - now) / 1000)) : t.remaining;
+        return { ...t, remaining, isRunning: false, endsAt: null };
+      }
+      if (t.remaining <= 0) return t;
+      return {
+        ...t,
+        isRunning: true,
+        startedAt: t.startedAt ?? new Date(now),
+        endsAt: now + t.remaining * 1000,
+      };
+    }));
   };
 
   const resetTimer = (id: number) => {
     setTimers(prev => prev.map(t =>
-      t.id === id ? { ...t, remaining: t.totalSeconds, isRunning: false } : t
+      t.id === id ? { ...t, remaining: t.totalSeconds, isRunning: false, startedAt: null, endsAt: null } : t
     ));
   };
 
@@ -179,14 +213,22 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleStopwatch = () => {
+    const now = Date.now();
     if (!stopwatchRunning) {
-      const start = stopwatchStart || new Date();
+      const start = stopwatchStart || new Date(now);
       if (!stopwatchStart) {
         setStopwatchStart(start);
         setLaps([{ label: '출동', time: start, elapsed: 0 }]);
+        setStopwatchAccumulated(0);
+        setStopwatchElapsed(0);
       }
+      setStopwatchRunStartedAt(now);
       setStopwatchRunning(true);
     } else {
+      const elapsed = stopwatchAccumulated + (stopwatchRunStartedAt === null ? 0 : Math.max(0, now - stopwatchRunStartedAt));
+      setStopwatchAccumulated(elapsed);
+      setStopwatchElapsed(elapsed);
+      setStopwatchRunStartedAt(null);
       setStopwatchRunning(false);
     }
   };
@@ -196,7 +238,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setLaps(prev => [...prev, {
       label,
       time: new Date(),
-      elapsed: Date.now() - stopwatchStart.getTime()
+      elapsed: stopwatchElapsed,
     }]);
   };
 
@@ -204,6 +246,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setStopwatchRunning(false);
     setStopwatchStart(null);
     setStopwatchElapsed(0);
+    setStopwatchAccumulated(0);
+    setStopwatchRunStartedAt(null);
     setLaps([]);
   };
 

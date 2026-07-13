@@ -3,6 +3,7 @@ import {
   clearRegionData,
   downloadRegionData,
   getRegionStatus,
+  getVerifiedRegionStatus,
   isOfflineDataSupported,
   type DownloadProgress,
   type OfflineRegionStatus,
@@ -44,7 +45,9 @@ export default function OfflineReadinessView({ city, cityLabel }: OfflineReadine
     }))).then(items => {
       if (alive) setFreshness(items);
     });
-    setStatus(getRegionStatus());
+    getVerifiedRegionStatus().then(result => {
+      if (alive) setStatus(result);
+    });
     return () => { alive = false; };
   }, [city]);
 
@@ -52,6 +55,7 @@ export default function OfflineReadinessView({ city, cityLabel }: OfflineReadine
     if (!supported) return { label: '지원 안 됨', cls: 'text-red-400 bg-red-500/10 border-red-500/30', icon: 'block' };
     if (!status) return { label: '미다운로드', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/30', icon: 'download' };
     if (status.city !== city) return { label: '다른 지역 저장됨', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/30', icon: 'sync_problem' };
+    if (status.verified === false) return { label: '재확인 필요', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/30', icon: 'sync' };
     if (status.failedCount > 0) return { label: '일부 실패', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/30', icon: 'warning' };
     return { label: '준비 완료', cls: 'text-green-400 bg-green-500/10 border-green-500/30', icon: 'check_circle' };
   })();

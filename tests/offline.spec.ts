@@ -73,6 +73,7 @@ async function waitForCriticalChunksCached(page: Page, chunks: string[]) {
 }
 
 test('오프라인: 앱 셸과 핵심 현장 도구(A등급)가 전부 동작한다', async ({ page, context }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   // ── 1. 온라인 워밍업: 첫 방문 → SW 설치 → 자동 새로고침 안정화 대기
   await page.goto('/');
   await page.waitForTimeout(3_000); // 첫 SW 활성화 시 controllerchange 자동 새로고침 흡수
@@ -107,6 +108,11 @@ test('오프라인: 앱 셸과 핵심 현장 도구(A등급)가 전부 동작한
     page.getByText(/오프라인 · 실시간 정보/),
     '오프라인 배지가 표시되어야 함',
   ).toBeVisible({ timeout: 10_000 });
+
+  // 연결 상태 배너가 모바일 하단 메뉴를 가리지 않아야 한다.
+  const mobileNav = page.getByRole('navigation', { name: '주요 기능' });
+  await mobileNav.getByRole('button', { name: '더보기' }).click();
+  await expect(page.getByRole('complementary', { name: '전체 메뉴' })).toBeVisible();
 
   // ── 3. A등급 탭 5개가 오프라인에서 전부 열린다
   for (const { tab, text } of CRITICAL_TABS) {

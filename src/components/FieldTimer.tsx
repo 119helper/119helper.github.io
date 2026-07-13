@@ -21,6 +21,18 @@ export default function FieldTimer() {
 
   const [customMinutes, setCustomMinutes] = useState(20);
   const [showPresets, setShowPresets] = useState(timers.length === 0);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>(() =>
+    'Notification' in window ? Notification.permission : 'unsupported'
+  );
+
+  const requestTimerNotifications = async () => {
+    if (!('Notification' in window)) return;
+    try {
+      setNotificationPermission(await Notification.requestPermission());
+    } catch {
+      setNotificationPermission(Notification.permission);
+    }
+  };
 
   const handleAddTimer = (seconds: number, label: string) => {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
@@ -97,6 +109,13 @@ export default function FieldTimer() {
             </div>
           </div>
           <div className="flex gap-2">
+            {notificationPermission === 'default' && (
+              <button type="button" onClick={requestTimerNotifications}
+                className="bg-orange-500/10 text-orange-700 dark:text-orange-300 px-3 py-2 rounded-lg text-sm font-bold hover:bg-orange-500/20 transition-colors flex items-center gap-1.5">
+                <span aria-hidden="true" className="material-symbols-outlined text-lg">notifications_active</span>
+                알림 켜기
+              </button>
+            )}
             {!showPresets && (
               <button type="button" onClick={() => setShowPresets(true)}
                 className="bg-primary/10 text-primary px-3 py-2 rounded-lg text-sm font-bold hover:bg-primary/20 transition-colors flex items-center gap-1.5">

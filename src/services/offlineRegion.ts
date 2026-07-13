@@ -28,6 +28,8 @@ export interface OfflineRegionStatus {
   downloadedAt: number;
   fileCount: number;
   failedCount: number;
+  expectedUrls?: string[];
+  verified?: boolean;
 }
 
 export interface DownloadProgress {
@@ -42,6 +44,29 @@ export function getRegionStatus(): OfflineRegionStatus | null {
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
+  }
+}
+
+/** 저장 기록과 실제 Cache API 항목을 대조한다. 구버전 기록은 재다운로드가 필요하다. */
+export async function getVerifiedRegionStatus(): Promise<OfflineRegionStatus | null> {
+  const status = getRegionStatus();
+  if (!status) return null;
+  if (!isOfflineDataSupported() || !status.expectedUrls?.length) {
+    return { ...status, verified: false };
+  }
+
+  try {
+    const cache = await caches.open(DATA_CACHE);
+    const cached = await Promise.all(status.expectedUrls.map(url => cache.match(url)));
+    const fileCount = cached.filter(Boolean).length;
+    return {
+      ...status,
+      fileCount,
+      failedCount: status.expectedUrls.length - fileCount,
+      verified: true,
+    };
+  } catch {
+    return { ...status, verified: false };
   }
 }
 
@@ -158,6 +183,8 @@ export async function downloadRegionData(
     downloadedAt: Date.now(),
     fileCount: total - failed,
     failedCount: failed,
+    expectedUrls: urls,
+    verified: true,
   };
   saveRegionStatus(status);
   return status;

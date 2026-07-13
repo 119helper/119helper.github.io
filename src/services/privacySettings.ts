@@ -33,6 +33,7 @@ export const SENSITIVE_STORAGE_KEYS = [
   '119helper-stress-check',
   '119helper-incident-session',
   '119helper-mci-board',
+  '119helper-timer-session',
 ];
 
 const sensitiveKeySet = new Set(SENSITIVE_STORAGE_KEYS);

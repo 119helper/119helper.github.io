@@ -305,7 +305,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
           <button
             type="button"
             onClick={() => setRefreshVersion(version => version + 1)}
-            className="shrink-0 rounded-lg bg-amber-500/15 px-3 py-2 text-sm font-bold text-amber-300 hover:bg-amber-500/20"
+            className="shrink-0 rounded-lg bg-amber-500/15 px-3 py-2 text-sm font-bold text-amber-800 hover:bg-amber-500/20 dark:text-amber-300"
           >
             다시 시도
           </button>

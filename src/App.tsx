@@ -417,6 +417,7 @@ export default function App() {
                 >
                   <div className="flex items-center gap-3">
                     <span
+                      aria-hidden="true"
                       className={`material-symbols-outlined text-xl transition-colors`}
                       style={(!hasSub && activeTab === item.id) || isGroupActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
                     >
@@ -425,7 +426,7 @@ export default function App() {
                     <span className={`font-medium ${hasSub ? 'text-sm font-bold' : 'text-sm'}`}>{item.label}</span>
                   </div>
                   {hasSub && (
-                    <span className={`material-symbols-outlined text-xl transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                    <span aria-hidden="true" className={`material-symbols-outlined text-xl transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
                       expand_more
                     </span>
                   )}
@@ -454,7 +455,7 @@ export default function App() {
                           >
                             <div className="flex items-center gap-2">
                               {/* Sub item bullet point */}
-                              <div className={`w-1.5 h-1.5 rounded-full transition-colors ${isSubActive ? 'bg-primary' : 'bg-transparent border border-on-surface-variant/40'}`} />
+                              <div aria-hidden="true" className={`w-1.5 h-1.5 rounded-full transition-colors ${isSubActive ? 'bg-primary' : 'bg-transparent border border-on-surface-variant/40'}`} />
                               <span>{sub.label}</span>
                             </div>
                           </button>
@@ -675,7 +676,7 @@ export default function App() {
             <div className="px-4 pt-4 md:px-6">
               <div className={`flex items-start gap-3 rounded-lg border px-4 py-3 text-sm ${
                 locationNotice.kind === 'warning'
-                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-100'
+                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-100'
                   : 'border-primary/20 bg-primary/10 text-on-surface'
               }`}>
                 <span className={`material-symbols-outlined text-xl ${locationNotice.kind === 'warning' ? 'text-amber-400' : 'text-primary'}`}>

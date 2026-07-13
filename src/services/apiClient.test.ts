@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiFetch, StaleDataError } from './apiClient';
+import { apiFetch, fetchTsunamiShelters, StaleDataError } from './apiClient';
 
 const cache = vi.hoisted(() => new Map<string, unknown>());
 
@@ -68,5 +68,21 @@ describe('apiFetch stale cache fallback', () => {
       cacheTtlMs: 1_000,
       maxStaleMs: 5_000,
     })).rejects.toBeInstanceOf(StaleDataError);
+  });
+});
+
+describe('fetchTsunamiShelters', () => {
+  it('loads the public static JSON without bundling it into JavaScript', async () => {
+    const data = [{ name: '테스트 대피소' }];
+    const fetchMock = vi.fn(async () => jsonResponse(data));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchTsunamiShelters()).resolves.toEqual(data);
+    expect(fetchMock).toHaveBeenCalledWith('/data/tsunami.json');
+  });
+
+  it('rejects malformed static data', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ items: [] })));
+    await expect(fetchTsunamiShelters()).rejects.toThrow('형식이 올바르지 않습니다');
   });
 });

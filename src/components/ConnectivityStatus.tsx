@@ -50,7 +50,7 @@ export default function ConnectivityStatus() {
   if (!offline && !unstable && !updateReady) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[1000] flex flex-col items-center gap-2 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pointer-events-none">
+    <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] lg:bottom-0 z-[1000] flex flex-col items-center gap-2 p-3 lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))] pointer-events-none">
       {updateReady && (
         <div className="pointer-events-auto flex items-center gap-3 rounded-full bg-primary px-4 py-2 text-sm font-bold text-on-primary shadow-lg">
           <span className="material-symbols-outlined text-base">system_update</span>

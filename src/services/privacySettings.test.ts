@@ -36,6 +36,7 @@ describe('privacy settings', () => {
   it('blocks sensitive persistence in public device mode', () => {
     savePrivacySettings(settings({ publicDeviceMode: true }));
     expect(canPersistStorageKey('119helper-notes')).toBe(false);
+    expect(canPersistStorageKey('119helper-timer-session')).toBe(false);
     expect(canPersistStorageKey('119helper-theme')).toBe(true);
   });
 

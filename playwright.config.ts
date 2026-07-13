@@ -5,8 +5,9 @@ import { defineConfig } from '@playwright/test';
  * 프로덕션 빌드(dist)를 vite preview로 서빙해 서비스 워커까지 실제로 검증한다.
  * (SW는 PROD 빌드에서만 등록되므로 dev 서버로는 테스트 불가)
  */
+const previewHost = process.env.PLAYWRIGHT_HOST || '127.0.0.1';
 const previewPort = Number(process.env.PLAYWRIGHT_PORT || 4173);
-const previewUrl = `http://localhost:${previewPort}`;
+const previewUrl = `http://${previewHost}:${previewPort}`;
 
 export default defineConfig({
   testDir: './tests',
@@ -19,7 +20,7 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: {
-    command: `npm run preview -- --port ${previewPort} --strictPort`,
+    command: `npm run preview -- --host ${previewHost} --port ${previewPort} --strictPort`,
     url: previewUrl,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,

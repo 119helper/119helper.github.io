@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  downloadRegionData, clearRegionData, getRegionStatus, isOfflineDataSupported,
+  downloadRegionData, clearRegionData, getRegionStatus, getVerifiedRegionStatus, isOfflineDataSupported,
   type DownloadProgress, type OfflineRegionStatus,
 } from '../services/offlineRegion';
 import { formatDatasetDate, formatFreshnessSourceDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
@@ -32,6 +32,9 @@ export default function OfflineDataSection({ city, cityNames }: {
     ).then(items => {
       if (!alive) return;
       setFreshnessItems(items.filter((item): item is { id: string; meta: DatasetFreshness } => item.meta !== null));
+    });
+    getVerifiedRegionStatus().then(result => {
+      if (alive) setStatus(result);
     });
     return () => { alive = false; };
   }, [city]);
@@ -78,10 +81,13 @@ export default function OfflineDataSection({ city, cityNames }: {
 
       {status && !downloading && (
         <div className="flex items-center gap-2 rounded-xl bg-surface-container px-3 py-2 text-xs text-on-surface-variant">
-          <span className="material-symbols-outlined text-base text-secondary">check_circle</span>
+          <span className={`material-symbols-outlined text-base ${status.verified === false || status.failedCount > 0 ? 'text-amber-500' : 'text-secondary'}`}>
+            {status.verified === false ? 'sync' : status.failedCount > 0 ? 'warning' : 'check_circle'}
+          </span>
           <span>
             <span className="font-bold text-on-surface">{cityNames[status.city] || status.city}</span> 데이터
             {' '}{status.fileCount}개 파일 · {new Date(status.downloadedAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 저장
+            {status.verified === false ? ' · 다시 받아 확인 필요' : status.failedCount > 0 ? ` · ${status.failedCount}개 누락` : ''}
           </span>
         </div>
       )}
