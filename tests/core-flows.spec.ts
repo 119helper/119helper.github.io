@@ -88,12 +88,19 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
   await expect(incidentNav.getByRole('button', { name: '상황판' })).toBeVisible();
   await expect(incidentNav.getByRole('button', { name: '타이머' })).toBeVisible();
 
+  const quickActivity = page.getByLabel('구급 출동 활동 빠른 기록');
+  await quickActivity.getByRole('button', { name: '현장도착 기록' }).click();
+  await expect(quickActivity.getByRole('button', { name: /현장도착 기록됨/ })).toBeDisabled();
+  await quickActivity.getByRole('button', { name: '이송개시 기록' }).click();
+
   const started = await page.evaluate(() => ({
     activity: JSON.parse(localStorage.getItem('119helper-activity-session') || '{}'),
     incident: JSON.parse(localStorage.getItem('119helper-incident-session') || '{}'),
   }));
   expect(started.activity.presetId).toBe('ems');
   expect(started.activity.stamps[0].label).toBe('출동');
+  expect(started.activity.stamps.filter((stamp: { stageId?: string }) => stamp.stageId === 'arrival')).toHaveLength(1);
+  expect(started.activity.stamps.some((stamp: { stageId?: string }) => stamp.stageId === 'transport')).toBe(true);
   expect(started.incident.snapshot).toBeTruthy();
 
   await page.getByRole('button', { name: /활동기록/ }).click();

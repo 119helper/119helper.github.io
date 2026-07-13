@@ -7,13 +7,12 @@ import {
   type ReportTimerSummary,
   type StageStamp,
 } from '../utils/activityReport';
-import { useLocalStorageState } from '../hooks/useLocalStorageState';
+import { useActivitySession } from '../hooks/useActivitySession';
 import { useUserProfile, type DutyRole } from '../contexts/UserProfileContext';
 import { useTimer } from '../contexts/TimerContext';
 import { loadStoredJson } from '../services/privacySettings';
 import { confirmSensitiveExport } from '../utils/sensitiveExport';
 import {
-  ACTIVITY_SESSION_KEY,
   EMPTY_ACTIVITY_SESSION,
   type ActivitySessionState,
   type LoggedActivityStamp,
@@ -59,10 +58,7 @@ function readJson<T>(key: string, fallback: T): T {
 export default function ActivityLog() {
   const { authorLine, profile } = useUserProfile();
   const { timers } = useTimer();
-  const [session, setSession] = useLocalStorageState<ActivitySessionState>(ACTIVITY_SESSION_KEY, () => ({
-    ...EMPTY_ACTIVITY_SESSION,
-    presetId: ROLE_TO_PRESET[profile.role],
-  }));
+  const [session, setSession] = useActivitySession(ROLE_TO_PRESET[profile.role]);
   const [useGps, setUseGps] = useState(true);
   const [report, setReport] = useState<string | null>(null);
   const [reportBundle, setReportBundle] = useState<ActivityReportBundle | null>(null);

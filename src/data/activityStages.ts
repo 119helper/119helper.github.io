@@ -7,7 +7,7 @@ export interface ActivityStage {
 }
 
 export interface ActivityPreset {
-  id: 'fire' | 'ems' | 'rescue';
+  id: 'fire' | 'ems' | 'rescue' | 'support';
   label: string;
   stages: ActivityStage[];
 }
@@ -47,6 +47,17 @@ export const ACTIVITY_PRESETS: ActivityPreset[] = [
       { id: 'access', label: '구조개시', icon: 'construction' },
       { id: 'extricate', label: '구조완료', icon: 'volunteer_activism' },
       { id: 'transfer', label: '인계', icon: 'handshake' },
+      { id: 'return', label: '귀소', icon: 'home' },
+    ],
+  },
+  {
+    id: 'support',
+    label: '지원',
+    stages: [
+      { id: 'dispatch', label: '출동', icon: 'support_agent' },
+      { id: 'arrival', label: '현장도착', icon: 'pin_drop' },
+      { id: 'support-start', label: '지원개시', icon: 'handyman' },
+      { id: 'support-complete', label: '지원완료', icon: 'task_alt' },
       { id: 'return', label: '귀소', icon: 'home' },
     ],
   },

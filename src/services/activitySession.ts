@@ -1,6 +1,7 @@
 import { loadStoredJson, saveStoredJson } from './privacySettings';
 
 export const ACTIVITY_SESSION_KEY = '119helper-activity-session';
+export const ACTIVITY_SESSION_EVENT = '119helper-activity-updated';
 
 export interface LoggedActivityStamp {
   stageId: string;
@@ -24,7 +25,7 @@ export const EMPTY_ACTIVITY_SESSION: ActivitySessionState = {
   stamps: [],
 };
 
-function normalizeSession(value: unknown): ActivitySessionState {
+export function normalizeActivitySession(value: unknown): ActivitySessionState {
   if (!value || typeof value !== 'object') return EMPTY_ACTIVITY_SESSION;
   const item = value as Partial<ActivitySessionState>;
   return {
@@ -36,12 +37,14 @@ function normalizeSession(value: unknown): ActivitySessionState {
 }
 
 export function loadActivitySession(): ActivitySessionState {
-  return loadStoredJson(ACTIVITY_SESSION_KEY, EMPTY_ACTIVITY_SESSION, normalizeSession);
+  return loadStoredJson(ACTIVITY_SESSION_KEY, EMPTY_ACTIVITY_SESSION, normalizeActivitySession);
 }
 
-function saveActivitySession(session: ActivitySessionState): void {
-  saveStoredJson(ACTIVITY_SESSION_KEY, session);
-  window.dispatchEvent(new CustomEvent('119helper-activity-updated', { detail: session }));
+export function saveActivitySession(session: ActivitySessionState): ActivitySessionState {
+  const normalized = normalizeActivitySession(session);
+  saveStoredJson(ACTIVITY_SESSION_KEY, normalized);
+  window.dispatchEvent(new CustomEvent<ActivitySessionState>(ACTIVITY_SESSION_EVENT, { detail: normalized }));
+  return normalized;
 }
 
 export function startActivityFromIncident(input: {
@@ -50,15 +53,39 @@ export function startActivityFromIncident(input: {
   note?: string;
   startedAt: number;
 }): ActivitySessionState {
-  const presetId = input.type === 'ems' || input.type === 'rescue' ? input.type : 'fire';
   const session: ActivitySessionState = {
-    presetId,
+    presetId: input.type,
     title: input.title,
     note: input.note || '',
     stamps: [{ stageId: 'dispatch', label: '출동', time: input.startedAt, lat: null, lon: null }],
   };
   saveActivitySession(session);
   return session;
+}
+
+export interface ActivityStageRecordResult {
+  session: ActivitySessionState;
+  recorded: boolean;
+}
+
+export function recordActivityStage(
+  stageId: string,
+  label: string,
+  time = Date.now(),
+): ActivityStageRecordResult {
+  const current = loadActivitySession();
+  if (current.stamps.some(stamp => stamp.stageId === stageId)) {
+    return { session: current, recorded: false };
+  }
+
+  const session = saveActivitySession({
+    ...current,
+    stamps: [
+      ...current.stamps,
+      { stageId, label, time, lat: null, lon: null },
+    ],
+  });
+  return { session, recorded: true };
 }
 
 export function appendActivityEvent(label: string, time = Date.now()): ActivitySessionState {
