@@ -133,8 +133,13 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
 
   await page.getByRole('button', { name: '진행 중인 구급 출동 상황판 열기' }).click();
   await expect(page).toHaveURL(/#incident$/);
-  page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: '상황 종료' }).click();
+  const closeReview = page.getByRole('dialog', { name: '출동 종료 점검' });
+  await expect(closeReview).toBeVisible();
+  await expect(closeReview).toContainText('미기록');
+  await expect(closeReview.getByRole('button', { name: '확인 후 출동 종료' })).toBeDisabled();
+  await closeReview.getByRole('checkbox').check();
+  await closeReview.getByRole('button', { name: '확인 후 출동 종료' }).click();
 
   const ended = await page.evaluate(() => ({
     activity: JSON.parse(localStorage.getItem('119helper-activity-session') || '{}'),
@@ -165,7 +170,10 @@ test('활동 기록: 뒤바뀐 단계 시각을 경고하고 수정 후 해제�
   await expect(quickActivity.getByRole('button', { name: /이송개시 기록됨.*순서 확인 필요.*수정/ })).toBeVisible();
   await expect(quickActivity.getByRole('button', { name: /병원도착 기록됨.*순서 확인 필요.*수정/ })).toBeVisible();
 
-  await orderWarning.click();
+  await page.getByRole('button', { name: '상황 종료' }).click();
+  const closeReview = page.getByRole('dialog', { name: '출동 종료 점검' });
+  await expect(closeReview).toContainText('‘병원도착’ 시각이 ‘이송개시’보다 빠릅니다.');
+  await closeReview.getByRole('button', { name: '활동 타임라인 확인' }).click();
   await expect(page).toHaveURL(/#activity-log$/);
   const orderAlert = page.getByRole('alert', { name: '활동 시각 순서 확인' });
   await expect(orderAlert).toContainText('‘병원도착’ 시각이 ‘이송개시’보다 빠릅니다.');

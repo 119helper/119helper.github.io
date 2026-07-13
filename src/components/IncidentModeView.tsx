@@ -3,8 +3,10 @@ import AviationSafetyCard from './AviationSafetyCard';
 import { CITY_GRIDS, getUltraShortNow, parseCurrentWeather, type CurrentWeather } from '../services/weatherApi';
 import { CITY_TO_SIDO, getERRealTimeBeds, type ERRealTimeData } from '../services/erApi';
 import { useIncidentSession } from '../hooks/useIncidentSession';
+import { useActivitySession } from '../hooks/useActivitySession';
 import { useTimer } from '../contexts/TimerContext';
 import { formatDuration } from '../utils/activityReport';
+import { ACTIVITY_PRESETS } from '../data/activityStages';
 import type { CityIndex } from '../services/fireWaterApi';
 import type { FireFacility } from '../data/mockData';
 import type { NavigateTarget } from '../types/navigation';
@@ -15,6 +17,7 @@ import {
   type IncidentSession,
   type IncidentType,
 } from '../services/incidentSession';
+import IncidentCloseReviewDialog from './IncidentCloseReviewDialog';
 
 const INCIDENT_TYPES: Array<{ id: IncidentType; label: string; icon: string }> = [
   { id: 'fire', label: '화재', icon: 'local_fire_department' },
@@ -50,6 +53,8 @@ export default function IncidentModeView({
   const [erList, setErList] = useState<ERRealTimeData[]>([]);
   const [loading, setLoading] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [closeReviewOpen, setCloseReviewOpen] = useState(false);
+  const [activitySession] = useActivitySession(session.type);
   const { timers, stopwatchRunning, stopwatchElapsed } = useTimer();
 
   useEffect(() => {
@@ -98,6 +103,7 @@ export default function IncidentModeView({
   const preplanCount = readCount('119helper-preplans');
   const elapsed = session.active ? now - session.startedAt : 0;
   const typeMeta = INCIDENT_TYPES.find(t => t.id === session.type) ?? INCIDENT_TYPES[0];
+  const activityPreset = ACTIVITY_PRESETS.find(preset => preset.id === session.type) ?? ACTIVITY_PRESETS[0];
 
   const erSummary = useMemo(() => {
     const erBeds = erList.reduce((sum, er) => sum + (parseInt(er.hvec) || 0), 0);
@@ -126,6 +132,7 @@ export default function IncidentModeView({
         waterSources: waterCount,
       },
     };
+    setCloseReviewOpen(false);
     setSession(next);
     startActivityFromIncident({
       type: next.type,
@@ -136,12 +143,15 @@ export default function IncidentModeView({
   };
 
   const closeSession = () => {
-    const ok = window.confirm('현재 출동 상황판을 종료할까요? 활동 타임라인 기록은 별도로 유지됩니다.');
-    if (!ok) return;
+    setCloseReviewOpen(true);
+  };
+
+  const finalizeSession = () => {
     const endedAt = Date.now();
     appendActivityEvent('상황판 종료', endedAt);
     setSession({ ...session, active: false, endedAt });
     setDraft(EMPTY_INCIDENT_SESSION);
+    setCloseReviewOpen(false);
   };
 
   const openIncidentTool = (tab: NavigateTarget | string, label: string, subId?: string) => {
@@ -323,6 +333,24 @@ export default function IncidentModeView({
           </div>
         </div>
       </div>
+
+      <IncidentCloseReviewDialog
+        open={closeReviewOpen}
+        preset={activityPreset}
+        stamps={activitySession.stamps}
+        timers={timers}
+        stopwatchRunning={stopwatchRunning}
+        onClose={() => setCloseReviewOpen(false)}
+        onOpenActivity={() => {
+          setCloseReviewOpen(false);
+          openIncidentTool('activity-log', '활동기록');
+        }}
+        onOpenTimers={() => {
+          setCloseReviewOpen(false);
+          openIncidentTool('field-timer', '타이머');
+        }}
+        onConfirm={finalizeSession}
+      />
     </div>
   );
 }
