@@ -3,6 +3,7 @@ import { useTimer } from '../contexts/TimerContext';
 import { ACTIVITY_PRESETS } from '../data/activityStages';
 import { useActivitySession } from '../hooks/useActivitySession';
 import { recordActivityStage } from '../services/activitySession';
+import ActivityStageEditorDialog from './ActivityStageEditorDialog';
 import type { IncidentSession, IncidentType } from '../services/incidentSession';
 import type { TabId } from '../types/navigation';
 import { formatDuration } from '../utils/activityReport';
@@ -23,6 +24,7 @@ interface IncidentStatusStripProps {
 export default function IncidentStatusStrip({ session, activeTab, onNavigate }: IncidentStatusStripProps) {
   const [now, setNow] = useState(() => Date.now());
   const [feedback, setFeedback] = useState('');
+  const [editingStageId, setEditingStageId] = useState<string | null>(null);
   const { timers, formatTime } = useTimer();
   const [activitySession] = useActivitySession(session.type);
 
@@ -45,6 +47,7 @@ export default function IncidentStatusStrip({ session, activeTab, onNavigate }: 
   const stampByStage = useMemo(() => (
     new Map(activitySession.stamps.map(stamp => [stamp.stageId, stamp]))
   ), [activitySession.stamps]);
+  const editingStamp = editingStageId ? stampByStage.get(editingStageId) ?? null : null;
 
   useEffect(() => {
     if (!feedback) return;
@@ -61,10 +64,11 @@ export default function IncidentStatusStrip({ session, activeTab, onNavigate }: 
   const type = TYPE_META[session.type];
 
   return (
-    <section
-      aria-label="진행 중인 출동"
-      className="shrink-0 border-b border-error/30 bg-error-container/95 px-3 py-2 text-on-error-container shadow-sm backdrop-blur-md sm:px-5"
-    >
+    <>
+      <section
+        aria-label="진행 중인 출동"
+        className="shrink-0 border-b border-error/30 bg-error-container/95 px-3 py-2 text-on-error-container shadow-sm backdrop-blur-md sm:px-5"
+      >
       <div className="mx-auto max-w-[1600px]">
         <div className="flex items-center gap-2">
           <button
@@ -119,9 +123,8 @@ export default function IncidentStatusStrip({ session, activeTab, onNavigate }: 
                 <button
                   key={stage.id}
                   type="button"
-                  disabled={Boolean(stamp)}
-                  aria-label={stamp ? `${stage.label} 기록됨 ${recordedTime}` : `${stage.label} 기록`}
-                  onClick={() => recordStage(stage.id, stage.label)}
+                  aria-label={stamp ? `${stage.label} 기록됨 ${recordedTime}, 수정` : `${stage.label} 기록`}
+                  onClick={() => stamp ? setEditingStageId(stage.id) : recordStage(stage.id, stage.label)}
                   className={`flex shrink-0 items-center gap-1 rounded-lg border px-2.5 py-2 text-xs font-extrabold transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${
                     stamp
                       ? 'border-primary/20 bg-primary text-on-primary'
@@ -131,6 +134,7 @@ export default function IncidentStatusStrip({ session, activeTab, onNavigate }: 
                   <span aria-hidden="true" className="material-symbols-outlined text-base">{stamp ? 'check' : stage.icon}</span>
                   <span>{stage.label}</span>
                   {stamp && <span className="font-mono text-[10px] tabular-nums opacity-85">{recordedTime}</span>}
+                  {stamp && <span aria-hidden="true" className="material-symbols-outlined text-[14px] opacity-85">edit</span>}
                 </button>
               );
             })}
@@ -138,6 +142,13 @@ export default function IncidentStatusStrip({ session, activeTab, onNavigate }: 
           <span className="sr-only" role="status" aria-live="polite">{feedback}</span>
         </div>
       </div>
-    </section>
+      </section>
+      <ActivityStageEditorDialog
+        stamp={editingStamp}
+        minimumTime={session.startedAt}
+        onClose={() => setEditingStageId(null)}
+        onComplete={setFeedback}
+      />
+    </>
   );
 }

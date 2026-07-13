@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ACTIVITY_PRESETS } from '../data/activityStages';
+import ActivityStageEditorDialog from './ActivityStageEditorDialog';
 import {
   buildReportPackageText,
   formatDuration,
@@ -63,6 +64,8 @@ export default function ActivityLog() {
   const [report, setReport] = useState<string | null>(null);
   const [reportBundle, setReportBundle] = useState<ActivityReportBundle | null>(null);
   const [copied, setCopied] = useState(false);
+  const [editingStageId, setEditingStageId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState('');
 
   const preset = ACTIVITY_PRESETS.find(p => p.id === session.presetId) ?? ACTIVITY_PRESETS[0];
   const started = session.stamps.length > 0;
@@ -77,6 +80,13 @@ export default function ActivityLog() {
     () => [...session.stamps].sort((a, b) => a.time - b.time),
     [session.stamps],
   );
+  const editingStamp = editingStageId ? stampByStage.get(editingStageId) ?? null : null;
+
+  useEffect(() => {
+    if (!feedback) return;
+    const timeout = window.setTimeout(() => setFeedback(''), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [feedback]);
 
   const recordStage = (stageId: string, label: string) => {
     const commit = (lat: number | null, lon: number | null) => {
@@ -218,7 +228,10 @@ export default function ActivityLog() {
           return (
             <button
               key={stage.id}
-              onClick={() => recordStage(stage.id, stage.label)}
+              aria-label={logged
+                ? `${stage.label} 기록됨 ${new Date(logged.time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}, 수정`
+                : `${stage.label} 기록`}
+              onClick={() => logged ? setEditingStageId(stage.id) : recordStage(stage.id, stage.label)}
               className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border p-4 transition-all ${
                 logged
                   ? 'bg-primary/10 border-primary/40 text-primary'
@@ -233,6 +246,7 @@ export default function ActivityLog() {
                 <span className="text-xs font-mono">
                   {new Date(logged.time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                   {logged.lat != null && <span className="material-symbols-outlined text-[14px] align-middle ml-0.5">place</span>}
+                  <span className="material-symbols-outlined ml-1 align-middle text-[14px]">edit</span>
                 </span>
               ) : (
                 <span className="text-[11px] text-on-surface-variant">탭하여 기록</span>
@@ -241,6 +255,7 @@ export default function ActivityLog() {
           );
         })}
       </div>
+      <span className="sr-only" role="status" aria-live="polite">{feedback}</span>
 
       {started && (
         <div className="text-sm text-on-surface-variant text-center">
@@ -304,6 +319,13 @@ export default function ActivityLog() {
           />
         </div>
       )}
+
+      <ActivityStageEditorDialog
+        stamp={editingStamp}
+        minimumTime={editingStamp?.stageId === 'dispatch' ? undefined : stampByStage.get('dispatch')?.time}
+        onClose={() => setEditingStageId(null)}
+        onComplete={setFeedback}
+      />
     </div>
   );
 }

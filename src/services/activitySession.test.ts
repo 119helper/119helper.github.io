@@ -6,7 +6,10 @@ import {
   appendActivityEvent,
   loadActivitySession,
   recordActivityStage,
+  removeActivityStage,
+  saveActivitySession,
   startActivityFromIncident,
+  updateActivityStageTime,
 } from './activitySession';
 
 describe('activitySession', () => {
@@ -54,5 +57,40 @@ describe('activitySession', () => {
   it('keeps support incidents on the support activity preset', () => {
     const session = startActivityFromIncident({ type: 'support', title: '급수 지원', startedAt: 1000 });
     expect(session.presetId).toBe('support');
+  });
+
+  it('updates a recorded stage time without losing its GPS coordinates', () => {
+    startActivityFromIncident({ type: 'fire', title: '상가 화재', startedAt: 1000 });
+    saveActivitySession({
+      ...loadActivitySession(),
+      stamps: [
+        ...loadActivitySession().stamps,
+        { stageId: 'arrival', label: '현장도착', time: 2000, lat: 37.5, lon: 126.9 },
+      ],
+    });
+
+    expect(updateActivityStageTime('arrival', 2500, 3000).changed).toBe(true);
+    expect(loadActivitySession().stamps.find(stamp => stamp.stageId === 'arrival')).toMatchObject({
+      time: 2500,
+      lat: 37.5,
+      lon: 126.9,
+    });
+  });
+
+  it('rejects future stage times and protects the dispatch record from deletion', () => {
+    startActivityFromIncident({ type: 'ems', title: '환자 이송', startedAt: 1000 });
+    recordActivityStage('arrival', '현장도착', 2000);
+
+    expect(updateActivityStageTime('arrival', 4000, 3000).changed).toBe(false);
+    expect(removeActivityStage('dispatch').changed).toBe(false);
+    expect(loadActivitySession().stamps.map(stamp => stamp.stageId)).toContain('dispatch');
+  });
+
+  it('removes a mistaken non-dispatch stage record', () => {
+    startActivityFromIncident({ type: 'rescue', title: '구조 출동', startedAt: 1000 });
+    recordActivityStage('arrival', '현장도착', 2000);
+
+    expect(removeActivityStage('arrival').changed).toBe(true);
+    expect(loadActivitySession().stamps.map(stamp => stamp.stageId)).toEqual(['dispatch']);
   });
 });

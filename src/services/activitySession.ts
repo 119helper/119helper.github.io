@@ -68,6 +68,11 @@ export interface ActivityStageRecordResult {
   recorded: boolean;
 }
 
+export interface ActivityStageMutationResult {
+  session: ActivitySessionState;
+  changed: boolean;
+}
+
 export function recordActivityStage(
   stageId: string,
   label: string,
@@ -86,6 +91,39 @@ export function recordActivityStage(
     ],
   });
   return { session, recorded: true };
+}
+
+export function updateActivityStageTime(
+  stageId: string,
+  time: number,
+  now = Date.now(),
+): ActivityStageMutationResult {
+  const current = loadActivitySession();
+  if (!Number.isFinite(time) || time <= 0 || time > now) {
+    return { session: current, changed: false };
+  }
+  if (!current.stamps.some(stamp => stamp.stageId === stageId)) {
+    return { session: current, changed: false };
+  }
+
+  const session = saveActivitySession({
+    ...current,
+    stamps: current.stamps.map(stamp => stamp.stageId === stageId ? { ...stamp, time } : stamp),
+  });
+  return { session, changed: true };
+}
+
+export function removeActivityStage(stageId: string): ActivityStageMutationResult {
+  const current = loadActivitySession();
+  if (stageId === 'dispatch' || !current.stamps.some(stamp => stamp.stageId === stageId)) {
+    return { session: current, changed: false };
+  }
+
+  const session = saveActivitySession({
+    ...current,
+    stamps: current.stamps.filter(stamp => stamp.stageId !== stageId),
+  });
+  return { session, changed: true };
 }
 
 export function appendActivityEvent(label: string, time = Date.now()): ActivitySessionState {

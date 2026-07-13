@@ -90,7 +90,22 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
 
   const quickActivity = page.getByLabel('구급 출동 활동 빠른 기록');
   await quickActivity.getByRole('button', { name: '현장도착 기록' }).click();
-  await expect(quickActivity.getByRole('button', { name: /현장도착 기록됨/ })).toBeDisabled();
+  const recordedArrival = quickActivity.getByRole('button', { name: /현장도착 기록됨.*수정/ });
+  await expect(recordedArrival).toBeVisible();
+  await recordedArrival.click();
+  const stageEditor = page.getByRole('dialog', { name: '현장도착' });
+  await expect(stageEditor).toBeVisible();
+  const futureTime = await page.evaluate(() => {
+    const timestamp = Date.now() + 60_000;
+    const date = new Date(timestamp);
+    return new Date(timestamp - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 19);
+  });
+  await stageEditor.getByLabel('기록 날짜와 시각').fill(futureTime);
+  await stageEditor.getByRole('button', { name: '시각 저장' }).click();
+  await expect(stageEditor.getByRole('alert')).toContainText('미래 시각');
+  await stageEditor.getByRole('button', { name: '현재 시각으로 설정' }).click();
+  await stageEditor.getByRole('button', { name: '시각 저장' }).click();
+  await expect(stageEditor).toBeHidden();
   await quickActivity.getByRole('button', { name: '이송개시 기록' }).click();
 
   const started = await page.evaluate(() => ({
@@ -102,6 +117,14 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
   expect(started.activity.stamps.filter((stamp: { stageId?: string }) => stamp.stageId === 'arrival')).toHaveLength(1);
   expect(started.activity.stamps.some((stamp: { stageId?: string }) => stamp.stageId === 'transport')).toBe(true);
   expect(started.incident.snapshot).toBeTruthy();
+
+  await quickActivity.getByRole('button', { name: /이송개시 기록됨.*수정/ }).click();
+  const transportEditor = page.getByRole('dialog', { name: '이송개시' });
+  await transportEditor.getByRole('button', { name: '기록 삭제' }).click();
+  await transportEditor.getByRole('button', { name: '정말 삭제' }).click();
+  await expect(quickActivity.getByRole('button', { name: '이송개시 기록' })).toBeVisible();
+  const afterDelete = await page.evaluate(() => JSON.parse(localStorage.getItem('119helper-activity-session') || '{}'));
+  expect(afterDelete.stamps.some((stamp: { stageId?: string }) => stamp.stageId === 'transport')).toBe(false);
 
   await page.getByRole('button', { name: /활동기록/ }).click();
   await expect(page).toHaveURL(/#activity-log$/);
