@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       skip_worker_deploy:
-        description: 'Worker가 별도로 배포된 경우 Worker 배포 단계만 건너뜁니다'
+        description: 'Worker가 별도로 배포된 경우 Worker 배포와 스모크 검증을 건너뜁니다'
         required: true
         default: false
         type: boolean
@@ -21,6 +21,30 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Decide Worker deployment
+        id: worker_deploy
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          SKIP_WORKER_DEPLOY: ${{ inputs.skip_worker_deploy }}
+        run: |
+          deploy=false
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$SKIP_WORKER_DEPLOY" != "true" ]] && deploy=true
+          elif [[ "$EVENT_NAME" == "push" ]]; then
+            if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]]; then
+              deploy=true
+            else
+              git fetch --no-tags --depth=1 origin "$BEFORE_SHA"
+              if ! git diff --quiet "$BEFORE_SHA" "$GITHUB_SHA" -- worker/; then
+                deploy=true
+              fi
+            fi
+          fi
+          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
+          echo "Worker deployment required: $deploy"
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -35,6 +59,7 @@ jobs:
         run: npm audit
 
       - name: Install Worker dependencies
+        if: steps.worker_deploy.outputs.deploy == 'true'
         working-directory: worker
         run: npm ci
 
@@ -139,7 +164,7 @@ jobs:
           VITE_APP_TOKEN: ${{ secrets.VITE_APP_TOKEN }}
 
       - name: Validate Worker deploy secrets
-        if: ${{ !inputs.skip_worker_deploy }}
+        if: steps.worker_deploy.outputs.deploy == 'true'
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN secret is required"; exit 1; }
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "CLOUDFLARE_ACCOUNT_ID secret is required"; exit 1; }
@@ -152,7 +177,7 @@ jobs:
           NEWS_CACHE_KV_PREVIEW_ID: ${{ secrets.NEWS_CACHE_KV_PREVIEW_ID }}
 
       - name: Generate Worker CI config
-        if: ${{ !inputs.skip_worker_deploy }}
+        if: steps.worker_deploy.outputs.deploy == 'true'
         working-directory: worker
         run: |
           node - <<'NODE'
@@ -198,7 +223,7 @@ jobs:
           NEWS_CACHE_KV_PREVIEW_ID: ${{ secrets.NEWS_CACHE_KV_PREVIEW_ID }}
 
       - name: Deploy Worker
-        if: ${{ !inputs.skip_worker_deploy }}
+        if: steps.worker_deploy.outputs.deploy == 'true'
         working-directory: worker
         run: npm exec -- wrangler deploy --config wrangler.ci.toml
         env:
@@ -206,6 +231,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Production Worker smoke test
+        if: steps.worker_deploy.outputs.deploy == 'true'
         run: node scripts/smoke-production-api.mjs
         env:
           VITE_API_BASE: https://119-helper-api.teemozipsa.workers.dev
