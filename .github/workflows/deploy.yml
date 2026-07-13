@@ -22,30 +22,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Decide Worker deployment
-        id: worker_deploy
-        shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BEFORE_SHA: ${{ github.event.before }}
-          SKIP_WORKER_DEPLOY: ${{ inputs.skip_worker_deploy }}
-        run: |
-          deploy=false
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            [[ "$SKIP_WORKER_DEPLOY" != "true" ]] && deploy=true
-          elif [[ "$EVENT_NAME" == "push" ]]; then
-            if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]]; then
-              deploy=true
-            else
-              git fetch --no-tags --depth=1 origin "$BEFORE_SHA"
-              if ! git diff --quiet "$BEFORE_SHA" "$GITHUB_SHA" -- worker/; then
-                deploy=true
-              fi
-            fi
-          fi
-          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
-          echo "Worker deployment required: $deploy"
-
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
@@ -59,7 +35,6 @@ jobs:
         run: npm audit
 
       - name: Install Worker dependencies
-        if: steps.worker_deploy.outputs.deploy == 'true'
         working-directory: worker
         run: npm ci
 
@@ -134,6 +109,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Decide Worker deployment
+        id: worker_deploy
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          SKIP_WORKER_DEPLOY: ${{ inputs.skip_worker_deploy }}
+        run: |
+          deploy=false
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$SKIP_WORKER_DEPLOY" != "true" ]] && deploy=true
+          elif [[ "$EVENT_NAME" == "push" ]]; then
+            if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]]; then
+              deploy=true
+            else
+              git fetch --no-tags --depth=1 origin "$BEFORE_SHA"
+              if ! git diff --quiet "$BEFORE_SHA" "$GITHUB_SHA" -- worker/; then
+                deploy=true
+              fi
+            fi
+          fi
+          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
+          echo "Worker deployment required: $deploy"
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
@@ -144,6 +143,7 @@ jobs:
         run: npm ci
 
       - name: Install Worker dependencies
+        if: steps.worker_deploy.outputs.deploy == 'true'
         working-directory: worker
         run: npm ci
 
