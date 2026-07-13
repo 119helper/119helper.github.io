@@ -104,6 +104,10 @@ export default function IncidentModeView({
   const elapsed = session.active ? now - session.startedAt : 0;
   const typeMeta = INCIDENT_TYPES.find(t => t.id === session.type) ?? INCIDENT_TYPES[0];
   const activityPreset = ACTIVITY_PRESETS.find(preset => preset.id === session.type) ?? ACTIVITY_PRESETS[0];
+  const hasRecentIncident = !session.active
+    && Boolean(session.title)
+    && session.startedAt > 0
+    && Boolean(session.endedAt && session.endedAt >= session.startedAt);
 
   const erSummary = useMemo(() => {
     const erBeds = erList.reduce((sum, er) => sum + (parseInt(er.hvec) || 0), 0);
@@ -166,6 +170,58 @@ export default function IncidentModeView({
           <h2 className="text-2xl font-extrabold text-on-surface font-headline">출동 상황판</h2>
           <p className="text-sm text-on-surface-variant mt-1">출동 중 필요한 핵심 화면과 현장 정보를 한 곳에서 열어둡니다.</p>
         </div>
+
+        {hasRecentIncident && session.endedAt && (
+          <section
+            role="region"
+            aria-label="최근 종료 출동"
+            className="overflow-hidden rounded-xl border border-primary/20 bg-surface-container-lowest"
+          >
+            <div className="flex items-start gap-3 border-b border-outline-variant/15 bg-primary/5 px-5 py-4">
+              <span
+                aria-hidden="true"
+                className="material-symbols-outlined flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-2xl text-primary"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                {typeMeta.icon}
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-primary">최근 종료 · {typeMeta.label} 출동</p>
+                <h3 className="mt-1 truncate text-lg font-extrabold text-on-surface">{session.title}</h3>
+                {session.address && <p className="mt-1 truncate text-xs text-on-surface-variant">{session.address}</p>}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 px-5 py-4">
+              <div className="rounded-lg bg-surface-container px-3 py-2.5">
+                <p className="text-[11px] font-bold text-on-surface-variant">종료 시각</p>
+                <p className="mt-1 text-sm font-extrabold text-on-surface">
+                  {new Date(session.endedAt).toLocaleString('ko-KR', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </div>
+              <div className="rounded-lg bg-surface-container px-3 py-2.5">
+                <p className="text-[11px] font-bold text-on-surface-variant">출동 시간</p>
+                <p className="mt-1 font-mono text-sm font-extrabold text-on-surface">
+                  {formatDuration(session.endedAt - session.startedAt)}
+                </p>
+              </div>
+            </div>
+            <div className="px-5 pb-5">
+              <button
+                type="button"
+                onClick={() => openIncidentTool('activity-log', '활동기록')}
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-extrabold text-on-primary hover:bg-primary/90"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-lg">description</span>
+                활동 기록·보고서 열기
+              </button>
+            </div>
+          </section>
+        )}
 
         <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 space-y-5">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

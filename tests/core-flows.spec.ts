@@ -150,6 +150,12 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
   expect(ended.activity.stamps.some((stamp: { label?: string }) => stamp.label === '상황판 종료')).toBe(true);
   await expect(page.getByRole('region', { name: '진행 중인 출동' })).toBeHidden();
   await expect(page.getByRole('navigation', { name: '주요 기능' }).getByRole('button', { name: '대시보드' })).toBeVisible();
+
+  const recentIncident = page.getByRole('region', { name: '최근 종료 출동' });
+  await expect(recentIncident).toContainText('광주 환자 이송');
+  await expect(recentIncident).toContainText('출동 시간');
+  await recentIncident.getByRole('button', { name: '활동 기록·보고서 열기' }).click();
+  await expect(page).toHaveURL(/#activity-log$/);
 });
 
 test('활동 기록: 뒤바뀐 단계 시각을 경고하고 수정 후 해제한다', async ({ page }) => {

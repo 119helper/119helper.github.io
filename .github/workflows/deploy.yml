@@ -80,8 +80,8 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
-      - name: Offline E2E tests
-        run: npx playwright test
+      - name: E2E tests
+        run: npm run test:e2e
 
       - name: Upload test results on failure
         if: failure()

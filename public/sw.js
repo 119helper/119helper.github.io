@@ -16,7 +16,7 @@
  * 영영 갱신되지 않는다 (소화전 데이터는 매달 갱신됨). 반드시 SWR로.
  */
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const SHELL_CACHE = `119-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `119-assets-${CACHE_VERSION}`;
 const DATA_CACHE = '119-data-v1'; // 버전 독립 — 받아둔 관할 데이터 보존
@@ -162,7 +162,11 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       (async () => {
         const cache = await caches.open(ASSET_CACHE);
-        const cached = await cache.match(request);
+        // Vite preview/CDN은 Vary: Origin을 붙일 수 있다. 설치 중 cache.add()와
+        // 브라우저의 실제 모듈 요청은 Origin 헤더가 달라 기본 match가 실패한다.
+        // 해시 URL 자산은 URL 자체가 버전이므로 Vary를 무시해도 안전하다.
+        // 폰트는 설치 시 SHELL_CACHE에 들어가므로 전체 캐시에서 찾는다.
+        const cached = await caches.match(request, { ignoreVary: true });
         if (cached) return cached;
         try {
           const fresh = await fetch(request);
@@ -182,7 +186,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       (async () => {
         const cache = await caches.open(DATA_CACHE);
-        const cached = await cache.match(request);
+        const cached = await cache.match(request, { ignoreVary: true });
 
         const revalidate = fetch(request)
           .then(async (fresh) => {

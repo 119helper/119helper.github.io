@@ -11,7 +11,9 @@
     "test": "vitest run src",
     "test:unit": "vitest run src",
     "test:worker": "vitest run worker/src",
-    "test:e2e": "playwright test"
+    "test:e2e": "npm run test:e2e:ui && npm run test:e2e:offline",
+    "test:e2e:ui": "playwright test --config=playwright.config.ts",
+    "test:e2e:offline": "playwright test --config=playwright.offline.config.ts"
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.8",

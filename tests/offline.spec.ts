@@ -27,7 +27,8 @@ const CRITICAL_TABS = [
 const CRITICAL_CHUNKS = ['DashboardView', 'Calculators', 'ManualView', 'FieldTimer', 'EquipmentChecklist', 'LawDashboard'];
 
 async function waitForServiceWorkerControl(page: Page) {
-  // 1) 등록이 활성화될 때까지 대기 — 최초 등록이 일시 오류로 실패했으면 재등록 (자가 복구)
+  // ready만으로는 clients.claim() 전일 수 있으므로,
+  // 현재 페이지의 controller가 실제 activated 상태인지까지 확인한다.
   await page.waitForFunction(
     async () => {
       let reg = await navigator.serviceWorker.getRegistration();
@@ -38,22 +39,12 @@ async function waitForServiceWorkerControl(page: Page) {
           return false;
         }
       }
-      return !!reg.active;
+      await navigator.serviceWorker.ready;
+      return navigator.serviceWorker.controller?.state === 'activated';
     },
     undefined,
-    { timeout: 30_000, polling: 1_000 },
+    { timeout: 30_000, polling: 250 },
   );
-
-  // 2) 페이지 제어권 확보 — clients.claim이 아직 안 먹었으면 새로고침 한 번
-  const controlled = await page.evaluate(() => navigator.serviceWorker.controller != null);
-  if (!controlled) {
-    await page.reload();
-    await page.waitForFunction(
-      () => navigator.serviceWorker?.controller != null,
-      undefined,
-      { timeout: 15_000, polling: 1_000 },
-    );
-  }
 }
 
 async function waitForCriticalChunksCached(page: Page, chunks: string[]) {
@@ -73,10 +64,13 @@ async function waitForCriticalChunksCached(page: Page, chunks: string[]) {
 }
 
 test('오프라인: 앱 셸과 핵심 현장 도구(A등급)가 전부 동작한다', async ({ page, context }) => {
+  const pageErrors: string[] = [];
+  const failedRequests: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  page.on('requestfailed', request => failedRequests.push(`${request.url()} — ${request.failure()?.errorText || '알 수 없는 오류'}`));
   await page.setViewportSize({ width: 390, height: 844 });
-  // ── 1. 온라인 워밍업: 첫 방문 → SW 설치 → 자동 새로고침 안정화 대기
+  // ── 1. 온라인 워밍업: 첫 방문 → SW 설치 → 제어권 확보
   await page.goto('/');
-  await page.waitForTimeout(3_000); // 첫 SW 활성화 시 controllerchange 자동 새로고침 흡수
   await page.waitForLoadState('domcontentloaded');
   await waitForServiceWorkerControl(page);
 
@@ -105,11 +99,30 @@ test('오프라인: 앱 셸과 핵심 현장 도구(A등급)가 전부 동작한
 
   // ── 2. 오프라인 전환 → 새로고침해도 앱이 뜬다
   await context.setOffline(true);
-  await page.reload();
-  await expect(
-    page.getByText('대시보드').first(),
-    '오프라인 새로고침 후에도 앱 셸이 렌더링되어야 함',
-  ).toBeVisible({ timeout: 15_000 });
+  await page.waitForFunction(() => navigator.onLine === false, undefined, { timeout: 5_000 });
+  // CDP의 오프라인 상태가 페이지와 SW 타겟에 모두 전파될 틈을 준다.
+  await page.waitForTimeout(250);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  try {
+    await expect(
+      page.getByText('대시보드').first(),
+      '오프라인 새로고침 후에도 앱 셸이 렌더링되어야 함',
+    ).toBeVisible({ timeout: 15_000 });
+  } catch (error) {
+    const runtime = await page.evaluate(async () => ({
+      body: document.body.innerText.slice(0, 500),
+      controller: navigator.serviceWorker.controller?.state ?? null,
+      cacheNames: await caches.keys(),
+    })).catch(evaluationError => ({ evaluationError: String(evaluationError) }));
+    console.error('Offline shell diagnostics', {
+      url: page.url(),
+      title: await page.title().catch(() => ''),
+      pageErrors,
+      failedRequests,
+      runtime,
+    });
+    throw error;
+  }
 
   // 오프라인 배지 표시
   await expect(
