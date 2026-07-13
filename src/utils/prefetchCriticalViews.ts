@@ -6,6 +6,7 @@
  * 신호가 있을 때(첫 로드 직후 유휴 시간) 핵심 화면을 미리 받아둔다.
  *
  * 대상: 오프라인에서 100% 동작해야 하는 정적/계산 기능
+ *   - 대시보드 (오프라인 새로고침 기본 진입 화면)
  *   - 계산기 (수압·마찰손실·공기호흡기, Hazmat 이격거리, 단위변환 포함)
  *   - 대응 매뉴얼 (무전코드, SOP 체크리스트 포함)
  *   - 현장 타이머
@@ -17,6 +18,7 @@
  */
 
 const CRITICAL_VIEW_LOADERS: Array<() => Promise<unknown>> = [
+  () => import('../components/DashboardView'),
   () => import('../components/Calculators'),
   () => import('../components/ManualView'),
   () => import('../components/FieldTimer'),

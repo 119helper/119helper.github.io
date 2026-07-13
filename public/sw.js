@@ -16,7 +16,7 @@
  * 영영 갱신되지 않는다 (소화전 데이터는 매달 갱신됨). 반드시 SWR로.
  */
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const SHELL_CACHE = `119-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `119-assets-${CACHE_VERSION}`;
 const DATA_CACHE = '119-data-v1'; // 버전 독립 — 받아둔 관할 데이터 보존
@@ -27,8 +27,6 @@ const DATA_CACHE_PRUNE_COUNT = 80;
 // 오프라인에서도 최소한 앱 셸이 뜨도록 미리 캐시할 항목
 // 폰트 포함: 아이콘이 폰트 기반(Material Symbols)이라 없으면 오프라인 UI가 깨짐
 const PRECACHE_URLS = [
-  '/',
-  '/index.html',
   '/favicon.svg',
   '/manifest.json',
   '/fonts/material-symbols-outlined.woff2',
@@ -36,13 +34,29 @@ const PRECACHE_URLS = [
   '/fonts/manrope-latin.woff2',
 ];
 
+async function precacheAppShell() {
+  const shellCache = await caches.open(SHELL_CACHE);
+
+  // HTML은 둘 중 하나라도 빠지면 오프라인 진입을 보장할 수 없으므로 설치를 재시도한다.
+  await Promise.all(['/', '/index.html'].map((url) => shellCache.add(url)));
+  await Promise.allSettled(PRECACHE_URLS.map((url) => shellCache.add(url)));
+
+  // Vite 해시가 붙은 현재 빌드의 진입 JS/CSS도 설치 완료 전에 캐시한다.
+  // 페이지 첫 렌더의 fetch 캐시에만 의존하면, 느린 기기에서 즉시 오프라인 전환 시
+  // HTML만 뜨고 앱 번들이 없어 백지 화면이 될 수 있다.
+  const indexResponse = await shellCache.match('/index.html');
+  if (!indexResponse) throw new Error('index.html precache missing');
+  const html = await indexResponse.text();
+  const entryAssets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"?#]+)"/g)]
+    .map((match) => match[1]);
+  if (entryAssets.length === 0) throw new Error('entry assets not found');
+
+  const assetCache = await caches.open(ASSET_CACHE);
+  await Promise.all([...new Set(entryAssets)].map((url) => assetCache.add(url)));
+}
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(SHELL_CACHE).then((cache) =>
-      // 일부가 실패해도 설치가 막히지 않도록 개별 처리
-      Promise.allSettled(PRECACHE_URLS.map((url) => cache.add(url)))
-    )
-  );
+  event.waitUntil(precacheAppShell());
   // 주의: 여기서 skipWaiting()을 호출하면 새 배포가 사용자 작업 중에
   // 화면을 강제 새로고침시킨다(현장 입력 유실 위험). 대신 새 SW는 waiting 상태로
   // 남고, 사용자가 "업데이트" 버튼을 눌렀을 때(applyUpdate → SKIP_WAITING)만 적용한다.

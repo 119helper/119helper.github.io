@@ -24,7 +24,7 @@ const CRITICAL_TABS = [
   { tab: 'law', text: '관련 법령' },
 ];
 
-const CRITICAL_CHUNKS = ['Calculators', 'ManualView', 'FieldTimer', 'EquipmentChecklist', 'LawDashboard'];
+const CRITICAL_CHUNKS = ['DashboardView', 'Calculators', 'ManualView', 'FieldTimer', 'EquipmentChecklist', 'LawDashboard'];
 
 async function waitForServiceWorkerControl(page: Page) {
   // 1) 등록이 활성화될 때까지 대기 — 최초 등록이 일시 오류로 실패했으면 재등록 (자가 복구)
@@ -80,17 +80,25 @@ test('오프라인: 앱 셸과 핵심 현장 도구(A등급)가 전부 동작한
   await page.waitForLoadState('domcontentloaded');
   await waitForServiceWorkerControl(page);
 
-  // 셸 프리캐시 확인 (index.html + 아이콘 폰트)
+  // 셸 프리캐시 확인 (index.html + 아이콘 폰트 + 현재 빌드 진입 JS/CSS)
   const shellOk = await page.evaluate(async () => {
     const cacheNames = await caches.keys();
     const shellName = cacheNames.find((k) => k.startsWith('119-shell-'));
     if (!shellName) return false;
     const cache = await caches.open(shellName);
-    const hasIndex = !!(await cache.match('/index.html'));
+    const indexResponse = await cache.match('/index.html');
+    const hasIndex = !!indexResponse;
     const hasIconFont = !!(await cache.match('/fonts/material-symbols-outlined.woff2'));
-    return hasIndex && hasIconFont;
+    if (!indexResponse) return false;
+    const html = await indexResponse.text();
+    const entryAssets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"?#]+)"/g)].map(match => match[1]);
+    const assetCacheName = cacheNames.find((name) => name.startsWith('119-assets-'));
+    if (!assetCacheName || entryAssets.length === 0) return false;
+    const assetCache = await caches.open(assetCacheName);
+    const entriesCached = (await Promise.all(entryAssets.map(url => assetCache.match(url)))).every(Boolean);
+    return hasIndex && hasIconFont && entriesCached;
   });
-  expect(shellOk, '앱 셸(index.html + 아이콘 폰트)이 프리캐시되어야 함').toBe(true);
+  expect(shellOk, '앱 셸과 현재 진입 JS/CSS가 프리캐시되어야 함').toBe(true);
 
   // 핵심 청크 프리페치 완료 대기
   await waitForCriticalChunksCached(page, CRITICAL_CHUNKS);
