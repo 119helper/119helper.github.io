@@ -17,6 +17,7 @@ jobs:
   build:
     name: 🔨 Build & Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -76,11 +77,106 @@ jobs:
           # Worker의 APP_ACCESS_TOKEN과 동일해야 함
           VITE_APP_TOKEN: ${{ secrets.VITE_APP_TOKEN }}
 
-      # 오프라인 동작 보증: 이 테스트가 깨지면 현장에서 신호 끊겼을 때 앱이 안 뜬다
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+      - name: Resolve Playwright version
+        id: playwright_version
+        shell: bash
+        run: |
+          version="$(node -p 'require("playwright/package.json").version')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
+      - name: Cache Playwright browser
+        id: playwright_cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright_version.outputs.version }}
+
+      - name: Install Playwright browser
+        shell: bash
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+
+          for attempt in 1 2 3; do
+            echo "Playwright browser install attempt $attempt/3"
+            if timeout --kill-after=10s 120s npx playwright install chromium; then
+              exit 0
+            else
+              status=$?
+            fi
+
+            if [[ "$attempt" -eq 3 ]]; then
+              echo "::error::Playwright browser install failed after 3 attempts (exit $status)"
+              exit "$status"
+            fi
+
+            delay=$((attempt * 10))
+            echo "::warning::Playwright browser install failed (exit $status); retrying in ${delay}s"
+            sleep "$delay"
+          done
+
+      - name: Check Playwright runtime
+        id: playwright_runtime
+        continue-on-error: true
+        shell: bash
+        timeout-minutes: 1
+        run: |
+          node - <<'NODE'
+          const { chromium } = require('@playwright/test');
+
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            await browser.close();
+          })().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Install Playwright system dependencies
+        if: steps.playwright_runtime.outcome == 'failure'
+        shell: bash
+        timeout-minutes: 11
+        run: |
+          set -euo pipefail
+
+          for attempt in 1 2 3; do
+            echo "Playwright dependency install attempt $attempt/3"
+            if timeout --kill-after=15s 180s npx playwright install-deps chromium; then
+              exit 0
+            else
+              status=$?
+            fi
+
+            if [[ "$attempt" -eq 3 ]]; then
+              echo "::error::Playwright dependency install failed after 3 attempts (exit $status)"
+              exit "$status"
+            fi
+
+            delay=$((attempt * 15))
+            echo "::warning::Playwright dependency install failed (exit $status); retrying in ${delay}s"
+            sleep "$delay"
+          done
+
+      - name: Verify Playwright runtime
+        shell: bash
+        timeout-minutes: 1
+        run: |
+          node - <<'NODE'
+          const { chromium } = require('@playwright/test');
+
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            await browser.close();
+          })().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
+
+      # 오프라인 동작 보증: 이 테스트가 깨지면 현장에서 신호 끊겼을 때 앱이 안 뜬다
       - name: E2E tests
+        timeout-minutes: 10
         run: npm run test:e2e
 
       - name: Upload test results on failure
