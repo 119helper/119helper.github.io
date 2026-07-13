@@ -6,6 +6,7 @@ import { recordActivityStage } from '../services/activitySession';
 import ActivityStageEditorDialog from './ActivityStageEditorDialog';
 import type { IncidentSession, IncidentType } from '../services/incidentSession';
 import type { TabId } from '../types/navigation';
+import { findActivityOrderIssues } from '../utils/activityOrder';
 import { formatDuration } from '../utils/activityReport';
 
 const TYPE_META: Record<IncidentType, { icon: string; label: string }> = {
@@ -40,13 +41,21 @@ export default function IncidentStatusStrip({ session, activeTab, onNavigate }: 
       .sort((a, b) => a.remaining - b.remaining)[0]
   ), [timers]);
 
-  const quickStages = useMemo(() => (
-    (ACTIVITY_PRESETS.find(preset => preset.id === session.type) ?? ACTIVITY_PRESETS[0])
-      .stages.filter(stage => stage.id !== 'dispatch')
+  const activityPreset = useMemo(() => (
+    ACTIVITY_PRESETS.find(preset => preset.id === session.type) ?? ACTIVITY_PRESETS[0]
   ), [session.type]);
+  const quickStages = useMemo(() => (
+    activityPreset.stages.filter(stage => stage.id !== 'dispatch')
+  ), [activityPreset]);
   const stampByStage = useMemo(() => (
     new Map(activitySession.stamps.map(stamp => [stamp.stageId, stamp]))
   ), [activitySession.stamps]);
+  const orderIssues = useMemo(() => (
+    findActivityOrderIssues(activityPreset.stages, activitySession.stamps)
+  ), [activityPreset, activitySession.stamps]);
+  const issueStageIds = useMemo(() => new Set(
+    orderIssues.flatMap(issue => [issue.expectedBefore.stageId, issue.expectedAfter.stageId]),
+  ), [orderIssues]);
   const editingStamp = editingStageId ? stampByStage.get(editingStageId) ?? null : null;
 
   useEffect(() => {
@@ -57,7 +66,10 @@ export default function IncidentStatusStrip({ session, activeTab, onNavigate }: 
 
   const recordStage = (stageId: string, label: string) => {
     const result = recordActivityStage(stageId, label);
-    setFeedback(result.recorded ? `${label} 기록 완료` : `${label}은 이미 기록되어 있습니다`);
+    const nextIssues = findActivityOrderIssues(activityPreset.stages, result.session.stamps);
+    setFeedback(result.recorded
+      ? `${label} 기록 완료${nextIssues.length > 0 ? ' · 활동 시각 순서를 확인하세요' : ''}`
+      : `${label}은 이미 기록되어 있습니다`);
   };
 
   if (!session.active) return null;
@@ -116,6 +128,7 @@ export default function IncidentStatusStrip({ session, activeTab, onNavigate }: 
           <div className="scrollbar-hide flex min-w-0 flex-1 gap-1.5 overflow-x-auto" aria-label={`${type.label} 출동 활동 빠른 기록`}>
             {quickStages.map(stage => {
               const stamp = stampByStage.get(stage.id);
+              const hasOrderIssue = Boolean(stamp && issueStageIds.has(stage.id));
               const recordedTime = stamp
                 ? new Date(stamp.time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
                 : '';
@@ -123,15 +136,19 @@ export default function IncidentStatusStrip({ session, activeTab, onNavigate }: 
                 <button
                   key={stage.id}
                   type="button"
-                  aria-label={stamp ? `${stage.label} 기록됨 ${recordedTime}, 수정` : `${stage.label} 기록`}
+                  aria-label={stamp
+                    ? `${stage.label} 기록됨 ${recordedTime}${hasOrderIssue ? ', 순서 확인 필요' : ''}, 수정`
+                    : `${stage.label} 기록`}
                   onClick={() => stamp ? setEditingStageId(stage.id) : recordStage(stage.id, stage.label)}
                   className={`flex shrink-0 items-center gap-1 rounded-lg border px-2.5 py-2 text-xs font-extrabold transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${
-                    stamp
+                    hasOrderIssue
+                      ? 'border-amber-600/40 bg-amber-400 text-amber-950'
+                      : stamp
                       ? 'border-primary/20 bg-primary text-on-primary'
                       : 'border-error/20 bg-surface-container-lowest/80 text-on-surface hover:bg-surface-container'
                   }`}
                 >
-                  <span aria-hidden="true" className="material-symbols-outlined text-base">{stamp ? 'check' : stage.icon}</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-base">{hasOrderIssue ? 'warning' : stamp ? 'check' : stage.icon}</span>
                   <span>{stage.label}</span>
                   {stamp && <span className="font-mono text-[10px] tabular-nums opacity-85">{recordedTime}</span>}
                   {stamp && <span aria-hidden="true" className="material-symbols-outlined text-[14px] opacity-85">edit</span>}
@@ -139,6 +156,18 @@ export default function IncidentStatusStrip({ session, activeTab, onNavigate }: 
               );
             })}
           </div>
+          {orderIssues.length > 0 && (
+            <button
+              type="button"
+              aria-label={`활동 시각 순서 ${orderIssues.length}건 확인, 활동 타임라인 열기`}
+              onClick={() => onNavigate('activity-log')}
+              className="flex shrink-0 items-center gap-1 rounded-lg border border-amber-600/40 bg-amber-400 px-2.5 py-2 text-xs font-extrabold text-amber-950 shadow-sm hover:bg-amber-300"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-base">warning</span>
+              <span>{orderIssues.length}</span>
+              <span className="hidden sm:inline">순서 확인</span>
+            </button>
+          )}
           <span className="sr-only" role="status" aria-live="polite">{feedback}</span>
         </div>
       </div>

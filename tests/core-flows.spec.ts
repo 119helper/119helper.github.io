@@ -147,6 +147,43 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
   await expect(page.getByRole('navigation', { name: '주요 기능' }).getByRole('button', { name: '대시보드' })).toBeVisible();
 });
 
+test('활동 기록: 뒤바뀐 단계 시각을 경고하고 수정 후 해제한다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/?tab=incident');
+
+  await page.getByRole('button', { name: 'ambulance 구급', exact: true }).click();
+  await page.getByLabel('출동 제목').fill('순서 확인 테스트');
+  await page.getByRole('button', { name: /출동 상황판 시작/ }).click();
+
+  const quickActivity = page.getByLabel('구급 출동 활동 빠른 기록');
+  await quickActivity.getByRole('button', { name: '병원도착 기록' }).click();
+  await page.waitForTimeout(1_100);
+  await quickActivity.getByRole('button', { name: '이송개시 기록' }).click();
+
+  const orderWarning = page.getByRole('button', { name: /활동 시각 순서 1건 확인/ });
+  await expect(orderWarning).toBeVisible();
+  await expect(quickActivity.getByRole('button', { name: /이송개시 기록됨.*순서 확인 필요.*수정/ })).toBeVisible();
+  await expect(quickActivity.getByRole('button', { name: /병원도착 기록됨.*순서 확인 필요.*수정/ })).toBeVisible();
+
+  await orderWarning.click();
+  await expect(page).toHaveURL(/#activity-log$/);
+  const orderAlert = page.getByRole('alert', { name: '활동 시각 순서 확인' });
+  await expect(orderAlert).toContainText('‘병원도착’ 시각이 ‘이송개시’보다 빠릅니다.');
+
+  await orderAlert.getByRole('button', { name: '병원도착 시각 수정' }).click();
+  const editor = page.getByRole('dialog', { name: '병원도착' });
+  await page.waitForTimeout(1_100);
+  await editor.getByRole('button', { name: '현재 시각으로 설정' }).click();
+  await editor.getByRole('button', { name: '시각 저장' }).click();
+
+  await expect(orderAlert).toBeHidden();
+  await expect(page.getByRole('button', { name: /활동 시각 순서 1건 확인/ })).toBeHidden();
+  const corrected = await page.evaluate(() => JSON.parse(localStorage.getItem('119helper-activity-session') || '{}'));
+  const transport = corrected.stamps.find((stamp: { stageId?: string }) => stamp.stageId === 'transport');
+  const hospital = corrected.stamps.find((stamp: { stageId?: string }) => stamp.stageId === 'hospital');
+  expect(transport.time).toBeLessThanOrEqual(hospital.time);
+});
+
 test('현장 가독성 설정을 앱 전역에 적용한다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');

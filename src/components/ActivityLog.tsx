@@ -13,6 +13,7 @@ import { useUserProfile, type DutyRole } from '../contexts/UserProfileContext';
 import { useTimer } from '../contexts/TimerContext';
 import { loadStoredJson } from '../services/privacySettings';
 import { confirmSensitiveExport } from '../utils/sensitiveExport';
+import { findActivityOrderIssues } from '../utils/activityOrder';
 import {
   EMPTY_ACTIVITY_SESSION,
   type ActivitySessionState,
@@ -75,6 +76,17 @@ export default function ActivityLog() {
     session.stamps.forEach(s => m.set(s.stageId, s));
     return m;
   }, [session.stamps]);
+  const orderIssues = useMemo(
+    () => findActivityOrderIssues(preset.stages, session.stamps),
+    [preset.stages, session.stamps],
+  );
+  const issueStageIds = useMemo(() => new Set(
+    orderIssues.flatMap(issue => [issue.expectedBefore.stageId, issue.expectedAfter.stageId]),
+  ), [orderIssues]);
+  const issueStages = useMemo(
+    () => preset.stages.filter(stage => issueStageIds.has(stage.id)),
+    [issueStageIds, preset.stages],
+  );
 
   const sortedStamps: StageStamp[] = useMemo(
     () => [...session.stamps].sort((a, b) => a.time - b.time),
@@ -225,21 +237,24 @@ export default function ActivityLog() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {preset.stages.map(stage => {
           const logged = stampByStage.get(stage.id);
+          const hasOrderIssue = Boolean(logged && issueStageIds.has(stage.id));
           return (
             <button
               key={stage.id}
               aria-label={logged
-                ? `${stage.label} 기록됨 ${new Date(logged.time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}, 수정`
+                ? `${stage.label} 기록됨 ${new Date(logged.time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}${hasOrderIssue ? ', 순서 확인 필요' : ''}, 수정`
                 : `${stage.label} 기록`}
               onClick={() => logged ? setEditingStageId(stage.id) : recordStage(stage.id, stage.label)}
               className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border p-4 transition-all ${
-                logged
+                hasOrderIssue
+                  ? 'border-amber-500/50 bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                  : logged
                   ? 'bg-primary/10 border-primary/40 text-primary'
                   : 'bg-surface-container-lowest border-outline-variant/10 text-on-surface hover:bg-surface-container-high/40'
               }`}
             >
               <span className="material-symbols-outlined text-2xl" style={logged ? { fontVariationSettings: "'FILL' 1" } : undefined}>
-                {logged ? 'check_circle' : stage.icon}
+                {hasOrderIssue ? 'warning' : logged ? 'check_circle' : stage.icon}
               </span>
               <span className="text-sm font-bold">{stage.label}</span>
               {logged ? (
@@ -255,6 +270,37 @@ export default function ActivityLog() {
           );
         })}
       </div>
+
+      {orderIssues.length > 0 && (
+        <section
+          role="alert"
+          aria-label="활동 시각 순서 확인"
+          className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200"
+        >
+          <div className="flex items-start gap-3">
+            <span aria-hidden="true" className="material-symbols-outlined mt-0.5 text-amber-600">warning</span>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-extrabold">활동 시각 순서 확인</h3>
+              <p className="mt-1 text-xs leading-5 opacity-90">현장 상황상 순서가 달라질 수 있습니다. 오입력인 경우 관련 단계의 시각을 수정하세요.</p>
+              <ul className="mt-2 space-y-1 text-sm font-bold">
+                {orderIssues.map(issue => <li key={issue.id}>{issue.message}</li>)}
+              </ul>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {issueStages.map(stage => (
+                  <button
+                    key={stage.id}
+                    type="button"
+                    onClick={() => setEditingStageId(stage.id)}
+                    className="rounded-lg border border-amber-600/30 bg-surface-container-lowest px-3 py-2 text-xs font-extrabold text-on-surface hover:bg-surface-container"
+                  >
+                    {stage.label} 시각 수정
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
       <span className="sr-only" role="status" aria-live="polite">{feedback}</span>
 
       {started && (
