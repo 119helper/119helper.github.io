@@ -22,6 +22,11 @@ import {
   isValidAppLockCode,
   recordAppUnlock,
 } from '../services/appLock';
+import {
+  loadDisplaySettings,
+  saveDisplaySettings,
+  type DisplaySettings,
+} from '../services/displaySettings';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -63,7 +68,7 @@ const parseNumberOr = (value: string, fallback: number) => {
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
 // ── 토글 스위치 ──
-function Toggle({ on, onChange, size = 'md' }: { on: boolean; onChange: (v: boolean) => void; size?: 'sm' | 'md' }) {
+function Toggle({ on, onChange, size = 'md', label }: { on: boolean; onChange: (v: boolean) => void; size?: 'sm' | 'md'; label?: string }) {
   const w = size === 'sm' ? 'w-9 h-5' : 'w-11 h-6';
   const dot = size === 'sm' ? 'w-3.5 h-3.5' : 'w-4 h-4';
   const pos = size === 'sm' ? (on ? 'left-[18px]' : 'left-[3px]') : (on ? 'left-6' : 'left-1');
@@ -72,6 +77,7 @@ function Toggle({ on, onChange, size = 'md' }: { on: boolean; onChange: (v: bool
       type="button"
       role="switch"
       aria-checked={on}
+      aria-label={label}
       onClick={() => onChange(!on)}
       className={`${w} rounded-full transition-colors relative shrink-0 ${on ? 'bg-primary' : 'bg-surface-container-highest'}`}
     >
@@ -116,11 +122,12 @@ function CategoryHeader({ icon, iconColor, label, masterOn, onMasterChange }: {
 // ══════════════════════════════════════════
 // 일반 설정 탭
 // ══════════════════════════════════════════
-function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefreshInterval, ns, updateNs, privacy, setPrivacy, appLockCode, setAppLockCode, onClearUserData, onLockNow }: {
+function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefreshInterval, ns, updateNs, privacy, setPrivacy, displaySettings, setDisplaySettings, appLockCode, setAppLockCode, onClearUserData, onLockNow }: {
   city: string; onCityChange: (c: string) => void; cityNames: Record<string, string>;
   refreshInterval: string; setRefreshInterval: (v: string) => void;
   ns: NotificationSettings; updateNs: (patch: Partial<NotificationSettings>) => void;
   privacy: PrivacySettings; setPrivacy: (settings: PrivacySettings) => void;
+  displaySettings: DisplaySettings; setDisplaySettings: (settings: DisplaySettings) => void;
   appLockCode: string; setAppLockCode: (value: string) => void;
   onClearUserData: () => void;
   onLockNow: () => void;
@@ -144,6 +151,27 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
+      </div>
+
+      <hr className="border-outline-variant/10" />
+
+      {/* 현장 가독성 */}
+      <div className="space-y-3">
+        <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-2">
+          <span aria-hidden="true" className="material-symbols-outlined text-primary text-lg">visibility</span>
+          현장 가독성
+        </span>
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-container px-3 py-3">
+          <div>
+            <p className="text-sm font-medium text-on-surface">큰 글씨·큰 터치 영역</p>
+            <p className="text-[10px] leading-4 text-on-surface-variant">장갑 착용과 야외 확인을 위해 작은 글씨와 조작 영역을 확대합니다.</p>
+          </div>
+          <Toggle
+            label="현장 가독성 모드"
+            on={displaySettings.fieldReadabilityMode}
+            onChange={fieldReadabilityMode => setDisplaySettings({ fieldReadabilityMode })}
+          />
+        </div>
       </div>
 
       <hr className="border-outline-variant/10" />
@@ -569,6 +597,7 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
   const [ns, setNs] = useState<NotificationSettings>(loadNotificationSettings());
   const [shiftSetting, setShiftSetting] = useState<ShiftSetting>(DEFAULT_SHIFT_SETTING);
   const [privacy, setPrivacy] = useState<PrivacySettings>(loadPrivacySettings());
+  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(loadDisplaySettings());
   const [appLockCode, setAppLockCode] = useState('');
 
   useEffect(() => {
@@ -578,6 +607,7 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
       setRefreshInterval(normalizeRefreshInterval(localStorage.getItem('119helper-refresh') || '5'));
       setNs(loadNotificationSettings());
       setPrivacy(loadPrivacySettings());
+      setDisplaySettings(loadDisplaySettings());
       setAppLockCode('');
       
       try {
@@ -630,6 +660,7 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
     updateProfile(draftProfile);
     saveNotificationSettings(ns);
     savePrivacySettings(nextPrivacy);
+    saveDisplaySettings(displaySettings);
     setPrivacy(nextPrivacy);
     setAppLockCode('');
     if (nextPrivacy.appLockEnabled && isAppLockConfigured(nextPrivacy)) {
@@ -714,6 +745,7 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
               refreshInterval={refreshInterval} setRefreshInterval={setRefreshInterval}
               ns={ns} updateNs={updateNs}
               privacy={privacy} setPrivacy={setPrivacy}
+              displaySettings={displaySettings} setDisplaySettings={setDisplaySettings}
               appLockCode={appLockCode} setAppLockCode={setAppLockCode}
               onClearUserData={handleClearUserData}
               onLockNow={handleLockNow}

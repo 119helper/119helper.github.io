@@ -286,6 +286,28 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* 현장 가독성 모드: 야외·장갑 환경에서 작은 정보와 조작 영역을 확대 */
+html[data-readability="field"] {
+  font-size: 18px;
+}
+
+html[data-readability="field"] .text-\[10px\] {
+  font-size: 0.72rem !important;
+  line-height: 1rem !important;
+}
+
+html[data-readability="field"] .text-\[11px\] {
+  font-size: 0.78rem !important;
+  line-height: 1.1rem !important;
+}
+
+html[data-readability="field"] button:not([role="switch"]),
+html[data-readability="field"] select,
+html[data-readability="field"] textarea,
+html[data-readability="field"] input:not([type="range"]) {
+  min-height: 2.75rem;
+}
+
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-headline);
 }

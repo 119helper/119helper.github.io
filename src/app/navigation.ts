@@ -69,11 +69,25 @@ export const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export const BOTTOM_TABS: { id: TabId | 'more'; icon: string; label: string }[] = [
+export interface BottomTab {
+  id: TabId | 'more';
+  icon: string;
+  label: string;
+}
+
+export const BOTTOM_TABS: BottomTab[] = [
   { id: 'dashboard', icon: 'dashboard', label: '대시보드' },
   { id: 'shelter', icon: 'location_city', label: '시설' },
   { id: 'er', icon: 'local_hospital', label: '응급실' },
   { id: 'wildfire', icon: 'local_fire_department', label: '산불' },
+  { id: 'more', icon: 'menu', label: '더보기' },
+];
+
+export const INCIDENT_BOTTOM_TABS: BottomTab[] = [
+  { id: 'incident', icon: 'assignment', label: '상황판' },
+  { id: 'field-timer', icon: 'timer', label: '타이머' },
+  { id: 'shelter', icon: 'location_city', label: '시설' },
+  { id: 'er', icon: 'local_hospital', label: '응급실' },
   { id: 'more', icon: 'menu', label: '더보기' },
 ];
 

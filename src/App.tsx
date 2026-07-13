@@ -4,6 +4,7 @@ import GlobalSearch from './components/GlobalSearch';
 import SettingsModal from './components/SettingsModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import AppLockGate from './components/AppLockGate';
+import IncidentStatusStrip from './components/IncidentStatusStrip';
 import { fetchFireWaterFacilities, fetchCityIndex, isSplitCity } from './services/fireWaterApi';
 import type { CityIndex } from './services/fireWaterApi';
 import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS } from './services/weatherApi';
@@ -14,7 +15,7 @@ import { prefetchCriticalViews } from './utils/prefetchCriticalViews';
 import { fetchDisasterMsgs } from './services/disasterMsgApi';
 import { useNotifications, formatTimeAgo } from './hooks/useNotifications';
 
-import { BOTTOM_TABS, NAV_ITEMS, cityNames, getTabLabel } from './app/navigation';
+import { BOTTOM_TABS, INCIDENT_BOTTOM_TABS, NAV_ITEMS, cityNames, getTabLabel } from './app/navigation';
 import { renderTabRoute, type RouteContext } from './app/routes';
 import { buildTabHash, readTabLocation } from './app/tabHash';
 import { isTabId } from './types/navigation';
@@ -22,7 +23,9 @@ import type { ShelterCategory, TabId, NavigateTarget } from './types/navigation'
 import { useUserProfile } from './contexts/UserProfileContext';
 import { useGeolocation } from './hooks/useGeolocation';
 import { useAutoRefresh } from './hooks/useAutoRefresh';
+import { useIncidentSession } from './hooks/useIncidentSession';
 import { applyPrivacyRetention } from './services/privacySettings';
+import { loadDisplaySettings } from './services/displaySettings';
 
 function TabLoading({ label }: { label: string }) {
   return (
@@ -54,6 +57,8 @@ export default function App() {
   const { displayName, subtitle } = useUserProfile();
   const [notiOpen, setNotiOpen] = useState(false);
   const { notifications, addNotification, markAllRead, clearAll } = useNotifications();
+  const [incidentSession] = useIncidentSession();
+  const [fieldReadabilityMode, setFieldReadabilityMode] = useState(() => loadDisplaySettings().fieldReadabilityMode);
   const lastRefreshRef = useRef<Date>(new Date());
   const refreshSeqRef = useRef(0);
   const [regionOpen, setRegionOpen] = useState(false);
@@ -122,6 +127,20 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-readability', fieldReadabilityMode ? 'field' : 'standard');
+  }, [fieldReadabilityMode]);
+
+  useEffect(() => {
+    const syncDisplaySettings = () => setFieldReadabilityMode(loadDisplaySettings().fieldReadabilityMode);
+    window.addEventListener('119helper-settings-updated', syncDisplaySettings);
+    window.addEventListener('storage', syncDisplaySettings);
+    return () => {
+      window.removeEventListener('119helper-settings-updated', syncDisplaySettings);
+      window.removeEventListener('storage', syncDisplaySettings);
+    };
+  }, []);
 
   const handleThemeChange = useCallback((t: string) => {
     setTheme(t);
@@ -357,6 +376,7 @@ export default function App() {
     onDistrictChange: loadDistrict,
     onNavigate: handleNavigate,
   };
+  const bottomTabs = incidentSession.active ? INCIDENT_BOTTOM_TABS : BOTTOM_TABS;
 
   return (
     <AppLockGate>
@@ -666,6 +686,12 @@ export default function App() {
           </div>
         </header>
 
+        <IncidentStatusStrip
+          session={incidentSession}
+          activeTab={activeTab}
+          onNavigate={handleNavigate}
+        />
+
         {/* Content */}
         <div 
           className="flex-1 overflow-y-auto custom-scrollbar relative"
@@ -716,9 +742,9 @@ export default function App() {
         </button>
 
         {/* Mobile Bottom Navigation */}
-        <nav aria-label="주요 기능" className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface-container-lowest/95 backdrop-blur-lg border-t border-outline-variant/20 safe-area-bottom">
+        <nav aria-label="주요 기능" className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-surface-container-lowest/95 backdrop-blur-lg border-t border-outline-variant/20 safe-area-bottom">
           <div className="flex items-center justify-around h-16 px-1">
-            {BOTTOM_TABS.map(tab => {
+            {bottomTabs.map(tab => {
               const isActive = tab.id !== 'more' && activeTab === tab.id;
               return (
                 <button

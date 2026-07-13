@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AviationSafetyCard from './AviationSafetyCard';
 import { CITY_GRIDS, getUltraShortNow, parseCurrentWeather, type CurrentWeather } from '../services/weatherApi';
 import { CITY_TO_SIDO, getERRealTimeBeds, type ERRealTimeData } from '../services/erApi';
-import { useLocalStorageState } from '../hooks/useLocalStorageState';
+import { useIncidentSession } from '../hooks/useIncidentSession';
 import { useTimer } from '../contexts/TimerContext';
 import { formatDuration } from '../utils/activityReport';
 import type { CityIndex } from '../services/fireWaterApi';
@@ -10,38 +10,11 @@ import type { FireFacility } from '../data/mockData';
 import type { NavigateTarget } from '../types/navigation';
 import { loadStoredJson } from '../services/privacySettings';
 import { appendActivityEvent, startActivityFromIncident } from '../services/activitySession';
-
-type IncidentType = 'fire' | 'ems' | 'rescue' | 'support';
-
-interface IncidentSession {
-  active: boolean;
-  type: IncidentType;
-  title: string;
-  address: string;
-  startedAt: number;
-  endedAt?: number;
-  note: string;
-  snapshot?: {
-    capturedAt: number;
-    cityLabel: string;
-    temperature: number | null;
-    humidity: number | null;
-    windSpeed: number | null;
-    erHospitals: number;
-    erBeds: number;
-    hydrants: number;
-    waterSources: number;
-  };
-}
-
-const EMPTY_SESSION: IncidentSession = {
-  active: false,
-  type: 'fire',
-  title: '',
-  address: '',
-  startedAt: 0,
-  note: '',
-};
+import {
+  EMPTY_INCIDENT_SESSION,
+  type IncidentSession,
+  type IncidentType,
+} from '../services/incidentSession';
 
 const INCIDENT_TYPES: Array<{ id: IncidentType; label: string; icon: string }> = [
   { id: 'fire', label: '화재', icon: 'local_fire_department' },
@@ -71,8 +44,8 @@ export default function IncidentModeView({
   cityIndex,
   onNavigate,
 }: IncidentModeViewProps) {
-  const [session, setSession] = useLocalStorageState<IncidentSession>('119helper-incident-session', EMPTY_SESSION);
-  const [draft, setDraft] = useState<IncidentSession>(EMPTY_SESSION);
+  const [session, setSession] = useIncidentSession();
+  const [draft, setDraft] = useState<IncidentSession>(EMPTY_INCIDENT_SESSION);
   const [weather, setWeather] = useState<CurrentWeather | null>(null);
   const [erList, setErList] = useState<ERRealTimeData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -168,7 +141,7 @@ export default function IncidentModeView({
     const endedAt = Date.now();
     appendActivityEvent('상황판 종료', endedAt);
     setSession({ ...session, active: false, endedAt });
-    setDraft(EMPTY_SESSION);
+    setDraft(EMPTY_INCIDENT_SESSION);
   };
 
   const openIncidentTool = (tab: NavigateTarget | string, label: string, subId?: string) => {

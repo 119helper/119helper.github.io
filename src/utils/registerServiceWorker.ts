@@ -7,6 +7,7 @@
  */
 
 let waitingWorker: ServiceWorker | null = null;
+let updateRequested = false;
 
 export function registerServiceWorker(onUpdateReady: () => void) {
   if (!import.meta.env.PROD) return;
@@ -42,7 +43,9 @@ export function registerServiceWorker(onUpdateReady: () => void) {
   // 새 SW가 제어권을 가져오면 한 번만 새로고침
   let refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return;
+    // 최초 설치의 clients.claim()은 사용자가 입력 중인 화면을 새로고침하지 않는다.
+    // 명시적으로 업데이트 버튼을 누른 경우에만 새 번들로 전환한다.
+    if (!updateRequested || refreshing) return;
     refreshing = true;
     window.location.reload();
   });
@@ -56,6 +59,7 @@ export function registerServiceWorker(onUpdateReady: () => void) {
 
 export function applyUpdate() {
   if (waitingWorker) {
+    updateRequested = true;
     waitingWorker.postMessage('SKIP_WAITING');
   } else {
     window.location.reload();

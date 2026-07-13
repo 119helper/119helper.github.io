@@ -72,6 +72,7 @@ test('모바일: 통합 검색으로 기능을 열고 최근 사용에 저장한
 });
 
 test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 자동 기록된다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/?tab=incident');
 
   await page.getByRole('button', { name: 'ambulance 구급', exact: true }).click();
@@ -82,6 +83,10 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
 
   await expect(page.getByRole('heading', { name: '광주 환자 이송' })).toBeVisible();
   await expect(page.getByText('출동 시작 기준 스냅샷')).toBeVisible();
+  await expect(page.getByRole('region', { name: '진행 중인 출동' })).toBeVisible();
+  const incidentNav = page.getByRole('navigation', { name: '주요 기능' });
+  await expect(incidentNav.getByRole('button', { name: '상황판' })).toBeVisible();
+  await expect(incidentNav.getByRole('button', { name: '타이머' })).toBeVisible();
 
   const started = await page.evaluate(() => ({
     activity: JSON.parse(localStorage.getItem('119helper-activity-session') || '{}'),
@@ -96,7 +101,8 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
   const afterTool = await page.evaluate(() => JSON.parse(localStorage.getItem('119helper-activity-session') || '{}'));
   expect(afterTool.stamps.some((stamp: { label?: string }) => stamp.label === '활동기록 열람')).toBe(true);
 
-  await page.goto('/?tab=incident');
+  await page.getByRole('button', { name: '진행 중인 구급 출동 상황판 열기' }).click();
+  await expect(page).toHaveURL(/#incident$/);
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: '상황 종료' }).click();
 
@@ -107,4 +113,22 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
   expect(ended.incident.active).toBe(false);
   expect(ended.incident.endedAt).toBeGreaterThan(ended.incident.startedAt);
   expect(ended.activity.stamps.some((stamp: { label?: string }) => stamp.label === '상황판 종료')).toBe(true);
+  await expect(page.getByRole('region', { name: '진행 중인 출동' })).toBeHidden();
+  await expect(page.getByRole('navigation', { name: '주요 기능' }).getByRole('button', { name: '대시보드' })).toBeVisible();
+});
+
+test('현장 가독성 설정을 앱 전역에 적용한다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+
+  await page.getByRole('button', { name: '전체 메뉴 열기' }).click();
+  await page.getByTitle('내 정보 편집').click();
+  await expect(page.getByRole('heading', { name: /환경 설정/ })).toBeVisible();
+  await page.getByRole('button', { name: /일반/ }).click();
+  await page.getByRole('switch', { name: '현장 가독성 모드' }).click();
+  await page.getByRole('button', { name: '저장하기' }).click();
+
+  await expect(page.locator('html')).toHaveAttribute('data-readability', 'field');
+  const rootFontSize = await page.locator('html').evaluate(element => getComputedStyle(element).fontSize);
+  expect(rootFontSize).toBe('18px');
 });
