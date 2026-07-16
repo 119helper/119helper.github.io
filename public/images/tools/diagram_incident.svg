@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" role="img" aria-labelledby="title desc">
+  <title id="title">출동 상황판</title>
+  <desc id="desc">현장 지휘 상황판, 위치 핀과 활동 시간을 표현한 도해</desc>
+  <defs>
+    <linearGradient id="bg" x1="30" y1="20" x2="760" y2="460" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#25131a"/>
+      <stop offset="1" stop-color="#481b22"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="480" rx="32" fill="url(#bg)"/>
+  <g transform="translate(102 72)">
+    <rect width="430" height="330" rx="32" fill="#f8fafc" opacity=".96"/>
+    <rect x="73" y="-19" width="286" height="49" rx="17" fill="#ef4444"/>
+    <g stroke-linecap="round">
+      <path d="M74 93h282M74 163h282M74 233h198" stroke="#64748b" stroke-width="16"/>
+      <path d="m36 90 17 17 31-38m-48 91 17 17 31-38m-48 91 17 17 31-38" fill="none" stroke="#22c55e" stroke-width="12" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <g transform="translate(555 88)">
+    <circle cx="89" cy="89" r="82" fill="#111827" stroke="#fda4af" stroke-width="11"/>
+    <path d="M89 89V39m0 50 42 27" stroke="#fff" stroke-width="13" stroke-linecap="round"/>
+    <circle cx="89" cy="89" r="12" fill="#fb7185"/>
+  </g>
+  <g transform="translate(568 270)">
+    <path d="M73 0c41 0 73 32 73 73 0 55-73 126-73 126S0 128 0 73C0 32 32 0 73 0Z" fill="#ef4444"/>
+    <circle cx="73" cy="73" r="28" fill="#fff"/>
+  </g>
+</svg>

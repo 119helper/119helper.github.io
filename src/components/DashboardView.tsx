@@ -16,8 +16,8 @@ import type { NavigateTarget } from '../types/navigation';
 import { classifyAviationSafety } from '../utils/aviationSafety';
 import { loadStoredJson } from '../services/privacySettings';
 
-import hydrantBg from '../assets/hydrant_bg.jpg';
-import waterTowerBg from '../assets/water_tower_bg.jpg';
+import hydrantBg from '../assets/hydrant_bg.webp';
+import waterTowerBg from '../assets/water_tower_bg.webp';
 
 const cityNames: Record<string, string> = {
   seoul: '서울', busan: '부산', daegu: '대구', incheon: '인천',
@@ -50,24 +50,24 @@ const ALL_QUICK_TOOLS: QuickToolDef[] = [
   { id: 'facility_hydrants', tab: 'hydrants', icon: 'fire_hydrant', label: '소화전', color: 'text-blue-400', category: '소방시설', bgImage: hydrantBg },
   { id: 'facility_towers', tab: 'waterTowers', icon: 'water_pump', label: '급수탑', color: 'text-emerald-400', category: '소방시설', bgImage: waterTowerBg },
   // 소방 계산기
-  { id: 'calc_hazmat', tab: 'calculator', subId: 'hazmat_calc', icon: 'science', label: '유해물질', color: 'text-orange-400', category: '계산기', bgImage: '/images/tools/Gemini_Generated_Image_5cq1b5cq1b5cq1b5.png' },
-  { id: 'calc_water', tab: 'calculator', subId: 'water_pressure_calc', icon: 'water_drop', label: '수압 계산', color: 'text-blue-400', category: '계산기', bgImage: '/images/tools/Gemini_Generated_Image_1eyesc1eyesc1eye.png' },
-  { id: 'calc_hose', tab: 'calculator', subId: 'hose_length_calc', icon: 'straighten', label: '호스 전개', color: 'text-green-400', category: '계산기', bgImage: '/images/tools/bg_water.png' },
-  { id: 'calc_air', tab: 'calculator', subId: 'air_tank_timer', icon: 'timer', label: '공기호흡기', color: 'text-amber-400', category: '계산기', bgImage: '/images/tools/bg_checklist.png' },
+  { id: 'calc_hazmat', tab: 'calculator', subId: 'hazmat_calc', icon: 'science', label: '유해물질', color: 'text-orange-400', category: '계산기', bgImage: '/images/tools/diagram_hazmat_wind.svg' },
+  { id: 'calc_water', tab: 'calculator', subId: 'water_pressure_calc', icon: 'water_drop', label: '수압 계산', color: 'text-blue-400', category: '계산기', bgImage: '/images/tools/diagram_water_pressure.svg' },
+  { id: 'calc_hose', tab: 'calculator', subId: 'hose_length_calc', icon: 'straighten', label: '호스 전개', color: 'text-green-400', category: '계산기', bgImage: '/images/tools/diagram_hose_deployment.svg' },
+  { id: 'calc_air', tab: 'calculator', subId: 'air_tank_timer', icon: 'timer', label: '공기호흡기', color: 'text-amber-400', category: '계산기', bgImage: '/images/tools/diagram_air_tank.svg' },
   { id: 'calc_unit', tab: 'calculator', subId: 'unit_converter', icon: 'swap_horiz', label: '단위 변환', color: 'text-indigo-400', category: '계산기' },
   // 주요 탭
-  { id: 'incident', tab: 'incident', icon: 'assignment', label: '출동 상황판', color: 'text-red-400', category: '현장 도구', bgImage: '/images/tools/bg_timer.png' },
-  { id: 'aviation', tab: 'aviation', icon: 'flight_takeoff', label: '항공/드론', color: 'text-cyan-400', category: '현장 도구', bgImage: '/images/tools/bg_wildfire.png' },
-  { id: 'law_defense', tab: 'law', subId: 'DEFENSE', icon: 'gavel', label: '법률 방어망', color: 'text-rose-500', category: '법률 보호', bgImage: '/images/tools/Gemini_Generated_Image_5n8rd95n8rd95n8r.png' },
-  { id: 'checklist', tab: 'checklist', icon: 'check_circle', label: '장비점검', color: 'text-orange-400', category: '현장 도구', bgImage: '/images/tools/bg_checklist.png' },
-  { id: 'field_timer', tab: 'field-timer', icon: 'timer', label: '현장 타이머', color: 'text-red-500', category: '현장 도구', bgImage: '/images/tools/bg_timer.png' },
-  { id: 'building', tab: 'shelter', subId: 'building', icon: 'apartment', label: '건축물대장', color: 'text-purple-400', category: '조회', bgImage: '/images/tools/bg_building.png' },
-  { id: 'shelter', tab: 'shelter', icon: 'location_city', label: '시설 조회', color: 'text-yellow-400', category: '조회', bgImage: '/images/tools/bg_shelter.png' },
-  { id: 'er', tab: 'er', icon: 'local_hospital', label: '응급실 현황', color: 'text-pink-400', category: '현장 도구', bgImage: '/images/tools/bg_er.png' },
+  { id: 'incident', tab: 'incident', icon: 'assignment', label: '출동 상황판', color: 'text-red-400', category: '현장 도구', bgImage: '/images/tools/diagram_incident.svg' },
+  { id: 'aviation', tab: 'aviation', icon: 'flight_takeoff', label: '항공/드론', color: 'text-cyan-400', category: '현장 도구', bgImage: '/images/tools/diagram_aviation.svg' },
+  { id: 'law_defense', tab: 'law', subId: 'DEFENSE', icon: 'gavel', label: '법률 방어망', color: 'text-rose-500', category: '법률 보호', bgImage: '/images/tools/diagram_law_defense.svg' },
+  { id: 'checklist', tab: 'checklist', icon: 'check_circle', label: '장비점검', color: 'text-orange-400', category: '현장 도구', bgImage: '/images/dashboard/ppe-check.svg' },
+  { id: 'field_timer', tab: 'field-timer', icon: 'timer', label: '현장 타이머', color: 'text-red-500', category: '현장 도구', bgImage: '/images/tools/bg_timer.webp' },
+  { id: 'building', tab: 'shelter', subId: 'building', icon: 'apartment', label: '건축물대장', color: 'text-purple-400', category: '조회', bgImage: '/images/tools/bg_building.webp' },
+  { id: 'shelter', tab: 'shelter', icon: 'location_city', label: '시설 조회', color: 'text-yellow-400', category: '조회', bgImage: '/images/tools/bg_shelter.webp' },
+  { id: 'er', tab: 'er', icon: 'local_hospital', label: '응급실 현황', color: 'text-pink-400', category: '현장 도구', bgImage: '/images/tools/bg_er.webp' },
   { id: 'weather', tab: 'weather', icon: 'cloud', label: '기상 정보', color: 'text-sky-400', category: '현장 도구' },
   { id: 'statistics', tab: 'annual-fire', icon: 'bar_chart', label: '통계 분석', color: 'text-orange-500', category: '행정/기타' },
   { id: 'news', tab: 'news', icon: 'newspaper', label: '소방 뉴스', color: 'text-teal-500', category: '행정/기타' },
-  { id: 'wildfire', tab: 'wildfire', icon: 'local_fire_department', label: '산불 현황', color: 'text-red-500', category: '행정/기타', bgImage: '/images/tools/bg_wildfire.png' },
+  { id: 'wildfire', tab: 'wildfire', icon: 'local_fire_department', label: '산불 현황', color: 'text-red-500', category: '행정/기타', bgImage: '/images/tools/bg_wildfire.webp' },
   { id: 'manual', tab: 'manual', icon: 'menu_book', label: '대응 매뉴얼', color: 'text-blue-500', category: '행정/기타' },
   { id: 'calendar', tab: 'calendar', icon: 'calendar_month', label: '달력/일정', color: 'text-red-400', category: '행정/기타' },
   { id: 'policy', tab: 'policy', icon: 'gavel', label: '법안/지침', color: 'text-green-500', category: '행정/기타' },
@@ -266,7 +266,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
     ? (cityIndex.waterTowers ?? 0)
     : fireFacilities.filter(f => f.type === '급수탑' || f.type === '저수조').length;
 
-  const regionImageUrl = `/images/regions/${city}.png`;
+  const regionImageUrl = `/images/regions/${city}.webp`;
   const aviation = weather ? classifyAviationSafety(weather.windSpeed) : null;
 
   const getBgOverlay = () => {
@@ -336,9 +336,14 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
           style={{ minHeight: '280px' }}
         >
           {/* Background Image Layer */}
-          <div 
-            className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-            style={{ backgroundImage: `url(${regionImageUrl})` }}
+          <img
+            src={regionImageUrl}
+            alt=""
+            aria-hidden="true"
+            fetchPriority="high"
+            loading="eager"
+            decoding="async"
+            className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
           />
           {/* Dark/Colored overlay for text readability & weather mood */}
           <div className={`absolute inset-0 bg-gradient-to-t transition-colors duration-1000 ${getBgOverlay()}`} />
@@ -455,7 +460,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
             {/* Background Image Layer */}
             <div 
               className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-              style={{ backgroundImage: `url(/images/safety_equipment.png)` }}
+              style={{ backgroundImage: `url(/images/dashboard/ppe-check.svg)` }}
             />
             {/* Dark overlay for text readability & mood */}
             <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-slate-900/30 transition-colors duration-1000" />
@@ -500,7 +505,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
             {/* Background Image Layer */}
             <div 
               className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-              style={{ backgroundImage: `url(/images/Gemini_Generated_Image_swyu86swyu86swyu.png)` }}
+              style={{ backgroundImage: `url(/images/dashboard/er-capacity.svg)` }}
             />
             {/* Dark overlay for text readability & mood */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30 transition-colors duration-1000" />

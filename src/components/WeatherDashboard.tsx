@@ -159,19 +159,19 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
 
   const getBgImage = () => {
     if (isBadAir) {
-      return '/images/weather/dust.png';
+      return '/images/weather/dust.webp';
     }
     if (current.precipType === '소나기') {
-      return '/images/weather/shower.png';
+      return '/images/weather/shower.webp';
     }
     if ((current.precipType.includes('비') || current.precipType === '빗방울') && current.windSpeed >= 8) {
-      return '/images/weather/thunder.png';
+      return '/images/weather/thunder.webp';
     }
-    if (current.precipType.includes('비') || current.precipType.includes('소나기') || current.precipType === '빗방울') return '/images/weather/rain.png';
-    if (current.precipType.includes('눈')) return '/images/weather/snow.png';
-    if (current.sky === '맑음') return '/images/weather/sunny.png';
-    if (current.sky.includes('흐림') || current.sky.includes('구름')) return '/images/weather/cloudy.png';
-    return '/images/weather/sunny.png';
+    if (current.precipType.includes('비') || current.precipType.includes('소나기') || current.precipType === '빗방울') return '/images/weather/rain.webp';
+    if (current.precipType.includes('눈')) return '/images/weather/snow.webp';
+    if (current.sky === '맑음') return '/images/weather/sunny.webp';
+    if (current.sky.includes('흐림') || current.sky.includes('구름')) return '/images/weather/cloudy.webp';
+    return '/images/weather/sunny.webp';
   };
 
   const getAccentColor = () => {
