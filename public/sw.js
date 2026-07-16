@@ -16,13 +16,32 @@
  * 영영 갱신되지 않는다 (소화전 데이터는 매달 갱신됨). 반드시 SWR로.
  */
 
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const SHELL_CACHE = `119-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `119-assets-${CACHE_VERSION}`;
 const DATA_CACHE = '119-data-v1'; // 버전 독립 — 받아둔 관할 데이터 보존
 const KEEP_CACHES = [SHELL_CACHE, ASSET_CACHE, DATA_CACHE];
 const DATA_CACHE_MAX_ENTRIES = 800;
 const DATA_CACHE_PRUNE_COUNT = 80;
+
+function isLegacyImagePath(pathname) {
+  return pathname === '/images/safety_equipment.png'
+    || pathname === '/images/Gemini_Generated_Image_swyu86swyu86swyu.png'
+    || /^\/images\/regions\/[^/]+\.png$/i.test(pathname)
+    || /^\/images\/weather\/[^/]+\.png$/i.test(pathname)
+    || /^\/images\/tools\/Gemini_Generated_Image_[^/]+\.png$/i.test(pathname)
+    || /^\/images\/tools\/bg_(?:building|checklist|er|hazmat|shelter|timer|water|wildfire)\.png$/i.test(pathname);
+}
+
+async function removeLegacyImagesFromDataCache() {
+  const cache = await caches.open(DATA_CACHE);
+  const requests = await cache.keys();
+  await Promise.all(
+    requests
+      .filter((request) => isLegacyImagePath(new URL(request.url).pathname))
+      .map((request) => cache.delete(request))
+  );
+}
 
 // 오프라인에서도 최소한 앱 셸이 뜨도록 미리 캐시할 항목
 // 폰트 포함: 아이콘이 폰트 기반(Material Symbols)이라 없으면 오프라인 UI가 깨짐
@@ -70,6 +89,7 @@ self.addEventListener('activate', (event) => {
       await Promise.all(
         keys.filter((key) => !KEEP_CACHES.includes(key)).map((key) => caches.delete(key))
       );
+      await removeLegacyImagesFromDataCache();
       await self.clients.claim();
     })()
   );

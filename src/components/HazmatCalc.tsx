@@ -200,6 +200,11 @@ export default function HazmatCalc() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Settings Panel */}
         <div className="md:col-span-5 space-y-4">
+          <img
+            src="/images/tools/diagram_hazmat_wind.svg"
+            alt="누출 지점에서 풍하향으로 확장되는 방호구역"
+            className="h-36 w-full rounded-lg border border-orange-500/20 object-cover"
+          />
           <div className="space-y-3">
             <div>
               <label className="text-xs font-bold text-on-surface-variant mb-1 block">물질 선택 (UN 번호)</label>

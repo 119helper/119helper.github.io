@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" role="img" aria-labelledby="title desc">
+  <title id="title">항공과 드론 운용</title>
+  <desc id="desc">풍향 표시 위를 비행하는 현장 드론</desc>
+  <defs>
+    <linearGradient id="bg" x1="30" y1="20" x2="760" y2="460" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0e2030"/>
+      <stop offset="1" stop-color="#103e4b"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(465 205) rotate(180) scale(280)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22d3ee" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="800" height="480" rx="32" fill="url(#bg)"/>
+  <rect width="800" height="480" rx="32" fill="url(#glow)"/>
+  <path d="M0 390c116-60 208-31 303-7 124 31 240-28 497-1v98H0Z" fill="#0a2731"/>
+  <g transform="translate(360 120)" fill="none" stroke="#cffafe" stroke-width="15" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M28 92h154l32 61H-4l32-61Z" fill="#164e63"/>
+    <path d="M28 106-58 49m240 57 86-57"/>
+    <path d="M-99 49h82m244 0h82"/>
+    <ellipse cx="-58" cy="49" rx="68" ry="22"/>
+    <ellipse cx="268" cy="49" rx="68" ry="22"/>
+    <path d="M62 153v42h86v-42"/>
+    <circle cx="105" cy="197" r="24" fill="#22d3ee"/>
+  </g>
+  <g transform="translate(114 116)">
+    <circle cx="88" cy="88" r="74" fill="#0f172a" stroke="#67e8f9" stroke-width="10"/>
+    <path d="M88 25v126M25 88h126" stroke="#334155" stroke-width="5"/>
+    <path d="m88 34 17 70-17-10-17 10Z" fill="#fb7185"/>
+    <circle cx="88" cy="88" r="10" fill="#f8fafc"/>
+  </g>
+  <path d="M92 341h180m-132 42h180" stroke="#67e8f9" stroke-opacity=".66" stroke-width="12" stroke-linecap="round"/>
+</svg>

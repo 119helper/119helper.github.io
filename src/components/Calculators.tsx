@@ -35,7 +35,12 @@ function WaterPressureCalc() {
           <p className="text-xs text-on-surface-variant">층수 입력 → 필요 송수압력 자동 계산</p>
         </div>
       </div>
-      <div className="flex gap-3">
+      <img
+        src="/images/tools/diagram_water_pressure.svg"
+        alt="펌프에서 건물 상층 관창까지 이어지는 송수압력 구조"
+        className="h-36 w-full rounded-lg border border-outline-variant/10 object-cover"
+      />
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
         <input
           type="number"
           min="1"
@@ -92,7 +97,12 @@ function HoseLengthCalc() {
           <p className="text-xs text-on-surface-variant">거리·층수 입력 → 필요 호스 본수 계산</p>
         </div>
       </div>
-      <div className="flex gap-3">
+      <img
+        src="/images/tools/diagram_hose_deployment.svg"
+        alt="소방차에서 건물 상층까지 이어지는 호스 전개 경로"
+        className="h-36 w-full rounded-lg border border-outline-variant/10 object-cover"
+      />
+      <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-3">
         <input
           type="number"
           min="0"
@@ -109,7 +119,7 @@ function HoseLengthCalc() {
           placeholder="건물 층수"
           className="flex-1 bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
-        <button type="button" onClick={calculate} className="bg-secondary text-on-secondary px-6 py-3 rounded-lg font-bold hover:bg-secondary/80 transition-colors">
+        <button type="button" onClick={calculate} className="bg-secondary text-on-secondary px-6 py-3 rounded-lg font-bold hover:bg-secondary/80 transition-colors sm:w-auto">
           계산
         </button>
       </div>
@@ -178,9 +188,14 @@ function AirTankTimer() {
           <p className="text-[11px] text-on-surface-variant leading-relaxed mt-1">※ 간이 참고용 타이머입니다. 실제 철수 판단은 장비 경보, 잔압 기준, 현장 지휘 지침을 우선하세요.</p>
         </div>
       </div>
+      <img
+        src="/images/tools/diagram_air_tank.svg"
+        alt="공기호흡기 용기와 압력계 안전 구간"
+        className="h-40 w-full rounded-lg border border-outline-variant/10 object-cover"
+      />
 
       {!isRunning && timeLeft === 0 ? (
-        <div className="flex gap-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
           <input
             type="number"
             min="1"

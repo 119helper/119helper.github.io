@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" role="img" aria-labelledby="title desc">
+  <title id="title">송수압력 구조</title>
+  <desc id="desc">펌프에서 건물 상층 관창까지 물이 공급되는 경로</desc>
+  <defs>
+    <linearGradient id="bg" x1="40" y1="30" x2="760" y2="450" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0e1b35"/>
+      <stop offset="1" stop-color="#0c3551"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto">
+      <path d="m0 0 12 6-12 6Z" fill="#67e8f9"/>
+    </marker>
+  </defs>
+  <rect width="800" height="480" rx="32" fill="url(#bg)"/>
+  <path d="M0 392c125-50 226 34 347-9 137-48 229-53 453 12v85H0Z" fill="#0b2238"/>
+  <g transform="translate(80 291)" stroke="#dbeafe" stroke-width="9" stroke-linejoin="round">
+    <path d="M0 66h176V8H46L0 36Z" fill="#ef4444"/>
+    <path d="M54 8v58M176 28h42v38h-42" fill="#ef4444"/>
+    <circle cx="52" cy="76" r="27" fill="#111827"/>
+    <circle cx="171" cy="76" r="27" fill="#111827"/>
+    <path d="M84 24h55" stroke="#fff" stroke-width="13"/>
+  </g>
+  <g transform="translate(492 86)">
+    <path d="M0 304V54l74-54 75 54v250" fill="#263b5b" stroke="#94a3b8" stroke-width="10"/>
+    <g stroke="#67e8f9" stroke-width="8">
+      <path d="M25 100h99M25 160h99M25 220h99"/>
+    </g>
+    <path d="M75 304V64" stroke="#38bdf8" stroke-width="17"/>
+    <circle cx="75" cy="63" r="19" fill="#bae6fd"/>
+  </g>
+  <path d="M299 356c110 0 128-4 181-4h85V153" fill="none" stroke="#22d3ee" stroke-width="18" stroke-linecap="round"/>
+  <path d="M344 356h114M565 287V178" stroke="#67e8f9" stroke-width="7" marker-end="url(#arrow)"/>
+  <g transform="translate(636 92)" fill="none" stroke-linecap="round">
+    <path d="M0 61h76" stroke="#dbeafe" stroke-width="18"/>
+    <path d="m70 42 45 19-45 19" stroke="#67e8f9" stroke-width="11"/>
+    <path d="M120 61h65" stroke="#67e8f9" stroke-width="9" marker-end="url(#arrow)"/>
+  </g>
+  <g transform="translate(330 145)">
+    <circle cx="0" cy="0" r="66" fill="#101827" stroke="#38bdf8" stroke-width="10"/>
+    <path d="M-34 24a43 43 0 1 1 68 0" fill="none" stroke="#7dd3fc" stroke-width="9"/>
+    <path d="M0 0 26-28" stroke="#f8fafc" stroke-width="9" stroke-linecap="round"/>
+    <circle r="9" fill="#f8fafc"/>
+  </g>
+</svg>

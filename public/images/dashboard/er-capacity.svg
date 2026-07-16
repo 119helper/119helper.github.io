@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" role="img" aria-labelledby="title desc">
+  <title id="title">응급실 병상 현황</title>
+  <desc id="desc">응급실 병상과 심전도 모니터를 표현한 일러스트</desc>
+  <defs>
+    <linearGradient id="bg" x1="70" y1="50" x2="1120" y2="560" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset=".55" stop-color="#152238"/>
+      <stop offset="1" stop-color="#301827"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(940 245) rotate(178) scale(430 360)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ef476f" stop-opacity=".42"/>
+      <stop offset="1" stop-color="#ef476f" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="52" height="52" patternUnits="userSpaceOnUse">
+      <path d="M52 0H0V52" fill="none" stroke="#fff" stroke-opacity=".035"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="600" rx="36" fill="url(#bg)"/>
+  <rect width="1200" height="600" rx="36" fill="url(#grid)"/>
+  <rect width="1200" height="600" rx="36" fill="url(#glow)"/>
+  <g transform="translate(655 110)">
+    <rect x="0" y="196" width="394" height="126" rx="24" fill="#dbeafe"/>
+    <path d="M0 242h394" stroke="#94a3b8" stroke-width="12"/>
+    <path d="M39 196v-66c0-27 22-49 49-49h74c35 0 63 28 63 63v52" fill="#f8fafc"/>
+    <path d="M17 322v70m360-70v70" stroke="#94a3b8" stroke-width="18" stroke-linecap="round"/>
+    <circle cx="17" cy="407" r="18" fill="#64748b"/>
+    <circle cx="377" cy="407" r="18" fill="#64748b"/>
+    <path d="M394 182V76" stroke="#cbd5e1" stroke-width="16" stroke-linecap="round"/>
+    <path d="M394 85h92" stroke="#cbd5e1" stroke-width="16" stroke-linecap="round"/>
+    <path d="M486 85v62" stroke="#cbd5e1" stroke-width="12"/>
+    <path d="M458 147h56l-8 78h-40l-8-78Z" fill="#60a5fa" opacity=".72"/>
+  </g>
+  <g transform="translate(420 105)">
+    <rect width="250" height="188" rx="28" fill="#09111f" stroke="#64748b" stroke-width="10"/>
+    <path d="M22 102h44l20-45 32 91 31-69 22 23h57" fill="none" stroke="#47e5bc" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="209" cy="35" r="8" fill="#22c55e"/>
+    <path d="M125 188v56m-66 0h132" stroke="#94a3b8" stroke-width="14" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(934 82)">
+    <rect width="154" height="154" rx="40" fill="#fb3158"/>
+    <path d="M77 34v86M34 77h86" stroke="#fff" stroke-width="25" stroke-linecap="round"/>
+  </g>
+</svg>
