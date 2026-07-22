@@ -28,6 +28,7 @@ import {
   type DisplaySettings,
 } from '../services/displaySettings';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
+import { useAppFeedback } from '../contexts/FeedbackContext';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -294,6 +295,7 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
             {privacy.appLockEnabled && (
               <div className="space-y-2">
                 <input
+                  id="settings-app-lock-code"
                   aria-label="앱 잠금 코드"
                   type="password"
                   inputMode="numeric"
@@ -602,6 +604,7 @@ function ProfileTab({ draft, setDraft }: { draft: UserProfile; setDraft: (p: Use
 // ══════════════════════════════════════════
 export default function SettingsModal({ isOpen, onClose, city, onCityChange, cityNames, returnFocusRef }: SettingsModalProps) {
   const { profile, updateProfile } = useUserProfile();
+  const { confirmAction, showNotice } = useAppFeedback();
   const [tab, setTab] = useState<SettingsTab>('profile');
   const [draftCity, setDraftCity] = useState(city);
   const [draftProfile, setDraftProfile] = useState<UserProfile>(profile);
@@ -650,7 +653,8 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
     if (nextPrivacy.appLockEnabled) {
       if (trimmedLockCode) {
         if (!isValidAppLockCode(trimmedLockCode)) {
-          window.alert(`앱 잠금 코드는 ${APP_LOCK_MIN_CODE_LENGTH}자 이상이어야 합니다.`);
+          showNotice({ message: `앱 잠금 코드는 ${APP_LOCK_MIN_CODE_LENGTH}자 이상이어야 합니다.`, tone: 'error' });
+          window.requestAnimationFrame(() => document.getElementById('settings-app-lock-code')?.focus());
           return;
         }
         nextPrivacy = {
@@ -658,7 +662,8 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
           ...(await createAppLockCredential(trimmedLockCode)),
         };
       } else if (!isAppLockConfigured(nextPrivacy)) {
-        window.alert(`앱 잠금을 켜려면 ${APP_LOCK_MIN_CODE_LENGTH}자 이상 잠금 코드를 입력하세요.`);
+        showNotice({ message: `앱 잠금을 켜려면 ${APP_LOCK_MIN_CODE_LENGTH}자 이상 잠금 코드를 입력하세요.`, tone: 'error' });
+        window.requestAnimationFrame(() => document.getElementById('settings-app-lock-code')?.focus());
         return;
       }
     } else {
@@ -691,8 +696,14 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
   };
 
   const handleClearUserData = async () => {
-    const ok = window.confirm('이 기기에 저장된 메모, 대상물 정보, 활동기록, 일정, 최근 검색 기록을 삭제할까요? 삭제 후 앱을 새로고침합니다.');
-    if (!ok) return;
+    const approved = await confirmAction({
+      title: '저장 데이터 영구 삭제',
+      message: '이 기기에 저장된 현장 데이터를 삭제할까요? 이 작업은 실행 취소할 수 없으며, 삭제 후 앱을 새로고침합니다.',
+      details: ['메모와 대상물 정보', '활동 기록과 환자 분류', '일정과 최근 검색 기록'],
+      confirmLabel: '영구 삭제',
+      tone: 'danger',
+    });
+    if (!approved) return;
     await clearSensitiveStoredData();
     window.location.reload();
   };

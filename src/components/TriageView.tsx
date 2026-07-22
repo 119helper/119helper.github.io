@@ -12,7 +12,7 @@ import { START_STEPS, JUMPSTART_STEPS, type TriageStep } from '../data/triageFlo
 import { matchHospitals, type MatchedHospital } from '../utils/hospitalMatch';
 import { getERRealTimeBeds, CITY_TO_SIDO } from '../services/erApi';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
-import { useUndoToast } from '../contexts/UndoToastContext';
+import { useAppFeedback } from '../contexts/FeedbackContext';
 
 type Mode = 'adult' | 'child';
 type Answers = Record<string, boolean | undefined>;
@@ -46,7 +46,7 @@ const STATUS_LABEL: Record<PatientStatus, string> = {
 };
 
 export default function TriageView({ city = 'seoul' }: { city?: string }) {
-  const { showUndo } = useUndoToast();
+  const { showUndo, confirmAction } = useAppFeedback();
   const [mode, setMode] = useState<Mode>('adult');
   const [patients, setPatients] = useLocalStorageState<TriagePatient[]>('119helper-triage-patients', []);
 
@@ -96,8 +96,14 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
   };
   const updatePatient = (id: string, patch: Partial<TriagePatient>) =>
     setPatients(prev => prev.map(p => (p.id === id ? { ...p, ...patch } : p)));
-  const clearAll = () => {
-    if (!window.confirm(`현장 환자 ${patients.length}명의 기록을 모두 삭제할까요? 삭제 직후에는 실행 취소할 수 있습니다.`)) return;
+  const clearAll = async () => {
+    const approved = await confirmAction({
+      title: '환자 기록 전체 삭제',
+      message: `현장 환자 ${patients.length}명의 기록을 모두 삭제할까요? 삭제 직후에는 실행 취소할 수 있습니다.`,
+      confirmLabel: '전체 삭제',
+      tone: 'danger',
+    });
+    if (!approved) return;
     const removed = patients;
     setPatients([]);
     showUndo({

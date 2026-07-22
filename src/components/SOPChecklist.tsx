@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { loadStoredJson, saveStoredJson } from '../services/privacySettings';
+import { useAppFeedback } from '../contexts/FeedbackContext';
 
 // ─── SOP 데이터 ───
 interface SOPStep {
@@ -179,6 +180,7 @@ const toValidDate = (value: unknown) => {
 };
 
 export default function SOPChecklist() {
+  const { confirmAction, showNotice } = useAppFeedback();
   const [selectedSOP, setSelectedSOP] = useState<string | null>(null);
   
   const [checked, setChecked] = useState<Record<string, boolean>>(() => {
@@ -237,21 +239,27 @@ export default function SOPChecklist() {
     });
   }, []);
 
-  const resetChecks = () => {
+  const resetChecks = async () => {
     if (!currentSOP) return;
-    if (window.confirm('체크 내용을 초기화하시겠습니까?')) {
-      const keys = currentSOP.steps.map((_, i) => `${currentSOP.id}-${i}`);
-      setChecked(prev => {
-        const next = { ...prev };
-        keys.forEach(k => delete next[k]);
-        return next;
-      });
-      setTimestamps(prev => {
-        const next = { ...prev };
-        keys.forEach(k => delete next[k]);
-        return next;
-      });
-    }
+    const approved = await confirmAction({
+      title: 'SOP 체크 초기화',
+      message: `${currentSOP.title}의 체크 내용과 기록 시각을 모두 초기화할까요?`,
+      confirmLabel: '초기화',
+      tone: 'danger',
+    });
+    if (!approved) return;
+    const keys = currentSOP.steps.map((_, i) => `${currentSOP.id}-${i}`);
+    setChecked(prev => {
+      const next = { ...prev };
+      keys.forEach(k => delete next[k]);
+      return next;
+    });
+    setTimestamps(prev => {
+      const next = { ...prev };
+      keys.forEach(k => delete next[k]);
+      return next;
+    });
+    showNotice({ message: 'SOP 체크 내용을 초기화했습니다.', tone: 'success' });
   };
 
   const getProgress = (sop: SOPData): number => {
@@ -280,7 +288,7 @@ export default function SOPChecklist() {
 
     try {
       await navigator.clipboard.writeText(text);
-      alert('체크리스트가 복사되었습니다.');
+      showNotice({ message: '체크리스트를 복사했습니다.', tone: 'success' });
     } catch {
       const ta = document.createElement('textarea');
       ta.value = text;
@@ -288,7 +296,10 @@ export default function SOPChecklist() {
       ta.select();
       const ok = document.execCommand('copy');
       document.body.removeChild(ta);
-      alert(ok ? '체크리스트가 복사되었습니다.' : '복사에 실패했습니다.');
+      showNotice({
+        message: ok ? '체크리스트를 복사했습니다.' : '복사에 실패했습니다.',
+        tone: ok ? 'success' : 'error',
+      });
     }
   };
 

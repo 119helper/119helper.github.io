@@ -1,18 +1,26 @@
 import React from 'react';
 import { CHECKLIST_SECTIONS } from '../data/equipmentChecklist';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
+import { useAppFeedback } from '../contexts/FeedbackContext';
 
 const EquipmentChecklist: React.FC = () => {
+  const { confirmAction, showNotice } = useAppFeedback();
   const [checkedItems, setCheckedItems] = useLocalStorageState<Record<string, boolean>>('119helper-equipment-checklist', {});
 
   const toggleCheck = (id: string) => {
     setCheckedItems(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const resetChecks = () => {
-    if (window.confirm('체크리스트 점검 내역을 모두 초기화하시겠습니까? (보통 다음 출근 시 사용합니다.)')) {
-      setCheckedItems({});
-    }
+  const resetChecks = async () => {
+    const approved = await confirmAction({
+      title: '장비 점검 내역 초기화',
+      message: '체크리스트 점검 내역을 모두 초기화할까요? 보통 다음 출근 시 새 점검을 시작할 때 사용합니다.',
+      confirmLabel: '초기화',
+      tone: 'danger',
+    });
+    if (!approved) return;
+    setCheckedItems({});
+    showNotice({ message: '장비 점검 내역을 초기화했습니다.', tone: 'success' });
   };
 
   const totalItemsCount = CHECKLIST_SECTIONS.reduce((acc, sec) => acc + sec.items.length, 0);

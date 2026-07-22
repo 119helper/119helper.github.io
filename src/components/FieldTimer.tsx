@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTimer, type TimerState } from '../contexts/TimerContext';
+import { useAppFeedback } from '../contexts/FeedbackContext';
 
 // ─── 타이머 프리셋 ───
 const PRESETS = [
@@ -11,6 +12,7 @@ const PRESETS = [
 ];
 
 export default function FieldTimer() {
+  const { showNotice } = useAppFeedback();
   const { 
     timers, stopwatchRunning, stopwatchStart, stopwatchElapsed, laps,
     addTimer, toggleTimer, resetTimer, removeTimer,
@@ -76,7 +78,7 @@ export default function FieldTimer() {
 
     try {
       await navigator.clipboard.writeText(text);
-      alert('활동 기록이 복사되었습니다.');
+      showNotice({ message: '활동 기록을 복사했습니다.', tone: 'success' });
     } catch {
       const ta = document.createElement('textarea');
       ta.value = text;
@@ -85,9 +87,9 @@ export default function FieldTimer() {
       const ok = document.execCommand('copy');
       document.body.removeChild(ta);
       if (ok) {
-        alert('활동 기록이 복사되었습니다.');
+        showNotice({ message: '활동 기록을 복사했습니다.', tone: 'success' });
       } else {
-        alert('복사에 실패했습니다. 기록을 직접 선택해 복사해 주세요.');
+        showNotice({ message: '복사에 실패했습니다. 기록을 직접 선택해 복사해 주세요.', tone: 'error' });
       }
     }
   };

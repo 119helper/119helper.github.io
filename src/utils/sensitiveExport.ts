@@ -16,8 +16,3 @@ export function buildSensitiveExportMessage(actionLabel: string, details = DEFAU
     '계속하시겠습니까?',
   ].join('\n');
 }
-
-export function confirmSensitiveExport(actionLabel: string, details?: string[]): boolean {
-  if (typeof window === 'undefined' || typeof window.confirm !== 'function') return true;
-  return window.confirm(buildSensitiveExportMessage(actionLabel, details));
-}

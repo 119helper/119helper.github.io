@@ -30,8 +30,8 @@ export default function ConnectivityStatus() {
   if (!offline && !unstable && !updateReady) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] lg:bottom-0 z-[1000] flex flex-col items-center gap-2 p-2 sm:p-3 lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))] pointer-events-none" role="status" aria-live="polite">
-      {updateReady && (
+    <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] lg:bottom-0 z-40 flex flex-col items-center gap-2 p-2 sm:p-3 lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))] pointer-events-none" role="status" aria-live="polite">
+      {updateReady && !offline && !unstable && (
         <div className="pointer-events-auto flex items-center gap-3 rounded-full bg-primary px-4 py-2 text-sm font-bold text-on-primary shadow-lg">
           <span className="material-symbols-outlined text-base">system_update</span>
           <span>새 버전이 있습니다.</span>

@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
-import { useUndoToast } from '../contexts/UndoToastContext';
+import { useAppFeedback } from '../contexts/FeedbackContext';
 
 interface Note {
   id: string;
@@ -25,7 +25,7 @@ export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
   const [notes, setNotes] = useLocalStorageState<Note[]>('119helper-notes', []);
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
-  const { showUndo } = useUndoToast();
+  const { showUndo } = useAppFeedback();
 
   // 드래그 앤 드롭 상태
   const [dragId, setDragId] = useState<string | null>(null);

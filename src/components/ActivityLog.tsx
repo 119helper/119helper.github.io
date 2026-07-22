@@ -12,7 +12,8 @@ import { useActivitySession } from '../hooks/useActivitySession';
 import { useUserProfile, type DutyRole } from '../contexts/UserProfileContext';
 import { useTimer } from '../contexts/TimerContext';
 import { loadStoredJson } from '../services/privacySettings';
-import { confirmSensitiveExport } from '../utils/sensitiveExport';
+import { buildSensitiveExportMessage } from '../utils/sensitiveExport';
+import { useAppFeedback } from '../contexts/FeedbackContext';
 import { findActivityOrderIssues } from '../utils/activityOrder';
 import {
   EMPTY_ACTIVITY_SESSION,
@@ -58,6 +59,7 @@ function readJson<T>(key: string, fallback: T): T {
 }
 
 export default function ActivityLog() {
+  const { confirmAction } = useAppFeedback();
   const { authorLine, profile } = useUserProfile();
   const { timers } = useTimer();
   const [session, setSession] = useActivitySession(ROLE_TO_PRESET[profile.role]);
@@ -162,7 +164,13 @@ export default function ActivityLog() {
 
   const copyReport = async () => {
     if (!report) return;
-    if (!confirmSensitiveExport('보고서 복사', ACTIVITY_REPORT_SENSITIVE_DETAILS)) return;
+    const approved = await confirmAction({
+      title: '민감정보 복사',
+      message: buildSensitiveExportMessage('보고서 복사', ACTIVITY_REPORT_SENSITIVE_DETAILS),
+      confirmLabel: '복사 계속',
+      tone: 'warning',
+    });
+    if (!approved) return;
     try {
       await navigator.clipboard.writeText(report);
       setCopied(true);
@@ -178,9 +186,15 @@ export default function ActivityLog() {
     setReportBundle(null);
   };
 
-  const downloadReportBundle = () => {
+  const downloadReportBundle = async () => {
     if (!reportBundle) return;
-    if (!confirmSensitiveExport('활동보고서 JSON 내보내기 파일', ACTIVITY_REPORT_SENSITIVE_DETAILS)) return;
+    const approved = await confirmAction({
+      title: '민감정보 내보내기',
+      message: buildSensitiveExportMessage('활동보고서 JSON 내보내기 파일', ACTIVITY_REPORT_SENSITIVE_DETAILS),
+      confirmLabel: '내보내기 계속',
+      tone: 'warning',
+    });
+    if (!approved) return;
     const blob = new Blob([JSON.stringify(reportBundle, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

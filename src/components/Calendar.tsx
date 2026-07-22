@@ -3,7 +3,7 @@ import { getStaticHolidays } from '../data/holidays';
 import { getShiftForDate, SHIFT_CYCLE_DANGBIBI, type ShiftSetting } from '../utils/shiftCalculator';
 import { loadStoredJson, saveStoredJson } from '../services/privacySettings';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
-import { useUndoToast } from '../contexts/UndoToastContext';
+import { useAppFeedback } from '../contexts/FeedbackContext';
 
 interface Schedule {
   id: string;
@@ -102,7 +102,7 @@ const generateICS = (schedulesToExport: Schedule[]) => {
   return lines.map(foldIcsLine).join('\r\n');
 };
 export default function Calendar() {
-  const { showUndo } = useUndoToast();
+  const { showUndo, showNotice } = useAppFeedback();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>(loadSchedules);
@@ -235,7 +235,7 @@ export default function Calendar() {
     }
     
     if (targets.length === 0) {
-      alert('내보낼 일정이 없습니다.');
+      showNotice({ message: '내보낼 일정이 없습니다.', tone: 'info' });
       return;
     }
 

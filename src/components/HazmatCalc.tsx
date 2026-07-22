@@ -6,6 +6,7 @@ import {
   type SpillSize,
 } from '../utils/fieldCalculations';
 import type { KakaoLatLng, KakaoMapInstance, KakaoOverlay } from '../types/kakao';
+import { useAppFeedback } from '../contexts/FeedbackContext';
 
 interface KakaoMouseEvent {
   latLng: KakaoLatLng;
@@ -14,6 +15,7 @@ interface KakaoMouseEvent {
 const DEFAULT_ORIGIN = { lat: 37.5665, lng: 126.9780 };
 
 export default function HazmatCalc() {
+  const { showNotice } = useAppFeedback();
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<KakaoMapInstance | null>(null);
   const [mapError, setMapError] = useState('');
@@ -163,7 +165,7 @@ export default function HazmatCalc() {
           setOriginPoint({ lat: pos.coords.latitude, lng: pos.coords.longitude });
           if (map) map.setCenter(new window.kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
         },
-        () => alert('위치 정보를 가져오는데 실패했습니다.')
+        () => showNotice({ message: '위치 정보를 가져오지 못했습니다.', tone: 'error' })
       );
     }
   };

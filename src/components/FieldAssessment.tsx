@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
+import { useAppFeedback } from '../contexts/FeedbackContext';
 
 // 8단계 평가 항목 정의
 const EVALUATION_STEPS = [
@@ -173,6 +174,7 @@ const STATUS_STYLES: Record<EvalStatus, { bg: string; text: string; dot: string;
 const STORAGE_KEY = '119helper-field-assessment';
 
 export default function FieldAssessment() {
+  const { confirmAction, showNotice } = useAppFeedback();
   const [values, setValues, resetValues] = useLocalStorageState<Record<string, string>>(STORAGE_KEY, {});
   const [activeStep, setActiveStep] = useState(1);
   const [showSummary, setShowSummary] = useState(false);
@@ -190,12 +192,18 @@ export default function FieldAssessment() {
     step.items.some(item => values[item.key])
   ).length;
 
-  const handleReset = () => {
-    if (window.confirm('평가 내용을 모두 초기화하시겠습니까?')) {
-      resetValues();
-      setActiveStep(1);
-      setShowSummary(false);
-    }
+  const handleReset = async () => {
+    const approved = await confirmAction({
+      title: '현장 평가 초기화',
+      message: '입력한 8단계 현장 평가 내용을 모두 초기화할까요?',
+      confirmLabel: '초기화',
+      tone: 'danger',
+    });
+    if (!approved) return;
+    resetValues();
+    setActiveStep(1);
+    setShowSummary(false);
+    showNotice({ message: '현장 평가 내용을 초기화했습니다.', tone: 'success' });
   };
 
   const generateSummaryText = () => {
@@ -226,7 +234,7 @@ export default function FieldAssessment() {
     const text = generateSummaryText();
     try {
       await navigator.clipboard.writeText(text);
-      alert('평가 보고서가 클립보드에 복사되었습니다.');
+      showNotice({ message: '평가 보고서를 클립보드에 복사했습니다.', tone: 'success' });
     } catch {
       // 폴백: 텍스트 영역에 복사
       const ta = document.createElement('textarea');
@@ -235,7 +243,10 @@ export default function FieldAssessment() {
       ta.select();
       const ok = document.execCommand('copy');
       document.body.removeChild(ta);
-      alert(ok ? '평가 보고서가 복사되었습니다.' : '복사에 실패했습니다.');
+      showNotice({
+        message: ok ? '평가 보고서를 복사했습니다.' : '복사에 실패했습니다.',
+        tone: ok ? 'success' : 'error',
+      });
     }
   };
 

@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { type PrePlan, type PrePlanContact, createEmptyPrePlan } from '../types/preplan';
 import { resizeImage, savePhoto, getPhoto, deletePhoto, MAX_PREPLAN_PHOTO_DATA_URL_LENGTH } from '../services/preplanPhotos';
-import { confirmSensitiveExport } from '../utils/sensitiveExport';
-import { useUndoToast } from '../contexts/UndoToastContext';
+import { buildSensitiveExportMessage } from '../utils/sensitiveExport';
+import { useAppFeedback } from '../contexts/FeedbackContext';
 
 const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
 const MAX_IMPORT_PLANS = 500;
@@ -48,7 +48,7 @@ interface PrePlanViewProps {
 }
 
 export default function PrePlanView({ incidentContext = null }: PrePlanViewProps) {
-  const { showUndo } = useUndoToast();
+  const { showUndo, showNotice, confirmAction } = useAppFeedback();
   const [plans, setPlans] = useLocalStorageState<PrePlan[]>('119helper-preplans', []);
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -97,7 +97,13 @@ export default function PrePlanView({ incidentContext = null }: PrePlanViewProps
   };
 
   const exportAll = async () => {
-    if (!confirmSensitiveExport('대상물 정보 내보내기 파일', PREPLAN_EXPORT_DETAILS)) return;
+    const approved = await confirmAction({
+      title: '민감정보 내보내기',
+      message: buildSensitiveExportMessage('대상물 정보 내보내기 파일', PREPLAN_EXPORT_DETAILS),
+      confirmLabel: '내보내기 계속',
+      tone: 'warning',
+    });
+    if (!approved) return;
     const photos: Record<string, string> = {};
     for (const p of plans) {
       for (const k of p.photoKeys) {
@@ -125,7 +131,7 @@ export default function PrePlanView({ incidentContext = null }: PrePlanViewProps
       const existingIds = new Set(plans.map(p => p.id));
       const importedPlans = parsed.data.plans.filter(p => !existingIds.has(p.id));
       if (importedPlans.length === 0) {
-        alert('새로 가져올 대상물이 없습니다.');
+        showNotice({ message: '새로 가져올 대상물이 없습니다.', tone: 'info' });
         return;
       }
 
@@ -144,7 +150,7 @@ export default function PrePlanView({ incidentContext = null }: PrePlanViewProps
         return merged;
       });
     } catch {
-      alert('가져오기에 실패했습니다. 올바른 백업 파일인지 확인하세요.');
+      showNotice({ message: '가져오기에 실패했습니다. 올바른 백업 파일인지 확인하세요.', tone: 'error' });
     }
   };
 
@@ -247,6 +253,7 @@ function PrePlanEditor({
   onClose: () => void;
   onDelete: () => void;
 }) {
+  const { showNotice } = useAppFeedback();
   const set = <K extends keyof PrePlan>(key: K, value: PrePlan[K]) => onChange({ ...plan, [key]: value });
 
   const addPhoto = async (file: File) => {
@@ -256,7 +263,7 @@ function PrePlanEditor({
       await savePhoto(key, dataUrl);
       onChange({ ...plan, photoKeys: [...plan.photoKeys, key] });
     } catch {
-      alert('사진 처리에 실패했습니다.');
+      showNotice({ message: '사진 처리에 실패했습니다.', tone: 'error' });
     }
   };
 

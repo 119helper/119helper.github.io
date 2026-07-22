@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { fetchPrivateAmbulances, type PrivateAmbulance } from '../services/ambulanceApi';
 import { CITY_TO_SIDO } from '../services/erApi';
+import { useAppFeedback } from '../contexts/FeedbackContext';
 
 const SMS_TEMPLATE = "[119 Helper 안내]\n요청하신 민간 이송업체(사설 구급차) 연락처입니다.\n\n업체명: {name}\n연락처: {tel}\n\n* 본 정보는 국립중앙의료원 정식 등록 업체 정보입니다.";
 
 export default function PrivateAmbulanceView({ city }: { city: string }) {
+  const { showNotice } = useAppFeedback();
   const [ambulances, setAmbulances] = useState<PrivateAmbulance[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,16 +23,19 @@ export default function PrivateAmbulanceView({ city }: { city: string }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [city]);
 
-  const handleShare = (item: PrivateAmbulance) => {
+  const handleShare = async (item: PrivateAmbulance) => {
     const text = SMS_TEMPLATE.replace('{name}', item.dutyName).replace('{tel}', item.onrTel);
     
     // 모바일 기기라면 바로 SMS 공유 다이얼로그 호출, 아니라면 클립보드 복사
     if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
       window.open(`sms:?body=${encodeURIComponent(text)}`);
     } else {
-      navigator.clipboard.writeText(text).then(() => {
-        alert('연락처 및 안내문구가 클립보드에 복사되었습니다. (문자 전송 시 붙여넣기 하세요)');
-      });
+      try {
+        await navigator.clipboard.writeText(text);
+        showNotice({ message: '연락처와 안내 문구를 복사했습니다. 문자 작성 화면에 붙여넣어 주세요.', tone: 'success' });
+      } catch {
+        showNotice({ message: '연락처를 복사하지 못했습니다.', tone: 'error' });
+      }
     }
   };
 

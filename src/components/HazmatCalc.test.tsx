@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import Calculators from './Calculators';
 import HazmatCalc from './HazmatCalc';
+import { FeedbackProvider } from '../contexts/FeedbackContext';
 
 interface MockOverlay {
   setMap: ReturnType<typeof vi.fn>;
@@ -83,7 +84,7 @@ describe('HazmatCalc', () => {
   it('updates calculated isolation/protection distances and redraws kakao overlays', async () => {
     const kakao = installKakaoMock();
 
-    render(<HazmatCalc />);
+    render(<FeedbackProvider><HazmatCalc /></FeedbackProvider>);
 
     const resultPanel = screen.getByText('계산 결과').closest('div');
     expect(resultPanel).not.toBeNull();
@@ -101,7 +102,7 @@ describe('HazmatCalc', () => {
 
 describe('Calculators hazmat tab', () => {
   it('renders HazmatCalc from the calculators tab and keeps the calculation path interactive', () => {
-    render(<Calculators />);
+    render(<FeedbackProvider><Calculators /></FeedbackProvider>);
 
     fireEvent.click(screen.getByRole('button', { name: /유해화학/ }));
 

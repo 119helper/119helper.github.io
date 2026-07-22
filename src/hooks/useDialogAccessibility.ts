@@ -9,6 +9,8 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+const openDialogStack: HTMLElement[] = [];
+
 /**
  * 모달/모바일 드로어의 키보드 포커스를 내부에 유지하고 닫힌 뒤 원래 위치로 돌려보낸다.
  */
@@ -28,6 +30,9 @@ export function useDialogAccessibility<T extends HTMLElement>(
   useEffect(() => {
     if (!isOpen) return;
 
+    const dialog = dialogRef.current;
+    if (dialog) openDialogStack.push(dialog);
+
     const explicitReturnFocus = returnFocusRef?.current ?? null;
     previousFocusRef.current = explicitReturnFocus ?? (
       document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -44,7 +49,7 @@ export function useDialogAccessibility<T extends HTMLElement>(
 
     const handleKeyDown = (event: KeyboardEvent) => {
       const dialog = dialogRef.current;
-      if (!dialog) return;
+      if (!dialog || openDialogStack[openDialogStack.length - 1] !== dialog) return;
 
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -81,8 +86,11 @@ export function useDialogAccessibility<T extends HTMLElement>(
     return () => {
       window.cancelAnimationFrame(focusInitialControl);
       document.removeEventListener('keydown', handleKeyDown);
+      const wasTopDialog = openDialogStack[openDialogStack.length - 1] === dialog;
+      const stackIndex = dialog ? openDialogStack.lastIndexOf(dialog) : -1;
+      if (stackIndex >= 0) openDialogStack.splice(stackIndex, 1);
       const returnFocus = explicitReturnFocus ?? previousFocusRef.current;
-      if (returnFocus?.isConnected && !returnFocus.closest('[inert]')) {
+      if (wasTopDialog && returnFocus?.isConnected && !returnFocus.closest('[inert]')) {
         returnFocus.focus({ preventScroll: true });
       }
     };
