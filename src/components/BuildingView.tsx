@@ -70,8 +70,9 @@ const loadRecentSearches = (): RecentSearchItem[] => {
   });
 };
 
-export default function BuildingView() {
-  const [address, setAddress] = useState('');
+export default function BuildingView({ initialAddress = '' }: { initialAddress?: string }) {
+  const normalizedInitialAddress = initialAddress.trim();
+  const [address, setAddress] = useState(normalizedInitialAddress);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [warningMsg, setWarningMsg] = useState('');
@@ -92,6 +93,11 @@ export default function BuildingView() {
       requestSeqRef.current += 1;
     };
   }, []);
+
+  useEffect(() => {
+    if (!normalizedInitialAddress) return;
+    setAddress(current => current.trim() ? current : normalizedInitialAddress);
+  }, [normalizedInitialAddress]);
 
   const runSearch = (target: string | RecentSearchItem, forceRefresh = false) => {
     const isObj = typeof target === 'object';
@@ -290,6 +296,25 @@ export default function BuildingView() {
         건축물대장 현장 검색
       </h2>
       <p className="text-sm text-on-surface-variant font-medium">단순 주소만 입력하면 지번 변환 후 국토부 대장을 끌어옵니다.</p>
+      {normalizedInitialAddress && (
+        <div className="flex max-w-2xl flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/25 bg-primary/10 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <span aria-hidden="true" className="material-symbols-outlined text-lg text-primary">assignment</span>
+            <div className="min-w-0">
+              <p className="text-xs font-extrabold text-primary">진행 중인 출동 주소</p>
+              <p className="truncate text-sm text-on-surface">{normalizedInitialAddress}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={address.trim() === normalizedInitialAddress}
+            onClick={() => setAddress(normalizedInitialAddress)}
+            className="shrink-0 rounded-lg bg-surface-container-lowest px-3 py-2 text-xs font-extrabold text-on-surface hover:bg-surface-container-high disabled:text-primary"
+          >
+            {address.trim() === normalizedInitialAddress ? '적용됨' : '주소 적용'}
+          </button>
+        </div>
+      )}
       <div className="flex gap-3 max-w-2xl">
         <input
           aria-label="건축물 주소"

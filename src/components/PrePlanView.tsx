@@ -42,7 +42,11 @@ const prePlanBundleSchema = z.object({
   photos: z.record(photoKeySchema, photoDataUrlSchema).optional(),
 });
 
-export default function PrePlanView() {
+interface PrePlanViewProps {
+  incidentContext?: { title: string; address: string } | null;
+}
+
+export default function PrePlanView({ incidentContext = null }: PrePlanViewProps) {
   const [plans, setPlans] = useLocalStorageState<PrePlan[]>('119helper-preplans', []);
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -58,7 +62,11 @@ export default function PrePlanView() {
   const editing = plans.find(p => p.id === editingId) ?? null;
 
   const createNew = () => {
-    const plan = createEmptyPrePlan();
+    const plan = {
+      ...createEmptyPrePlan(),
+      name: incidentContext?.title.trim() ?? '',
+      address: incidentContext?.address.trim() ?? '',
+    };
     setPlans(prev => [plan, ...prev]);
     setEditingId(plan.id);
   };
@@ -155,10 +163,20 @@ export default function PrePlanView() {
             }}
           />
           <button onClick={createNew} className="px-4 py-2 rounded-lg text-sm font-bold bg-primary text-on-primary hover:bg-primary/80 flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-base">add</span>새 대상물
+            <span className="material-symbols-outlined text-base">add</span>{incidentContext ? '출동 정보로 추가' : '새 대상물'}
           </button>
         </div>
       </div>
+
+      {incidentContext && (incidentContext.title || incidentContext.address) && (
+        <div className="flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-sm text-on-surface">
+          <span aria-hidden="true" className="material-symbols-outlined text-primary">assignment</span>
+          <div>
+            <p className="font-extrabold text-primary">진행 중인 출동 정보 연결됨</p>
+            <p className="mt-0.5 text-xs text-on-surface-variant">새 대상물을 만들면 사건명과 주소가 자동 입력됩니다.</p>
+          </div>
+        </div>
+      )}
 
       <input
         aria-label="대상물 검색"

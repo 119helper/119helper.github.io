@@ -166,8 +166,8 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
         </span>
         <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-container px-3 py-3">
           <div>
-            <p className="text-sm font-medium text-on-surface">큰 글씨·큰 터치 영역</p>
-            <p className="text-[10px] leading-4 text-on-surface-variant">장갑 착용과 야외 확인을 위해 작은 글씨와 조작 영역을 확대합니다.</p>
+            <p className="text-sm font-medium text-on-surface">큰 글씨·큰 터치·화면 켜짐 유지</p>
+            <p className="text-[10px] leading-4 text-on-surface-variant">장갑·야외 환경에 맞춰 정보를 확대하고, 활성 출동 중 화면 꺼짐을 방지합니다.</p>
           </div>
           <Toggle
             label="현장 가독성 모드"

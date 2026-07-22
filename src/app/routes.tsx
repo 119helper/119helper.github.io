@@ -3,6 +3,7 @@ import { lazy, type ReactNode } from 'react';
 import type { CityIndex } from '../services/fireWaterApi';
 import type { FireFacility } from '../data/mockData';
 import type { ShelterCategory, TabId, NavigateTarget } from '../types/navigation';
+import type { IncidentSession } from '../services/incidentSession';
 
 const DashboardView = lazy(() => import('../components/DashboardView'));
 const WeatherDashboard = lazy(() => import('../components/WeatherDashboard'));
@@ -45,6 +46,7 @@ export interface RouteContext {
   shelterCategory: ShelterCategory;
   onDistrictChange: (district: string) => void;
   onNavigate: (tab: NavigateTarget | string, subId?: string) => void;
+  incidentSession: IncidentSession;
 }
 
 export interface TabRoute {
@@ -74,6 +76,7 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
         selectedDistrict={ctx.selectedDistrict}
         onDistrictChange={ctx.onDistrictChange}
         initialCategory={ctx.shelterCategory}
+        incidentAddress={ctx.incidentSession.active ? ctx.incidentSession.address : ''}
       />
     ),
   },
@@ -98,7 +101,16 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
   'ems-protocol': { render: ctx => <EmsProtocol subId={ctx.activeSubId} /> },
   triage: { render: ctx => <TriageView city={ctx.city} /> },
   'activity-log': { render: () => <ActivityLog /> },
-  preplan: { render: () => <PrePlanView /> },
+  preplan: {
+    render: ctx => (
+      <PrePlanView
+        incidentContext={ctx.incidentSession.active ? {
+          title: ctx.incidentSession.title,
+          address: ctx.incidentSession.address,
+        } : null}
+      />
+    ),
+  },
   'safety-monitor': { render: ctx => <SafetyMonitor city={ctx.city} /> },
   incident: {
     render: ctx => (

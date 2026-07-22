@@ -23,6 +23,7 @@ interface FacilitySearchProps {
   onDistrictChange?: (district: string) => void;
   // 초기 카테고리 (대시보드에서 바로 진입 시)
   initialCategory?: string;
+  incidentAddress?: string;
 }
 
 const cityToCtprvn: Record<string, string> = {
@@ -93,6 +94,7 @@ export default function FacilitySearchView({
   selectedDistrict,
   onDistrictChange,
   initialCategory,
+  incidentAddress,
 }: FacilitySearchProps) {
   const [activeCategory, setActiveCategory] = useState(initialCategory || 'building');
   const [facilities, setFacilities] = useState<FacilityItem[]>([]);
@@ -511,7 +513,7 @@ export default function FacilitySearchView({
       {/* ═══ 건축물대장 카테고리 ═══ */}
       {isBuilding && (
         <div className="mt-4">
-          <BuildingView />
+          <BuildingView initialAddress={incidentAddress} />
         </div>
       )}
 

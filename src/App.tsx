@@ -5,6 +5,8 @@ import SettingsModal from './components/SettingsModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import AppLockGate from './components/AppLockGate';
 import IncidentStatusStrip from './components/IncidentStatusStrip';
+import SidebarQuickAccess from './components/SidebarQuickAccess';
+import DataStatusSummary from './components/DataStatusSummary';
 import { fetchFireWaterFacilities, fetchCityIndex, isSplitCity } from './services/fireWaterApi';
 import type { CityIndex } from './services/fireWaterApi';
 import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS } from './services/weatherApi';
@@ -25,8 +27,16 @@ import { useGeolocation } from './hooks/useGeolocation';
 import { useAutoRefresh } from './hooks/useAutoRefresh';
 import { useIncidentSession } from './hooks/useIncidentSession';
 import { useDialogAccessibility } from './hooks/useDialogAccessibility';
+import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { applyPrivacyRetention } from './services/privacySettings';
-import { loadDisplaySettings } from './services/displaySettings';
+import { loadDisplaySettings, saveDisplaySettings } from './services/displaySettings';
+import {
+  loadNavigationPreferences,
+  recordRecentNavigation,
+  saveNavigationPreferences,
+  setWorkPreset,
+  toggleNavigationFavorite,
+} from './services/navigationPreferences';
 
 function TabLoading({ label }: { label: string }) {
   return (
@@ -60,6 +70,8 @@ export default function App() {
   const { notifications, addNotification, markAllRead, clearAll } = useNotifications();
   const [incidentSession] = useIncidentSession();
   const [fieldReadabilityMode, setFieldReadabilityMode] = useState(() => loadDisplaySettings().fieldReadabilityMode);
+  const [navPreferences, setNavPreferences] = useState(loadNavigationPreferences);
+  const networkStatus = useNetworkStatus();
   const lastRefreshRef = useRef<Date>(new Date());
   const refreshSeqRef = useRef(0);
   const [regionOpen, setRegionOpen] = useState(false);
@@ -70,6 +82,7 @@ export default function App() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const settingsReturnFocusRef = useRef<HTMLElement | null>(null);
+  const fieldWakeLockRef = useRef<WakeLockSentinel | null>(null);
   const [isDesktopSidebar, setIsDesktopSidebar] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
   const sidebarInteractive = isDesktopSidebar || sidebarOpen;
   const sidebarRef = useDialogAccessibility<HTMLElement>(sidebarOpen && !isDesktopSidebar, () => setSidebarOpen(false));
@@ -158,6 +171,47 @@ export default function App() {
   }, [fieldReadabilityMode]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const releaseWakeLock = () => {
+      void fieldWakeLockRef.current?.release().catch(() => {});
+      fieldWakeLockRef.current = null;
+    };
+    const syncWakeLock = async () => {
+      if (!fieldReadabilityMode || !incidentSession.active || document.visibilityState !== 'visible' || !('wakeLock' in navigator)) {
+        releaseWakeLock();
+        return;
+      }
+      if (fieldWakeLockRef.current) return;
+      try {
+        const sentinel = await navigator.wakeLock.request('screen');
+        if (cancelled) {
+          void sentinel.release().catch(() => {});
+          return;
+        }
+        fieldWakeLockRef.current = sentinel;
+        sentinel.addEventListener('release', () => {
+          if (fieldWakeLockRef.current === sentinel) fieldWakeLockRef.current = null;
+        });
+      } catch {
+        fieldWakeLockRef.current = null;
+      }
+    };
+
+    void syncWakeLock();
+    document.addEventListener('visibilitychange', syncWakeLock);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', syncWakeLock);
+      releaseWakeLock();
+    };
+  }, [fieldReadabilityMode, incidentSession.active]);
+
+  useEffect(() => {
+    saveNavigationPreferences(navPreferences);
+  }, [navPreferences]);
+
+  useEffect(() => {
     const syncDisplaySettings = () => setFieldReadabilityMode(loadDisplaySettings().fieldReadabilityMode);
     window.addEventListener('119helper-settings-updated', syncDisplaySettings);
     window.addEventListener('storage', syncDisplaySettings);
@@ -170,6 +224,20 @@ export default function App() {
   const handleThemeChange = useCallback((t: string) => {
     setTheme(t);
     localStorage.setItem('119helper-theme', t);
+  }, []);
+
+  const handleFieldModeChange = useCallback((enabled: boolean) => {
+    setFieldReadabilityMode(enabled);
+    saveDisplaySettings({ fieldReadabilityMode: enabled });
+    if (enabled) {
+      setNavPreferences(previous => setWorkPreset(previous, 'incident'));
+    }
+    try {
+      navigator.vibrate?.(enabled ? [60, 40, 60] : 40);
+    } catch {
+      // 진동 미지원 환경은 조용히 무시한다.
+    }
+    window.dispatchEvent(new Event('119helper-settings-updated'));
   }, []);
 
   // 드롭다운 외부 클릭 시 닫기
@@ -361,18 +429,21 @@ export default function App() {
   useAutoRefresh(refreshData);
 
   const handleNavigate = (tab: NavigateTarget | string, subId?: string) => {
+    let nextTab: TabId;
     // hydrants/waterTowers/building → shelter 탭으로 통합 매핑
     if (tab === 'hydrants' || tab === 'waterTowers' || tab === 'building') {
       setShelterCategory(tab as ShelterCategory);
-      setActiveTab('shelter');
+      nextTab = 'shelter';
     } else if (tab === 'shelter' && subId) {
       setShelterCategory(subId as ShelterCategory);
-      setActiveTab('shelter');
+      nextTab = 'shelter';
     } else if (isTabId(tab)) {
-      setActiveTab(tab);
+      nextTab = tab;
     } else {
-      setActiveTab('dashboard');
+      nextTab = 'dashboard';
     }
+    setActiveTab(nextTab);
+    setNavPreferences(previous => recordRecentNavigation(previous, nextTab));
     setActiveSubId(subId);
     setSidebarOpen(false);
     // 탭 이동 시 맨 위로 스크롤
@@ -400,6 +471,7 @@ export default function App() {
     shelterCategory,
     onDistrictChange: loadDistrict,
     onNavigate: handleNavigate,
+    incidentSession,
   };
   const bottomTabs = incidentSession.active ? INCIDENT_BOTTOM_TABS : BOTTOM_TABS;
 
@@ -453,6 +525,13 @@ export default function App() {
           </div>
         </div>
         <nav className="flex-1 px-3 space-y-1 mt-2 overflow-y-auto custom-scrollbar">
+          <SidebarQuickAccess
+            preferences={navPreferences}
+            activeTab={activeTab}
+            onNavigate={handleNavigate}
+            onPresetChange={preset => setNavPreferences(previous => setWorkPreset(previous, preset))}
+          />
+          <p className="px-2 pb-1 pt-2 text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">전체 메뉴</p>
           {NAV_ITEMS.map(item => {
             const hasSub = !!item.subItems;
             const isExpanded = expandedGroups.includes(item.id);
@@ -460,43 +539,58 @@ export default function App() {
             
             return (
               <div key={item.id} className="mb-1">
-                <button
-                  type="button"
-                  aria-expanded={hasSub ? isExpanded : undefined}
-                  aria-current={!hasSub && activeTab === item.id ? 'page' : undefined}
-                  onClick={() => {
-                    if (hasSub) {
-                      setExpandedGroups(prev => 
-                        prev.includes(item.id) ? prev.filter(g => g !== item.id) : [...prev, item.id]
-                      );
-                    } else {
-                      handleNavigate(item.id as TabId);
-                    }
-                  }}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-left ${
-                    !hasSub && activeTab === item.id
-                      ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
-                      : isGroupActive && !isExpanded
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-on-surface-variant hover:bg-surface-container-high/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <span
-                      aria-hidden="true"
-                      className={`material-symbols-outlined text-xl transition-colors`}
-                      style={(!hasSub && activeTab === item.id) || isGroupActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    aria-expanded={hasSub ? isExpanded : undefined}
+                    aria-current={!hasSub && activeTab === item.id ? 'page' : undefined}
+                    onClick={() => {
+                      if (hasSub) {
+                        setExpandedGroups(prev =>
+                          prev.includes(item.id) ? prev.filter(g => g !== item.id) : [...prev, item.id]
+                        );
+                      } else {
+                        handleNavigate(item.id as TabId);
+                      }
+                    }}
+                    className={`min-w-0 flex-1 flex items-center justify-between px-4 py-3 rounded-xl transition-all text-left ${
+                      !hasSub && activeTab === item.id
+                        ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
+                        : isGroupActive && !isExpanded
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-on-surface-variant hover:bg-surface-container-high/50'
+                    }`}
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span
+                        aria-hidden="true"
+                        className={`material-symbols-outlined text-xl transition-colors`}
+                        style={(!hasSub && activeTab === item.id) || isGroupActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                      >
+                        {item.icon}
+                      </span>
+                      <span className={`truncate font-medium ${hasSub ? 'text-sm font-bold' : 'text-sm'}`}>{item.label}</span>
+                    </div>
+                    {hasSub && (
+                      <span aria-hidden="true" className={`material-symbols-outlined text-xl transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                        expand_more
+                      </span>
+                    )}
+                  </button>
+                  {!hasSub && isTabId(item.id) && (
+                    <button
+                      type="button"
+                      aria-label={`${item.label} ${navPreferences.favorites.includes(item.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}`}
+                      aria-pressed={navPreferences.favorites.includes(item.id)}
+                      onClick={() => setNavPreferences(previous => toggleNavigationFavorite(previous, item.id as TabId))}
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl hover:bg-surface-container-high ${
+                        navPreferences.favorites.includes(item.id) ? 'text-amber-600 dark:text-amber-300' : 'text-on-surface-variant'
+                      }`}
                     >
-                      {item.icon}
-                    </span>
-                    <span className={`font-medium ${hasSub ? 'text-sm font-bold' : 'text-sm'}`}>{item.label}</span>
-                  </div>
-                  {hasSub && (
-                    <span aria-hidden="true" className={`material-symbols-outlined text-xl transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
-                      expand_more
-                    </span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-lg" style={navPreferences.favorites.includes(item.id) ? { fontVariationSettings: "'FILL' 1" } : undefined}>star</span>
+                    </button>
                   )}
-                </button>
+                </div>
                 
                 {hasSub && (
                   <div
@@ -507,24 +601,36 @@ export default function App() {
                     <div className="pl-4 pr-0 space-y-0.5">
                       {item.subItems!.map(sub => {
                         const isSubActive = activeTab === sub.id;
+                        const isFavorite = navPreferences.favorites.includes(sub.id);
                         return (
-                          <button
-                            type="button"
-                            aria-current={isSubActive ? 'page' : undefined}
-                            key={sub.id}
-                            onClick={() => handleNavigate(sub.id as TabId)}
-                            className={`w-full flex items-center px-4 py-2.5 rounded-lg transition-all text-sm ${
-                              isSubActive
-                                ? 'bg-primary/15 text-primary font-bold'
-                                : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-medium'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              {/* Sub item bullet point */}
-                              <div aria-hidden="true" className={`w-1.5 h-1.5 rounded-full transition-colors ${isSubActive ? 'bg-primary' : 'bg-transparent border border-on-surface-variant/40'}`} />
-                              <span>{sub.label}</span>
-                            </div>
-                          </button>
+                          <div key={sub.id} className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              aria-current={isSubActive ? 'page' : undefined}
+                              onClick={() => handleNavigate(sub.id as TabId)}
+                              className={`min-w-0 flex-1 flex items-center px-4 py-2.5 rounded-lg transition-all text-sm ${
+                                isSubActive
+                                  ? 'bg-primary/15 text-primary font-bold'
+                                  : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-medium'
+                              }`}
+                            >
+                              <div className="flex min-w-0 items-center gap-2">
+                                <div aria-hidden="true" className={`w-1.5 h-1.5 shrink-0 rounded-full transition-colors ${isSubActive ? 'bg-primary' : 'bg-transparent border border-on-surface-variant/40'}`} />
+                                <span className="truncate">{sub.label}</span>
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`${sub.label} ${isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}`}
+                              aria-pressed={isFavorite}
+                              onClick={() => setNavPreferences(previous => toggleNavigationFavorite(previous, sub.id))}
+                              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-high ${
+                                isFavorite ? 'text-amber-600 dark:text-amber-300' : 'text-on-surface-variant'
+                              }`}
+                            >
+                              <span aria-hidden="true" className="material-symbols-outlined text-lg" style={isFavorite ? { fontVariationSettings: "'FILL' 1" } : undefined}>star</span>
+                            </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -639,20 +745,20 @@ export default function App() {
             <div className="relative" ref={notiRef}>
               <button 
                 type="button"
-                aria-label={`최근 알림${notifications.some(n => n.isNew) ? `, 새 알림 ${notifications.filter(n => n.isNew).length}개` : ''}`}
+                aria-label={`최근 알림${notifications.some(n => n.isNew) ? `, 새 알림 ${notifications.filter(n => n.isNew).length}개` : ''}${networkStatus.state !== 'online' ? `, 데이터 ${networkStatus.state === 'offline' ? '오프라인' : '연결 불안정'}` : ''}`}
                 aria-expanded={notiOpen}
                 onClick={() => setNotiOpen(!notiOpen)}
                 className={`w-11 h-11 flex items-center justify-center rounded-lg transition-colors ${notiOpen ? 'bg-surface-container-high' : 'hover:bg-surface-container'}`}
               >
                 <span className="material-symbols-outlined text-on-surface-variant text-xl">notifications</span>
-                {notifications.some(n => n.isNew) && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full block animate-pulse"></span>
+                {(notifications.some(n => n.isNew) || networkStatus.state !== 'online') && (
+                  <span className={`absolute top-1 right-1 w-2 h-2 rounded-full block animate-pulse ${networkStatus.state === 'online' ? 'bg-error' : 'bg-amber-500'}`}></span>
                 )}
               </button>
               
               {notiOpen && (
-                <div className="absolute right-0 top-full mt-2 z-50 p-2">
-                  <div className="bg-surface-container-high border border-outline-variant/20 rounded-2xl shadow-xl w-[320px] overflow-hidden animate-slide-in-top">
+                <div className="notification-popover z-50 p-2">
+                  <div className="bg-surface-container-high border border-outline-variant/20 rounded-2xl shadow-xl w-full sm:w-[320px] overflow-hidden animate-slide-in-top">
                     <div className="p-3 border-b border-outline-variant/20 flex items-center justify-between bg-surface-container">
                       <h2 className="text-sm font-bold text-on-surface flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-primary text-[18px]">notifications_active</span>
@@ -664,6 +770,13 @@ export default function App() {
                         </span>
                       )}
                     </div>
+                    <DataStatusSummary
+                      status={networkStatus}
+                      onOpenOfflineReadiness={() => {
+                        setNotiOpen(false);
+                        handleNavigate('offline-readiness');
+                      }}
+                    />
                     <div className="max-h-80 overflow-y-auto custom-scrollbar flex flex-col p-2 space-y-1">
                       {notifications.length === 0 ? (
                         <div className="p-6 text-center">
@@ -749,6 +862,8 @@ export default function App() {
           session={incidentSession}
           activeTab={activeTab}
           onNavigate={handleNavigate}
+          fieldModeActive={fieldReadabilityMode}
+          onFieldModeChange={handleFieldModeChange}
         />
 
         {/* Content */}

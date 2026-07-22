@@ -386,6 +386,23 @@ textarea:focus-visible,
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+.notification-popover {
+  position: fixed;
+  top: calc(3.5rem + env(safe-area-inset-top, 0px));
+  right: 0;
+  left: 0;
+}
+
+@media (min-width: 640px) {
+  .notification-popover {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: auto;
+    margin-top: 0.5rem;
+  }
+}
+
 @keyframes rainfall {
   0% { transform: translateY(-20px) translateX(0); opacity: 0; }
   10% { opacity: 0.6; }

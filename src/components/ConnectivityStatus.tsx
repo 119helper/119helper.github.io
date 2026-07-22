@@ -8,44 +8,19 @@
  * 본 화면이 죽더라도 연결/업데이트 안내는 계속 보이게 한다.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { registerServiceWorker, applyUpdate } from '../utils/registerServiceWorker';
-import { NETWORK_HEALTH_EVENT } from '../services/apiClient';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 export default function ConnectivityStatus() {
-  const [offline, setOffline] = useState(() => !navigator.onLine);
-  // navigator.onLine은 true인데 실제 fetch가 연속 실패하는 상태 (와이파이만 잡힌 경우 등)
-  const [unstable, setUnstable] = useState(false);
+  const networkStatus = useNetworkStatus();
+  const offline = networkStatus.state === 'offline';
+  const unstable = networkStatus.state === 'unstable';
   const [updateReady, setUpdateReady] = useState(false);
   const [networkNoticeDismissed, setNetworkNoticeDismissed] = useState(false);
-  const failStreakRef = useRef(0);
 
   useEffect(() => {
-    const goOnline = () => setOffline(false);
-    const goOffline = () => setOffline(true);
-    window.addEventListener('online', goOnline);
-    window.addEventListener('offline', goOffline);
-
-    // apiClient의 실제 fetch 성공/실패 신호 합산: 연속 2회 실패 → 연결 불안정
-    const onHealth = (e: Event) => {
-      const ok = (e as CustomEvent<{ ok: boolean }>).detail?.ok;
-      if (ok) {
-        failStreakRef.current = 0;
-        setUnstable(false);
-      } else {
-        failStreakRef.current += 1;
-        if (failStreakRef.current >= 2) setUnstable(true);
-      }
-    };
-    window.addEventListener(NETWORK_HEALTH_EVENT, onHealth);
-
     registerServiceWorker(() => setUpdateReady(true));
-
-    return () => {
-      window.removeEventListener('online', goOnline);
-      window.removeEventListener('offline', goOffline);
-      window.removeEventListener(NETWORK_HEALTH_EVENT, onHealth);
-    };
   }, []);
 
   useEffect(() => {

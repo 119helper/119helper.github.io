@@ -103,6 +103,42 @@ export const cityNames: Record<string, string> = {
   jeju: '제주',
 };
 
+const TAB_ICONS: Partial<Record<TabId, string>> = {
+  dashboard: 'dashboard',
+  shelter: 'location_city',
+  er: 'local_hospital',
+  weather: 'partly_cloudy_day',
+  calculator: 'calculate',
+  calendar: 'calendar_month',
+  emergency: 'ambulance',
+  'fire-analysis': 'query_stats',
+  multiuse: 'storefront',
+  hazmat: 'science',
+  'annual-fire': 'bar_chart',
+  'fire-damage': 'monitoring',
+  hazards: 'warning',
+  manual: 'menu_book',
+  'field-timer': 'timer',
+  news: 'newspaper',
+  policy: 'policy',
+  wildfire: 'forest',
+  law: 'gavel',
+  checklist: 'checklist',
+  'equipment-cert': 'verified',
+  'ems-protocol': 'medical_services',
+  triage: 'health_and_safety',
+  'activity-log': 'history',
+  preplan: 'domain',
+  'safety-monitor': 'shield',
+  incident: 'assignment',
+  aviation: 'flight',
+  'offline-readiness': 'offline_bolt',
+};
+
+export function getTabIcon(tab: TabId): string {
+  return TAB_ICONS[tab] ?? 'apps';
+}
+
 export function getTabLabel(tab: TabId | string): string {
   for (const item of NAV_ITEMS) {
     if (item.id === tab) return item.label;

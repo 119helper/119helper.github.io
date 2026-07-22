@@ -20,9 +20,17 @@ interface IncidentStatusStripProps {
   session: IncidentSession;
   activeTab: TabId;
   onNavigate: (tab: TabId) => void;
+  fieldModeActive: boolean;
+  onFieldModeChange: (enabled: boolean) => void;
 }
 
-export default function IncidentStatusStrip({ session, activeTab, onNavigate }: IncidentStatusStripProps) {
+export default function IncidentStatusStrip({
+  session,
+  activeTab,
+  onNavigate,
+  fieldModeActive,
+  onFieldModeChange,
+}: IncidentStatusStripProps) {
   const [now, setNow] = useState(() => Date.now());
   const [feedback, setFeedback] = useState('');
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
@@ -117,6 +125,22 @@ export default function IncidentStatusStrip({ session, activeTab, onNavigate }: 
             <span aria-hidden="true" className="material-symbols-outlined text-base text-error">timer</span>
             <span className="hidden sm:inline">{nearestTimer?.label ?? '타이머'}</span>
             {nearestTimer && <span className="font-mono tabular-nums">{formatTime(nearestTimer.remaining)}</span>}
+          </button>
+
+          <button
+            type="button"
+            aria-label={`현장 모드 ${fieldModeActive ? '끄기' : '켜기'}`}
+            aria-pressed={fieldModeActive}
+            title="큰 글씨·큰 터치 영역·화면 켜짐 유지"
+            onClick={() => onFieldModeChange(!fieldModeActive)}
+            className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-extrabold shadow-sm transition-colors ${
+              fieldModeActive
+                ? 'border-primary bg-primary text-on-primary'
+                : 'border-error/20 bg-surface-container-lowest/80 text-on-surface hover:bg-surface-container'
+            }`}
+          >
+            <span aria-hidden="true" className="material-symbols-outlined text-base">visibility</span>
+            <span className="hidden lg:inline">현장 모드</span>
           </button>
         </div>
 
