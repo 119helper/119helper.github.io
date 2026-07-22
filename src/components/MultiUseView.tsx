@@ -13,41 +13,41 @@ const cityToCtprvn: Record<string, string> = {
 
 // 업종별 아이콘/색상 매핑
 const TYPE_META: Record<string, { icon: string; color: string; barColor: string }> = {
-  '고시원': { icon: '🏠', color: 'text-orange-400', barColor: 'bg-orange-400' },
-  '노래연습장': { icon: '🎤', color: 'text-purple-400', barColor: 'bg-purple-400' },
-  'PC방': { icon: '💻', color: 'text-cyan-400', barColor: 'bg-cyan-400' },
-  '골프연습장': { icon: '⛳', color: 'text-green-400', barColor: 'bg-green-400' },
-  '단란주점': { icon: '🍻', color: 'text-amber-400', barColor: 'bg-amber-400' },
-  '유흥주점': { icon: '🎶', color: 'text-pink-400', barColor: 'bg-pink-400' },
-  '학원': { icon: '📚', color: 'text-indigo-400', barColor: 'bg-indigo-400' },
-  '휴게음식점': { icon: '☕', color: 'text-yellow-400', barColor: 'bg-yellow-400' },
-  '일반음식점': { icon: '🍽️', color: 'text-red-400', barColor: 'bg-red-400' },
-  '게임제공업': { icon: '🎮', color: 'text-emerald-400', barColor: 'bg-emerald-400' },
-  '산후조리원': { icon: '👶', color: 'text-rose-400', barColor: 'bg-rose-400' },
-  '안마시술소': { icon: '💆', color: 'text-teal-400', barColor: 'bg-teal-400' },
-  '찜질방': { icon: '♨️', color: 'text-orange-500', barColor: 'bg-orange-500' },
-  '사우나': { icon: '🧖', color: 'text-red-300', barColor: 'bg-red-300' },
-  '목욕장업': { icon: '🛁', color: 'text-sky-400', barColor: 'bg-sky-400' },
-  '콜라텍업': { icon: '💃', color: 'text-fuchsia-400', barColor: 'bg-fuchsia-400' },
-  '키즈카페업': { icon: '🧸', color: 'text-lime-400', barColor: 'bg-lime-400' },
-  '공유주방업': { icon: '🍳', color: 'text-amber-300', barColor: 'bg-amber-300' },
-  '실내사격장업': { icon: '🎯', color: 'text-gray-400', barColor: 'bg-gray-400' },
-  '멀티미디어문화컨텐츠설비 제공업': { icon: '🖥️', color: 'text-violet-400', barColor: 'bg-violet-400' },
-  '권총사격장': { icon: '🎯', color: 'text-slate-400', barColor: 'bg-slate-400' },
-  '만화카페업': { icon: '📖', color: 'text-yellow-300', barColor: 'bg-yellow-300' },
-  '방탈출카페업': { icon: '🔐', color: 'text-red-500', barColor: 'bg-red-500' },
-  '복합영상물': { icon: '📺', color: 'text-blue-300', barColor: 'bg-blue-300' },
-  '복합유통업': { icon: '🏬', color: 'text-indigo-300', barColor: 'bg-indigo-300' },
-  '비디오물감상': { icon: '📼', color: 'text-purple-300', barColor: 'bg-purple-300' },
-  '비디오소극장': { icon: '🎬', color: 'text-pink-300', barColor: 'bg-pink-300' },
-  '수면방업': { icon: '😴', color: 'text-blue-400', barColor: 'bg-blue-400' },
-  '영화상영관': { icon: '🎥', color: 'text-red-300', barColor: 'bg-red-300' },
-  '전화방': { icon: '☎️', color: 'text-green-300', barColor: 'bg-green-300' },
-  '제과영업점': { icon: '🍰', color: 'text-pink-200', barColor: 'bg-pink-300' },
+  '고시원': { icon: '🏠', color: 'text-orange-700 dark:text-orange-300', barColor: 'bg-orange-700 dark:bg-orange-400' },
+  '노래연습장': { icon: '🎤', color: 'text-purple-700 dark:text-purple-300', barColor: 'bg-purple-700 dark:bg-purple-400' },
+  'PC방': { icon: '💻', color: 'text-cyan-700 dark:text-cyan-300', barColor: 'bg-cyan-700 dark:bg-cyan-400' },
+  '골프연습장': { icon: '⛳', color: 'text-green-700 dark:text-green-300', barColor: 'bg-green-700 dark:bg-green-400' },
+  '단란주점': { icon: '🍻', color: 'text-amber-700 dark:text-amber-300', barColor: 'bg-amber-700 dark:bg-amber-400' },
+  '유흥주점': { icon: '🎶', color: 'text-pink-700 dark:text-pink-300', barColor: 'bg-pink-700 dark:bg-pink-400' },
+  '학원': { icon: '📚', color: 'text-indigo-700 dark:text-indigo-300', barColor: 'bg-indigo-700 dark:bg-indigo-400' },
+  '휴게음식점': { icon: '☕', color: 'text-amber-700 dark:text-yellow-300', barColor: 'bg-amber-700 dark:bg-yellow-400' },
+  '일반음식점': { icon: '🍽️', color: 'text-red-700 dark:text-red-300', barColor: 'bg-red-700 dark:bg-red-400' },
+  '게임제공업': { icon: '🎮', color: 'text-emerald-700 dark:text-emerald-300', barColor: 'bg-emerald-700 dark:bg-emerald-400' },
+  '산후조리원': { icon: '👶', color: 'text-rose-700 dark:text-rose-300', barColor: 'bg-rose-700 dark:bg-rose-400' },
+  '안마시술소': { icon: '💆', color: 'text-teal-700 dark:text-teal-300', barColor: 'bg-teal-700 dark:bg-teal-400' },
+  '찜질방': { icon: '♨️', color: 'text-orange-700 dark:text-orange-300', barColor: 'bg-orange-700 dark:bg-orange-400' },
+  '사우나': { icon: '🧖', color: 'text-red-700 dark:text-red-300', barColor: 'bg-red-700 dark:bg-red-400' },
+  '목욕장업': { icon: '🛁', color: 'text-sky-700 dark:text-sky-300', barColor: 'bg-sky-700 dark:bg-sky-400' },
+  '콜라텍업': { icon: '💃', color: 'text-fuchsia-700 dark:text-fuchsia-300', barColor: 'bg-fuchsia-700 dark:bg-fuchsia-400' },
+  '키즈카페업': { icon: '🧸', color: 'text-lime-800 dark:text-lime-300', barColor: 'bg-lime-800 dark:bg-lime-400' },
+  '공유주방업': { icon: '🍳', color: 'text-amber-700 dark:text-amber-300', barColor: 'bg-amber-700 dark:bg-amber-400' },
+  '실내사격장업': { icon: '🎯', color: 'text-gray-700 dark:text-gray-300', barColor: 'bg-gray-700 dark:bg-gray-400' },
+  '멀티미디어문화컨텐츠설비 제공업': { icon: '🖥️', color: 'text-violet-700 dark:text-violet-300', barColor: 'bg-violet-700 dark:bg-violet-400' },
+  '권총사격장': { icon: '🎯', color: 'text-slate-700 dark:text-slate-300', barColor: 'bg-slate-700 dark:bg-slate-400' },
+  '만화카페업': { icon: '📖', color: 'text-amber-700 dark:text-yellow-300', barColor: 'bg-amber-700 dark:bg-yellow-400' },
+  '방탈출카페업': { icon: '🔐', color: 'text-red-700 dark:text-red-300', barColor: 'bg-red-700 dark:bg-red-400' },
+  '복합영상물': { icon: '📺', color: 'text-blue-700 dark:text-blue-300', barColor: 'bg-blue-700 dark:bg-blue-400' },
+  '복합유통업': { icon: '🏬', color: 'text-indigo-700 dark:text-indigo-300', barColor: 'bg-indigo-700 dark:bg-indigo-400' },
+  '비디오물감상': { icon: '📼', color: 'text-purple-700 dark:text-purple-300', barColor: 'bg-purple-700 dark:bg-purple-400' },
+  '비디오소극장': { icon: '🎬', color: 'text-pink-700 dark:text-pink-300', barColor: 'bg-pink-700 dark:bg-pink-400' },
+  '수면방업': { icon: '😴', color: 'text-blue-700 dark:text-blue-300', barColor: 'bg-blue-700 dark:bg-blue-400' },
+  '영화상영관': { icon: '🎥', color: 'text-red-700 dark:text-red-300', barColor: 'bg-red-700 dark:bg-red-400' },
+  '전화방': { icon: '☎️', color: 'text-green-700 dark:text-green-300', barColor: 'bg-green-700 dark:bg-green-400' },
+  '제과영업점': { icon: '🍰', color: 'text-pink-700 dark:text-pink-300', barColor: 'bg-pink-700 dark:bg-pink-400' },
 };
 
 function getMeta(type: string) {
-  return TYPE_META[type] || { icon: '🏢', color: 'text-gray-400', barColor: 'bg-gray-400' };
+  return TYPE_META[type] || { icon: '🏢', color: 'text-gray-700 dark:text-gray-300', barColor: 'bg-gray-700 dark:bg-gray-400' };
 }
 
 const toNumber = (value: unknown) => {
@@ -212,12 +212,12 @@ export default function MultiUseView({ city }: MultiUseViewProps) {
 
       {/* API 에러 */}
       {!loading && apiError && stats.length === 0 && (
-        <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-6 text-center">
-          <span className="material-symbols-outlined text-5xl text-red-400/60 mb-3 block">cloud_off</span>
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 text-center">
+          <span className="material-symbols-outlined text-5xl text-red-700 dark:text-red-300 mb-3 block">cloud_off</span>
           <h3 className="text-lg font-bold text-on-surface mb-2">다중이용업소 API 연결 실패</h3>
-          <p className="text-sm text-red-300/80 max-w-lg mx-auto mb-1">{apiError}</p>
+          <p className="text-sm text-red-800 dark:text-red-200 max-w-lg mx-auto mb-1">{apiError}</p>
           <button type="button" onClick={fetchData}
-            className="mt-3 bg-red-500/20 text-red-300 px-5 py-2 rounded-lg text-sm font-bold hover:bg-red-500/30 transition-colors inline-flex items-center gap-2">
+            className="mt-3 bg-error text-on-error px-5 py-2 rounded-lg text-sm font-bold hover:bg-error/90 transition-colors inline-flex items-center gap-2">
             <span className="material-symbols-outlined text-lg">refresh</span>
             다시 시도
           </button>

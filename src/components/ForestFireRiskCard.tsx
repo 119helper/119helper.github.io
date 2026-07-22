@@ -9,28 +9,28 @@ interface ForestFireRiskCardProps {
 
 const LEVEL_CLASS: Record<ForestFireRiskLevel, { bg: string; border: string; text: string; badge: string }> = {
   낮음: {
-    bg: 'bg-green-900/20',
+    bg: 'bg-green-500/10',
     border: 'border-green-500/20',
-    text: 'text-green-400',
-    badge: 'bg-green-500/20 text-green-300',
+    text: 'text-green-800 dark:text-green-200',
+    badge: 'bg-green-500/20 text-green-900 dark:text-green-100',
   },
   보통: {
-    bg: 'bg-amber-900/20',
+    bg: 'bg-amber-500/10',
     border: 'border-amber-500/20',
-    text: 'text-amber-400',
-    badge: 'bg-amber-500/20 text-amber-300',
+    text: 'text-amber-800 dark:text-amber-200',
+    badge: 'bg-amber-500/20 text-amber-900 dark:text-amber-100',
   },
   높음: {
-    bg: 'bg-orange-900/25',
+    bg: 'bg-orange-500/10',
     border: 'border-orange-500/30',
-    text: 'text-orange-400',
-    badge: 'bg-orange-500/20 text-orange-300',
+    text: 'text-orange-800 dark:text-orange-200',
+    badge: 'bg-orange-500/20 text-orange-900 dark:text-orange-100',
   },
   '매우 높음': {
-    bg: 'bg-red-900/30',
+    bg: 'bg-red-500/10',
     border: 'border-red-500/30',
-    text: 'text-red-400',
-    badge: 'bg-red-500/20 text-red-300',
+    text: 'text-red-800 dark:text-red-200',
+    badge: 'bg-red-500/20 text-red-900 dark:text-red-100',
   },
 };
 

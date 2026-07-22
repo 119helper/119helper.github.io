@@ -225,6 +225,7 @@ export default function ActivityLog() {
           ))}
         </div>
         <input
+          aria-label="출동 제목"
           type="text"
           value={session.title}
           onChange={e => setSession(prev => ({ ...prev, title: e.target.value }))}
@@ -312,6 +313,7 @@ export default function ActivityLog() {
       {/* 특이사항 + 액션 */}
       <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 space-y-3">
         <textarea
+          aria-label="출동 특이사항"
           value={session.note}
           onChange={e => setSession(prev => ({ ...prev, note: e.target.value }))}
           placeholder="특이사항 (인명피해, 동원자원, 조치 등)"
@@ -358,6 +360,7 @@ export default function ActivityLog() {
           </div>
         </div>
           <textarea
+            aria-label="생성된 보고서 초안"
             readOnly
             value={report}
             rows={Math.min(20, report.split('\n').length + 1)}

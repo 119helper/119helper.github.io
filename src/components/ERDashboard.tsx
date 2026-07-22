@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { getERRealTimeBeds, getERMessages, getERSevereIllness, CITY_TO_SIDO, type ERRealTimeData, type ERMessage, type ERSevereIllness } from '../services/erApi';
 import { getStaleAt } from '../services/apiClient';
 import StaleBadge from './StaleBadge';
 
 import PrivateAmbulanceView from './PrivateAmbulanceView';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 
 /* ─── 중증질환 필드 한글 매핑 ─── */
 const SEVERE_LABELS: Record<string, string> = {
@@ -60,7 +61,11 @@ export default function ERDashboard({ city }: ERViewProps) {
   const [staleAt, setStaleAt] = useState<number | null>(null);
   const [loadError, setLoadError] = useState('');
   const [supplementalWarning, setSupplementalWarning] = useState('');
+  const [noticePopupId, setNoticePopupId] = useState<string | null>(null);
   const requestSeqRef = useRef(0);
+  const noticeDialogTitleId = useId();
+  const noticeReturnFocusRef = useRef<HTMLElement | null>(null);
+  const noticeDialogRef = useDialogAccessibility<HTMLDivElement>(Boolean(noticePopupId), () => setNoticePopupId(null), noticeReturnFocusRef);
 
   const fetchER = useCallback(async (forceRefresh = false) => {
     const seq = ++requestSeqRef.current;
@@ -131,9 +136,6 @@ export default function ERDashboard({ city }: ERViewProps) {
     if (msg.symTypMain && msg.symTypMain.trim()) return msg.symTypMain.trim();
     return '응급실 알림';
   }
-
-
-  const [noticePopupId, setNoticePopupId] = useState<string | null>(null);
 
   return (
     <div className="space-y-6">
@@ -260,30 +262,41 @@ export default function ERDashboard({ city }: ERViewProps) {
                     <tr className="hover:bg-surface-container/30 transition-colors group">
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-2">
-                          <p
-                            onClick={() => setNoticePopupId(er.dutyName)}
-                            className="text-sm font-bold text-on-surface hover:text-primary hover:underline transition-colors cursor-pointer"
+                          <button
+                            type="button"
+                            onClick={event => {
+                              noticeReturnFocusRef.current = event.currentTarget;
+                              setNoticePopupId(er.dutyName);
+                            }}
+                            className="text-left text-sm font-bold text-on-surface hover:text-primary hover:underline transition-colors"
                             title="공지사항 보기"
                           >
                             {er.dutyName}
-                          </p>
+                          </button>
                           {messages.filter(m => m.dutyName === er.dutyName).length > 0 && (
-                            <span 
-                              onClick={() => setNoticePopupId(er.dutyName)}
-                              className="material-symbols-outlined text-[14px] text-error animate-pulse cursor-pointer hover:scale-125 transition-transform" 
+                            <button
+                              type="button"
+                              aria-label={`${er.dutyName} 공지사항 보기`}
+                              onClick={event => {
+                                noticeReturnFocusRef.current = event.currentTarget;
+                                setNoticePopupId(er.dutyName);
+                              }}
+                              className="flex h-8 w-8 items-center justify-center text-error animate-pulse hover:scale-110 transition-transform"
                               title="공지사항 보기"
                             >
-                              campaign
-                            </span>
+                              <span aria-hidden="true" className="material-symbols-outlined text-[14px]">campaign</span>
+                            </button>
                           )}
                           {severe && (
-                            <span 
+                            <button
+                              type="button"
+                              aria-label={`${er.dutyName} 중증질환 수용정보 ${isExpanded ? '접기' : '펼치기'}`}
                               onClick={() => setExpandedRow(isExpanded ? null : er.phpid)}
-                              className="material-symbols-outlined text-[18px] text-primary cursor-pointer hover:bg-primary/10 rounded-full p-0.5 ml-1 transition-colors" 
+                              className="flex h-8 w-8 items-center justify-center text-primary hover:bg-primary/10 rounded-full ml-1 transition-colors"
                               title="중증질환 수용정보 확인"
                             >
-                              {isExpanded ? 'expand_less' : 'expand_more'}
-                            </span>
+                              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">{isExpanded ? 'expand_less' : 'expand_more'}</span>
+                            </button>
                           )}
                         </div>
                         <p className="text-[10px] text-on-surface-variant truncate max-w-[280px] mt-0.5">{er.dutyAddr}</p>
@@ -397,14 +410,14 @@ export default function ERDashboard({ city }: ERViewProps) {
       {/* 팝업 모달 */}
       {noticePopupId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setNoticePopupId(null)}>
-          <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div ref={noticeDialogRef} role="dialog" aria-modal="true" aria-labelledby={noticeDialogTitleId} tabIndex={-1} className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b border-outline-variant/10 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
+              <h3 id={noticeDialogTitleId} className="text-lg font-bold text-on-surface flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary">local_hospital</span>
                 {noticePopupId}
               </h3>
-              <button onClick={() => setNoticePopupId(null)} className="text-on-surface-variant hover:text-on-surface transition-colors bg-surface-container rounded-full p-1">
-                <span className="material-symbols-outlined">close</span>
+              <button type="button" aria-label="응급실 공지 닫기" onClick={() => setNoticePopupId(null)} className="flex h-11 w-11 items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors bg-surface-container rounded-full">
+                <span aria-hidden="true" className="material-symbols-outlined">close</span>
               </button>
             </div>
             <div className="p-6 max-h-[60vh] overflow-y-auto space-y-4">

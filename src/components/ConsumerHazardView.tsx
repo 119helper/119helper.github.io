@@ -21,7 +21,7 @@ export default function ConsumerHazardView() {
       <div className="flex items-center justify-between border-b border-outline-variant/20 pb-4">
         <div>
           <h2 className="text-xl font-extrabold text-on-surface flex items-center gap-2 font-headline">
-            <span className="material-symbols-outlined text-orange-500">warning</span>
+            <span className="material-symbols-outlined text-orange-700 dark:text-orange-300">warning</span>
             소비자 위해 정보 동향
           </h2>
           <p className="text-on-surface-variant text-sm mt-1">한국소비자원 기반 일상생활 위해 및 안전사고 통계</p>
@@ -38,7 +38,7 @@ export default function ConsumerHazardView() {
 
       {loading && hazards.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-on-surface-variant">
-          <span className="material-symbols-outlined text-4xl animate-spin mb-4 text-orange-500">progress_activity</span>
+          <span className="material-symbols-outlined text-4xl animate-spin mb-4 text-orange-700 dark:text-orange-300">progress_activity</span>
           <p>최신 위해 정보 통계를 불러오는 중입니다...</p>
         </div>
       ) : hazards.length === 0 ? (

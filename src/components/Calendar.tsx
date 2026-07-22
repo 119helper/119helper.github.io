@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId, useRef } from 'react';
 import { getStaticHolidays } from '../data/holidays';
 import { getShiftForDate, SHIFT_CYCLE_DANGBIBI, type ShiftSetting } from '../utils/shiftCalculator';
 import { loadStoredJson, saveStoredJson } from '../services/privacySettings';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 
 interface Schedule {
   id: string;
@@ -12,10 +13,10 @@ interface Schedule {
 }
 
 const TYPE_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  '근무': { bg: 'bg-blue-500/20', text: 'text-blue-400', dot: 'bg-blue-400' },
-  '점검': { bg: 'bg-red-500/20', text: 'text-red-400', dot: 'bg-red-400' },
-  '교육': { bg: 'bg-green-500/20', text: 'text-green-400', dot: 'bg-green-400' },
-  '기타': { bg: 'bg-purple-500/20', text: 'text-purple-400', dot: 'bg-purple-400' },
+  '근무': { bg: 'bg-blue-500/20', text: 'text-blue-700 dark:text-blue-300', dot: 'bg-blue-600 dark:bg-blue-400' },
+  '점검': { bg: 'bg-red-500/20', text: 'text-red-700 dark:text-red-300', dot: 'bg-red-600 dark:bg-red-400' },
+  '교육': { bg: 'bg-green-500/20', text: 'text-green-700 dark:text-green-300', dot: 'bg-green-600 dark:bg-green-400' },
+  '기타': { bg: 'bg-purple-500/20', text: 'text-purple-700 dark:text-purple-300', dot: 'bg-purple-600 dark:bg-purple-400' },
 };
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -174,11 +175,11 @@ export default function Calendar() {
   };
 
   const shiftColor = (shift: string) => {
-    if (shift.includes('주간') || shift.includes('주')) return 'text-amber-400 bg-amber-500/10';
-    if (shift.includes('야간') || shift.includes('야')) return 'text-indigo-400 bg-indigo-500/10';
-    if (shift.includes('비번') || shift.includes('비')) return 'text-green-500 bg-green-500/10';
-    if (shift.includes('휴무') || shift.includes('휴')) return 'text-gray-500 bg-gray-500/10';
-    if (shift.includes('당직') || shift.includes('당')) return 'text-red-400 bg-red-500/10';
+    if (shift.includes('주간') || shift.includes('주')) return 'text-amber-700 dark:text-amber-300 bg-amber-500/10';
+    if (shift.includes('야간') || shift.includes('야')) return 'text-indigo-700 dark:text-indigo-300 bg-indigo-500/10';
+    if (shift.includes('비번') || shift.includes('비')) return 'text-green-700 dark:text-green-300 bg-green-500/10';
+    if (shift.includes('휴무') || shift.includes('휴')) return 'text-gray-700 dark:text-gray-300 bg-gray-500/10';
+    if (shift.includes('당직') || shift.includes('당')) return 'text-red-700 dark:text-red-300 bg-red-500/10';
     return 'text-primary bg-primary/10';
   };
 
@@ -188,6 +189,11 @@ export default function Calendar() {
     setNewMemo('');
     setNewType('점검');
   };
+  const addDialogTitleId = useId();
+  const titleInputId = useId();
+  const memoInputId = useId();
+  const addScheduleButtonRef = useRef<HTMLButtonElement>(null);
+  const addDialogRef = useDialogAccessibility<HTMLDivElement>(showAddModal, closeAddModal, addScheduleButtonRef);
 
   const addSchedule = () => {
     if (!selectedDate || !newTitle.trim()) return;
@@ -289,7 +295,7 @@ export default function Calendar() {
           {/* Day Headers */}
           <div className="grid grid-cols-7 border-b border-outline-variant/10">
             {DAYS.map((d, i) => (
-              <div key={d} className={`py-2 text-center text-xs font-bold uppercase tracking-wider ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-on-surface-variant'}`}>
+              <div key={d} className={`py-2 text-center text-xs font-bold uppercase tracking-wider ${i === 0 ? 'text-red-700 dark:text-red-300' : i === 6 ? 'text-blue-700 dark:text-blue-300' : 'text-on-surface-variant'}`}>
                 {d}
               </div>
             ))}
@@ -326,7 +332,7 @@ export default function Calendar() {
                 >
                   <div className="flex items-center justify-between">
                     <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full
-                      ${isToday ? 'bg-primary text-on-primary' : isHoliday || dayOfWeek === 0 ? 'text-red-400' : dayOfWeek === 6 ? 'text-blue-400' : 'text-on-surface'}
+                      ${isToday ? 'bg-primary text-on-primary' : isHoliday || dayOfWeek === 0 ? 'text-red-700 dark:text-red-300' : dayOfWeek === 6 ? 'text-blue-700 dark:text-blue-300' : 'text-on-surface'}
                     `}>
                       {day}
                     </span>
@@ -338,7 +344,7 @@ export default function Calendar() {
                   </div>
                   <div className="mt-1 space-y-0.5">
                     {holidayNames.map((name, hi) => (
-                      <div key={`h-${hi}`} className="text-[9px] truncate px-1 py-0.5 rounded bg-red-500/15 text-red-400 font-bold">
+                      <div key={`h-${hi}`} className="text-[9px] truncate px-1 py-0.5 rounded bg-red-500/15 text-red-700 dark:text-red-300 font-bold">
                         🎌 {name}
                       </div>
                     ))}
@@ -400,6 +406,7 @@ export default function Calendar() {
               </h4>
               {selectedDate && (
                 <button
+                  ref={addScheduleButtonRef}
                   type="button"
                   onClick={() => setShowAddModal(true)}
                   className="text-xs bg-primary text-on-primary px-3 py-1.5 rounded-lg font-bold hover:bg-primary/80 transition-colors flex items-center gap-1"
@@ -459,21 +466,30 @@ export default function Calendar() {
 
       {/* Add Schedule Modal */}
       {showAddModal && selectedDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={closeAddModal}>
-          <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-6 w-[420px] shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-on-surface mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={closeAddModal}>
+          <div
+            ref={addDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={addDialogTitleId}
+            tabIndex={-1}
+            className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-6 w-full max-w-[420px] shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 id={addDialogTitleId} className="text-lg font-bold text-on-surface mb-4">
               📅 일정 추가 — {selectedDate.split('-')[1]}월 {selectedDate.split('-')[2]}일
             </h3>
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-on-surface-variant font-bold">유형</label>
-                <div className="flex gap-2 mt-1">
+                <span id={`${addDialogTitleId}-type`} className="text-xs text-on-surface-variant font-bold">유형</span>
+                <div className="flex flex-wrap gap-2 mt-1" role="group" aria-labelledby={`${addDialogTitleId}-type`}>
                   {(Object.keys(TYPE_COLORS) as Schedule['type'][]).map(t => {
                     const tc = TYPE_COLORS[t];
                     return (
                       <button
                         key={t}
                         type="button"
+                        aria-pressed={newType === t}
                         onClick={() => setNewType(t)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
                           newType === t
@@ -488,8 +504,10 @@ export default function Calendar() {
                 </div>
               </div>
               <div>
-                <label className="text-xs text-on-surface-variant font-bold">제목</label>
+                <label htmlFor={titleInputId} className="text-xs text-on-surface-variant font-bold">제목</label>
                 <input
+                  id={titleInputId}
+                  data-dialog-initial-focus
                   type="text"
                   value={newTitle}
                   onChange={e => setNewTitle(e.target.value)}
@@ -499,8 +517,9 @@ export default function Calendar() {
                 />
               </div>
               <div>
-                <label className="text-xs text-on-surface-variant font-bold">메모 (선택)</label>
+                <label htmlFor={memoInputId} className="text-xs text-on-surface-variant font-bold">메모 (선택)</label>
                 <textarea
+                  id={memoInputId}
                   value={newMemo}
                   onChange={e => setNewMemo(e.target.value)}
                   placeholder="상세 내용..."

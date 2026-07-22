@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId, type RefObject } from 'react';
 import {
   loadNotificationSettings,
   saveNotificationSettings,
@@ -27,6 +27,7 @@ import {
   saveDisplaySettings,
   type DisplaySettings,
 } from '../services/displaySettings';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ interface SettingsModalProps {
   city: string;
   onCityChange: (c: string) => void;
   cityNames: Record<string, string>;
+  returnFocusRef?: RefObject<HTMLElement | null>;
 }
 
 type SettingsTab = 'profile' | 'general' | 'notification' | 'shift';
@@ -99,7 +101,7 @@ function AlertRow({ icon, iconColor, label, desc, on, onChange }: {
           {desc && <p className="text-[10px] text-on-surface-variant leading-tight mt-0.5">{desc}</p>}
         </div>
       </div>
-      <Toggle on={on} onChange={onChange} size="sm" />
+      <Toggle label={label} on={on} onChange={onChange} size="sm" />
     </div>
   );
 }
@@ -114,7 +116,7 @@ function CategoryHeader({ icon, iconColor, label, masterOn, onMasterChange }: {
         <span className={`material-symbols-outlined text-lg ${iconColor}`} style={{ fontVariationSettings: "'FILL' 1" }}>{icon}</span>
         <span className="text-xs font-bold text-on-surface uppercase tracking-wider">{label}</span>
       </div>
-      <Toggle on={masterOn} onChange={onMasterChange} size="sm" />
+      <Toggle label={`${label} 전체`} on={masterOn} onChange={onMasterChange} size="sm" />
     </div>
   );
 }
@@ -143,6 +145,7 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
           기본 관심 지역
         </span>
         <select
+          aria-label="기본 관심 지역"
           value={city}
           onChange={e => onCityChange(e.target.value)}
           className="w-full bg-surface-container text-on-surface text-sm rounded-xl px-3 py-2.5 border border-outline-variant/20 focus:outline-none focus:border-primary transition-colors"
@@ -188,6 +191,7 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
           자동 새로고침
         </span>
         <select
+          aria-label="자동 새로고침 주기"
           value={refreshInterval}
           onChange={e => setRefreshInterval(e.target.value)}
           className="w-full bg-surface-container text-on-surface text-sm rounded-xl px-3 py-2.5 border border-outline-variant/20 focus:outline-none focus:border-primary transition-colors"
@@ -213,7 +217,7 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
               <p className="text-sm font-medium text-on-surface">알림 활성화</p>
               <p className="text-[10px] text-on-surface-variant">기상, 대기질, 응급실 등 실시간 알림</p>
             </div>
-            <Toggle on={ns.enabled} onChange={v => updateNs({ enabled: v })} />
+            <Toggle label="알림 활성화" on={ns.enabled} onChange={v => updateNs({ enabled: v })} />
           </div>
           {ns.enabled && (
             <div className="flex items-center justify-between">
@@ -221,7 +225,7 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
                 <p className="text-sm font-medium text-on-surface">경고음</p>
                 <p className="text-[10px] text-on-surface-variant">알림 발생 시 소리 재생</p>
               </div>
-              <Toggle on={ns.soundEnabled} onChange={v => updateNs({ soundEnabled: v })} size="sm" />
+              <Toggle label="경고음" on={ns.soundEnabled} onChange={v => updateNs({ soundEnabled: v })} size="sm" />
             </div>
           )}
           {ns.enabled && (
@@ -247,14 +251,16 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
               <p className="text-[10px] text-on-surface-variant">메모, 대상물, 사진, GPS 활동기록 등 민감 데이터를 저장하지 않습니다.</p>
             </div>
             <Toggle
+              label="공용 기기 모드"
               on={privacy.publicDeviceMode}
               onChange={v => setPrivacy({ ...privacy, publicDeviceMode: v })}
               size="sm"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold text-on-surface-variant">자동 삭제 기간</label>
+            <label htmlFor="settings-retention-days" className="text-xs font-bold text-on-surface-variant">자동 삭제 기간</label>
             <select
+              id="settings-retention-days"
               value={privacy.retentionDays}
               onChange={e => setPrivacy({ ...privacy, retentionDays: parseNumberOr(e.target.value, 30) })}
               disabled={privacy.publicDeviceMode}
@@ -274,6 +280,7 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
                 <p className="text-[10px] text-on-surface-variant">기기 분실·공유 시 캐주얼 접근을 막습니다.</p>
               </div>
               <Toggle
+                label="앱 잠금"
                 on={privacy.appLockEnabled}
                 onChange={v => setPrivacy({
                   ...privacy,
@@ -287,6 +294,7 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
             {privacy.appLockEnabled && (
               <div className="space-y-2">
                 <input
+                  aria-label="앱 잠금 코드"
                   type="password"
                   inputMode="numeric"
                   value={appLockCode}
@@ -295,6 +303,7 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
                   className="w-full bg-surface-container-high text-on-surface text-sm rounded-lg px-3 py-2 border border-outline-variant/20 focus:outline-none focus:border-primary"
                 />
                 <select
+                  aria-label="앱 잠금 시간"
                   value={privacy.appLockTimeoutMinutes}
                   onChange={e => setPrivacy({ ...privacy, appLockTimeoutMinutes: parseNumberOr(e.target.value, 15) })}
                   className="w-full bg-surface-container-high text-on-surface text-sm rounded-lg px-3 py-2 border border-outline-variant/20 focus:outline-none focus:border-primary"
@@ -375,7 +384,7 @@ function NotificationTab({ ns, updateNs }: {
             {ns.weather.heatwave && (
               <div className="flex items-center gap-2 ml-7 mb-1">
                 <span className="text-[10px] text-on-surface-variant">기준:</span>
-                <input type="number" value={ns.weather.heatwaveThreshold} min={30} max={45}
+                <input aria-label="폭염 경고 기준 온도" type="number" value={ns.weather.heatwaveThreshold} min={30} max={45}
                   onChange={e => updateWeather({ heatwaveThreshold: clamp(parseNumberOr(e.target.value, 35), 30, 45) })}
                   className="w-14 text-xs font-mono bg-surface-container border border-outline-variant/20 rounded px-1.5 py-0.5 text-on-surface" />
                 <span className="text-[10px] text-on-surface-variant">°C 이상</span>
@@ -385,7 +394,7 @@ function NotificationTab({ ns, updateNs }: {
             {ns.weather.coldwave && (
               <div className="flex items-center gap-2 ml-7 mb-1">
                 <span className="text-[10px] text-on-surface-variant">기준:</span>
-                <input type="number" value={ns.weather.coldwaveThreshold} min={-30} max={0}
+                <input aria-label="한파 경고 기준 온도" type="number" value={ns.weather.coldwaveThreshold} min={-30} max={0}
                   onChange={e => updateWeather({ coldwaveThreshold: clamp(parseNumberOr(e.target.value, -10), -30, 0) })}
                   className="w-14 text-xs font-mono bg-surface-container border border-outline-variant/20 rounded px-1.5 py-0.5 text-on-surface" />
                 <span className="text-[10px] text-on-surface-variant">°C 이하</span>
@@ -395,7 +404,7 @@ function NotificationTab({ ns, updateNs }: {
             {ns.weather.strongWind && (
               <div className="flex items-center gap-2 ml-7 mb-1">
                 <span className="text-[10px] text-on-surface-variant">기준:</span>
-                <input type="number" value={ns.weather.windThreshold} min={5} max={30}
+                <input aria-label="강풍 경고 기준 풍속" type="number" value={ns.weather.windThreshold} min={5} max={30}
                   onChange={e => updateWeather({ windThreshold: clamp(parseNumberOr(e.target.value, 14), 5, 30) })}
                   className="w-14 text-xs font-mono bg-surface-container border border-outline-variant/20 rounded px-1.5 py-0.5 text-on-surface" />
                 <span className="text-[10px] text-on-surface-variant">m/s 이상</span>
@@ -471,7 +480,7 @@ function ShiftTab({ setting, setSetting }: { setting: ShiftSetting; setSetting: 
           <span className="material-symbols-outlined text-primary text-lg">calendar_month</span>
           교대근무 스케줄 표시 설정
         </span>
-        <Toggle on={setting.isActive} onChange={(v) => setSetting({ ...setting, isActive: v })} size="sm" />
+        <Toggle label="교대근무 스케줄 표시" on={setting.isActive} onChange={(v) => setSetting({ ...setting, isActive: v })} size="sm" />
       </div>
 
       <p className="text-xs text-on-surface-variant">
@@ -481,8 +490,9 @@ function ShiftTab({ setting, setSetting }: { setting: ShiftSetting; setSetting: 
       {setting.isActive && (
         <div className="space-y-4 pt-2 border-t border-outline-variant/10">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-on-surface block">기준 일자 (아무 날짜나 선택)</label>
+            <label htmlFor="settings-shift-base-date" className="text-sm font-medium text-on-surface block">기준 일자 (아무 날짜나 선택)</label>
             <input 
+              id="settings-shift-base-date"
               type="date" 
               value={setting.baseDate}
               onChange={(e) => setSetting({ ...setting, baseDate: e.target.value })}
@@ -490,13 +500,14 @@ function ShiftTab({ setting, setSetting }: { setting: ShiftSetting; setSetting: 
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-on-surface block">해당 기준일의 내 근무 상태</label>
+          <fieldset className="space-y-1.5">
+            <legend className="text-sm font-medium text-on-surface block">해당 기준일의 내 근무 상태</legend>
             <div className="grid grid-cols-3 gap-2">
               {SHIFT_CYCLE_DANGBIBI.map(shift => (
                 <button
                   key={shift}
                   type="button"
+                  aria-pressed={setting.baseShift === shift}
                   onClick={() => setSetting({ ...setting, baseShift: shift as ShiftType })}
                   className={`py-2 rounded-xl text-sm font-bold border transition-colors ${
                     setting.baseShift === shift 
@@ -509,7 +520,7 @@ function ShiftTab({ setting, setSetting }: { setting: ShiftSetting; setSetting: 
               ))}
             </div>
             <p className="text-[10px] text-on-surface-variant pt-1 text-center">선택하신 기준일에 해당하는 근무조를 눌러주세요.</p>
-          </div>
+          </fieldset>
         </div>
       )}
     </div>
@@ -532,14 +543,14 @@ function ProfileTab({ draft, setDraft }: { draft: UserProfile; setDraft: (p: Use
       </p>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-on-surface block">이름</label>
-        <input type="text" value={draft.name} onChange={e => set('name', e.target.value)} placeholder="예: 홍길동" className={fieldCls} />
+        <label htmlFor="settings-profile-name" className="text-sm font-medium text-on-surface block">이름</label>
+        <input id="settings-profile-name" type="text" value={draft.name} onChange={e => set('name', e.target.value)} placeholder="예: 홍길동" className={fieldCls} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-on-surface block">계급</label>
-          <select value={draft.rank} onChange={e => set('rank', e.target.value)} className={fieldCls}>
+          <label htmlFor="settings-profile-rank" className="text-sm font-medium text-on-surface block">계급</label>
+          <select id="settings-profile-rank" value={draft.rank} onChange={e => set('rank', e.target.value)} className={fieldCls}>
             <option value="">선택 안 함</option>
             {FIRE_RANKS.map(r => (
               <option key={r} value={r}>{r}</option>
@@ -547,23 +558,24 @@ function ProfileTab({ draft, setDraft }: { draft: UserProfile; setDraft: (p: Use
           </select>
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-on-surface block">근무팀/반 <span className="text-on-surface-variant font-normal">(선택)</span></label>
-          <input type="text" value={draft.team} onChange={e => set('team', e.target.value)} placeholder="예: 1팀" className={fieldCls} />
+          <label htmlFor="settings-profile-team" className="text-sm font-medium text-on-surface block">근무팀/반 <span className="text-on-surface-variant font-normal">(선택)</span></label>
+          <input id="settings-profile-team" type="text" value={draft.team} onChange={e => set('team', e.target.value)} placeholder="예: 1팀" className={fieldCls} />
         </div>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-on-surface block">소속</label>
-        <input type="text" value={draft.station} onChange={e => set('station', e.target.value)} placeholder="예: ○○소방서 ○○119안전센터" className={fieldCls} />
+        <label htmlFor="settings-profile-station" className="text-sm font-medium text-on-surface block">소속</label>
+        <input id="settings-profile-station" type="text" value={draft.station} onChange={e => set('station', e.target.value)} placeholder="예: ○○소방서 ○○119안전센터" className={fieldCls} />
       </div>
 
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium text-on-surface block">주임무 <span className="text-on-surface-variant font-normal">(활동 보고서 기본값에 사용)</span></label>
+      <fieldset className="space-y-1.5">
+        <legend className="text-sm font-medium text-on-surface block">주임무 <span className="text-on-surface-variant font-normal">(활동 보고서 기본값에 사용)</span></legend>
         <div className="grid grid-cols-3 gap-2">
           {DUTY_ROLES.map(r => (
             <button
               key={r.id}
               type="button"
+              aria-pressed={draft.role === r.id}
               onClick={() => set('role', draft.role === r.id ? '' : r.id)}
               className={`py-2 rounded-xl text-sm font-bold border transition-colors ${
                 draft.role === r.id
@@ -575,11 +587,11 @@ function ProfileTab({ draft, setDraft }: { draft: UserProfile; setDraft: (p: Use
             </button>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-on-surface block">비상연락 <span className="text-on-surface-variant font-normal">(선택)</span></label>
-        <input type="tel" value={draft.phone} onChange={e => set('phone', e.target.value)} placeholder="예: 010-0000-0000" className={fieldCls} />
+        <label htmlFor="settings-profile-phone" className="text-sm font-medium text-on-surface block">비상연락 <span className="text-on-surface-variant font-normal">(선택)</span></label>
+        <input id="settings-profile-phone" type="tel" value={draft.phone} onChange={e => set('phone', e.target.value)} placeholder="예: 010-0000-0000" className={fieldCls} />
       </div>
     </div>
   );
@@ -588,7 +600,7 @@ function ProfileTab({ draft, setDraft }: { draft: UserProfile; setDraft: (p: Use
 // ══════════════════════════════════════════
 // 메인 SettingsModal
 // ══════════════════════════════════════════
-export default function SettingsModal({ isOpen, onClose, city, onCityChange, cityNames }: SettingsModalProps) {
+export default function SettingsModal({ isOpen, onClose, city, onCityChange, cityNames, returnFocusRef }: SettingsModalProps) {
   const { profile, updateProfile } = useUserProfile();
   const [tab, setTab] = useState<SettingsTab>('profile');
   const [draftCity, setDraftCity] = useState(city);
@@ -599,6 +611,8 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
   const [privacy, setPrivacy] = useState<PrivacySettings>(loadPrivacySettings());
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(loadDisplaySettings());
   const [appLockCode, setAppLockCode] = useState('');
+  const dialogTitleId = useId();
+  const dialogRef = useDialogAccessibility<HTMLDivElement>(isOpen, onClose, returnFocusRef);
 
   useEffect(() => {
     if (isOpen) {
@@ -703,10 +717,17 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
       {/* 모바일 배경 (탭하면 닫힘) */}
       <div className="fixed inset-0 bg-black/40 z-40 sm:hidden" onClick={onClose} aria-hidden="true" />
       <div className="fixed inset-x-0 bottom-0 z-50 p-2 sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2">
-        <div className="bg-surface-container-high border border-outline-variant/20 rounded-2xl shadow-xl w-full sm:w-[360px] mx-auto overflow-hidden animate-slide-in-bottom sm:animate-slide-in-top">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={dialogTitleId}
+          tabIndex={-1}
+          className="bg-surface-container-high border border-outline-variant/20 rounded-2xl shadow-xl w-full sm:w-[360px] mx-auto overflow-hidden animate-slide-in-bottom sm:animate-slide-in-top"
+        >
         {/* 헤더 */}
         <div className="p-3 border-b border-outline-variant/20 flex items-center justify-between bg-surface-container">
-          <h2 className="text-lg font-bold text-on-surface flex items-center gap-2">
+          <h2 id={dialogTitleId} className="text-lg font-bold text-on-surface flex items-center gap-2">
             <span className="material-symbols-outlined text-primary">settings</span>
             환경 설정
           </h2>

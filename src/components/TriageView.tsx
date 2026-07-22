@@ -29,10 +29,10 @@ interface TriagePatient {
 }
 
 const COLOR_CLASSES: Record<TriageColor, string> = {
-  red: 'bg-red-500/15 border-red-500/40 text-red-400',
-  yellow: 'bg-yellow-500/15 border-yellow-500/40 text-yellow-400',
-  green: 'bg-green-500/15 border-green-500/40 text-green-400',
-  black: 'bg-gray-500/20 border-gray-500/40 text-gray-300',
+  red: 'bg-red-500/15 border-red-500/40 text-red-800 dark:text-red-200',
+  yellow: 'bg-yellow-500/15 border-yellow-500/40 text-amber-800 dark:text-yellow-200',
+  green: 'bg-green-500/15 border-green-500/40 text-green-800 dark:text-green-200',
+  black: 'bg-gray-500/20 border-gray-500/40 text-gray-900 dark:text-gray-100',
 };
 
 const COLOR_ORDER: TriageColor[] = ['red', 'yellow', 'green', 'black'];
@@ -211,6 +211,7 @@ function TriageWizard({ mode, onComplete }: { mode: Mode; onComplete: (color: Tr
       </div>
 
       <input
+        aria-label="환자 식별"
         type="text"
         value={label}
         onChange={e => setLabel(e.target.value)}
@@ -282,6 +283,7 @@ function PatientCard({
       </div>
 
       <select
+        aria-label="환자 상태"
         value={status}
         onChange={e => onChange({ status: e.target.value as PatientStatus })}
         className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg px-2 py-2 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -292,6 +294,7 @@ function PatientCard({
       </select>
 
       <input
+        aria-label="이송 또는 인계처"
         type="text"
         value={patient.destination ?? ''}
         onChange={e => onChange({ destination: e.target.value })}
@@ -299,6 +302,7 @@ function PatientCard({
         className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg px-2 py-2 text-xs text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30"
       />
       <input
+        aria-label="처치 및 특이사항"
         type="text"
         value={patient.note ?? ''}
         onChange={e => onChange({ note: e.target.value })}

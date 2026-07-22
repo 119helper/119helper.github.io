@@ -81,13 +81,13 @@ export default function SunTimesCard({ city, cityLabel }: SunTimesCardProps) {
           {daytime ? '☀️' : '🌙'} 일출 · 일몰{cityLabel ? ` (${cityLabel})` : ''}
         </p>
         {remaining && remaining.ms > 0 && (
-          <span className="text-[11px] font-bold text-amber-400">
+          <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300">
             {remaining.label} {formatDuration(remaining.ms)}
           </span>
         )}
       </div>
 
-      <div className="text-amber-400/90">
+      <div className="text-amber-700 dark:text-amber-300">
         <SunArc progress={progress} daytime={daytime} />
       </div>
 

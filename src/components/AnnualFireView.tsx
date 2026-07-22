@@ -102,6 +102,7 @@ export default function AnnualFireView() {
         </div>
         <div className="flex items-center gap-3">
           <select
+            aria-label="화재통계 연도"
             value={year}
             onChange={e => setYear(e.target.value)}
             className="bg-surface-container text-on-surface text-sm rounded-xl px-3 py-2 border border-outline-variant/20 focus:outline-none focus:border-primary font-bold"

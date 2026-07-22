@@ -52,12 +52,12 @@ export default function OfflineReadinessView({ city, cityLabel }: OfflineReadine
   }, [city]);
 
   const readiness = (() => {
-    if (!supported) return { label: '지원 안 됨', cls: 'text-red-400 bg-red-500/10 border-red-500/30', icon: 'block' };
-    if (!status) return { label: '미다운로드', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/30', icon: 'download' };
-    if (status.city !== city) return { label: '다른 지역 저장됨', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/30', icon: 'sync_problem' };
-    if (status.verified === false) return { label: '재확인 필요', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/30', icon: 'sync' };
-    if (status.failedCount > 0) return { label: '일부 실패', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/30', icon: 'warning' };
-    return { label: '준비 완료', cls: 'text-green-400 bg-green-500/10 border-green-500/30', icon: 'check_circle' };
+    if (!supported) return { label: '지원 안 됨', cls: 'text-red-700 dark:text-red-300 bg-red-500/10 border-red-500/30', icon: 'block' };
+    if (!status) return { label: '미다운로드', cls: 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/30', icon: 'download' };
+    if (status.city !== city) return { label: '다른 지역 저장됨', cls: 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/30', icon: 'sync_problem' };
+    if (status.verified === false) return { label: '재확인 필요', cls: 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/30', icon: 'sync' };
+    if (status.failedCount > 0) return { label: '일부 실패', cls: 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/30', icon: 'warning' };
+    return { label: '준비 완료', cls: 'text-green-700 dark:text-green-300 bg-green-500/10 border-green-500/30', icon: 'check_circle' };
   })();
 
   const handleDownload = async () => {
@@ -109,7 +109,7 @@ export default function OfflineReadinessView({ city, cityLabel }: OfflineReadine
       </div>
 
       {!supported && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-800 dark:text-red-200">
           이 브라우저는 Cache API를 지원하지 않아 오프라인 데이터 저장을 사용할 수 없습니다.
         </div>
       )}
@@ -154,7 +154,7 @@ export default function OfflineReadinessView({ city, cityLabel }: OfflineReadine
             </div>
           )}
 
-          {error && <p className="text-sm text-amber-400">{error}</p>}
+          {error && <p className="text-sm text-amber-800 dark:text-amber-200">{error}</p>}
         </div>
       )}
 
@@ -166,7 +166,7 @@ export default function OfflineReadinessView({ city, cityLabel }: OfflineReadine
             return (
               <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg bg-surface-container px-3 py-2">
                 <div className="font-bold text-sm text-on-surface">{item.meta?.label ?? item.label}</div>
-                <div className={`text-xs text-right ${expired ? 'text-amber-400 font-bold' : 'text-on-surface-variant'}`}>
+                <div className={`text-xs text-right ${expired ? 'text-amber-700 dark:text-amber-300 font-bold' : 'text-on-surface-variant'}`}>
                   {item.meta
                     ? `${formatFreshnessSourceDate(item.meta)} · 생성 ${formatDatasetDate(item.meta.generatedAt)}${expired ? ' · 갱신 필요' : ''}`
                     : '기준일 정보 없음'}

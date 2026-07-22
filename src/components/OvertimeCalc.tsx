@@ -264,34 +264,40 @@ export default function OvertimeCalc() {
       const bgColor = isHolidayDate ? 'bg-error/5' : 'bg-surface';
 
       days.push(
-        <button
+        <div
           key={d}
-          onClick={() => handleDateClick(d)}
-          className={`h-16 sm:h-20 border-r border-b border-outline-variant/10 flex flex-col items-center justify-start pt-1.5 relative transition-colors hover:bg-surface-variant font-medium ${
+          className={`h-16 sm:h-20 border-r border-b border-outline-variant/10 relative transition-colors ${
             shiftInfo ? shiftInfo.color.split(' ')[0] + '/20' : bgColor
           }`}
         >
-          <div className="w-full flex justify-between px-1.5">
-            <span className={`text-sm ${dateColor}`}>{d}</span>
-            <div
-              onClick={(e) => toggleHoliday(e, d)}
-              className={`text-[10px] cursor-pointer px-1 rounded transition-colors ${
-                isManualHoliday
-                  ? 'bg-error text-on-error'
-                  : 'text-on-surface-variant/30 hover:text-on-surface-variant'
-              }`}
-            >
-              휴
-            </div>
-          </div>
-          {shiftInfo && (
-            <span
-              className={`mt-1 text-xs font-bold px-2 py-0.5 rounded-md border ${shiftInfo.color}`}
-            >
-              {shiftInfo.label}
-            </span>
-          )}
-        </button>
+          <button
+            type="button"
+            aria-label={`${year}년 ${month + 1}월 ${d}일 근무 설정`}
+            onClick={() => handleDateClick(d)}
+            className="w-full h-full flex flex-col items-center justify-start pt-1.5 font-medium hover:bg-surface-variant/50 transition-colors"
+          >
+            <span className={`w-full px-1.5 text-left text-sm ${dateColor}`}>{d}</span>
+            {shiftInfo && (
+              <span className={`mt-1 text-xs font-bold px-2 py-0.5 rounded-md border ${shiftInfo.color}`}>
+                {shiftInfo.label}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            data-compact-control
+            aria-label={`${year}년 ${month + 1}월 ${d}일 수동 휴일 ${isManualHoliday ? '해제' : '설정'}`}
+            aria-pressed={isManualHoliday}
+            onClick={(event) => toggleHoliday(event, d)}
+            className={`absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded text-xs font-bold transition-colors ${
+              isManualHoliday
+                ? 'bg-error text-on-error'
+                : 'text-on-surface-variant hover:bg-surface-container-high'
+            }`}
+          >
+            휴
+          </button>
+        </div>
       );
     }
 
@@ -354,7 +360,7 @@ export default function OvertimeCalc() {
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">초과근무 수당 계산기</h1>
-            <p className="text-primary-container text-xs sm:text-sm font-medium mt-0.5">2026년 기준 단가 적용</p>
+            <p className="text-on-primary text-xs sm:text-sm font-medium mt-0.5">2026년 기준 단가 적용</p>
           </div>
         </div>
       </div>
@@ -369,6 +375,7 @@ export default function OvertimeCalc() {
           </div>
           <div className="relative">
           <select
+            aria-label="계급"
             value={selectedRankName}
             onChange={handleRankChange}
             className="w-full p-3 pr-10 bg-surface border border-outline-variant/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-on-surface font-medium text-sm appearance-none cursor-pointer"
@@ -397,6 +404,7 @@ export default function OvertimeCalc() {
                   <span className="text-sm font-medium text-on-surface-variant">시간외</span>
                   <div className="flex items-center">
                     <input
+                      aria-label="시간외 시간당 단가"
                       type="number"
                       inputMode="decimal"
                       value={rates.overtime}
@@ -410,6 +418,7 @@ export default function OvertimeCalc() {
                   <span className="text-sm font-medium text-secondary">야간</span>
                   <div className="flex items-center">
                     <input
+                      aria-label="야간 시간당 단가"
                       type="number"
                       inputMode="decimal"
                       value={rates.night}
@@ -423,6 +432,7 @@ export default function OvertimeCalc() {
                   <span className="text-sm font-medium text-error">휴일(일)</span>
                   <div className="flex items-center">
                     <input
+                      aria-label="휴일 일당"
                       type="number"
                       inputMode="decimal"
                       value={rates.holiday}
@@ -488,6 +498,7 @@ export default function OvertimeCalc() {
                   </div>
                   <div className="flex items-center">
                     <input
+                      aria-label="평일 공제 일수"
                       type="number"
                       inputMode="decimal"
                       value={manualWeekdays}
@@ -509,6 +520,7 @@ export default function OvertimeCalc() {
                   </div>
                   <div className="flex items-center">
                     <input
+                      aria-label="초과시간 가산 또는 감산"
                       type="number"
                       inputMode="decimal"
                       placeholder="0"
@@ -531,6 +543,7 @@ export default function OvertimeCalc() {
                   </div>
                   <div className="flex items-center">
                     <input
+                      aria-label="연가 또는 병가 일수"
                       type="number"
                       inputMode="decimal"
                       placeholder="0"
@@ -566,6 +579,7 @@ export default function OvertimeCalc() {
                 </div>
                 <div className="flex items-center">
                   <input
+                    aria-label="시간외 근무 인정 시간"
                     type="number"
                     inputMode="decimal"
                     placeholder="0"
@@ -583,6 +597,7 @@ export default function OvertimeCalc() {
                 </div>
                 <div className="flex items-center">
                   <input
+                    aria-label="야간 근무 시간"
                     type="number"
                     inputMode="decimal"
                     placeholder="0"
@@ -600,6 +615,7 @@ export default function OvertimeCalc() {
                 </div>
                 <div className="flex items-center">
                   <input
+                    aria-label="휴일 근무 일수"
                     type="number"
                     inputMode="decimal"
                     placeholder="0"
@@ -616,23 +632,26 @@ export default function OvertimeCalc() {
           {/* 정액분 옵션 */}
           <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-4 flex items-center justify-between mt-4">
             <div className="flex items-center gap-3">
-              <label className="relative flex cursor-pointer items-center rounded-full">
-                <input
-                  type="checkbox"
-                  className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border-2 border-outline-variant transition-all checked:border-primary checked:bg-primary"
-                  checked={includeFlatPay}
-                  onChange={() => setIncludeFlatPay(!includeFlatPay)}
-                />
-                <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-on-primary opacity-0 transition-opacity peer-checked:opacity-100">
-                  <span className="material-symbols-outlined text-[16px] font-bold">check</span>
-                </div>
+              <label className="relative flex cursor-pointer items-center gap-3 rounded-lg min-h-11">
+                <span className="relative flex items-center">
+                  <input
+                    type="checkbox"
+                    className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border-2 border-outline-variant transition-all checked:border-primary checked:bg-primary"
+                    checked={includeFlatPay}
+                    onChange={(event) => setIncludeFlatPay(event.target.checked)}
+                  />
+                  <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-on-primary opacity-0 transition-opacity peer-checked:opacity-100">
+                    <span className="material-symbols-outlined text-[16px] font-bold">check</span>
+                  </span>
+                </span>
+                <span className="text-sm font-bold text-on-surface">정액분 기본 {flatPayHours}시간 포함</span>
               </label>
-              <span className="text-sm font-bold text-on-surface" onClick={() => setIncludeFlatPay(!includeFlatPay)}>정액분 기본 {flatPayHours}시간 포함</span>
             </div>
             {includeFlatPay && (
               <div className="flex items-center border border-outline-variant/30 rounded-lg bg-surface px-2 py-1">
                 <input
                   type="number"
+                  aria-label="정액분 기본 시간"
                   value={flatPayHours}
                   onChange={(e) => setFlatPayHours(Number(e.target.value))}
                   className="w-10 text-center text-sm font-bold bg-transparent outline-none"
@@ -676,8 +695,8 @@ export default function OvertimeCalc() {
               )}
               
               {includeFlatPay && (
-                <div className="flex justify-between items-center text-primary">
-                  <span>정액분 <span className="px-1.5 py-0.5 bg-primary/10 rounded ml-1">{flatPayHours}h</span></span>
+                <div className="flex justify-between items-center text-on-surface">
+                  <span>정액분 <span className="px-1.5 py-0.5 bg-surface text-primary rounded ml-1">{flatPayHours}h</span></span>
                   <span className="font-mono">+ {formatCurrency(calculatePay(flatPayHours, rates.overtime))} 원</span>
                 </div>
               )}

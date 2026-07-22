@@ -165,7 +165,7 @@ export default function LawDashboard({ subId }: { subId?: string }) {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-outline-variant/20 pb-4">
         <div>
           <h2 className="text-2xl font-extrabold text-on-surface flex items-center gap-2 font-headline">
-            <span className="material-symbols-outlined text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>gavel</span>
+            <span className="material-symbols-outlined text-amber-700 dark:text-amber-300" style={{ fontVariationSettings: "'FILL' 1" }}>gavel</span>
             관련 법령
           </h2>
           <p className="text-on-surface-variant text-sm mt-1">
@@ -360,7 +360,7 @@ export default function LawDashboard({ subId }: { subId?: string }) {
           {/* 빠른 검색 칩 */}
           <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-2xl p-5">
             <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-amber-500 text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
+              <span className="material-symbols-outlined text-amber-700 dark:text-amber-300 text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
               소방 관련 핵심 법령
             </p>
             <div className="flex flex-wrap gap-2">
@@ -385,7 +385,8 @@ export default function LawDashboard({ subId }: { subId?: string }) {
           <form onSubmit={handleSubmit} className="flex gap-2">
             <div className="flex-1 relative">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
-              <input
+                <input
+                  aria-label="법령명 검색"
                 ref={inputRef}
                 type="text"
                 value={query}
@@ -397,7 +398,7 @@ export default function LawDashboard({ subId }: { subId?: string }) {
             <button
               type="submit"
               disabled={loading || !query.trim()}
-              className="px-5 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-amber-500/20"
+              className="px-5 py-3 bg-tertiary text-on-tertiary hover:bg-tertiary/90 disabled:opacity-40 font-bold text-sm rounded-xl transition-colors shadow-lg shadow-tertiary/20"
             >
               {loading ? (
                 <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
@@ -432,7 +433,7 @@ export default function LawDashboard({ subId }: { subId?: string }) {
           {!loading && items.length > 0 && (
             <div className="space-y-3">
               <p className="text-xs text-on-surface-variant font-bold">
-                총 <span className="text-amber-500">{totalCnt.toLocaleString()}</span>건
+                총 <span className="text-amber-700 dark:text-amber-300">{totalCnt.toLocaleString()}</span>건
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -530,9 +531,9 @@ export default function LawDashboard({ subId }: { subId?: string }) {
           {/* 초기 안내 */}
           {!loading && !error && items.length === 0 && !query && (
             <div className="py-16 text-center text-on-surface-variant bg-surface-container-lowest rounded-2xl border border-dashed border-outline-variant/20">
-              <span className="material-symbols-outlined text-5xl mb-3 text-amber-400/50" style={{ fontVariationSettings: "'FILL' 1" }}>menu_book</span>
+              <span className="material-symbols-outlined text-5xl mb-3 text-amber-700 dark:text-amber-300" style={{ fontVariationSettings: "'FILL' 1" }}>menu_book</span>
               <p className="text-sm font-bold">위 빠른 검색 버튼을 누르거나 법령을 검색하세요</p>
-              <p className="text-xs text-on-surface-variant/60 mt-1">법제처 국가법령정보센터 데이터 기반</p>
+              <p className="text-xs text-on-surface-variant mt-1">법제처 국가법령정보센터 데이터 기반</p>
             </div>
           )}
         </div>

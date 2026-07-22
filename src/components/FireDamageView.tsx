@@ -200,6 +200,7 @@ export default function FireDamageView() {
         </div>
         <div className="flex items-center gap-3">
           <select
+            aria-label="화재피해 지역"
             value={selectedSido}
             onChange={e => { setSelectedSido(e.target.value); setPage(1); }}
             className="bg-surface-container border border-outline-variant/20 text-on-surface px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-primary"

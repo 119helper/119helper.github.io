@@ -42,9 +42,8 @@ export const WildfireTicker: React.FC<{ cityName?: string; onClick?: () => void 
   if (isLoading) return null;
   if (ongoingFires.length === 0) return null;
 
-  return (
-    <div onClick={onClick} className={`w-full bg-red-600 text-white px-4 py-2 mt-2 mb-4 rounded-lg shadow-md flex items-center overflow-hidden relative group animate-pulse ${onClick ? 'cursor-pointer' : ''}`}
-         title={onClick ? "클릭 시 산불 현황 탭으로 이동" : "진화 중인 산불 속보"}>
+  const tickerContent = (
+    <>
       <div className="flex-shrink-0 font-bold mr-3 hidden sm:block shrink-0 bg-white/20 px-2 py-0.5 rounded text-sm">
         🚨 산불 속보
       </div>
@@ -63,6 +62,29 @@ export const WildfireTicker: React.FC<{ cityName?: string; onClick?: () => void 
           ))}
         </div>
       </div>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="w-full bg-red-600 text-white text-left px-4 py-2 mt-2 mb-4 rounded-lg shadow-md flex items-center overflow-hidden relative group animate-pulse cursor-pointer"
+        title="산불 현황 탭으로 이동"
+      >
+        {tickerContent}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className="w-full bg-red-600 text-white px-4 py-2 mt-2 mb-4 rounded-lg shadow-md flex items-center overflow-hidden relative group animate-pulse"
+      title="진화 중인 산불 속보"
+      role="status"
+    >
+      {tickerContent}
     </div>
   );
 };

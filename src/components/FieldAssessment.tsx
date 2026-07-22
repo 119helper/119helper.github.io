@@ -259,7 +259,7 @@ export default function FieldAssessment() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-red-500/10 rounded-xl">
-              <span className="material-symbols-outlined text-red-400 text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>emergency</span>
+              <span className="material-symbols-outlined text-red-700 dark:text-red-300 text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>emergency</span>
             </div>
             <div>
               <h2 className="text-xl font-bold text-on-surface">현장 평가 (팔단기)</h2>
@@ -283,7 +283,7 @@ export default function FieldAssessment() {
         </div>
 
         {/* 진행 바 */}
-        <div className="flex gap-1.5 mt-4">
+        <div className="flex gap-1.5 mt-2" aria-label="평가 단계 바로가기">
           {EVALUATION_STEPS.map(step => {
             const status = getStepStatus(step.id, values);
             const hasData = step.items.some(item => values[item.key]);
@@ -293,15 +293,22 @@ export default function FieldAssessment() {
                 key={step.id}
                 type="button"
                 onClick={() => { setActiveStep(step.id); setShowSummary(false); }}
-                className={`flex-1 h-2 rounded-full transition-all ${
-                  activeStep === step.id && !showSummary
-                    ? 'bg-primary scale-y-150'
-                    : hasData
-                      ? style.dot
-                      : 'bg-surface-container-high'
-                }`}
+                aria-label={`${step.id}단계 ${step.title}${hasData ? `, ${status}` : ', 미입력'}`}
+                aria-current={activeStep === step.id && !showSummary ? 'step' : undefined}
+                className="group flex-1 min-w-6 h-11 rounded-lg flex items-center transition-colors hover:bg-surface-container/60"
                 title={`${step.id}단계: ${step.title}`}
-              />
+              >
+                <span
+                  aria-hidden="true"
+                  className={`block w-full h-2 rounded-full transition-all ${
+                    activeStep === step.id && !showSummary
+                      ? 'bg-primary scale-y-150'
+                      : hasData
+                        ? style.dot
+                        : 'bg-surface-container-high'
+                  }`}
+                />
+              </button>
             );
           })}
         </div>
@@ -397,7 +404,7 @@ export default function FieldAssessment() {
                   }`}
                 >
                   <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
-                    isActive ? 'bg-on-primary/20 text-on-primary' : hasData ? `${style.dot} text-white` : 'bg-surface-container-high text-on-surface-variant'
+                    isActive ? 'bg-black/15 text-on-primary' : hasData ? `${style.dot} text-white` : 'bg-surface-container-high text-on-surface-variant'
                   }`}>
                     {step.id}
                   </span>
@@ -424,9 +431,10 @@ export default function FieldAssessment() {
             <div className="p-5 space-y-5">
               {currentStep.items.map(item => (
                 <div key={item.key}>
-                  <label className="text-sm font-bold text-on-surface mb-2 block">{item.label}</label>
+                  <span id={`assessment-${item.key}-label`} className="text-sm font-bold text-on-surface mb-2 block">{item.label}</span>
                   {'type' in item && item.type === 'text' ? (
                     <input
+                      aria-labelledby={`assessment-${item.key}-label`}
                       type="text"
                       value={values[item.key] || ''}
                       onChange={e => handleTextChange(item.key, e.target.value)}
@@ -434,7 +442,7 @@ export default function FieldAssessment() {
                       className="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
                     />
                   ) : (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2" role="group" aria-labelledby={`assessment-${item.key}-label`}>
                       {'options' in item && (item.options as string[]).map(opt => {
                         const isSelected = values[item.key] === opt;
                         const optStatus = getItemStatusByKey(item.key, opt);

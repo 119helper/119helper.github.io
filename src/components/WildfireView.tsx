@@ -166,9 +166,9 @@ export const WildfireView: React.FC<{ cityName?: string }> = ({ cityName }) => {
               <div className="mb-2 sm:mb-0">
                 <div className="flex items-center">
                   {fire.isOngoing ? (
-                    <span className="px-2 py-0.5 bg-error text-white text-xs font-bold rounded-full mr-2 animate-pulse">진화중</span>
+                    <span className="px-2 py-0.5 bg-error text-on-error text-xs font-bold rounded-full mr-2 animate-pulse">진화중</span>
                   ) : (
-                    <span className="px-2 py-0.5 bg-secondary text-white text-xs font-bold rounded-full mr-2">진화완료</span>
+                    <span className="px-2 py-0.5 bg-secondary text-on-secondary text-xs font-bold rounded-full mr-2">진화완료</span>
                   )}
                   <h4 className="font-bold text-on-background">{fire.address}</h4>
                 </div>

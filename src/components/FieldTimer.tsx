@@ -3,11 +3,11 @@ import { useTimer, type TimerState } from '../contexts/TimerContext';
 
 // ─── 타이머 프리셋 ───
 const PRESETS = [
-  { label: '30분', seconds: 30 * 60, desc: '공기호흡기 참고값', color: 'bg-green-500', icon: 'air' },
-  { label: '45분', seconds: 45 * 60, desc: '장시간 활동 참고값', color: 'bg-blue-500', icon: 'air' },
-  { label: '60분', seconds: 60 * 60, desc: '장시간 작전', color: 'bg-purple-500', icon: 'schedule' },
-  { label: '15분', seconds: 15 * 60, desc: '교대 알림', color: 'bg-orange-500', icon: 'swap_horiz' },
-  { label: '사용자', seconds: 0, desc: '직접 설정', color: 'bg-gray-500', icon: 'tune' },
+  { label: '30분', seconds: 30 * 60, desc: '공기호흡기 참고값', color: 'bg-green-700', icon: 'air' },
+  { label: '45분', seconds: 45 * 60, desc: '장시간 활동 참고값', color: 'bg-blue-700', icon: 'air' },
+  { label: '60분', seconds: 60 * 60, desc: '장시간 작전', color: 'bg-purple-700', icon: 'schedule' },
+  { label: '15분', seconds: 15 * 60, desc: '교대 알림', color: 'bg-orange-700', icon: 'swap_horiz' },
+  { label: '사용자', seconds: 0, desc: '직접 설정', color: 'bg-gray-700', icon: 'tune' },
 ];
 
 export default function FieldTimer() {
@@ -42,12 +42,12 @@ export default function FieldTimer() {
 
   const getTimerColor = (t: TimerState) => {
     if (t.totalSeconds <= 0 || t.remaining <= 0) {
-      return { ring: 'ring-red-500', border: 'border-red-500/40', bg: 'bg-red-500/20', text: 'text-red-400', label: '종료' };
+      return { ring: 'ring-red-500', border: 'border-red-500/40', bg: 'bg-red-500/20', text: 'text-red-700 dark:text-red-300', label: '종료' };
     }
     const ratio = t.remaining / t.totalSeconds;
-    if (ratio <= DANGER_THRESHOLD) return { ring: 'ring-red-500 animate-pulse', border: 'border-red-500/40', bg: 'bg-red-500/20', text: 'text-red-400', label: '위험' };
-    if (ratio <= WARN_THRESHOLD) return { ring: 'ring-yellow-500', border: 'border-yellow-500/40', bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: '경고' };
-    return { ring: 'ring-green-500/30', border: 'border-green-500/20', bg: 'bg-green-500/10', text: 'text-green-400', label: '정상' };
+    if (ratio <= DANGER_THRESHOLD) return { ring: 'ring-red-500 animate-pulse', border: 'border-red-500/40', bg: 'bg-red-500/20', text: 'text-red-700 dark:text-red-300', label: '위험' };
+    if (ratio <= WARN_THRESHOLD) return { ring: 'ring-yellow-500', border: 'border-yellow-500/40', bg: 'bg-yellow-500/20', text: 'text-amber-700 dark:text-yellow-300', label: '경고' };
+    return { ring: 'ring-green-500/30', border: 'border-green-500/20', bg: 'bg-green-500/10', text: 'text-green-700 dark:text-green-300', label: '정상' };
   };
 
   const copyReport = async () => {
@@ -99,7 +99,7 @@ export default function FieldTimer() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-orange-500/10 rounded-xl">
-              <span className="material-symbols-outlined text-orange-400 text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>timer</span>
+              <span className="material-symbols-outlined text-orange-700 dark:text-orange-300 text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>timer</span>
             </div>
             <div>
               <h2 className="text-xl font-bold text-on-surface">현장 활동 타이머</h2>
@@ -169,6 +169,7 @@ export default function FieldTimer() {
           <div className="mt-3 flex items-center gap-3 bg-surface-container/50 rounded-lg px-4 py-3">
             <span className="text-xs text-on-surface-variant font-bold whitespace-nowrap">직접 설정:</span>
             <input
+              aria-label="타이머 시간 직접 설정"
               type="range"
               min={1} max={120} step={1}
               value={customMinutes}
@@ -176,7 +177,7 @@ export default function FieldTimer() {
                 const value = Number.parseInt(e.target.value, 10);
                 setCustomMinutes(Number.isFinite(value) ? value : 20);
               }}
-              className="flex-1 accent-primary"
+              className="h-11 flex-1 accent-primary"
             />
             <span className="text-sm font-bold text-primary w-12 text-right">{customMinutes}분</span>
           </div>
@@ -242,7 +243,7 @@ export default function FieldTimer() {
                       ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-yellow-500/20'
                       : t.remaining <= 0
                         ? 'bg-surface-container text-on-surface-variant'
-                        : 'bg-green-500 text-white hover:bg-green-400 shadow-green-500/20'
+                        : 'bg-secondary text-on-secondary hover:bg-secondary/90 shadow-secondary/20'
                   }`}
                   disabled={t.remaining <= 0}
                 >
@@ -269,7 +270,7 @@ export default function FieldTimer() {
       <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden">
         <div className="p-5 border-b border-outline-variant/10 bg-surface-container/30">
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-blue-400 text-2xl">timer</span>
+            <span className="material-symbols-outlined text-blue-700 dark:text-blue-300 text-2xl">timer</span>
             <div>
               <h3 className="text-lg font-bold text-on-surface">출동 시간 기록</h3>
               <p className="text-xs text-on-surface-variant">출동 → 도착 → 진압 완료 시간 자동 기록</p>
@@ -280,7 +281,7 @@ export default function FieldTimer() {
         <div className="p-5">
           {/* 경과 시간 */}
           <div className="text-center mb-5">
-            <p className={`text-5xl font-black font-mono tracking-tight tabular-nums ${stopwatchRunning ? 'text-blue-400' : 'text-on-surface'}`}>
+            <p className={`text-5xl font-black font-mono tracking-tight tabular-nums ${stopwatchRunning ? 'text-blue-700 dark:text-blue-300' : 'text-on-surface'}`}>
               {formatTimeMs(stopwatchElapsed)}
             </p>
             {stopwatchStart && (
@@ -298,7 +299,7 @@ export default function FieldTimer() {
               className={`px-6 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-lg ${
                 stopwatchRunning
                   ? 'bg-yellow-500 text-black shadow-yellow-500/20'
-                  : 'bg-blue-500 text-white shadow-blue-500/20'
+                  : 'bg-primary text-on-primary shadow-primary/20'
               }`}
             >
               <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
@@ -325,7 +326,7 @@ export default function FieldTimer() {
                   key={label}
                   type="button"
                   onClick={() => addLap(label)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
                 >
                   📍 {label}
                 </button>
@@ -339,7 +340,7 @@ export default function FieldTimer() {
               {laps.map((lap, i) => (
                 <div key={i} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-black">
+                    <span className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center justify-center text-[10px] font-black">
                       {i + 1}
                     </span>
                     <span className="font-bold text-on-surface">{lap.label}</span>

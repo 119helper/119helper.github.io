@@ -187,6 +187,7 @@ export default function FacilityList({
           {/* Filters */}
           <div className="flex gap-3 flex-col sm:flex-row mt-4">
             <input
+              aria-label="소방시설 검색"
               type="text"
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
@@ -197,6 +198,7 @@ export default function FacilityList({
             {/* 비분할 도시용 필터 (분할 도시에서는 이미 구별로 로드) */}
             {!isSplit && (
               <select
+                aria-label="소방시설 지역 필터"
                 value={filterDistrict}
                 onChange={(e) => handleFilterChange(e.target.value)}
                 className="bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -272,7 +274,15 @@ export default function FacilityList({
                     {paged.map(item => (
                       <tr
                         key={item.id}
+                        tabIndex={0}
+                        aria-selected={selectedId === item.id}
                         onClick={() => setSelectedId(prev => prev === item.id ? null : item.id)}
+                        onKeyDown={event => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setSelectedId(prev => prev === item.id ? null : item.id);
+                          }
+                        }}
                         className={`cursor-pointer transition-colors ${
                           selectedId === item.id
                             ? 'bg-primary/10 ring-1 ring-inset ring-primary/30'
@@ -294,6 +304,7 @@ export default function FacilityList({
                         </td>
                         <td className="px-2 py-4 text-center">
                           <a
+                            aria-label={`${item.address} 길찾기`}
                             href={`https://map.naver.com/v5/directions/-/-/-/drive?c=${item.lng},${item.lat},15,0,0,0,dh&destination=${encodeURIComponent(item.address)},${item.lng},${item.lat}`}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -313,35 +324,39 @@ export default function FacilityList({
               {/* Mobile card list */}
               <div className="md:hidden divide-y divide-outline-variant/10">
                 {paged.map(item => (
-                  <button
+                  <div
                     key={item.id}
-                    onClick={() => setSelectedId(prev => prev === item.id ? null : item.id)}
-                    className={`w-full text-left p-4 transition-colors ${
+                    className={`relative transition-colors ${
                       selectedId === item.id ? 'bg-primary/10' : 'hover:bg-surface-container/30'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-mono text-sm font-bold text-primary">{item.id}</span>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusColor(item.status)}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${statusDot(item.status)}`}></span>
-                        {item.status}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(prev => prev === item.id ? null : item.id)}
+                      aria-expanded={selectedId === item.id}
+                      className="w-full p-4 pr-24 text-left"
+                    >
+                      <span className="mb-1 flex items-center justify-between">
+                        <span className="font-mono text-sm font-bold text-primary">{item.id}</span>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusColor(item.status)}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${statusDot(item.status)}`}></span>
+                          {item.status}
+                        </span>
                       </span>
-                    </div>
-                    <p className="text-sm text-on-surface">{item.address}</p>
-                    <div className="flex items-center justify-between mt-1">
+                      <span className="block text-sm text-on-surface">{item.address}</span>
                       <p className="text-xs text-on-surface-variant">{item.type} · {item.district}</p>
-                      <a
-                        href={`https://map.naver.com/v5/directions/-/-/-/drive?c=${item.lng},${item.lat},15,0,0,0,dh&destination=${encodeURIComponent(item.address)},${item.lng},${item.lat}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-500/10 text-green-400 text-[10px] font-bold border border-green-500/20"
-                      >
-                        <span className="material-symbols-outlined text-xs">navigation</span>
-                        길찾기
-                      </a>
-                    </div>
-                  </button>
+                    </button>
+                    <a
+                      href={`https://map.naver.com/v5/directions/-/-/-/drive?c=${item.lng},${item.lat},15,0,0,0,dh&destination=${encodeURIComponent(item.address)},${item.lng},${item.lat}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${item.address} 길찾기`}
+                      className="absolute bottom-4 right-4 inline-flex min-h-11 items-center gap-1 px-2 py-1 rounded-lg bg-green-500/10 text-green-500 text-xs font-bold border border-green-500/20"
+                    >
+                      <span aria-hidden="true" className="material-symbols-outlined text-xs">navigation</span>
+                      길찾기
+                    </a>
+                  </div>
                 ))}
               </div>
   

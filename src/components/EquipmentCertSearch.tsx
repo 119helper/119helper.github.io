@@ -148,8 +148,9 @@ export default function EquipmentCertSearch() {
             {/* 차량/장비 검색 패널 */}
             <div className="bg-surface-variant rounded-xl p-4 flex flex-wrap gap-4 items-end">
               <div>
-                <label className="block text-xs font-medium text-on-surface-variant mb-1">장비유형</label>
+                <label htmlFor="equipment-cert-type" className="block text-xs font-medium text-on-surface-variant mb-1">장비유형</label>
                 <select
+                  id="equipment-cert-type"
                   value={vehGdsCd}
                   onChange={(e) => setVehGdsCd(e.target.value)}
                   className="bg-surface text-on-surface border border-outline rounded-lg px-3 py-2 outline-none focus:border-primary"
@@ -160,8 +161,9 @@ export default function EquipmentCertSearch() {
                 </select>
               </div>
               <div>
-                 <label className="block text-xs font-medium text-on-surface-variant mb-1">인증연도</label>
+                 <label htmlFor="equipment-cert-year" className="block text-xs font-medium text-on-surface-variant mb-1">인증연도</label>
                  <input 
+                   id="equipment-cert-year"
                    type="number" 
                    value={vehYear}
                    onChange={e => setVehYear(Number(e.target.value))}
@@ -233,8 +235,9 @@ export default function EquipmentCertSearch() {
             {/* 소화기 검색 패널 */}
             <div className="bg-surface-variant rounded-xl p-4 flex flex-wrap gap-4 items-end">
               <div>
-                 <label className="block text-xs font-medium text-on-surface-variant mb-1">정비연도 입력</label>
+                 <label htmlFor="extinguisher-cert-year" className="block text-xs font-medium text-on-surface-variant mb-1">정비연도 입력</label>
                  <input 
+                   id="extinguisher-cert-year"
                    type="text" 
                    value={extYear}
                    placeholder="예: 2020"
@@ -243,8 +246,9 @@ export default function EquipmentCertSearch() {
                  />
               </div>
               <div>
-                 <label className="block text-xs font-medium text-on-surface-variant mb-1">정비번호 입력</label>
+                 <label htmlFor="extinguisher-cert-number" className="block text-xs font-medium text-on-surface-variant mb-1">정비번호 입력</label>
                  <input 
+                   id="extinguisher-cert-number"
                    type="text" 
                    value={extNo}
                    placeholder="예: 0001"

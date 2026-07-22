@@ -207,8 +207,9 @@ export default function HazmatCalc() {
           />
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-bold text-on-surface-variant mb-1 block">물질 선택 (UN 번호)</label>
+              <label htmlFor="hazmat-chemical" className="text-xs font-bold text-on-surface-variant mb-1 block">물질 선택 (UN 번호)</label>
               <select 
+                id="hazmat-chemical"
                 value={selectedChem} 
                 onChange={e => setSelectedChem(e.target.value)}
                 className="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:ring-2 focus:ring-orange-500/50"
@@ -219,11 +220,12 @@ export default function HazmatCalc() {
               </select>
             </div>
 
-            <div>
-              <label className="text-xs font-bold text-on-surface-variant mb-1 block">누출 규모</label>
+            <fieldset>
+              <legend className="text-xs font-bold text-on-surface-variant mb-1 block">누출 규모</legend>
               <div className="flex bg-surface-container rounded-lg p-1">
                 <button
                   type="button"
+                  aria-pressed={spillSize === 'small'}
                   onClick={() => setSpillSize('small')}
                   className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${spillSize === 'small' ? 'bg-orange-500/20 text-orange-400' : 'text-on-surface-variant hover:text-on-surface'}`}
                 >
@@ -231,18 +233,20 @@ export default function HazmatCalc() {
                 </button>
                 <button
                   type="button"
+                  aria-pressed={spillSize === 'large'}
                   onClick={() => setSpillSize('large')}
                   className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${spillSize === 'large' ? 'bg-orange-500/20 text-orange-400' : 'text-on-surface-variant hover:text-on-surface'}`}
                 >
                   대량 누출 (208L 이상)
                 </button>
               </div>
-            </div>
+            </fieldset>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-bold text-on-surface-variant mb-1 block">풍속 (m/s) · 참고용</label>
+                <label htmlFor="hazmat-wind-speed" className="text-xs font-bold text-on-surface-variant mb-1 block">풍속 (m/s) · 참고용</label>
                 <input 
+                  id="hazmat-wind-speed"
                   type="number" 
                   min={0}
                   step={0.1}
@@ -252,8 +256,9 @@ export default function HazmatCalc() {
                 />
               </div>
               <div>
-                <label className="text-xs font-bold text-on-surface-variant mb-1 block">풍향 (풍배도, 도)</label>
+                <label htmlFor="hazmat-wind-direction" className="text-xs font-bold text-on-surface-variant mb-1 block">풍향 (풍배도, 도)</label>
                 <input 
+                  id="hazmat-wind-direction"
                   type="number" 
                   min={0}
                   max={359}

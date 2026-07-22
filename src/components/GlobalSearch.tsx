@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import type { NavigateTarget } from '../types/navigation';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 
 interface SearchResult {
   id: string;
@@ -80,6 +81,12 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
+  const mobileTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileDialogRef = useDialogAccessibility<HTMLDivElement>(mobileOpen, () => {
+    setMobileOpen(false);
+    setIsOpen(false);
+    setQuery('');
+  }, mobileTriggerRef);
 
   // 외부 클릭 시 닫기
   useEffect(() => {
@@ -257,8 +264,9 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
   );
 
   return (
-    <div ref={wrapperRef} className="relative md:w-80 md:ml-4">
+    <div ref={wrapperRef} className="relative shrink-0 md:w-80 md:ml-4">
       <button
+        ref={mobileTriggerRef}
         type="button"
         aria-label="기능 검색 열기"
         onClick={() => {
@@ -292,12 +300,13 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
 
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm p-3 safe-area-top" onClick={() => setMobileOpen(false)}>
-          <div role="dialog" aria-modal="true" aria-label="기능 검색" className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl shadow-2xl p-3 mt-2" onClick={event => event.stopPropagation()}>
+          <div ref={mobileDialogRef} role="dialog" aria-modal="true" aria-label="기능 검색" tabIndex={-1} className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl shadow-2xl p-3 mt-2" onClick={event => event.stopPropagation()}>
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">search</span>
                 <input
                   ref={mobileInputRef}
+                  data-dialog-initial-focus
                   aria-label="기능 검색"
                   className="w-full h-12 pl-10 pr-3 bg-surface-container rounded-xl text-base text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/30 focus:outline-none"
                   placeholder="날씨, 산불, 계산기…"

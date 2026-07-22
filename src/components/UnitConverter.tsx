@@ -132,8 +132,9 @@ export default function UnitConverter() {
 
         <div className="flex gap-3 items-end mb-6">
           <div className="flex-1">
-            <label className="text-xs text-on-surface-variant font-bold mb-1.5 block">값 입력</label>
+            <label htmlFor="unit-converter-value" className="text-xs text-on-surface-variant font-bold mb-1.5 block">값 입력</label>
             <input
+              id="unit-converter-value"
               type="number"
               value={inputValue}
               onChange={e => setInputValue(e.target.value)}
@@ -142,8 +143,9 @@ export default function UnitConverter() {
             />
           </div>
           <div className="w-32">
-            <label className="text-xs text-on-surface-variant font-bold mb-1.5 block">단위</label>
+            <label htmlFor="unit-converter-from" className="text-xs text-on-surface-variant font-bold mb-1.5 block">단위</label>
             <select
+              id="unit-converter-from"
               value={fromUnit}
               onChange={e => setFromUnit(e.target.value)}
               className="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-3 py-3 text-sm font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50"

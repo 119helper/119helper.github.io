@@ -286,12 +286,13 @@ export default function BuildingView() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl md:text-3xl font-extrabold text-on-surface font-headline flex items-center gap-2">
-        <span className="material-symbols-outlined text-4xl text-purple-400">apartment</span>
+        <span className="material-symbols-outlined text-4xl text-purple-700 dark:text-purple-300">apartment</span>
         건축물대장 현장 검색
       </h2>
       <p className="text-sm text-on-surface-variant font-medium">단순 주소만 입력하면 지번 변환 후 국토부 대장을 끌어옵니다.</p>
       <div className="flex gap-3 max-w-2xl">
         <input
+          aria-label="건축물 주소"
           type="text"
           value={address}
           onChange={e => setAddress(e.target.value)}

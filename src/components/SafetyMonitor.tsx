@@ -106,6 +106,7 @@ function ReentryTimer() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <input
+            aria-label="진입조 이름"
             type="text"
             value={team}
             onChange={e => setTeam(e.target.value)}
@@ -113,6 +114,7 @@ function ReentryTimer() {
             className="bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           <input
+            aria-label="공기호흡기 잔압"
             type="number"
             value={pressure}
             onChange={e => setPressure(e.target.value)}
@@ -258,6 +260,7 @@ function HeatStress({ city }: { city: string }) {
 
         <div className="grid grid-cols-2 gap-3 pt-2">
           <input
+            aria-label="현장 기온"
             type="number"
             value={manual.temp}
             onChange={e => setManual(m => ({ ...m, temp: e.target.value }))}
@@ -265,6 +268,7 @@ function HeatStress({ city }: { city: string }) {
             className="bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           <input
+            aria-label="현장 습도"
             type="number"
             value={manual.humidity}
             onChange={e => setManual(m => ({ ...m, humidity: e.target.value }))}

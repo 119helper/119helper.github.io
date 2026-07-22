@@ -1,9 +1,10 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import {
   removeActivityStage,
   updateActivityStageTime,
   type LoggedActivityStamp,
 } from '../services/activitySession';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 
 interface ActivityStageEditorDialogProps {
   stamp: LoggedActivityStamp | null;
@@ -26,11 +27,11 @@ export default function ActivityStageEditorDialog({
 }: ActivityStageEditorDialogProps) {
   const titleId = useId();
   const errorId = useId();
-  const inputRef = useRef<HTMLInputElement>(null);
   const [timeValue, setTimeValue] = useState('');
   const [maximumTime, setMaximumTime] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const dialogRef = useDialogAccessibility<HTMLDivElement>(Boolean(stamp), onClose);
 
   useEffect(() => {
     if (!stamp) return;
@@ -38,17 +39,7 @@ export default function ActivityStageEditorDialog({
     setMaximumTime(Date.now());
     setError('');
     setConfirmDelete(false);
-    window.setTimeout(() => inputRef.current?.focus(), 0);
   }, [stamp]);
-
-  useEffect(() => {
-    if (!stamp) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [onClose, stamp]);
 
   if (!stamp) return null;
   const earliestTime = minimumTime ? Math.floor(minimumTime / 1000) * 1000 : undefined;
@@ -91,9 +82,11 @@ export default function ActivityStageEditorDialog({
     <div className="fixed inset-0 z-[1100] flex items-end justify-center p-2 sm:items-center sm:p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" onClick={onClose} />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         className="relative w-full max-w-md rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-5 text-on-surface shadow-2xl"
       >
         <div className="flex items-start justify-between gap-3">
@@ -114,7 +107,7 @@ export default function ActivityStageEditorDialog({
         <label className="mt-5 block space-y-2 text-sm font-bold">
           <span>기록 날짜와 시각</span>
           <input
-            ref={inputRef}
+            data-dialog-initial-focus
             type="datetime-local"
             step="1"
             value={timeValue}

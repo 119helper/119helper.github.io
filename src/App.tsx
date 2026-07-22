@@ -24,6 +24,7 @@ import { useUserProfile } from './contexts/UserProfileContext';
 import { useGeolocation } from './hooks/useGeolocation';
 import { useAutoRefresh } from './hooks/useAutoRefresh';
 import { useIncidentSession } from './hooks/useIncidentSession';
+import { useDialogAccessibility } from './hooks/useDialogAccessibility';
 import { applyPrivacyRetention } from './services/privacySettings';
 import { loadDisplaySettings } from './services/displaySettings';
 
@@ -67,6 +68,11 @@ export default function App() {
   const notiRef = useRef<HTMLDivElement>(null);
   const mainScrollRef = useRef<HTMLDivElement>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const settingsReturnFocusRef = useRef<HTMLElement | null>(null);
+  const [isDesktopSidebar, setIsDesktopSidebar] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
+  const sidebarInteractive = isDesktopSidebar || sidebarOpen;
+  const sidebarRef = useDialogAccessibility<HTMLElement>(sidebarOpen && !isDesktopSidebar, () => setSidebarOpen(false));
 
   // 오프라인 대비: 핵심 화면(계산기·매뉴얼·타이머 등) 청크 사전 로드
   useEffect(() => {
@@ -75,6 +81,14 @@ export default function App() {
 
   useEffect(() => {
     applyPrivacyRetention().catch(e => console.warn('[privacy retention] failed:', e));
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1024px)');
+    const syncSidebarMode = (event: MediaQueryListEvent | MediaQueryList) => setIsDesktopSidebar(event.matches);
+    syncSidebarMode(media);
+    media.addEventListener('change', syncSidebarMode);
+    return () => media.removeEventListener('change', syncSidebarMode);
   }, []);
 
   useEffect(() => {
@@ -127,6 +141,17 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: light)');
+    const syncSystemTheme = () => {
+      if (localStorage.getItem('119helper-theme') === 'system') {
+        setTheme(media.matches ? 'light' : 'dark');
+      }
+    };
+    media.addEventListener('change', syncSystemTheme);
+    return () => media.removeEventListener('change', syncSystemTheme);
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-readability', fieldReadabilityMode ? 'field' : 'standard');
@@ -231,7 +256,7 @@ export default function App() {
       }
     } catch (e) {
       console.warn('[refreshData facilities] failed:', e);
-      addNotification('system-data-refresh-failed', 'warning', 'text-amber-500', '데이터 갱신 실패', '일부 현장 데이터가 최신 상태가 아닐 수 있습니다.');
+      addNotification('system-data-refresh-failed', 'warning', 'text-amber-700 dark:text-amber-300', '데이터 갱신 실패', '일부 현장 데이터가 최신 상태가 아닐 수 있습니다.');
     } finally {
       if (seq === refreshSeqRef.current) {
         setIsLoadingFacilities(false);
@@ -251,19 +276,19 @@ export default function App() {
         if (items.length > 0) {
           const w = parseCurrentWeather(items);
           if (ns.weather.rain && w.precipType !== '없음' && w.precipType !== '눈') {
-            addNotification(undefined, 'rainy', 'text-blue-400', `🌧️ ${cityNames[city]} 강수 감지`, `현재 ${w.precipType} 관측 중. 풍속 ${w.windSpeed}m/s (${w.windDirection})`);
+            addNotification(undefined, 'rainy', 'text-blue-700 dark:text-blue-300', `🌧️ ${cityNames[city]} 강수 감지`, `현재 ${w.precipType} 관측 중. 풍속 ${w.windSpeed}m/s (${w.windDirection})`);
           }
           if (ns.weather.snow && w.precipType === '눈') {
-            addNotification(undefined, 'weather_snowy', 'text-cyan-300', `❄️ ${cityNames[city]} 적설 감지`, `현재 눈 관측 중. 풍속 ${w.windSpeed}m/s`);
+            addNotification(undefined, 'weather_snowy', 'text-cyan-700 dark:text-cyan-300', `❄️ ${cityNames[city]} 적설 감지`, `현재 눈 관측 중. 풍속 ${w.windSpeed}m/s`);
           }
           if (ns.weather.heatwave && w.temperature >= ns.weather.heatwaveThreshold) {
-            addNotification(undefined, 'thermostat', 'text-red-400', `🥵 ${cityNames[city]} 폭염 주의`, `현재 기온 ${w.temperature}°C. 현장 활동 시 열사병 주의!`);
+            addNotification(undefined, 'thermostat', 'text-red-700 dark:text-red-300', `🥵 ${cityNames[city]} 폭염 주의`, `현재 기온 ${w.temperature}°C. 현장 활동 시 열사병 주의!`);
           }
           if (ns.weather.coldwave && w.temperature <= ns.weather.coldwaveThreshold) {
-            addNotification(undefined, 'ac_unit', 'text-cyan-400', `🥶 ${cityNames[city]} 한파 주의`, `현재 기온 ${w.temperature}°C. 소화전 동파 점검 필요.`);
+            addNotification(undefined, 'ac_unit', 'text-cyan-700 dark:text-cyan-300', `🥶 ${cityNames[city]} 한파 주의`, `현재 기온 ${w.temperature}°C. 소화전 동파 점검 필요.`);
           }
           if (ns.weather.strongWind && parseFloat(String(w.windSpeed)) >= ns.weather.windThreshold) {
-            addNotification(undefined, 'air', 'text-teal-400', `💨 ${cityNames[city]} 강풍 주의`, `풍속 ${w.windSpeed}m/s (${w.windDirection}). 사다리차 운행 주의!`);
+            addNotification(undefined, 'air', 'text-teal-700 dark:text-teal-300', `💨 ${cityNames[city]} 강풍 주의`, `풍속 ${w.windSpeed}m/s (${w.windDirection}). 사다리차 운행 주의!`);
           }
         }
       } catch (e) {
@@ -278,10 +303,10 @@ export default function App() {
         if (seq !== refreshSeqRef.current) return;
         if (aq) {
           if (ns.airQuality.pm10Bad && parseInt(aq.pm10Grade) >= 3) {
-            addNotification(undefined, 'masks', 'text-yellow-400', `⚠️ ${cityNames[city]} 미세먼지 나쁨`, `PM10: ${aq.pm10Value}μg/m³. 현장 활동 시 방진마스크 착용 권장.`);
+            addNotification(undefined, 'masks', 'text-amber-700 dark:text-yellow-300', `⚠️ ${cityNames[city]} 미세먼지 나쁨`, `PM10: ${aq.pm10Value}μg/m³. 현장 활동 시 방진마스크 착용 권장.`);
           }
           if (ns.airQuality.pm25Bad && parseInt(aq.pm25Grade || '0') >= 3) {
-            addNotification(undefined, 'blur_circular', 'text-orange-400', `⚠️ ${cityNames[city]} 초미세먼지 나쁨`, `PM2.5: ${aq.pm25Value}μg/m³. 호흡기 보호구 착용 필수.`);
+            addNotification(undefined, 'blur_circular', 'text-orange-700 dark:text-orange-300', `⚠️ ${cityNames[city]} 초미세먼지 나쁨`, `PM2.5: ${aq.pm25Value}μg/m³. 호흡기 보호구 착용 필수.`);
           }
         }
       } catch (e) {
@@ -304,9 +329,9 @@ export default function App() {
               // 산불 로직
               if (ns.wildfire.enabled && text.includes('산불')) {
                 if (ns.wildfire.newFire && text.includes('발생')) {
-                  addNotification(`${msg.md101_sn}-wildfire`, 'whatshot', 'text-orange-500', `🔥 ${kname} 산불 발생`, text);
+                  addNotification(`${msg.md101_sn}-wildfire`, 'whatshot', 'text-orange-700 dark:text-orange-300', `🔥 ${kname} 산불 발생`, text);
                 } else if (ns.wildfire.levelChange) {
-                  addNotification(`${msg.md101_sn}-wildfire`, 'trending_up', 'text-red-500', `🔥 ${kname} 산불 주의/경보`, text);
+                  addNotification(`${msg.md101_sn}-wildfire`, 'trending_up', 'text-red-700 dark:text-red-300', `🔥 ${kname} 산불 주의/경보`, text);
                 }
               }
 
@@ -314,9 +339,9 @@ export default function App() {
               if (ns.disaster.enabled) {
                 const isEmergency = msg.msgType?.includes('긴급') || text.includes('지진') || text.includes('대피');
                 if (isEmergency && ns.disaster.emergencyAll) {
-                  addNotification(`${msg.md101_sn}-disaster`, 'emergency', 'text-red-600', `🚨 ${kname} 긴급재난문자`, text);
+                  addNotification(`${msg.md101_sn}-disaster`, 'emergency', 'text-red-700 dark:text-red-300', `🚨 ${kname} 긴급재난문자`, text);
                 } else if (!isEmergency && ns.disaster.safetyAlert && !text.includes('산불')) {
-                  addNotification(`${msg.md101_sn}-safety`, 'health_and_safety', 'text-amber-500', `📣 ${kname} 안전안내문자`, text);
+                  addNotification(`${msg.md101_sn}-safety`, 'health_and_safety', 'text-amber-700 dark:text-amber-300', `📣 ${kname} 안전안내문자`, text);
                 }
               }
             }
@@ -391,20 +416,41 @@ export default function App() {
       )}
 
       {/* Sidebar */}
-      <aside aria-label="전체 메뉴" className={`
+      <aside
+        ref={sidebarRef}
+        aria-label="전체 메뉴"
+        aria-hidden={sidebarInteractive ? undefined : true}
+        aria-modal={!isDesktopSidebar && sidebarOpen ? true : undefined}
+        role={!isDesktopSidebar ? 'dialog' : undefined}
+        inert={!sidebarInteractive}
+        tabIndex={!isDesktopSidebar ? -1 : undefined}
+        className={`
         fixed lg:static inset-y-0 left-0 z-50
-        w-64 bg-surface-container-lowest flex flex-col shrink-0 border-r border-outline-variant/20
+        w-64 bg-surface-container-lowest flex flex-col shrink-0 border-r border-outline-variant/20 safe-area-top
         transform transition-transform duration-200 ease-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
+      `}
+      >
         <div className="p-6">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-lg shadow-red-500/20">
-              <span className="material-symbols-outlined text-white text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-lg shadow-red-500/20">
+                  <span aria-hidden="true" className="material-symbols-outlined text-white text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
+                </div>
+                <h1 className="text-xl font-extrabold tracking-tight text-on-surface font-headline">119 Helper</h1>
+              </div>
+              <p className="text-xs text-on-surface-variant font-medium">소방관 도우미</p>
             </div>
-            <h1 className="text-xl font-extrabold tracking-tight text-on-surface font-headline">119 Helper</h1>
+            <button
+              type="button"
+              aria-label="전체 메뉴 닫기"
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden w-11 h-11 -mr-3 -mt-3 rounded-lg text-on-surface-variant hover:bg-surface-container flex items-center justify-center"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined">close</span>
+            </button>
           </div>
-          <p className="text-xs text-on-surface-variant font-medium">소방관 도우미</p>
         </div>
         <nav className="flex-1 px-3 space-y-1 mt-2 overflow-y-auto custom-scrollbar">
           {NAV_ITEMS.map(item => {
@@ -490,7 +536,11 @@ export default function App() {
         </nav>
         <button
           type="button"
-          onClick={() => { setSidebarOpen(false); setSettingsOpen(true); }}
+          onClick={() => {
+            settingsReturnFocusRef.current = menuButtonRef.current;
+            setSidebarOpen(false);
+            setSettingsOpen(true);
+          }}
           className="w-full p-4 border-t border-outline-variant/20 flex items-center gap-3 hover:bg-surface-container/50 transition-colors text-left"
           title="내 정보 편집"
         >
@@ -506,12 +556,17 @@ export default function App() {
       </aside>
 
       {/* Main */}
-      <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <main
+        aria-hidden={!isDesktopSidebar && sidebarOpen ? true : undefined}
+        inert={!isDesktopSidebar && sidebarOpen}
+        className="flex-1 flex flex-col overflow-hidden min-w-0"
+      >
         {/* Top Bar */}
-        <header className="h-14 bg-surface-container-lowest flex items-center justify-between px-4 md:px-6 border-b border-outline-variant/20 shrink-0 gap-2">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+        <header className="app-header bg-surface-container-lowest flex items-center justify-between px-2 min-[360px]:px-4 md:px-6 border-b border-outline-variant/20 shrink-0 gap-1 min-[360px]:gap-2">
+          <div className="flex items-center gap-1 min-[360px]:gap-3 flex-1 min-w-0">
             {/* Mobile hamburger */}
             <button
+              ref={menuButtonRef}
               type="button"
               aria-label="전체 메뉴 열기"
               onClick={() => setSidebarOpen(true)}
@@ -527,7 +582,7 @@ export default function App() {
             {/* Search */}
             <GlobalSearch onNavigate={handleNavigate} />
           </div>
-          <div className="flex items-center gap-2 md:gap-3 shrink-0">
+          <div className="flex items-center gap-1 min-[360px]:gap-2 md:gap-3 shrink-0">
             {/* 📍 Global Location Selector (Custom Beautiful Dropdown) */}
             <div className="relative" ref={regionRef}>
               <button 
@@ -536,12 +591,12 @@ export default function App() {
                 aria-expanded={regionOpen}
                 onClick={() => setRegionOpen(!regionOpen)}
                 title={locationNotice?.message || `현재 지역: ${cityNames[city]}`}
-                className="min-h-11 flex items-center gap-1.5 bg-surface-container hover:bg-surface-container-high transition-colors rounded-full px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="min-h-11 min-w-11 flex items-center justify-center gap-1.5 bg-surface-container hover:bg-surface-container-high transition-colors rounded-full px-2 min-[360px]:px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
-                <span className={`material-symbols-outlined text-sm ${gpsStatus === 'unsupported' || gpsStatus === 'denied' ? 'text-amber-500' : 'text-primary'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                <span className={`material-symbols-outlined text-sm ${gpsStatus === 'unsupported' || gpsStatus === 'denied' ? 'text-amber-700 dark:text-amber-300' : 'text-primary'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
                   {gpsStatus === 'granted' ? 'my_location' : gpsStatus === 'loading' ? 'location_searching' : gpsStatus === 'unsupported' || gpsStatus === 'denied' ? 'location_disabled' : 'location_on'}
                 </span>
-                <span className="text-on-surface text-sm font-bold pr-1">{cityNames[city]}</span>
+                <span className="hidden min-[360px]:inline text-on-surface text-sm font-bold pr-1">{cityNames[city]}</span>
                 <span className={`material-symbols-outlined text-on-surface-variant text-xs hidden sm:inline transition-transform duration-200 ${regionOpen ? 'rotate-180' : ''}`}>
                   expand_more
                 </span>
@@ -670,7 +725,10 @@ export default function App() {
                 type="button"
                 aria-label="설정 열기"
                 aria-expanded={settingsOpen}
-                onClick={() => setSettingsOpen(!settingsOpen)}
+                onClick={event => {
+                  settingsReturnFocusRef.current = event.currentTarget;
+                  setSettingsOpen(!settingsOpen);
+                }}
                 className={`hidden sm:flex w-11 h-11 items-center justify-center rounded-lg transition-colors ${settingsOpen ? 'bg-surface-container-high' : 'hover:bg-surface-container'}`}
               >
                 <span className="material-symbols-outlined text-on-surface-variant text-xl">settings</span>
@@ -681,6 +739,7 @@ export default function App() {
                 city={city}
                 onCityChange={handleCityChange}
                 cityNames={cityNames}
+                returnFocusRef={settingsReturnFocusRef}
               />
             </div>
           </div>
@@ -705,7 +764,7 @@ export default function App() {
                   ? 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-100'
                   : 'border-primary/20 bg-primary/10 text-on-surface'
               }`}>
-                <span className={`material-symbols-outlined text-xl ${locationNotice.kind === 'warning' ? 'text-amber-400' : 'text-primary'}`}>
+                <span className={`material-symbols-outlined text-xl ${locationNotice.kind === 'warning' ? 'text-amber-700 dark:text-amber-300' : 'text-primary'}`}>
                   {locationNotice.kind === 'warning' ? 'warning' : 'my_location'}
                 </span>
                 <p className="leading-6">{locationNotice.message}</p>

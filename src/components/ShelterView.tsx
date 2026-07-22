@@ -220,7 +220,8 @@ export default function ShelterView({ city }: ShelterViewProps) {
           <div className="flex items-center gap-2">
             <div className="relative">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
-              <input
+        <input
+          aria-label="대피소 검색"
                 type="text"
                 placeholder="대피소 검색..."
                 value={filter}

@@ -58,12 +58,12 @@ function DonutChart<T extends object>({ data, labelKey, valueKey }: { data: T[];
       >
         <div style={{
           position: 'absolute', inset: '30%', borderRadius: '50%',
-          backgroundColor: 'var(--md-sys-color-surface-container-lowest, #1a1a2e)',
+          backgroundColor: 'var(--color-surface-container-lowest, #060a14)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div className="text-center">
             <p className="text-lg font-extrabold text-on-surface">{total.toLocaleString()}</p>
-            <p className="text-[9px] text-on-surface-variant">총 건수</p>
+            <p className="text-xs text-on-surface-variant">총 건수</p>
           </div>
         </div>
       </div>
@@ -117,7 +117,7 @@ function HBarChart<T extends object>({ data, labelKey, valueKey }: { data: T[]; 
 /* ─── 빈 상태 ─── */
 function EmptyState({ icon, text }: { icon: string; text: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant/50">
+    <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant">
       <span className="material-symbols-outlined text-4xl mb-2">{icon}</span>
       <p className="text-sm">{text}</p>
       <p className="text-xs mt-1">해당 기간에 데이터가 아직 제공되지 않았습니다.</p>
@@ -214,19 +214,19 @@ function ResponseTimeSection({ data, loading }: { data: ActivityDetailItem[], lo
       {/* KPI 카드 3개 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-xl p-5 text-center">
-          <span className="material-symbols-outlined text-3xl text-blue-400 mb-2 block">timer</span>
+          <span className="material-symbols-outlined text-3xl text-blue-700 dark:text-blue-300 mb-2 block">timer</span>
           <p className="text-3xl font-extrabold text-on-surface font-headline tabular-nums">{avgResponse}<span className="text-sm text-on-surface-variant ml-1">분</span></p>
           <p className="text-xs text-on-surface-variant mt-1">평균 현장 대응시간</p>
           <p className="text-[10px] text-on-surface-variant/60 mt-0.5">{responseTimes.length}건 기준</p>
         </div>
         <div className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 rounded-xl p-5 text-center">
-          <span className="material-symbols-outlined text-3xl text-amber-400 mb-2 block">straighten</span>
+          <span className="material-symbols-outlined text-3xl text-amber-700 dark:text-amber-300 mb-2 block">straighten</span>
           <p className="text-3xl font-extrabold text-on-surface font-headline tabular-nums">{avgDistance}<span className="text-sm text-on-surface-variant ml-1">km</span></p>
           <p className="text-xs text-on-surface-variant mt-1">평균 현장 거리</p>
           <p className="text-[10px] text-on-surface-variant/60 mt-0.5">{distances.length}건 기준</p>
         </div>
         <div className="bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 rounded-xl p-5 text-center">
-          <span className="material-symbols-outlined text-3xl text-green-400 mb-2 block">update</span>
+          <span className="material-symbols-outlined text-3xl text-green-700 dark:text-green-300 mb-2 block">update</span>
           <p className="text-3xl font-extrabold text-on-surface font-headline tabular-nums">{avgTurnAround}<span className="text-sm text-on-surface-variant ml-1">분</span></p>
           <p className="text-xs text-on-surface-variant mt-1">평균 출동→귀소</p>
           <p className="text-[10px] text-on-surface-variant/60 mt-0.5">{returnTimes.length}건 기준</p>
@@ -237,7 +237,7 @@ function ResponseTimeSection({ data, loading }: { data: ActivityDetailItem[], lo
         {/* 대응시간 히스토그램 */}
         <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-blue-400">schedule</span>
+            <span className="material-symbols-outlined text-base text-blue-700 dark:text-blue-300">schedule</span>
             대응시간 분포
           </h3>
           {loading ? <Skeleton /> : <HBarChart data={timeHistogram} labelKey="label" valueKey="count" />}
@@ -246,7 +246,7 @@ function ResponseTimeSection({ data, loading }: { data: ActivityDetailItem[], lo
         {/* 거리 히스토그램 */}
         <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-amber-400">map</span>
+            <span className="material-symbols-outlined text-base text-amber-700 dark:text-amber-300">map</span>
             현장 거리 분포
           </h3>
           {loading ? <Skeleton /> : <HBarChart data={distHistogram} labelKey="label" valueKey="count" />}
@@ -257,7 +257,7 @@ function ResponseTimeSection({ data, loading }: { data: ActivityDetailItem[], lo
       {stationAvg.length > 0 && (
         <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-purple-400">leaderboard</span>
+            <span className="material-symbols-outlined text-base text-purple-700 dark:text-purple-300">leaderboard</span>
             소방서별 평균 대응시간 (빠른 순)
           </h3>
           <div className="space-y-1.5">
@@ -393,7 +393,7 @@ function PatientSection({
         {/* 발생유형별 */}
         <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-red-400">emergency</span>
+            <span className="material-symbols-outlined text-base text-red-700 dark:text-red-300">emergency</span>
             발생유형별 이송
           </h3>
           {loading ? <Skeleton /> : hasTransfers ? <DonutChart data={typeData.slice(0, 10)} labelKey="label" valueKey="count" /> : <EmptyState icon="donut_large" text="데이터 없음" />}
@@ -402,7 +402,7 @@ function PatientSection({
         {/* 사고장소별 */}
         <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-orange-400">location_on</span>
+            <span className="material-symbols-outlined text-base text-orange-700 dark:text-orange-300">location_on</span>
             사고장소별 이송
           </h3>
           {loading ? <Skeleton /> : hasTransfers ? <HBarChart data={placeData.slice(0, 10)} labelKey="label" valueKey="count" /> : <EmptyState icon="bar_chart" text="데이터 없음" />}
@@ -411,7 +411,7 @@ function PatientSection({
         {/* 연령대 분포 */}
         <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-blue-400">group</span>
+            <span className="material-symbols-outlined text-base text-blue-700 dark:text-blue-300">group</span>
             환자 연령대 분포
           </h3>
           {loading ? <Skeleton /> : hasAids && ageData.length > 0 ? <HBarChart data={ageData} labelKey="label" valueKey="count" /> : <EmptyState icon="group" text="데이터 없음" />}
@@ -420,7 +420,7 @@ function PatientSection({
         {/* 성별 + 처치코드 */}
         <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-green-400">medical_services</span>
+            <span className="material-symbols-outlined text-base text-green-700 dark:text-green-300">medical_services</span>
             성별 분포 & 주요 처치코드
           </h3>
           {loading ? <Skeleton /> : hasAids ? (
@@ -509,6 +509,7 @@ export default function EmergencyAnalysis() {
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <select
+            aria-label="구급 출동 분석 지역"
             value={selectedSido}
             onChange={e => selectSido(e.target.value)}
             className="bg-surface-container border border-outline-variant/20 text-on-surface px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-primary"
@@ -516,6 +517,7 @@ export default function EmergencyAnalysis() {
             {SIDO_LIST.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <select
+            aria-label="구급 출동 분석 기준 월"
             value={selectedMonth}
             onChange={e => selectMonth(e.target.value)}
             className="bg-surface-container border border-outline-variant/20 text-on-surface px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-primary"
@@ -561,19 +563,19 @@ export default function EmergencyAnalysis() {
       {/* 요약 카드 4장 (모든 뷰에서 표시) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard
-          icon="ambulance" iconColor="text-red-400" label="출동 건수"
+          icon="ambulance" iconColor="text-red-700 dark:text-red-300" label="출동 건수"
           value={activity.dispatchCnt} loading={loading}
         />
         <SummaryCard
-          icon="local_shipping" iconColor="text-blue-400" label="이송 건수"
+          icon="local_shipping" iconColor="text-blue-700 dark:text-blue-300" label="이송 건수"
           value={activity.transferCnt} loading={loading}
         />
         <SummaryCard
-          icon="personal_injury" iconColor="text-amber-400" label="이송 환자수"
+          icon="personal_injury" iconColor="text-amber-700 dark:text-amber-300" label="이송 환자수"
           value={activity.transferPrsnCnt} loading={loading}
         />
         <SummaryCard
-          icon="percent" iconColor="text-green-400" label="이송률"
+          icon="percent" iconColor="text-green-700 dark:text-green-300" label="이송률"
           value={transferRate} suffix="%" loading={loading}
         />
       </div>
@@ -628,7 +630,7 @@ export default function EmergencyAnalysis() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
               <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-base text-purple-400">donut_large</span>
+                <span className="material-symbols-outlined text-base text-purple-700 dark:text-purple-300">donut_large</span>
                 출동유형별 분포
               </h3>
               {loading ? <LoadingSkeleton /> : (
@@ -638,7 +640,7 @@ export default function EmergencyAnalysis() {
 
             <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
               <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-base text-blue-400">bar_chart</span>
+                <span className="material-symbols-outlined text-base text-blue-700 dark:text-blue-300">bar_chart</span>
                 연령별 이송환자
               </h3>
               {loading ? <LoadingSkeleton /> : (
@@ -651,7 +653,7 @@ export default function EmergencyAnalysis() {
           <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden">
             <div className="p-6 border-b border-outline-variant/10">
               <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest flex items-center gap-2">
-                <span className="material-symbols-outlined text-base text-orange-400">location_on</span>
+                <span className="material-symbols-outlined text-base text-orange-700 dark:text-orange-300">location_on</span>
                 사고장소별 이송환자 현황
               </h3>
             </div>
@@ -705,7 +707,7 @@ export default function EmergencyAnalysis() {
           ) : vehicles.length > 0 && (
             <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
               <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-base text-red-400">fire_truck</span>
+                <span className="material-symbols-outlined text-base text-red-700 dark:text-red-300">fire_truck</span>
                 구급차량 현황
                 <span className="text-[10px] bg-surface-container px-2 py-0.5 rounded text-on-surface-variant font-normal normal-case">
                   {vehicles.length}대
@@ -714,10 +716,10 @@ export default function EmergencyAnalysis() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                 {vehicles.slice(0, 30).map((v, i) => {
                   const statusColor = v.vhcleSttus.includes('가용') || v.vhcleSttus.includes('대기')
-                    ? 'bg-green-500/10 border-green-500/20 text-green-400'
+                    ? 'bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-300'
                     : v.vhcleSttus.includes('출동') || v.vhcleSttus.includes('운행')
-                    ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                    : 'bg-amber-500/10 border-amber-500/20 text-amber-400';
+                    ? 'bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-300'
+                    : 'bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-300';
                   return (
                     <div key={i} className={`rounded-lg border px-3 py-2.5 ${statusColor}`}>
                       <p className="text-xs font-bold">{v.vhcleNo}</p>
@@ -859,6 +861,7 @@ function SearchSection({ transfers, firstAids, activityDetails }: { transfers: T
         <div className="relative">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50">search</span>
           <input
+            aria-label="구급 출동 상세 검색"
             type="text"
             placeholder="소방서, 사고유형, 지역, 특징 등을 검색하세요..."
             value={searchTerm}

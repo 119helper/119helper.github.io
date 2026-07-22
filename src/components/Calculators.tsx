@@ -42,6 +42,7 @@ function WaterPressureCalc() {
       />
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
         <input
+          aria-label="건물 층수"
           type="number"
           min="1"
           max="200"
@@ -104,6 +105,7 @@ function HoseLengthCalc() {
       />
       <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-3">
         <input
+          aria-label="수평 거리"
           type="number"
           min="0"
           value={distance}
@@ -112,6 +114,7 @@ function HoseLengthCalc() {
           className="flex-1 bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
         <input
+          aria-label="건물 층수"
           type="number"
           min="0"
           value={floors}
@@ -197,6 +200,7 @@ function AirTankTimer() {
       {!isRunning && timeLeft === 0 ? (
         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
           <input
+            aria-label="공기호흡기 충전 압력"
             type="number"
             min="1"
             max="300"

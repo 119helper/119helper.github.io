@@ -137,7 +137,8 @@ export default function RadioCodes() {
         {/* 검색 */}
         <div className="relative">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
-          <input
+        <input
+          aria-label="무전 코드 검색"
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}

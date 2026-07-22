@@ -198,6 +198,8 @@ export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
                     <span className="text-[10px] text-primary font-bold px-1.5 py-0.5 bg-primary/10 rounded-full">선택됨</span>
                   )}
                   <button
+                    type="button"
+                    aria-label="메모 삭제"
                     onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}
                     className="opacity-0 group-hover:opacity-100 transition-opacity text-on-surface-variant hover:text-error"
                   >
@@ -206,9 +208,11 @@ export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
                 </div>
               </div>
               <textarea
+                aria-label="메모 내용"
                 value={note.text}
                 onChange={(e) => updateNote(note.id, e.target.value)}
                 onClick={(e) => e.stopPropagation()}
+                onFocus={() => handleNoteClick(note.id)}
                 placeholder="메모를 입력하세요..."
                 className="bg-transparent border-none resize-none flex-1 min-h-[120px] text-sm font-medium text-gray-900 dark:text-gray-50 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none focus:ring-0"
               />
@@ -227,7 +231,7 @@ export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
             onClick={() => setShowMemo(!showMemo)}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
           >
-            <span className="material-symbols-outlined text-pink-400 text-xl">sticky_note_2</span>
+            <span className="material-symbols-outlined text-pink-700 dark:text-pink-300 text-xl">sticky_note_2</span>
             <h3 className="text-lg font-extrabold text-on-surface font-headline hidden sm:block">메모장</h3>
             <span className={`material-symbols-outlined text-on-surface-variant transition-transform duration-300 ${showMemo ? 'rotate-180' : ''}`}>
               expand_more

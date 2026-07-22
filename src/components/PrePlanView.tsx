@@ -161,6 +161,7 @@ export default function PrePlanView() {
       </div>
 
       <input
+        aria-label="대상물 검색"
         type="text"
         value={search}
         onChange={e => setSearch(e.target.value)}
@@ -244,20 +245,20 @@ function PrePlanEditor({
       </div>
 
       <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 space-y-4">
-        <Field label="대상물명">
-          <input type="text" value={plan.name} onChange={e => set('name', e.target.value)} className={inputCls} placeholder="예: ○○상가" />
+        <Field label="대상물명" controlId="preplan-name">
+          <input id="preplan-name" type="text" value={plan.name} onChange={e => set('name', e.target.value)} className={inputCls} placeholder="예: ○○상가" />
         </Field>
-        <Field label="주소">
-          <input type="text" value={plan.address} onChange={e => set('address', e.target.value)} className={inputCls} placeholder="도로명/지번 주소" />
+        <Field label="주소" controlId="preplan-address">
+          <input id="preplan-address" type="text" value={plan.address} onChange={e => set('address', e.target.value)} className={inputCls} placeholder="도로명/지번 주소" />
         </Field>
-        <Field label="위험요소">
-          <TagInput tags={plan.hazards} onChange={t => set('hazards', t)} placeholder="위험물·가스·전기 등 입력 후 Enter" accent="error" />
+        <Field label="위험요소" controlId="preplan-hazards">
+          <TagInput id="preplan-hazards" tags={plan.hazards} onChange={t => set('hazards', t)} placeholder="위험물·가스·전기 등 입력 후 Enter" accent="error" />
         </Field>
-        <Field label="소방시설 / 주의 위치">
-          <TagInput tags={plan.facilities} onChange={t => set('facilities', t)} placeholder="수신기·방화셔터·연결송수구 등 Enter" accent="primary" />
+        <Field label="소방시설 / 주의 위치" controlId="preplan-facilities">
+          <TagInput id="preplan-facilities" tags={plan.facilities} onChange={t => set('facilities', t)} placeholder="수신기·방화셔터·연결송수구 등 Enter" accent="primary" />
         </Field>
-        <Field label="진입로 / 주의사항">
-          <textarea value={plan.accessNotes} onChange={e => set('accessNotes', e.target.value)} rows={3} className={`${inputCls} resize-none`} placeholder="진입 동선, 주차, 야간 출입 등" />
+        <Field label="진입로 / 주의사항" controlId="preplan-access-notes">
+          <textarea id="preplan-access-notes" value={plan.accessNotes} onChange={e => set('accessNotes', e.target.value)} rows={3} className={`${inputCls} resize-none`} placeholder="진입 동선, 주차, 야간 출입 등" />
         </Field>
       </div>
 
@@ -271,21 +272,23 @@ function PrePlanEditor({
 const inputCls =
   'w-full bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-2.5 text-on-surface placeholder:text-outline text-sm focus:outline-none focus:ring-2 focus:ring-primary/30';
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, controlId, children }: { label: string; controlId: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="text-xs font-bold text-on-surface-variant">{label}</label>
+      <label htmlFor={controlId} className="text-xs font-bold text-on-surface-variant">{label}</label>
       <div className="mt-1">{children}</div>
     </div>
   );
 }
 
 function TagInput({
+  id,
   tags,
   onChange,
   placeholder,
   accent,
 }: {
+  id: string;
   tags: string[];
   onChange: (t: string[]) => void;
   placeholder: string;
@@ -303,6 +306,7 @@ function TagInput({
   return (
     <div>
       <input
+        id={id}
         type="text"
         value={value}
         onChange={e => setValue(e.target.value)}
@@ -320,8 +324,8 @@ function TagInput({
           {tags.map((t, i) => (
             <span key={i} className={`text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 ${accentCls}`}>
               {t}
-              <button onClick={() => onChange(tags.filter((_, idx) => idx !== i))} className="hover:opacity-70">
-                <span className="material-symbols-outlined text-sm">close</span>
+              <button type="button" aria-label={`${t} 삭제`} onClick={() => onChange(tags.filter((_, idx) => idx !== i))} className="hover:opacity-70">
+                <span aria-hidden="true" className="material-symbols-outlined text-sm">close</span>
               </button>
             </span>
           ))}
@@ -351,17 +355,17 @@ function ContactEditor({ contacts, onChange }: { contacts: PrePlanContact[]; onC
       ) : (
         contacts.map((c, i) => (
           <div key={i} className="grid grid-cols-[1fr_1fr_1.2fr_auto] gap-2 items-center">
-            <input value={c.role} onChange={e => update(i, { role: e.target.value })} placeholder="구분" className={inputCls} />
-            <input value={c.name} onChange={e => update(i, { name: e.target.value })} placeholder="이름" className={inputCls} />
-            <input value={c.phone} onChange={e => update(i, { phone: e.target.value })} placeholder="전화번호" className={inputCls} />
+            <input aria-label={`연락처 ${i + 1} 구분`} value={c.role} onChange={e => update(i, { role: e.target.value })} placeholder="구분" className={inputCls} />
+            <input aria-label={`연락처 ${i + 1} 이름`} value={c.name} onChange={e => update(i, { name: e.target.value })} placeholder="이름" className={inputCls} />
+            <input aria-label={`연락처 ${i + 1} 전화번호`} value={c.phone} onChange={e => update(i, { phone: e.target.value })} placeholder="전화번호" className={inputCls} />
             <div className="flex items-center gap-1">
               {c.phone && (
-                <a href={`tel:${c.phone}`} className="p-2 text-primary">
-                  <span className="material-symbols-outlined text-lg">call</span>
+                <a href={`tel:${c.phone}`} aria-label={`${c.name || `${i + 1}번 연락처`}에 전화`} className="p-2 text-primary">
+                  <span aria-hidden="true" className="material-symbols-outlined text-lg">call</span>
                 </a>
               )}
-              <button onClick={() => onChange(contacts.filter((_, idx) => idx !== i))} className="p-2 text-on-surface-variant hover:text-error">
-                <span className="material-symbols-outlined text-lg">close</span>
+              <button type="button" aria-label={`${c.name || `${i + 1}번 연락처`} 삭제`} onClick={() => onChange(contacts.filter((_, idx) => idx !== i))} className="p-2 text-on-surface-variant hover:text-error">
+                <span aria-hidden="true" className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
           </div>

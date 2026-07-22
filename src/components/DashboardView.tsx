@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useId, useRef } from 'react';
 import { getRealtimeAirQuality, type AirQualityData } from '../services/airQualityApi';
 import { getERRealTimeBeds, CITY_TO_SIDO, type ERRealTimeData } from '../services/erApi';
 import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS, type CurrentWeather } from '../services/weatherApi';
@@ -15,6 +15,7 @@ import { EQUIPMENT_CHECKLIST_TOTAL } from '../data/equipmentChecklist';
 import type { NavigateTarget } from '../types/navigation';
 import { classifyAviationSafety } from '../utils/aviationSafety';
 import { loadStoredJson } from '../services/privacySettings';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 
 import hydrantBg from '../assets/hydrant_bg.webp';
 import waterTowerBg from '../assets/water_tower_bg.webp';
@@ -54,7 +55,7 @@ const ALL_QUICK_TOOLS: QuickToolDef[] = [
   { id: 'calc_water', tab: 'calculator', subId: 'water_pressure_calc', icon: 'water_drop', label: '수압 계산', color: 'text-blue-400', category: '계산기', bgImage: '/images/tools/diagram_water_pressure.svg' },
   { id: 'calc_hose', tab: 'calculator', subId: 'hose_length_calc', icon: 'straighten', label: '호스 전개', color: 'text-green-400', category: '계산기', bgImage: '/images/tools/diagram_hose_deployment.svg' },
   { id: 'calc_air', tab: 'calculator', subId: 'air_tank_timer', icon: 'timer', label: '공기호흡기', color: 'text-amber-400', category: '계산기', bgImage: '/images/tools/diagram_air_tank.svg' },
-  { id: 'calc_unit', tab: 'calculator', subId: 'unit_converter', icon: 'swap_horiz', label: '단위 변환', color: 'text-indigo-400', category: '계산기' },
+  { id: 'calc_unit', tab: 'calculator', subId: 'unit_converter', icon: 'swap_horiz', label: '단위 변환', color: 'text-indigo-700 dark:text-indigo-300', category: '계산기' },
   // 주요 탭
   { id: 'incident', tab: 'incident', icon: 'assignment', label: '출동 상황판', color: 'text-red-400', category: '현장 도구', bgImage: '/images/tools/diagram_incident.svg' },
   { id: 'aviation', tab: 'aviation', icon: 'flight_takeoff', label: '항공/드론', color: 'text-cyan-400', category: '현장 도구', bgImage: '/images/tools/diagram_aviation.svg' },
@@ -167,6 +168,9 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
     return DEFAULT_TOOLS;
   });
   const [isEditingTools, setIsEditingTools] = useState(false);
+  const toolsDialogTitleId = useId();
+  const toolsDialogTriggerRef = useRef<HTMLButtonElement>(null);
+  const toolsDialogRef = useDialogAccessibility<HTMLDivElement>(isEditingTools, () => setIsEditingTools(false), toolsDialogTriggerRef);
 
   const saveTools = (newTools: string[]) => {
     setCustomTools(newTools);
@@ -322,17 +326,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
         {/* BIG Weather Widget with Region Background Image */}
         <div 
-          role="button"
-          tabIndex={0}
-          aria-label={`${cityLabel} 기상 정보 열기`}
-          className="lg:col-span-7 rounded-xl p-5 md:p-8 relative overflow-hidden cursor-pointer hover:shadow-2xl transition-shadow group"
-          onClick={() => onNavigate('weather')}
-          onKeyDown={event => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              onNavigate('weather');
-            }
-          }}
+          className="lg:col-span-7 rounded-xl p-5 md:p-8 relative overflow-hidden hover:shadow-2xl transition-shadow group"
           style={{ minHeight: '280px' }}
         >
           {/* Background Image Layer */}
@@ -387,6 +381,14 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
             </div>
           </div>
           <div className="flex gap-3 md:gap-6 mt-4 md:mt-6 relative z-30 flex-wrap">
+            <button
+              type="button"
+              onClick={() => onNavigate('weather')}
+              className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/20 hover:bg-white/25 transition-colors text-xs font-bold text-white"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-sm">open_in_new</span>
+              기상 상세
+            </button>
             <div className="flex items-center gap-2 bg-black/30 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10">
               <span className="text-xs text-white/70">미세먼지</span>
               <span className={`text-xs font-bold ${
@@ -575,6 +577,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
           </button>
           
           <button
+            ref={toolsDialogTriggerRef}
             onClick={() => setIsEditingTools(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors text-xs font-bold text-on-surface-variant"
           >
@@ -610,12 +613,12 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
 
                   {/* Optional Badges for Hydrants/Towers */}
                   {tool.id === 'facility_hydrants' && !isLoadingFacilities && (
-                    <span className="absolute top-2 right-2 flex items-center justify-center bg-blue-500/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-blue-400 backdrop-blur-sm z-20">
+                    <span className="absolute top-2 right-2 flex items-center justify-center bg-blue-800/95 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-blue-300 backdrop-blur-sm z-20">
                       {hydrantsCount.toLocaleString()}
                     </span>
                   )}
                   {tool.id === 'facility_towers' && !isLoadingFacilities && (
-                    <span className="absolute top-2 right-2 flex items-center justify-center bg-emerald-500/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-emerald-400 backdrop-blur-sm z-20">
+                    <span className="absolute top-2 right-2 flex items-center justify-center bg-emerald-800/95 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-emerald-300 backdrop-blur-sm z-20">
                       {towersCount.toLocaleString()}
                     </span>
                   )}
@@ -638,18 +641,20 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
 
       {/* Editor Modal */}
       {isEditingTools && (
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-surface-container-lowest w-full max-w-2xl max-h-[85vh] rounded-2xl flex flex-col shadow-2xl relative">
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" onClick={() => setIsEditingTools(false)}>
+          <div ref={toolsDialogRef} role="dialog" aria-modal="true" aria-labelledby={toolsDialogTitleId} tabIndex={-1} className="bg-surface-container-lowest w-full max-w-2xl max-h-[85vh] rounded-2xl flex flex-col shadow-2xl relative" onClick={event => event.stopPropagation()}>
             <div className="p-5 border-b border-outline-variant/20 flex items-center justify-between sticky top-0 bg-surface-container-lowest/95 backdrop-blur-md rounded-t-2xl z-10">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-2xl">category</span>
-                <h3 className="text-xl font-extrabold text-on-surface">빠른 도구 편집</h3>
+                <h3 id={toolsDialogTitleId} className="text-xl font-extrabold text-on-surface">빠른 도구 편집</h3>
               </div>
               <button 
+                type="button"
+                aria-label="빠른 도구 편집 닫기"
                 onClick={() => setIsEditingTools(false)}
-                className="p-2 rounded-full hover:bg-surface-container transition-colors"
+                className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-surface-container transition-colors"
               >
-                <span className="material-symbols-outlined text-on-surface-variant">close</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-on-surface-variant">close</span>
               </button>
             </div>
             

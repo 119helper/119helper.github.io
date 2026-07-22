@@ -64,7 +64,8 @@ export default function PrivateAmbulanceView({ city }: { city: string }) {
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-64">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
-            <input 
+        <input
+          aria-label="사설 구급차 업체 검색"
               type="text" 
               placeholder="업체명 또는 주소 검색"
               value={searchTerm}

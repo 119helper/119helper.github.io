@@ -197,22 +197,22 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
         badge = <span className="inline-block bg-primary/20 text-primary text-xs font-bold px-2 py-0.5 rounded mr-2 mb-1 flex-shrink-0">종합</span>;
         trimmed = trimmed.replace('(종합)', '').trim();
       } else if (trimmed.includes('(오늘)')) {
-        badge = <span className="inline-block bg-blue-500/20 text-blue-400 text-xs font-bold px-2 py-0.5 rounded mr-2 mb-1 flex-shrink-0">오늘</span>;
+        badge = <span className="inline-block bg-blue-500/20 text-blue-700 dark:text-blue-300 text-xs font-bold px-2 py-0.5 rounded mr-2 mb-1 flex-shrink-0">오늘</span>;
         trimmed = trimmed.replace('○ (오늘)', '').replace('(오늘)', '').trim();
       } else if (trimmed.includes('(내일)')) {
-        badge = <span className="inline-block bg-indigo-500/20 text-indigo-400 text-xs font-bold px-2 py-0.5 rounded mr-2 mb-1 flex-shrink-0">내일</span>;
+        badge = <span className="inline-block bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 text-xs font-bold px-2 py-0.5 rounded mr-2 mb-1 flex-shrink-0">내일</span>;
         trimmed = trimmed.replace('○ (내일)', '').replace('(내일)', '').trim();
       } else if (trimmed.includes('(모레)')) {
-        badge = <span className="inline-block bg-purple-500/20 text-purple-400 text-xs font-bold px-2 py-0.5 rounded mr-2 mb-1 flex-shrink-0">모레</span>;
+        badge = <span className="inline-block bg-purple-500/20 text-purple-700 dark:text-purple-300 text-xs font-bold px-2 py-0.5 rounded mr-2 mb-1 flex-shrink-0">모레</span>;
         trimmed = trimmed.replace('○ (모레)', '').replace('(모레)', '').trim();
       } else if (trimmed.includes('(글피)')) {
-        badge = <span className="inline-block bg-pink-500/20 text-pink-400 text-xs font-bold px-2 py-0.5 rounded mr-2 mb-1 flex-shrink-0">글피</span>;
+        badge = <span className="inline-block bg-pink-500/20 text-pink-700 dark:text-pink-300 text-xs font-bold px-2 py-0.5 rounded mr-2 mb-1 flex-shrink-0">글피</span>;
         trimmed = trimmed.replace('○ (글피)', '').replace('(글피)', '').trim();
       } else {
         // Match generic keywords like (강수), (건조), (기온), (강풍)
         const keywordMatch = trimmed.match(/^[○-]?\s*\((.*?)\)/);
         if (keywordMatch) {
-          badge = <span className="inline-block bg-teal-500/20 text-teal-400 text-xs font-bold px-2 py-0.5 rounded mr-2 mb-1 flex-shrink-0">{keywordMatch[1]}</span>;
+          badge = <span className="inline-block bg-teal-500/20 text-teal-700 dark:text-teal-300 text-xs font-bold px-2 py-0.5 rounded mr-2 mb-1 flex-shrink-0">{keywordMatch[1]}</span>;
           trimmed = trimmed.replace(keywordMatch[0], '').trim();
         }
       }
@@ -275,7 +275,7 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
       </div>
 
       {error && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-amber-300 text-sm flex items-center gap-3">
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-amber-800 dark:text-amber-200 text-sm flex items-center gap-3">
           <span className="material-symbols-outlined">info</span>
           {error}
         </div>
@@ -348,10 +348,10 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-on-surface-variant">종합 (KHAI)</span>
                   <span className={`font-bold px-2 py-0.5 rounded text-xs ${
-                    airQuality.khaiGrade === '1' ? 'bg-blue-500/20 text-blue-400' :
-                    airQuality.khaiGrade === '2' ? 'bg-green-500/20 text-green-400' :
-                    airQuality.khaiGrade === '3' ? 'bg-amber-500/20 text-amber-400' :
-                    airQuality.khaiGrade === '4' ? 'bg-red-500/20 text-red-500' : 'bg-surface-container text-on-surface-variant'
+                    airQuality.khaiGrade === '1' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' :
+                    airQuality.khaiGrade === '2' ? 'bg-green-500/20 text-green-700 dark:text-green-300' :
+                    airQuality.khaiGrade === '3' ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300' :
+                    airQuality.khaiGrade === '4' ? 'bg-red-500/20 text-red-700 dark:text-red-300' : 'bg-surface-container text-on-surface-variant'
                   }`}>
                     {airQuality.khaiGrade === '1' ? '좋음' : airQuality.khaiGrade === '2' ? '보통' : airQuality.khaiGrade === '3' ? '나쁨' : airQuality.khaiGrade === '4' ? '매우나쁨' : (airQuality.khaiValue !== '-' ? airQuality.khaiValue : '조회 중')}
                   </span>
@@ -389,13 +389,13 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
               </div>
               <div className="flex justify-between">
                 <span className="text-on-surface-variant">동상 위험</span>
-                <span className={`font-bold ${current.temperature < -10 ? 'text-red-400' : current.temperature < 0 ? 'text-amber-400' : 'text-green-400'}`}>
+                <span className={`font-bold ${current.temperature < -10 ? 'text-red-700 dark:text-red-300' : current.temperature < 0 ? 'text-amber-700 dark:text-amber-300' : 'text-green-700 dark:text-green-300'}`}>
                   {current.temperature < -10 ? '높음' : current.temperature < 0 ? '주의' : '없음'}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-on-surface-variant">열사병 위험</span>
-                <span className={`font-bold ${current.temperature > 33 ? 'text-red-400' : current.temperature > 28 ? 'text-amber-400' : 'text-green-400'}`}>
+                <span className={`font-bold ${current.temperature > 33 ? 'text-red-700 dark:text-red-300' : current.temperature > 28 ? 'text-amber-700 dark:text-amber-300' : 'text-green-700 dark:text-green-300'}`}>
                   {current.temperature > 33 ? '높음' : current.temperature > 28 ? '주의' : '없음'}
                 </span>
               </div>
@@ -428,7 +428,7 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
                   <span className="text-xs text-on-surface-variant">{formatTime(h.time)}</span>
                   <span className="text-2xl my-2">{h.precipIcon || h.skyIcon}</span>
                   <span className="text-lg font-bold text-on-surface">{h.temp}°</span>
-                  {h.pop > 0 && <span className="text-[10px] text-blue-400 font-bold mt-1">💧{h.pop}%</span>}
+                  {h.pop > 0 && <span className="text-[10px] text-blue-700 dark:text-blue-300 font-bold mt-1">💧{h.pop}%</span>}
                   <span className="text-[10px] text-on-surface-variant mt-1">{h.windSpeed}m/s</span>
                 </div>
               ))}
@@ -464,11 +464,11 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
                     <p className="text-[13px] text-on-surface font-black mt-2 tracking-tight">{amWf}</p>
                     {day < 8 && <p className="text-[11px] text-on-surface-variant">{pmWf}</p>}
                     <div className="mt-2.5">
-                      <span className="text-blue-400 text-sm font-bold">{tMin}°</span>
+                      <span className="text-blue-700 dark:text-blue-300 text-sm font-bold">{tMin}°</span>
                       <span className="text-on-surface-variant mx-1">/</span>
-                      <span className="text-red-400 text-sm font-bold">{tMax}°</span>
+                      <span className="text-red-700 dark:text-red-300 text-sm font-bold">{tMax}°</span>
                     </div>
-                    {rain > 0 && <p className="text-[10px] text-blue-400 mt-1 font-bold">💧 {rain}%</p>}
+                    {rain > 0 && <p className="text-[10px] text-blue-700 dark:text-blue-300 mt-1 font-bold">💧 {rain}%</p>}
                   </div>
                 );
               })}

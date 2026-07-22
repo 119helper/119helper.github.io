@@ -109,5 +109,6 @@ export function getTabLabel(tab: TabId | string): string {
     const sub = item.subItems?.find(s => s.id === tab);
     if (sub) return sub.label;
   }
+  if (tab === 'equipment-cert') return '장비 인증 조회';
   return '대시보드';
 }

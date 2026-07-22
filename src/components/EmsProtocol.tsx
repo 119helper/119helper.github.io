@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import MedicalDisclaimer from './common/MedicalDisclaimer';
 import { EMS_PROTOCOLS, type ProtocolCategory } from '../data/emsProtocols';
 import { EMS_DRUGS } from '../data/emsDrugs';
@@ -108,7 +108,7 @@ function ProtocolList() {
                   ))}
                 </ol>
                 <div className="border border-amber-500/30 bg-amber-500/10 rounded-lg p-3">
-                  <div className="text-xs font-bold text-amber-300 mb-1">주의</div>
+                  <div className="text-xs font-bold text-amber-800 dark:text-amber-200 mb-1">주의</div>
                   <ul className="list-disc list-inside text-xs text-on-surface-variant space-y-1">
                     {p.cautions.map((c, i) => (
                       <li key={i}>{c}</li>
@@ -143,7 +143,8 @@ function DrugCalculator() {
             <p className="text-xs text-on-surface-variant">체중을 입력하면 약물별 용량·용적이 자동 계산됩니다</p>
           </div>
         </div>
-        <input
+            <input
+              aria-label="환자 체중"
           type="number"
           value={weight}
           onChange={e => setWeight(e.target.value)}
@@ -317,10 +318,12 @@ function ScoreSelect({
   value: number;
   onChange: (v: number) => void;
 }) {
+  const selectId = useId();
   return (
     <div>
-      <label className="text-xs font-bold text-on-surface-variant">{label}</label>
+      <label htmlFor={selectId} className="text-xs font-bold text-on-surface-variant">{label}</label>
       <select
+        id={selectId}
         value={value}
         onChange={e => onChange(Number(e.target.value))}
         className="w-full mt-1 bg-surface-container border border-outline-variant/20 rounded-lg px-3 py-2.5 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"

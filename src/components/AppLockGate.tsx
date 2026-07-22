@@ -127,15 +127,15 @@ export default function AppLockGate({ children }: { children: ReactNode }) {
               </div>
             </div>
 
-            <label className="text-xs font-bold text-on-surface-variant">잠금 코드</label>
+            <label htmlFor="app-lock-code" className="text-xs font-bold text-on-surface-variant">잠금 코드</label>
             <input
+              id="app-lock-code"
               autoFocus
               type="password"
               inputMode="numeric"
               value={code}
               onChange={event => setCode(event.target.value)}
               className="mt-1 w-full rounded-lg border border-outline-variant/20 bg-surface-container px-4 py-3 text-center text-lg font-bold tracking-[0.35em] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-              aria-label="앱 잠금 코드"
             />
             {error && <p className="mt-2 text-sm font-bold text-error">{error}</p>}
             <button

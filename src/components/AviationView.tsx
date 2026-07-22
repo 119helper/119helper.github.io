@@ -68,15 +68,15 @@ export default function AviationView({ city }: AviationViewProps) {
         <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 space-y-3">
           <h3 className="text-lg font-bold text-on-surface">판정 기준</h3>
           <div className="space-y-2 text-sm">
-            <div className="flex items-center justify-between rounded-lg bg-green-500/10 px-3 py-2 text-green-400">
+            <div className="flex items-center justify-between rounded-lg bg-green-500/10 px-3 py-2 text-green-700 dark:text-green-300">
               <span className="font-bold">7m/s 미만</span>
               <span>비행 양호</span>
             </div>
-            <div className="flex items-center justify-between rounded-lg bg-amber-500/10 px-3 py-2 text-amber-400">
+            <div className="flex items-center justify-between rounded-lg bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-300">
               <span className="font-bold">7~10m/s 미만</span>
               <span>돌풍 감시</span>
             </div>
-            <div className="flex items-center justify-between rounded-lg bg-red-500/10 px-3 py-2 text-red-400">
+            <div className="flex items-center justify-between rounded-lg bg-red-500/10 px-3 py-2 text-red-700 dark:text-red-300">
               <span className="font-bold">10m/s 이상</span>
               <span>비행 자제</span>
             </div>
@@ -88,7 +88,7 @@ export default function AviationView({ city }: AviationViewProps) {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-300">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-800 dark:text-amber-200">
           {error}
         </div>
       )}

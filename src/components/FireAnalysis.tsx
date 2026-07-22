@@ -53,10 +53,10 @@ function DonutChart<T extends object>({ data, labelKey, valueKey, title }: { dat
   return (
     <div className="flex flex-col sm:flex-row items-center gap-6">
       <div style={{ width: 150, height: 150, borderRadius: '50%', background: `conic-gradient(${gradient})`, position: 'relative', flexShrink: 0 }}>
-        <div style={{ position: 'absolute', inset: '28%', borderRadius: '50%', backgroundColor: 'var(--md-sys-color-surface-container-lowest, #1a1a2e)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'absolute', inset: '28%', borderRadius: '50%', backgroundColor: 'var(--color-surface-container-lowest, #060a14)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="text-center">
             <p className="text-base font-extrabold text-on-surface">{total.toLocaleString()}</p>
-            <p className="text-[8px] text-on-surface-variant">총 건수</p>
+            <p className="text-xs text-on-surface-variant">총 건수</p>
           </div>
         </div>
       </div>
@@ -66,7 +66,7 @@ function DonutChart<T extends object>({ data, labelKey, valueKey, title }: { dat
             <span style={{ backgroundColor: s.color, width: 8, height: 8, borderRadius: 2, flexShrink: 0 }} />
             <span className="text-on-surface-variant truncate flex-1">{s.label}</span>
             <span className="font-bold text-on-surface tabular-nums">{s.value.toLocaleString()}</span>
-            <span className="text-on-surface-variant/60 w-10 text-right">{s.pct.toFixed(1)}%</span>
+            <span className="text-on-surface-variant w-10 text-right">{s.pct.toFixed(1)}%</span>
           </div>
         ))}
       </div>
@@ -104,7 +104,7 @@ function HBarChart<T extends object>({ data, labelKey, valueKey }: { data: T[]; 
 /* ─── 빈 상태 ─── */
 function EmptyState({ icon, text }: { icon: string; text: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-10 text-on-surface-variant/40">
+    <div className="flex flex-col items-center justify-center py-10 text-on-surface-variant">
       <span className="material-symbols-outlined text-3xl mb-2">{icon}</span>
       <p className="text-xs">{text}</p>
       <p className="text-[10px] mt-1">해당 연도에 데이터가 아직 제공되지 않았습니다.</p>
@@ -229,6 +229,7 @@ export default function FireAnalysis() {
         </div>
         <div className="flex items-center gap-3">
           <select
+            aria-label="화재 분석 연도"
             value={selectedYear}
             onChange={e => {
               requestSeqRef.current += 1;
@@ -250,14 +251,14 @@ export default function FireAnalysis() {
 
       {/* 요약 카드 6장 */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <StatCard icon="local_fire_department" iconColor="text-red-400" label="화재 발생" value={summary.total} loading={loading} />
-        <StatCard icon="skull" iconColor="text-red-600" label="사망자" value={summary.death} loading={loading} />
-        <StatCard icon="personal_injury" iconColor="text-orange-400" label="부상자" value={summary.injury} loading={loading} />
-        <StatCard icon="payments" iconColor="text-amber-400" label="재산 피해"
+        <StatCard icon="local_fire_department" iconColor="text-red-700 dark:text-red-300" label="화재 발생" value={summary.total} loading={loading} />
+        <StatCard icon="skull" iconColor="text-red-800 dark:text-red-200" label="사망자" value={summary.death} loading={loading} />
+        <StatCard icon="personal_injury" iconColor="text-orange-700 dark:text-orange-300" label="부상자" value={summary.injury} loading={loading} />
+        <StatCard icon="payments" iconColor="text-amber-700 dark:text-amber-300" label="재산 피해"
           value={summary.propertyDmg > 100000000 ? `${(summary.propertyDmg / 100000000).toFixed(1)}억` : `${(summary.propertyDmg / 10000).toFixed(0)}만`}
           sub="원" loading={loading} />
-        <StatCard icon="fire_extinguisher" iconColor="text-green-400" label="자체 진화" value="-" loading={loading} />
-        <StatCard icon="report" iconColor="text-gray-400" label="허위 신고" value="-" loading={loading} />
+        <StatCard icon="fire_extinguisher" iconColor="text-green-700 dark:text-green-300" label="자체 진화" value="-" loading={loading} />
+        <StatCard icon="report" iconColor="text-gray-700 dark:text-gray-300" label="허위 신고" value="-" loading={loading} />
       </div>
 
       {/* API 에러 배너 */}
@@ -301,7 +302,7 @@ export default function FireAnalysis() {
         {/* 발화요인별 */}
         <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-orange-400">whatshot</span>
+            <span className="material-symbols-outlined text-base text-orange-700 dark:text-orange-300">whatshot</span>
             발화요인별 분포
           </h3>
           {loading ? <Skeleton /> : <DonutChart data={causeData} labelKey="cause" valueKey="count" title="발화요인" />}
@@ -310,7 +311,7 @@ export default function FireAnalysis() {
         {/* 화재장소별 */}
         <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-red-400">location_on</span>
+            <span className="material-symbols-outlined text-base text-red-700 dark:text-red-300">location_on</span>
             화재장소별 현황
           </h3>
           {loading ? <Skeleton /> : <HBarChart data={placeData} labelKey="place" valueKey="count" />}
@@ -319,7 +320,7 @@ export default function FireAnalysis() {
         {/* 건물구조별 */}
         <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-blue-400">apartment</span>
+            <span className="material-symbols-outlined text-base text-blue-700 dark:text-blue-300">apartment</span>
             건물구조별 화재
           </h3>
           {loading ? <Skeleton /> : <HBarChart data={buildingData} labelKey="structure" valueKey="count" />}
@@ -328,7 +329,7 @@ export default function FireAnalysis() {
         {/* 시도별 인명피해 */}
         <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-purple-400">emergency</span>
+            <span className="material-symbols-outlined text-base text-purple-700 dark:text-purple-300">emergency</span>
             시도별 인명피해
           </h3>
           {loading ? <Skeleton /> : casualtyData.length === 0 ? (
@@ -392,8 +393,8 @@ export default function FireAnalysis() {
                     </div>
                   </td>
                   <td className="px-3 py-3 text-right text-sm tabular-nums font-bold text-on-surface">{d.fires.toLocaleString()}</td>
-                  <td className="px-3 py-3 text-right text-sm tabular-nums text-red-400 font-medium">{d.death > 0 ? d.death : '-'}</td>
-                  <td className="px-3 py-3 text-right text-sm tabular-nums text-orange-400">{d.injury > 0 ? d.injury : '-'}</td>
+                  <td className="px-3 py-3 text-right text-sm tabular-nums text-red-700 dark:text-red-300 font-medium">{d.death > 0 ? d.death : '-'}</td>
+                  <td className="px-3 py-3 text-right text-sm tabular-nums text-orange-700 dark:text-orange-300">{d.injury > 0 ? d.injury : '-'}</td>
                   <td className="px-5 py-3 text-right text-sm tabular-nums text-on-surface-variant">{Math.round(d.property / 10000).toLocaleString()}</td>
                 </tr>
               ))}

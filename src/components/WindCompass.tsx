@@ -51,7 +51,7 @@ export const WindCompass: React.FC<WindCompassProps> = ({ windSpeed, windDirecti
           <span className={`text-xs font-bold px-1.5 py-0.5 rounded shadow-sm border uppercase ${labelTextClass}`}>
             {windDirectionText}풍
           </span>
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isDanger ? 'bg-red-500 text-white animate-pulse' : isWarning ? 'bg-amber-500 text-white' : (variant === 'glass' ? 'bg-blue-500/80 text-white' : 'bg-primary text-white')}`}>
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isDanger ? 'bg-red-600 text-white animate-pulse' : isWarning ? 'bg-amber-500 text-amber-950' : (variant === 'glass' ? 'bg-blue-700 text-white' : 'bg-primary text-on-primary')}`}>
             {statusText}
           </span>
         </div>

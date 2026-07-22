@@ -17,9 +17,9 @@ export default function MedicalDisclaimer({ source, revisedYear, note }: Medical
       role="alert"
       className="flex items-start gap-3 border border-amber-500/40 bg-amber-500/10 rounded-xl p-3 md:p-4"
     >
-      <span className="material-symbols-outlined text-amber-400 text-xl shrink-0 mt-0.5">warning</span>
+      <span className="material-symbols-outlined text-amber-700 dark:text-amber-300 text-xl shrink-0 mt-0.5">warning</span>
       <div className="text-sm leading-relaxed">
-        <p className="font-bold text-amber-300">
+        <p className="font-bold text-amber-800 dark:text-amber-200">
           참고용 정보입니다 — 실제 처치는 의료지도·표준지침·현장 판단을 우선하십시오.
         </p>
         <p className="text-on-surface-variant mt-1">

@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* 앱 내 테마 토글(.dark)과 Tailwind dark: 변형을 동일한 기준으로 묶는다. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ═══════════════════════════════════════════════════
    Self-hosted Fonts (오프라인 지원 — 구글 폰트 의존 제거)
    한글은 기존과 동일하게 Pretendard/Noto Sans KR/시스템 폴백
@@ -38,7 +41,6 @@
   line-height: 1;
   letter-spacing: normal;
   text-transform: none;
-  display: inline-block;
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;
@@ -157,8 +159,8 @@
   --t-surface-container-lowest: #060a14;
   --t-surface-tint: #3c5d9c;
 
-  --t-primary: #4f8cff;
-  --t-on-primary: #ffffff;
+  --t-primary: #60a5fa;
+  --t-on-primary: #071426;
   --t-primary-container: #1a3a6e;
   --t-on-primary-container: #a8c8ff;
   --t-primary-fixed: #d8e2ff;
@@ -167,7 +169,7 @@
   --t-on-primary-fixed-variant: #224583;
 
   --t-secondary: #34d399;
-  --t-on-secondary: #ffffff;
+  --t-on-secondary: #001a12;
   --t-secondary-container: #065f46;
   --t-on-secondary-container: #6ee7b7;
   --t-secondary-fixed: #78fbb6;
@@ -176,7 +178,7 @@
   --t-on-secondary-fixed-variant: #005232;
 
   --t-tertiary: #f59e0b;
-  --t-on-tertiary: #ffffff;
+  --t-on-tertiary: #2b1900;
   --t-tertiary-container: #78350f;
   --t-on-tertiary-container: #fbbf24;
   --t-tertiary-fixed: #ffdfa0;
@@ -184,8 +186,8 @@
   --t-on-tertiary-fixed: #261a00;
   --t-on-tertiary-fixed-variant: #5c4300;
 
-  --t-error: #ef4444;
-  --t-on-error: #ffffff;
+  --t-error: #fb7185;
+  --t-on-error: #260606;
   --t-error-container: #7f1d1d;
   --t-on-error-container: #fca5a5;
 
@@ -220,7 +222,7 @@
   --t-surface-container-lowest: #ffffff;
   --t-surface-tint: #3b82f6;
 
-  --t-primary: #2563eb;
+  --t-primary: #1d4ed8;
   --t-on-primary: #ffffff;
   --t-primary-container: #dbeafe;
   --t-on-primary-container: #1e40af;
@@ -229,7 +231,7 @@
   --t-on-primary-fixed: #1e3a5f;
   --t-on-primary-fixed-variant: #1d4ed8;
 
-  --t-secondary: #059669;
+  --t-secondary: #065f46;
   --t-on-secondary: #ffffff;
   --t-secondary-container: #d1fae5;
   --t-on-secondary-container: #065f46;
@@ -238,7 +240,7 @@
   --t-on-secondary-fixed: #064e3b;
   --t-on-secondary-fixed-variant: #047857;
 
-  --t-tertiary: #d97706;
+  --t-tertiary: #92400e;
   --t-on-tertiary: #ffffff;
   --t-tertiary-container: #fef3c7;
   --t-on-tertiary-container: #92400e;
@@ -247,7 +249,7 @@
   --t-on-tertiary-fixed: #78350f;
   --t-on-tertiary-fixed-variant: #b45309;
 
-  --t-error: #dc2626;
+  --t-error: #991b1b;
   --t-on-error: #ffffff;
   --t-error-container: #fee2e2;
   --t-on-error-container: #991b1b;
@@ -286,30 +288,68 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* 상태·메타데이터도 현장에서 읽을 수 있도록 최소 12px을 보장한다. */
+.text-\[8px\],
+.text-\[9px\],
+.text-\[10px\],
+.text-\[11px\] {
+  font-size: 0.75rem !important;
+  line-height: 1rem !important;
+}
+
+/* 의미 있는 보조 문구는 투명도로 대비를 낮추지 않는다. */
+.text-on-surface-variant\/30,
+.text-on-surface-variant\/40,
+.text-on-surface-variant\/50,
+.text-on-surface-variant\/60,
+.text-on-surface-variant\/70 {
+  color: var(--t-on-surface-variant) !important;
+}
+
 /* 현장 가독성 모드: 야외·장갑 환경에서 작은 정보와 조작 영역을 확대 */
 html[data-readability="field"] {
   font-size: 18px;
 }
 
-html[data-readability="field"] .text-\[10px\] {
-  font-size: 0.72rem !important;
-  line-height: 1rem !important;
-}
-
+html[data-readability="field"] .text-\[8px\],
+html[data-readability="field"] .text-\[9px\],
+html[data-readability="field"] .text-\[10px\],
 html[data-readability="field"] .text-\[11px\] {
   font-size: 0.78rem !important;
   line-height: 1.1rem !important;
 }
 
-html[data-readability="field"] button:not([role="switch"]),
+html[data-readability="field"] button:not([role="switch"]):not([data-compact-control]),
 html[data-readability="field"] select,
 html[data-readability="field"] textarea,
 html[data-readability="field"] input:not([type="range"]) {
   min-height: 2.75rem;
 }
 
+@media (max-width: 767px), (pointer: coarse) {
+  button:not([role="switch"]):not([data-compact-control]),
+  select,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) {
+    min-height: 2.75rem;
+  }
+
+  button[aria-label]:not([data-compact-control]) {
+    min-width: 2.75rem;
+  }
+}
+
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-headline);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--t-primary) !important;
+  outline-offset: 2px !important;
 }
 
 .material-symbols-outlined {
@@ -335,6 +375,15 @@ h1, h2, h3, h4, h5, h6 {
 /* Safe area for mobile bottom nav */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.app-header {
+  min-height: calc(3.5rem + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 @keyframes rainfall {

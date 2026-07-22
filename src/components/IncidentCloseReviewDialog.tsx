@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ActivityPreset } from '../data/activityStages';
 import type { LoggedActivityStamp } from '../services/activitySession';
 import type { TimerState } from '../services/timerPersistence';
 import { buildIncidentCloseReview } from '../utils/incidentCloseReview';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 
 interface IncidentCloseReviewDialogProps {
   open: boolean;
@@ -33,7 +34,7 @@ export default function IncidentCloseReviewDialog({
   onOpenTimers,
   onConfirm,
 }: IncidentCloseReviewDialogProps) {
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useDialogAccessibility<HTMLDivElement>(open, onClose);
   const [acknowledged, setAcknowledged] = useState(false);
   const review = useMemo(() => buildIncidentCloseReview({
     stages: preset.stages,
@@ -45,17 +46,7 @@ export default function IncidentCloseReviewDialog({
   useEffect(() => {
     if (!open) return;
     setAcknowledged(false);
-    window.setTimeout(() => dialogRef.current?.focus(), 0);
   }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [onClose, open]);
 
   if (!open) return null;
 
