@@ -149,6 +149,7 @@ export default function PrePlanView({ incidentContext = null }: PrePlanViewProps
         });
         return merged;
       });
+      showNotice({ message: `대상물 ${importedPlans.length}개를 가져왔습니다.`, tone: 'success' });
     } catch {
       showNotice({ message: '가져오기에 실패했습니다. 올바른 백업 파일인지 확인하세요.', tone: 'error' });
     }
@@ -275,12 +276,18 @@ function PrePlanEditor({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <button onClick={onClose} className="p-2 rounded-lg hover:bg-surface-container text-on-surface-variant">
-          <span className="material-symbols-outlined">arrow_back</span>
+        <button type="button" aria-label="대상물 목록으로 돌아가기" onClick={onClose} className="p-2 rounded-lg hover:bg-surface-container text-on-surface-variant">
+          <span aria-hidden="true" className="material-symbols-outlined">arrow_back</span>
         </button>
-        <h2 className="text-xl font-extrabold text-on-surface font-headline flex-1">대상물 편집</h2>
-        <button onClick={onDelete} className="px-3 py-2 rounded-lg text-sm font-bold text-error hover:bg-error/10 flex items-center gap-1.5">
-          <span className="material-symbols-outlined text-base">delete</span>삭제
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-extrabold text-on-surface font-headline">대상물 편집</h2>
+          <p role="status" className="mt-0.5 flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+            <span aria-hidden="true" className="material-symbols-outlined text-sm">cloud_done</span>
+            입력 즉시 이 기기에 자동 저장됩니다
+          </p>
+        </div>
+        <button type="button" onClick={onDelete} className="px-3 py-2 rounded-lg text-sm font-bold text-error hover:bg-error/10 flex items-center gap-1.5">
+          <span aria-hidden="true" className="material-symbols-outlined text-base">delete</span>삭제
         </button>
       </div>
 

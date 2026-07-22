@@ -251,14 +251,11 @@ export default function App() {
     window.dispatchEvent(new Event('119helper-settings-updated'));
   }, []);
 
-  // 드롭다운 외부 클릭 시 닫기
+  // 단순 드롭다운은 외부 클릭 시 닫는다. 설정창은 자체 미저장 변경 보호를 거친다.
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (regionRef.current && !regionRef.current.contains(event.target as Node)) {
         setRegionOpen(false);
-      }
-      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
-        setSettingsOpen(false);
       }
       if (notiRef.current && !notiRef.current.contains(event.target as Node)) {
         setNotiOpen(false);

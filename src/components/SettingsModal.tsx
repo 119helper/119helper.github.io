@@ -1,4 +1,4 @@
-import { useState, useEffect, useId, type RefObject } from 'react';
+import { useCallback, useId, useLayoutEffect, useState, type RefObject } from 'react';
 import {
   loadNotificationSettings,
   saveNotificationSettings,
@@ -28,6 +28,7 @@ import {
   type DisplaySettings,
 } from '../services/displaySettings';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
+import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard';
 import { useAppFeedback } from '../contexts/FeedbackContext';
 
 interface SettingsModalProps {
@@ -69,6 +70,19 @@ const parseNumberOr = (value: string, fallback: number) => {
 };
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
+
+interface SettingsDraftSnapshot {
+  city: string;
+  profile: UserProfile;
+  refreshInterval: string;
+  notifications: NotificationSettings;
+  shift: ShiftSetting;
+  privacy: PrivacySettings;
+  display: DisplaySettings;
+  appLockCode: string;
+}
+
+const serializeSettingsDraft = (draft: SettingsDraftSnapshot) => JSON.stringify(draft);
 
 // ── 토글 스위치 ──
 function Toggle({ on, onChange, size = 'md', label }: { on: boolean; onChange: (v: boolean) => void; size?: 'sm' | 'md'; label?: string }) {
@@ -125,13 +139,14 @@ function CategoryHeader({ icon, iconColor, label, masterOn, onMasterChange }: {
 // ══════════════════════════════════════════
 // 일반 설정 탭
 // ══════════════════════════════════════════
-function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefreshInterval, ns, updateNs, privacy, setPrivacy, displaySettings, setDisplaySettings, appLockCode, setAppLockCode, onClearUserData, onLockNow }: {
+function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefreshInterval, ns, updateNs, privacy, setPrivacy, displaySettings, setDisplaySettings, appLockCode, setAppLockCode, appLockCodeError, clearAppLockCodeError, onClearUserData, onLockNow }: {
   city: string; onCityChange: (c: string) => void; cityNames: Record<string, string>;
   refreshInterval: string; setRefreshInterval: (v: string) => void;
   ns: NotificationSettings; updateNs: (patch: Partial<NotificationSettings>) => void;
   privacy: PrivacySettings; setPrivacy: (settings: PrivacySettings) => void;
   displaySettings: DisplaySettings; setDisplaySettings: (settings: DisplaySettings) => void;
   appLockCode: string; setAppLockCode: (value: string) => void;
+  appLockCodeError: string; clearAppLockCodeError: () => void;
   onClearUserData: () => void;
   onLockNow: () => void;
 }) {
@@ -283,12 +298,15 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
               <Toggle
                 label="앱 잠금"
                 on={privacy.appLockEnabled}
-                onChange={v => setPrivacy({
-                  ...privacy,
-                  appLockEnabled: v,
-                  appLockCodeHash: v ? privacy.appLockCodeHash : null,
-                  appLockSalt: v ? privacy.appLockSalt : null,
-                })}
+                onChange={v => {
+                  clearAppLockCodeError();
+                  setPrivacy({
+                    ...privacy,
+                    appLockEnabled: v,
+                    appLockCodeHash: v ? privacy.appLockCodeHash : null,
+                    appLockSalt: v ? privacy.appLockSalt : null,
+                  });
+                }}
                 size="sm"
               />
             </div>
@@ -300,10 +318,21 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
                   type="password"
                   inputMode="numeric"
                   value={appLockCode}
-                  onChange={e => setAppLockCode(e.target.value)}
+                  aria-invalid={Boolean(appLockCodeError)}
+                  aria-describedby={appLockCodeError ? 'settings-app-lock-code-error' : undefined}
+                  onChange={e => {
+                    setAppLockCode(e.target.value);
+                    clearAppLockCodeError();
+                  }}
                   placeholder={appLockConfigured ? '코드 변경 시에만 입력' : `${APP_LOCK_MIN_CODE_LENGTH}자 이상 잠금 코드`}
-                  className="w-full bg-surface-container-high text-on-surface text-sm rounded-lg px-3 py-2 border border-outline-variant/20 focus:outline-none focus:border-primary"
+                  className={`w-full bg-surface-container-high text-on-surface text-sm rounded-lg px-3 py-2 border focus:outline-none focus:ring-2 ${appLockCodeError ? 'border-error focus:ring-error/20' : 'border-outline-variant/20 focus:border-primary focus:ring-primary/20'}`}
                 />
+                {appLockCodeError && (
+                  <p id="settings-app-lock-code-error" role="alert" className="flex items-start gap-1.5 text-xs font-bold text-error">
+                    <span aria-hidden="true" className="material-symbols-outlined text-sm">error</span>
+                    {appLockCodeError}
+                  </p>
+                )}
                 <select
                   aria-label="앱 잠금 시간"
                   value={privacy.appLockTimeoutMinutes}
@@ -614,31 +643,83 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
   const [privacy, setPrivacy] = useState<PrivacySettings>(loadPrivacySettings());
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(loadDisplaySettings());
   const [appLockCode, setAppLockCode] = useState('');
+  const [appLockCodeError, setAppLockCodeError] = useState('');
+  const [initialSnapshot, setInitialSnapshot] = useState('');
+  const [initialPublicDeviceMode, setInitialPublicDeviceMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const dialogTitleId = useId();
-  const dialogRef = useDialogAccessibility<HTMLDivElement>(isOpen, onClose, returnFocusRef);
 
-  useEffect(() => {
+  const currentSnapshot = serializeSettingsDraft({
+    city: draftCity,
+    profile: draftProfile,
+    refreshInterval,
+    notifications: ns,
+    shift: shiftSetting,
+    privacy,
+    display: displaySettings,
+    appLockCode,
+  });
+  const isDirty = isOpen && initialSnapshot !== '' && currentSnapshot !== initialSnapshot;
+  const closeModal = useCallback(() => {
+    setInitialSnapshot('');
+    setAppLockCodeError('');
+    onClose();
+  }, [onClose]);
+  const requestClose = useUnsavedChangesGuard({
+    isDirty,
+    onDiscard: closeModal,
+    title: '설정을 저장하지 않고 닫을까요?',
+    message: '저장하지 않은 설정 변경사항이 있습니다. 닫으면 이번 변경은 적용되지 않습니다.',
+  });
+  const requestCloseWhenIdle = useCallback(async () => {
+    if (isSaving) return false;
+    return requestClose();
+  }, [isSaving, requestClose]);
+  const dialogRef = useDialogAccessibility<HTMLDivElement>(
+    isOpen,
+    () => void requestCloseWhenIdle(),
+    returnFocusRef,
+  );
+
+  useLayoutEffect(() => {
     if (isOpen) {
-      setDraftCity(city);
-      setDraftProfile(profile);
-      setRefreshInterval(normalizeRefreshInterval(localStorage.getItem('119helper-refresh') || '5'));
-      setNs(loadNotificationSettings());
-      setPrivacy(loadPrivacySettings());
-      setDisplaySettings(loadDisplaySettings());
-      setAppLockCode('');
-      
+      const loadedRefreshInterval = normalizeRefreshInterval(localStorage.getItem('119helper-refresh') || '5');
+      const loadedNotifications = loadNotificationSettings();
+      const loadedPrivacy = loadPrivacySettings();
+      const loadedDisplaySettings = loadDisplaySettings();
+      let loadedShiftSetting = DEFAULT_SHIFT_SETTING;
+
       try {
         const savedShift = localStorage.getItem('119helper-shift-setting');
         if (savedShift) {
           const parsed = JSON.parse(savedShift);
-          setShiftSetting(isValidShiftSetting(parsed) ? parsed : DEFAULT_SHIFT_SETTING);
-        } else {
-          setShiftSetting(DEFAULT_SHIFT_SETTING);
+          loadedShiftSetting = isValidShiftSetting(parsed) ? parsed : DEFAULT_SHIFT_SETTING;
         }
       } catch {
-        setShiftSetting(DEFAULT_SHIFT_SETTING);
+        loadedShiftSetting = DEFAULT_SHIFT_SETTING;
       }
 
+      setDraftCity(city);
+      setDraftProfile(profile);
+      setRefreshInterval(loadedRefreshInterval);
+      setNs(loadedNotifications);
+      setPrivacy(loadedPrivacy);
+      setDisplaySettings(loadedDisplaySettings);
+      setShiftSetting(loadedShiftSetting);
+      setAppLockCode('');
+      setAppLockCodeError('');
+      setInitialPublicDeviceMode(loadedPrivacy.publicDeviceMode);
+      setInitialSnapshot(serializeSettingsDraft({
+        city,
+        profile,
+        refreshInterval: loadedRefreshInterval,
+        notifications: loadedNotifications,
+        shift: loadedShiftSetting,
+        privacy: loadedPrivacy,
+        display: loadedDisplaySettings,
+        appLockCode: '',
+      }));
+      setIsSaving(false);
       setTab('profile');
     }
   }, [isOpen, city, profile]);
@@ -647,52 +728,79 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
     setNs(prev => ({ ...prev, ...patch }));
 
   const handleSave = async () => {
+    if (isSaving || !isDirty) return;
     let nextPrivacy = privacy;
     const trimmedLockCode = appLockCode.trim();
 
     if (nextPrivacy.appLockEnabled) {
       if (trimmedLockCode) {
         if (!isValidAppLockCode(trimmedLockCode)) {
-          showNotice({ message: `앱 잠금 코드는 ${APP_LOCK_MIN_CODE_LENGTH}자 이상이어야 합니다.`, tone: 'error' });
+          setTab('general');
+          setAppLockCodeError(`앱 잠금 코드는 ${APP_LOCK_MIN_CODE_LENGTH}자 이상이어야 합니다.`);
           window.requestAnimationFrame(() => document.getElementById('settings-app-lock-code')?.focus());
           return;
         }
+      } else if (!isAppLockConfigured(nextPrivacy)) {
+        setTab('general');
+        setAppLockCodeError(`앱 잠금을 켜려면 ${APP_LOCK_MIN_CODE_LENGTH}자 이상 잠금 코드를 입력하세요.`);
+        window.requestAnimationFrame(() => document.getElementById('settings-app-lock-code')?.focus());
+        return;
+      }
+    }
+
+    setAppLockCodeError('');
+    setIsSaving(true);
+    try {
+      if (nextPrivacy.appLockEnabled && trimmedLockCode) {
         nextPrivacy = {
           ...nextPrivacy,
           ...(await createAppLockCredential(trimmedLockCode)),
         };
-      } else if (!isAppLockConfigured(nextPrivacy)) {
-        showNotice({ message: `앱 잠금을 켜려면 ${APP_LOCK_MIN_CODE_LENGTH}자 이상 잠금 코드를 입력하세요.`, tone: 'error' });
-        window.requestAnimationFrame(() => document.getElementById('settings-app-lock-code')?.focus());
-        return;
+      } else if (!nextPrivacy.appLockEnabled) {
+        clearAppUnlock();
+        nextPrivacy = {
+          ...nextPrivacy,
+          appLockCodeHash: null,
+          appLockSalt: null,
+        };
       }
-    } else {
-      clearAppUnlock();
-      nextPrivacy = {
-        ...nextPrivacy,
-        appLockCodeHash: null,
-        appLockSalt: null,
-      };
-    }
 
-    onCityChange(draftCity);
-    updateProfile(draftProfile);
-    saveNotificationSettings(ns);
-    savePrivacySettings(nextPrivacy);
-    saveDisplaySettings(displaySettings);
-    setPrivacy(nextPrivacy);
-    setAppLockCode('');
-    if (nextPrivacy.appLockEnabled && isAppLockConfigured(nextPrivacy)) {
-      recordAppUnlock();
+      if (nextPrivacy.publicDeviceMode && !initialPublicDeviceMode) {
+        const approved = await confirmAction({
+          title: '공용 기기 모드를 켤까요?',
+          message: '공용 기기 모드를 켜면 기존 민감 데이터가 이 기기에서 즉시 삭제되고, 이후에도 저장되지 않습니다.',
+          details: ['메모와 대상물·현장 사진', '활동 기록과 환자 분류', '일정과 최근 검색 기록'],
+          confirmLabel: '데이터 삭제 후 켜기',
+          cancelLabel: '취소',
+          tone: 'danger',
+        });
+        if (!approved) return;
+      }
+
+      onCityChange(draftCity);
+      updateProfile(draftProfile);
+      saveNotificationSettings(ns);
+      savePrivacySettings(nextPrivacy);
+      saveDisplaySettings(displaySettings);
+      setPrivacy(nextPrivacy);
+      setAppLockCode('');
+      if (nextPrivacy.appLockEnabled && isAppLockConfigured(nextPrivacy)) {
+        recordAppUnlock();
+      }
+      if (nextPrivacy.publicDeviceMode) {
+        await clearSensitiveStoredData();
+      }
+      localStorage.setItem('119helper-refresh', normalizeRefreshInterval(refreshInterval));
+      localStorage.setItem('119helper-sound', ns.soundEnabled.toString());
+      localStorage.setItem('119helper-shift-setting', JSON.stringify(shiftSetting));
+      window.dispatchEvent(new Event('119helper-settings-updated'));
+      showNotice({ message: '설정을 저장했습니다.', tone: 'success' });
+      closeModal();
+    } catch {
+      showNotice({ message: '설정을 저장하지 못했습니다. 다시 시도해 주세요.', tone: 'error' });
+    } finally {
+      setIsSaving(false);
     }
-    if (nextPrivacy.publicDeviceMode) {
-      await clearSensitiveStoredData();
-    }
-    localStorage.setItem('119helper-refresh', normalizeRefreshInterval(refreshInterval));
-    localStorage.setItem('119helper-sound', ns.soundEnabled.toString());
-    localStorage.setItem('119helper-shift-setting', JSON.stringify(shiftSetting));
-    window.dispatchEvent(new Event('119helper-settings-updated'));
-    onClose();
   };
 
   const handleClearUserData = async () => {
@@ -725,8 +833,8 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
 
   return (
     <>
-      {/* 모바일 배경 (탭하면 닫힘) */}
-      <div className="fixed inset-0 bg-black/40 z-40 sm:hidden" onClick={onClose} aria-hidden="true" />
+      {/* 배경을 누르면 미저장 변경 확인 후 닫힘 */}
+      <div className="fixed inset-0 z-40 bg-black/40 sm:bg-transparent" onClick={() => void requestCloseWhenIdle()} aria-hidden="true" />
       <div className="fixed inset-x-0 bottom-0 z-50 p-2 sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2">
         <div
           ref={dialogRef}
@@ -742,7 +850,7 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
             <span className="material-symbols-outlined text-primary">settings</span>
             환경 설정
           </h2>
-          <button type="button" onClick={onClose} aria-label="설정 닫기" className="p-1 rounded-lg hover:bg-surface-container-high transition-colors">
+          <button type="button" onClick={() => void requestCloseWhenIdle()} disabled={isSaving} aria-label="설정 닫기" className="p-1 rounded-lg hover:bg-surface-container-high transition-colors disabled:cursor-wait disabled:opacity-50">
             <span className="material-symbols-outlined text-on-surface-variant">close</span>
           </button>
         </div>
@@ -779,6 +887,7 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
               privacy={privacy} setPrivacy={setPrivacy}
               displaySettings={displaySettings} setDisplaySettings={setDisplaySettings}
               appLockCode={appLockCode} setAppLockCode={setAppLockCode}
+              appLockCodeError={appLockCodeError} clearAppLockCodeError={() => setAppLockCodeError('')}
               onClearUserData={handleClearUserData}
               onLockNow={handleLockNow}
             />
@@ -792,12 +901,23 @@ export default function SettingsModal({ isOpen, onClose, city, onCityChange, cit
         </div>
 
         {/* 하단바 */}
-        <div className="p-3 border-t border-outline-variant/20 bg-surface-container-low flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-on-surface-variant hover:bg-surface-container-high rounded-xl transition-colors">
+        <div className="flex items-center gap-2 border-t border-outline-variant/20 bg-surface-container-low p-3">
+          <p aria-live="polite" className={`mr-auto flex items-center gap-1 text-[11px] font-bold ${isDirty ? 'text-amber-700 dark:text-amber-300' : 'text-on-surface-variant'}`}>
+            <span aria-hidden="true" className="material-symbols-outlined text-sm">{isDirty ? 'edit' : 'check_circle'}</span>
+            {isDirty ? '저장되지 않은 변경' : '저장된 상태'}
+          </p>
+          <button type="button" onClick={() => void requestCloseWhenIdle()} disabled={isSaving} className="px-4 py-2 text-sm font-medium text-on-surface-variant hover:bg-surface-container-high rounded-xl transition-colors disabled:cursor-wait disabled:opacity-50">
             취소
           </button>
-          <button type="button" onClick={handleSave} className="px-4 py-2 text-sm font-bold bg-primary text-on-primary hover:bg-primary/90 rounded-xl shadow-lg shadow-primary/20 transition-all cursor-pointer">
-            저장하기
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={!isDirty || isSaving}
+            aria-busy={isSaving}
+            className="flex min-w-20 items-center justify-center gap-1 px-4 py-2 text-sm font-bold bg-primary text-on-primary hover:bg-primary/90 rounded-xl shadow-lg shadow-primary/20 transition-all disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {isSaving && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-base">progress_activity</span>}
+            {isSaving ? '저장 중' : '저장하기'}
           </button>
         </div>
         </div>

@@ -3,6 +3,7 @@ import { getStaticHolidays } from '../data/holidays';
 import { getShiftForDate, SHIFT_CYCLE_DANGBIBI, type ShiftSetting } from '../utils/shiftCalculator';
 import { loadStoredJson, saveStoredJson } from '../services/privacySettings';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
+import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard';
 import { useAppFeedback } from '../contexts/FeedbackContext';
 
 interface Schedule {
@@ -110,6 +111,7 @@ export default function Calendar() {
   const [newTitle, setNewTitle] = useState('');
   const [newType, setNewType] = useState<Schedule['type']>('점검');
   const [newMemo, setNewMemo] = useState('');
+  const [titleError, setTitleError] = useState('');
   
   const [shiftSetting, setShiftSetting] = useState<ShiftSetting | null>(null);
 
@@ -190,15 +192,34 @@ export default function Calendar() {
     setNewTitle('');
     setNewMemo('');
     setNewType('점검');
+    setTitleError('');
   };
   const addDialogTitleId = useId();
   const titleInputId = useId();
+  const titleErrorId = useId();
   const memoInputId = useId();
   const addScheduleButtonRef = useRef<HTMLButtonElement>(null);
-  const addDialogRef = useDialogAccessibility<HTMLDivElement>(showAddModal, closeAddModal, addScheduleButtonRef);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const addDraftDirty = newTitle.length > 0 || newMemo.length > 0 || newType !== '점검';
+  const requestCloseAddModal = useUnsavedChangesGuard({
+    isDirty: addDraftDirty,
+    onDiscard: closeAddModal,
+    title: '작성 중인 일정을 버릴까요?',
+    message: '아직 추가하지 않은 일정 내용이 있습니다. 닫으면 입력한 내용이 사라집니다.',
+  });
+  const addDialogRef = useDialogAccessibility<HTMLDivElement>(
+    showAddModal,
+    () => void requestCloseAddModal(),
+    addScheduleButtonRef,
+  );
 
   const addSchedule = () => {
-    if (!selectedDate || !newTitle.trim()) return;
+    if (!selectedDate) return;
+    if (!newTitle.trim()) {
+      setTitleError('일정 제목을 입력하세요.');
+      window.requestAnimationFrame(() => titleInputRef.current?.focus());
+      return;
+    }
     const schedule: Schedule = {
       id: window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       date: selectedDate,
@@ -206,8 +227,9 @@ export default function Calendar() {
       type: newType,
       memo: newMemo.trim(),
     };
-    setSchedules([...schedules, schedule]);
+    setSchedules(current => [...current, schedule]);
     closeAddModal();
+    showNotice({ message: '일정을 추가했습니다.', tone: 'success' });
   };
 
   const deleteSchedule = (id: string) => {
@@ -482,7 +504,7 @@ export default function Calendar() {
 
       {/* Add Schedule Modal */}
       {showAddModal && selectedDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={closeAddModal}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => void requestCloseAddModal()}>
           <div
             ref={addDialogRef}
             role="dialog"
@@ -495,7 +517,13 @@ export default function Calendar() {
             <h3 id={addDialogTitleId} className="text-lg font-bold text-on-surface mb-4">
               📅 일정 추가 — {selectedDate.split('-')[1]}월 {selectedDate.split('-')[2]}일
             </h3>
-            <div className="space-y-3">
+            <form
+              className="space-y-3"
+              onSubmit={event => {
+                event.preventDefault();
+                addSchedule();
+              }}
+            >
               <div>
                 <span id={`${addDialogTitleId}-type`} className="text-xs text-on-surface-variant font-bold">유형</span>
                 <div className="flex flex-wrap gap-2 mt-1" role="group" aria-labelledby={`${addDialogTitleId}-type`}>
@@ -522,15 +550,22 @@ export default function Calendar() {
               <div>
                 <label htmlFor={titleInputId} className="text-xs text-on-surface-variant font-bold">제목</label>
                 <input
+                  ref={titleInputRef}
                   id={titleInputId}
                   data-dialog-initial-focus
                   type="text"
                   value={newTitle}
-                  onChange={e => setNewTitle(e.target.value)}
+                  aria-invalid={Boolean(titleError)}
+                  aria-describedby={titleError ? titleErrorId : undefined}
+                  onChange={e => {
+                    setNewTitle(e.target.value);
+                    setTitleError('');
+                  }}
                   placeholder="예: OO빌딩 종합점검"
-                  className="w-full mt-1 bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-2.5 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-outline"
+                  className={`w-full mt-1 bg-surface-container border rounded-lg px-4 py-2.5 text-on-surface text-sm focus:outline-none focus:ring-2 placeholder:text-outline ${titleError ? 'border-error focus:ring-error/20' : 'border-outline-variant/20 focus:ring-primary/30'}`}
                   autoFocus
                 />
+                {titleError && <p id={titleErrorId} role="alert" className="mt-1.5 text-xs font-bold text-error">{titleError}</p>}
               </div>
               <div>
                 <label htmlFor={memoInputId} className="text-xs text-on-surface-variant font-bold">메모 (선택)</label>
@@ -543,20 +578,22 @@ export default function Calendar() {
                   className="w-full mt-1 bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-2.5 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none placeholder:text-outline"
                 />
               </div>
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={closeAddModal} className="flex-1 py-2.5 rounded-lg border border-outline-variant/20 text-on-surface-variant text-sm font-bold hover:bg-surface-container transition-colors">
+              <p aria-live="polite" className={`flex items-center gap-1 text-xs font-bold ${addDraftDirty ? 'text-amber-700 dark:text-amber-300' : 'text-on-surface-variant'}`}>
+                <span aria-hidden="true" className="material-symbols-outlined text-sm">{addDraftDirty ? 'edit' : 'info'}</span>
+                {addDraftDirty ? '아직 추가하지 않은 일정입니다.' : '제목을 입력해 일정을 추가하세요.'}
+              </p>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => void requestCloseAddModal()} className="flex-1 py-2.5 rounded-lg border border-outline-variant/20 text-on-surface-variant text-sm font-bold hover:bg-surface-container transition-colors">
                   취소
                 </button>
                 <button
-                  type="button"
-                  onClick={addSchedule}
-                  disabled={!newTitle.trim()}
-                  className="flex-1 py-2.5 rounded-lg bg-primary text-on-primary text-sm font-bold hover:bg-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-lg bg-primary text-on-primary text-sm font-bold hover:bg-primary/80 transition-colors"
                 >
                   추가
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}

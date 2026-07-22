@@ -1,10 +1,11 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   removeActivityStage,
   updateActivityStageTime,
   type LoggedActivityStamp,
 } from '../services/activitySession';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
+import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard';
 
 interface ActivityStageEditorDialogProps {
   stamp: LoggedActivityStamp | null;
@@ -31,7 +32,19 @@ export default function ActivityStageEditorDialog({
   const [maximumTime, setMaximumTime] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const dialogRef = useDialogAccessibility<HTMLDivElement>(Boolean(stamp), onClose);
+  const timeInputRef = useRef<HTMLInputElement>(null);
+  const initialTimeValue = stamp ? toLocalDateTimeInput(stamp.time) : '';
+  const isDirty = Boolean(stamp && timeValue !== initialTimeValue);
+  const requestClose = useUnsavedChangesGuard({
+    isDirty,
+    onDiscard: onClose,
+    title: '시각 변경을 버릴까요?',
+    message: '저장하지 않은 활동 시각 변경이 있습니다. 닫으면 원래 시각으로 유지됩니다.',
+  });
+  const dialogRef = useDialogAccessibility<HTMLDivElement>(
+    Boolean(stamp),
+    () => void requestClose(),
+  );
 
   useEffect(() => {
     if (!stamp) return;
@@ -44,24 +57,29 @@ export default function ActivityStageEditorDialog({
   if (!stamp) return null;
   const earliestTime = minimumTime ? Math.floor(minimumTime / 1000) * 1000 : undefined;
 
+  const showTimeError = (message: string) => {
+    setError(message);
+    window.requestAnimationFrame(() => timeInputRef.current?.focus());
+  };
+
   const handleSave = () => {
     const time = new Date(timeValue).getTime();
     if (!Number.isFinite(time)) {
-      setError('올바른 날짜와 시각을 입력하세요.');
+      showTimeError('올바른 날짜와 시각을 입력하세요.');
       return;
     }
     if (earliestTime && time < earliestTime) {
-      setError('출동 시작 시각 이후로 입력하세요.');
+      showTimeError('출동 시작 시각 이후로 입력하세요.');
       return;
     }
     if (time > Date.now()) {
-      setError('현재보다 미래 시각은 기록할 수 없습니다.');
+      showTimeError('현재보다 미래 시각은 기록할 수 없습니다.');
       return;
     }
 
     const result = updateActivityStageTime(stamp.stageId, time);
     if (!result.changed) {
-      setError('기록을 수정하지 못했습니다. 최신 상태를 확인하세요.');
+      showTimeError('기록을 수정하지 못했습니다. 최신 상태를 확인하세요.');
       return;
     }
     onComplete?.(`${stamp.label} 시각을 수정했습니다`);
@@ -80,7 +98,7 @@ export default function ActivityStageEditorDialog({
 
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center p-2 sm:items-center sm:p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" onClick={() => void requestClose()} />
       <div
         ref={dialogRef}
         role="dialog"
@@ -97,7 +115,7 @@ export default function ActivityStageEditorDialog({
           <button
             type="button"
             aria-label="활동 기록 수정 닫기"
-            onClick={onClose}
+            onClick={() => void requestClose()}
             className="flex h-11 w-11 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"
           >
             <span aria-hidden="true" className="material-symbols-outlined">close</span>
@@ -107,6 +125,7 @@ export default function ActivityStageEditorDialog({
         <label className="mt-5 block space-y-2 text-sm font-bold">
           <span>기록 날짜와 시각</span>
           <input
+            ref={timeInputRef}
             data-dialog-initial-focus
             type="datetime-local"
             step="1"
@@ -138,6 +157,13 @@ export default function ActivityStageEditorDialog({
         </button>
 
         {error && <p id={errorId} role="alert" className="mt-3 rounded-lg bg-error/10 px-3 py-2 text-sm font-bold text-error">{error}</p>}
+
+        {!confirmDelete && (
+          <p aria-live="polite" className={`mt-3 flex items-center gap-1 text-xs font-bold ${isDirty ? 'text-amber-700 dark:text-amber-300' : 'text-on-surface-variant'}`}>
+            <span aria-hidden="true" className="material-symbols-outlined text-sm">{isDirty ? 'edit' : 'check_circle'}</span>
+            {isDirty ? '저장되지 않은 시각 변경' : '현재 기록과 동일한 시각'}
+          </p>
+        )}
 
         {confirmDelete && (
           <div className="mt-4 rounded-xl border border-error/30 bg-error/10 p-3" role="alert">
@@ -174,7 +200,7 @@ export default function ActivityStageEditorDialog({
           )}
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => void requestClose()}
             className="rounded-lg px-4 py-2.5 text-sm font-bold text-on-surface-variant hover:bg-surface-container"
           >
             취소
@@ -182,7 +208,8 @@ export default function ActivityStageEditorDialog({
           <button
             type="button"
             onClick={handleSave}
-            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90"
+            disabled={!isDirty}
+            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-45"
           >
             시각 저장
           </button>
