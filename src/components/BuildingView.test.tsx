@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBuildingWorkspaceState, type BuildingWorkspaceState } from '../types/buildingWorkspace';
@@ -24,6 +24,57 @@ vi.mock('../services/apiClient', () => ({
 
 import BuildingView from './BuildingView';
 
+function installSuccessfulGeocoder() {
+  const addressSearch = vi.fn((
+    _address: string,
+    callback: (result: Array<{ address: Record<string, string> }>, status: string) => void,
+  ) => {
+    callback([{
+      address: {
+        address_name: '서울특별시 종로구 세종대로 209',
+        b_code: '1111011900',
+        main_address_no: '209',
+        sub_address_no: '0',
+        mountain_yn: 'N',
+        region_1depth_name: '서울특별시',
+      },
+    }], 'OK');
+  });
+  class Geocoder {
+    addressSearch = addressSearch;
+  }
+  Object.defineProperty(window, 'kakao', {
+    configurable: true,
+    value: { maps: { services: { Geocoder, Status: { OK: 'OK' } } } },
+  });
+}
+
+function mockBuildingResult() {
+  apiMocks.fetchBuildingRegister.mockResolvedValue({
+    bldNm: '테스트센터',
+    strctCdNm: '철근콘크리트구조',
+    grndFlrCnt: 8,
+    ugrndFlrCnt: 2,
+    mainPurpsCdNm: '업무시설',
+    totArea: 1234,
+    archArea: 234,
+    useAprDay: '20260102',
+  });
+}
+
+function submitBuildingLookup() {
+  fireEvent.change(screen.getByRole('textbox', { name: '건축물 주소' }), {
+    target: { value: '서울특별시 종로구 세종대로 209' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '검색' }));
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(done => { resolve = done; });
+  return { promise, resolve };
+}
+
 function Harness() {
   const [visible, setVisible] = useState(true);
   const [workspace, setWorkspace] = useState<BuildingWorkspaceState>(() => createBuildingWorkspaceState());
@@ -45,11 +96,13 @@ function Harness() {
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   Reflect.deleteProperty(window, 'kakao');
 });
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   Reflect.deleteProperty(window, 'kakao');
 });
 
@@ -70,51 +123,19 @@ describe('BuildingView', () => {
   });
 
   it('keeps completed building and fire-reference results without requesting them again', async () => {
-    const addressSearch = vi.fn((
-      _address: string,
-      callback: (result: Array<{ address: Record<string, string> }>, status: string) => void,
-    ) => {
-      callback([{
-        address: {
-          address_name: '서울특별시 종로구 세종대로 209',
-          b_code: '1111011900',
-          main_address_no: '209',
-          sub_address_no: '0',
-          mountain_yn: 'N',
-          region_1depth_name: '서울특별시',
-        },
-      }], 'OK');
-    });
-    class Geocoder {
-      addressSearch = addressSearch;
-    }
-    Object.defineProperty(window, 'kakao', {
-      configurable: true,
-      value: { maps: { services: { Geocoder, Status: { OK: 'OK' } } } },
-    });
-    apiMocks.fetchBuildingRegister.mockResolvedValue({
-      bldNm: '테스트센터',
-      strctCdNm: '철근콘크리트구조',
-      grndFlrCnt: 8,
-      ugrndFlrCnt: 2,
-      mainPurpsCdNm: '업무시설',
-      totArea: 1234,
-      archArea: 234,
-      useAprDay: '20260102',
-    });
+    installSuccessfulGeocoder();
+    mockBuildingResult();
     apiMocks.fetchFireObjectAccom.mockResolvedValue({ items: [] });
     apiMocks.fetchFireObjectFireSys.mockResolvedValue({
       items: [{ bldNm: '테스트 숙박시설', sprinklerInstlYn: 'Y' }],
     });
 
     render(<Harness />);
-    fireEvent.change(screen.getByRole('textbox', { name: '건축물 주소' }), {
-      target: { value: '서울특별시 종로구 세종대로 209' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: '검색' }));
+    submitBuildingLookup();
 
     expect(await screen.findByText('테스트센터')).toBeInTheDocument();
     expect(await screen.findByText('테스트 숙박시설')).toBeInTheDocument();
+    expect(screen.getByText('조회 완료')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '다른 화면' }));
     fireEvent.click(screen.getByRole('button', { name: '건축물 화면' }));
 
@@ -123,5 +144,66 @@ describe('BuildingView', () => {
     expect(apiMocks.fetchBuildingRegister).toHaveBeenCalledTimes(1);
     expect(apiMocks.fetchFireObjectAccom).toHaveBeenCalledTimes(1);
     expect(apiMocks.fetchFireObjectFireSys).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows loading and preserves an explicit empty result after remounting', async () => {
+    installSuccessfulGeocoder();
+    mockBuildingResult();
+    const accomResult = deferred<{ items: [] }>();
+    const systemResult = deferred<{ items: [] }>();
+    apiMocks.fetchFireObjectAccom.mockReturnValue(accomResult.promise);
+    apiMocks.fetchFireObjectFireSys.mockReturnValue(systemResult.promise);
+
+    render(<Harness />);
+    submitBuildingLookup();
+
+    expect(await screen.findByText('소방시설 참고정보 조회 중...')).toBeInTheDocument();
+    expect(screen.getByText('조회 중')).toBeInTheDocument();
+    await act(async () => {
+      accomResult.resolve({ items: [] });
+      systemResult.resolve({ items: [] });
+      await Promise.all([accomResult.promise, systemResult.promise]);
+    });
+
+    expect(await screen.findByText('표시할 소방시설 참고정보가 없습니다')).toBeInTheDocument();
+    expect(screen.getByText('결과 없음')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '다른 화면' }));
+    fireEvent.click(screen.getByRole('button', { name: '건축물 화면' }));
+
+    expect(screen.getByText('표시할 소방시설 참고정보가 없습니다')).toBeInTheDocument();
+    expect(apiMocks.fetchFireObjectAccom).toHaveBeenCalledTimes(1);
+    expect(apiMocks.fetchFireObjectFireSys).toHaveBeenCalledTimes(1);
+  });
+
+  it('distinguishes a complete fire-reference failure and offers recovery', async () => {
+    installSuccessfulGeocoder();
+    mockBuildingResult();
+    apiMocks.fetchFireObjectAccom.mockRejectedValue(new Error('accommodation unavailable'));
+    apiMocks.fetchFireObjectFireSys.mockRejectedValue(new Error('system unavailable'));
+
+    render(<Harness />);
+    submitBuildingLookup();
+
+    const fireAlert = await screen.findByRole('alert');
+    expect(fireAlert).toHaveTextContent('소방시설 참고정보를 불러오지 못했습니다.');
+    expect(screen.getByText('조회 실패')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '전체 다시 조회' })).toBeInTheDocument();
+    expect(screen.queryByText('표시할 소방시설 참고정보가 없습니다')).not.toBeInTheDocument();
+  });
+
+  it('keeps available results visible when only one fire-reference source fails', async () => {
+    installSuccessfulGeocoder();
+    mockBuildingResult();
+    apiMocks.fetchFireObjectAccom.mockRejectedValue(new Error('accommodation unavailable'));
+    apiMocks.fetchFireObjectFireSys.mockResolvedValue({
+      items: [{ bldNm: '부분 확인 숙박시설', autoFirAlrmInstlYn: 'Y' }],
+    });
+
+    render(<Harness />);
+    submitBuildingLookup();
+
+    expect(await screen.findByText('부분 확인 숙박시설')).toBeInTheDocument();
+    expect(screen.getByText('일부 확인')).toBeInTheDocument();
+    expect(screen.getByText('일부 소방시설 참고정보를 불러오지 못했습니다.')).toBeInTheDocument();
   });
 });

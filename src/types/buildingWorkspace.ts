@@ -28,6 +28,8 @@ export interface FireObjectFireSys {
   [key: string]: unknown;
 }
 
+export type FireReferenceStatus = 'idle' | 'success' | 'empty' | 'partial' | 'error';
+
 export interface BuildingWorkspaceState {
   address: string;
   errorMsg: string;
@@ -36,6 +38,7 @@ export interface BuildingWorkspaceState {
   hasSearched: boolean;
   fireAccom: FireObjectAccom[];
   fireSys: FireObjectFireSys[];
+  fireStatus: FireReferenceStatus;
   fireError: string;
 }
 
@@ -47,5 +50,6 @@ export const createBuildingWorkspaceState = (initialAddress = ''): BuildingWorks
   hasSearched: false,
   fireAccom: [],
   fireSys: [],
+  fireStatus: 'idle',
   fireError: '',
 });

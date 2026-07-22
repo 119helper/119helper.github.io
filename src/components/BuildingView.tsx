@@ -51,7 +51,7 @@ interface BuildingViewProps {
 
 export default function BuildingView({ initialAddress = '', workspace, onWorkspaceChange }: BuildingViewProps) {
   const normalizedInitialAddress = initialAddress.trim();
-  const { address, errorMsg, warningMsg, bldgInfo, hasSearched, fireAccom, fireSys, fireError } = workspace;
+  const { address, errorMsg, warningMsg, bldgInfo, hasSearched, fireAccom, fireSys, fireStatus, fireError } = workspace;
   const [isLoading, setIsLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>(loadRecentSearches);
   const [fireLoading, setFireLoading] = useState(false);
@@ -98,6 +98,7 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
       hasSearched: true,
       fireAccom: [],
       fireSys: [],
+      fireStatus: 'idle',
       fireError: '',
     });
 
@@ -155,7 +156,8 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
           
           if (seq !== requestSeqRef.current) return;
 
-          let hasFireError = false;
+          let failedFireRequests = 0;
+          let usedCachedFireData = false;
           const fireNotices: string[] = [];
           let nextFireAccom: FireObjectAccom[] = [];
           let nextFireSys: FireObjectFireSys[] = [];
@@ -163,33 +165,46 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
           if (accomRes.status === 'fulfilled') {
             nextFireAccom = accomRes.value.items || [];
           } else if (isStaleDataError(accomRes.reason)) {
+            usedCachedFireData = true;
             const cached = accomRes.reason.cachedData as PaginatedItemsResponse<FireObjectAccom>;
             nextFireAccom = cached.items || [];
             const t = accomRes.reason.cachedAt ? ` (성공: ${new Date(accomRes.reason.cachedAt).toLocaleTimeString()})` : '';
             fireNotices.push(`${accomRes.reason.message}${t}`);
           } else {
-            hasFireError = true;
+            failedFireRequests += 1;
             console.warn('[BuildingView] fire accom failed:', accomRes.reason);
           }
 
           if (sysRes.status === 'fulfilled') {
             nextFireSys = sysRes.value.items || [];
           } else if (isStaleDataError(sysRes.reason)) {
+            usedCachedFireData = true;
             const cached = sysRes.reason.cachedData as PaginatedItemsResponse<FireObjectFireSys>;
             nextFireSys = cached.items || [];
             const t = sysRes.reason.cachedAt ? ` (성공: ${new Date(sysRes.reason.cachedAt).toLocaleTimeString()})` : '';
             fireNotices.push(`${sysRes.reason.message}${t}`);
           } else {
-            hasFireError = true;
+            failedFireRequests += 1;
             console.warn('[BuildingView] fire sys failed:', sysRes.reason);
           }
 
-          if (hasFireError) {
-            fireNotices.push('일부 소방시설 정보를 불러오지 못했습니다.');
+          if (failedFireRequests === 2) {
+            fireNotices.push('소방시설 참고정보를 불러오지 못했습니다.');
+          } else if (failedFireRequests === 1) {
+            fireNotices.push('일부 소방시설 참고정보를 불러오지 못했습니다.');
           }
+          const hasFireData = nextFireAccom.length > 0 || nextFireSys.length > 0;
+          const nextFireStatus = failedFireRequests === 2
+            ? 'error'
+            : failedFireRequests > 0 || usedCachedFireData
+              ? 'partial'
+              : hasFireData
+                ? 'success'
+                : 'empty';
           updateWorkspace({
             fireAccom: nextFireAccom,
             fireSys: nextFireSys,
+            fireStatus: nextFireStatus,
             fireError: [...new Set(fireNotices)].join(' '),
           });
         } finally {
@@ -197,6 +212,11 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
             setFireLoading(false);
           }
         }
+      } else if (seq === requestSeqRef.current) {
+        updateWorkspace({
+          fireStatus: 'error',
+          fireError: '소방시설 참고정보를 조회할 시·도 정보를 확인하지 못했습니다.',
+        });
       }
     };
 
@@ -286,6 +306,18 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
       </div>
     );
   };
+
+  const showFireSection = fireLoading || fireStatus !== 'idle';
+  const fireHasNoData = fireSys.length === 0 && fireAccom.length === 0;
+  const fireStatusMeta = fireLoading
+    ? { label: '조회 중', icon: 'progress_activity', className: 'bg-primary/10 text-primary' }
+    : fireStatus === 'success'
+      ? { label: '조회 완료', icon: 'check_circle', className: 'bg-green-500/10 text-green-700 dark:text-green-300' }
+      : fireStatus === 'empty'
+        ? { label: '결과 없음', icon: 'search_off', className: 'bg-surface-container-high text-on-surface-variant' }
+        : fireStatus === 'partial'
+          ? { label: '일부 확인', icon: 'warning', className: 'bg-amber-500/10 text-amber-800 dark:text-amber-200' }
+          : { label: '조회 실패', icon: 'error', className: 'bg-error/10 text-error' };
 
   return (
     <div className="space-y-6" aria-busy={isLoading || fireLoading}>
@@ -426,82 +458,113 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
       )}
 
       {/* 소방시설 정보 섹션 */}
-      {hasSearched && !isLoading && (fireSys.length > 0 || fireAccom.length > 0 || fireLoading || fireError) && (
-        <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-2xl p-6 md:p-8 space-y-5 max-w-4xl shadow-xl shadow-surface-container/10">
-          <div className="flex items-center gap-3 border-b border-outline-variant/10 pb-4">
-            <span aria-hidden="true" className="material-symbols-outlined text-3xl text-orange-700 dark:text-orange-300">local_fire_department</span>
-            <div>
-              <h3 className="text-lg font-extrabold text-on-surface">시·도 단위 숙박시설 소방시설 참고</h3>
-              <p className="text-xs text-on-surface-variant">해당 건물이 아닌, 검색 지역 내 공개 데이터 일부를 표시합니다. 검색한 건물의 소방시설 정보와 직접 일치하지 않을 수 있습니다.</p>
+      {hasSearched && !isLoading && showFireSection && (
+        <section aria-labelledby="fire-reference-title" className="max-w-4xl space-y-5 rounded-2xl border border-outline-variant/10 bg-surface-container-lowest p-6 shadow-xl shadow-surface-container/10 md:p-8">
+          <div className="flex flex-col gap-3 border-b border-outline-variant/10 pb-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <span aria-hidden="true" className="material-symbols-outlined shrink-0 text-3xl text-orange-700 dark:text-orange-300">local_fire_department</span>
+              <div className="min-w-0">
+                <h3 id="fire-reference-title" className="text-lg font-extrabold text-on-surface">시·도 단위 숙박시설 소방시설 참고</h3>
+                <p className="mt-1 text-xs leading-5 text-on-surface-variant">해당 건물이 아닌, 검색 지역 내 공개 데이터 일부를 표시합니다. 검색한 건물의 소방시설 정보와 직접 일치하지 않을 수 있습니다.</p>
+              </div>
             </div>
+            <span aria-live="polite" className={`inline-flex min-h-8 shrink-0 items-center self-start rounded-full px-3 text-xs font-extrabold ${fireStatusMeta.className}`}>
+              <span aria-hidden="true" className={`material-symbols-outlined mr-1 text-base ${fireLoading ? 'animate-spin' : ''}`}>{fireStatusMeta.icon}</span>
+              {fireStatusMeta.label}
+            </span>
           </div>
-          
-          {fireLoading && (
-            <div className="flex items-center gap-3 py-8 justify-center">
-              <span className="material-symbols-outlined animate-spin text-primary">progress_activity</span>
-              <span className="text-on-surface-variant text-sm">소방시설 정보 조회 중...</span>
-            </div>
-          )}
 
-          {fireError && (
-            <div role="status" className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4">
-              <span aria-hidden="true" className="material-symbols-outlined text-amber-700 dark:text-amber-300">info</span>
-              <p className="text-sm font-medium text-amber-900 dark:text-amber-200">{fireError}</p>
+          {fireLoading ? (
+            <div role="status" className="flex items-center justify-center gap-3 rounded-xl bg-surface-container py-8">
+              <span aria-hidden="true" className="material-symbols-outlined animate-spin text-primary">progress_activity</span>
+              <span className="text-sm font-medium text-on-surface-variant">소방시설 참고정보 조회 중...</span>
             </div>
-          )}
+          ) : (
+            <>
+              {fireError && (
+                <div role={fireStatus === 'error' ? 'alert' : 'status'} className={`flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center ${
+                  fireStatus === 'error'
+                    ? 'border-error/25 bg-error/10 text-error'
+                    : 'border-amber-500/25 bg-amber-500/10 text-amber-900 dark:text-amber-200'
+                }`}>
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <span aria-hidden="true" className="material-symbols-outlined shrink-0">{fireStatus === 'error' ? 'error' : 'info'}</span>
+                    <p className="text-sm font-medium leading-5">{fireError}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => runSearch(address, true)}
+                    disabled={!address.trim()}
+                    className="min-h-11 shrink-0 self-end rounded-xl border border-current/25 px-3 text-xs font-extrabold transition-colors hover:bg-surface-container-lowest/60 disabled:opacity-50 sm:self-auto"
+                  >
+                    전체 다시 조회
+                  </button>
+                </div>
+              )}
 
-          {fireSys.length > 0 && (
-            <div className="space-y-3">
-              <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
-                조회 결과 · {fireSys.length}건
-              </p>
-              <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
-                {fireSys.slice(0, 20).map((sys, i) => (
-                  <div key={i} className="bg-surface-container rounded-xl p-4 border border-outline-variant/10">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <p className="text-sm font-extrabold text-on-surface">{sys.bldNm || '이름 미등록'}</p>
-                        <p className="text-[11px] text-on-surface-variant mt-0.5">{sys.rdnmadr || sys.lnmadr || `${sys.ctprvn} ${sys.signgu}`}</p>
-                        {sys.flrCo && <p className="text-[11px] text-on-surface-variant">지상 {sys.flrCo}층</p>}
+              {fireStatus === 'empty' && (
+                <div role="status" className="rounded-xl border border-outline-variant/15 bg-surface-container px-4 py-7 text-center text-on-surface-variant">
+                  <span aria-hidden="true" className="material-symbols-outlined mb-2 block text-3xl text-outline">search_off</span>
+                  <p className="text-sm font-bold text-on-surface">표시할 소방시설 참고정보가 없습니다</p>
+                  <p className="mt-1 text-xs leading-5">공개 데이터가 비어 있거나 현재 시·도 범위에 결과가 없을 수 있습니다.</p>
+                </div>
+              )}
+
+              {fireStatus === 'partial' && fireHasNoData && (
+                <div className="rounded-xl border border-outline-variant/15 bg-surface-container px-4 py-5 text-center text-on-surface-variant">
+                  <p className="text-sm font-bold text-on-surface">확인 가능한 결과가 없습니다</p>
+                  <p className="mt-1 text-xs leading-5">응답하지 않은 데이터 원본은 ‘전체 다시 조회’로 재확인할 수 있습니다.</p>
+                </div>
+              )}
+
+              {fireSys.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-on-surface-variant">
+                    <p className="uppercase tracking-widest">소방시설 현황 · {fireSys.length}건</p>
+                    {fireSys.length > 20 && <p>상위 20건 표시</p>}
+                  </div>
+                  <div className="custom-scrollbar max-h-[400px] space-y-3 overflow-y-auto">
+                    {fireSys.slice(0, 20).map((sys, i) => (
+                      <div key={i} className="rounded-xl border border-outline-variant/10 bg-surface-container p-4">
+                        <div className="mb-3 flex items-start justify-between">
+                          <div>
+                            <p className="text-sm font-extrabold text-on-surface">{sys.bldNm || '이름 미등록'}</p>
+                            <p className="mt-0.5 text-[11px] text-on-surface-variant">{sys.rdnmadr || sys.lnmadr || `${sys.ctprvn} ${sys.signgu}`}</p>
+                            {sys.flrCo && <p className="text-[11px] text-on-surface-variant">지상 {sys.flrCo}층</p>}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <YnBadge val={sys.sprinklerInstlYn} label="스프링클러" />
+                          <YnBadge val={sys.indoorHydrantInstlYn} label="옥내소화전" />
+                          <YnBadge val={sys.outdoorHydrantInstlYn} label="옥외소화전" />
+                          <YnBadge val={sys.autoFirAlrmInstlYn} label="자동화재탐지" />
+                        </div>
                       </div>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      <YnBadge val={sys.sprinklerInstlYn} label="스프링클러" />
-                      <YnBadge val={sys.indoorHydrantInstlYn} label="옥내소화전" />
-                      <YnBadge val={sys.outdoorHydrantInstlYn} label="옥외소화전" />
-                      <YnBadge val={sys.autoFirAlrmInstlYn} label="자동화재탐지" />
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              )}
 
-          {fireAccom.length > 0 && fireSys.length === 0 && (
-            <div className="space-y-3">
-              <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
-                숙박시설 목록 · {fireAccom.length}건
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {fireAccom.slice(0, 10).map((acc, i) => (
-                  <div key={i} className="bg-surface-container rounded-lg p-3 border border-outline-variant/10">
-                    <p className="text-sm font-bold text-on-surface">{acc.bldNm || acc.spclObjNm || '이름 미등록'}</p>
-                    <p className="text-[11px] text-on-surface-variant">{acc.rdnmadr || acc.lnmadr || `${acc.ctprvn} ${acc.signgu}`}</p>
-                    {acc.flrCo && <p className="text-[10px] text-on-surface-variant/60">지상 {acc.flrCo}층</p>}
+              {fireAccom.length > 0 && fireSys.length === 0 && (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-on-surface-variant">
+                    <p className="uppercase tracking-widest">숙박시설 목록 · {fireAccom.length}건</p>
+                    {fireAccom.length > 10 && <p>상위 10건 표시</p>}
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {fireAccom.slice(0, 10).map((acc, i) => (
+                      <div key={i} className="rounded-lg border border-outline-variant/10 bg-surface-container p-3">
+                        <p className="text-sm font-bold text-on-surface">{acc.bldNm || acc.spclObjNm || '이름 미등록'}</p>
+                        <p className="text-[11px] text-on-surface-variant">{acc.rdnmadr || acc.lnmadr || `${acc.ctprvn} ${acc.signgu}`}</p>
+                        {acc.flrCo && <p className="text-[10px] text-on-surface-variant/70">지상 {acc.flrCo}층</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
-
-          {!fireLoading && !fireError && fireSys.length === 0 && fireAccom.length === 0 && (
-            <div className="text-center py-6 text-on-surface-variant">
-              <span className="material-symbols-outlined text-3xl mb-2 block text-outline">pending</span>
-              <p className="text-sm">해당 지역 소방시설 데이터가 아직 제공되지 않습니다.</p>
-              <p className="text-xs text-on-surface-variant/60 mt-1">API 승인 직후에는 데이터 활성화에 시간이 소요될 수 있습니다.</p>
-            </div>
-          )}
-        </div>
+        </section>
       )}
 
       {hasSearched && !isLoading && !bldgInfo && !errorMsg && (
