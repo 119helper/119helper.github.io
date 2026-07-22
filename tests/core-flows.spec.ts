@@ -138,7 +138,9 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
   await stageEditor.getByLabel('기록 날짜와 시각').fill(futureTime);
   await stageEditor.getByRole('button', { name: '시각 저장' }).click();
   await expect(stageEditor.getByRole('alert')).toContainText('미래 시각');
+  await page.waitForTimeout(1_100);
   await stageEditor.getByRole('button', { name: '현재 시각으로 설정' }).click();
+  await expect(stageEditor.getByRole('button', { name: '시각 저장' })).toBeEnabled();
   await stageEditor.getByRole('button', { name: '시각 저장' }).click();
   await expect(stageEditor).toBeHidden();
   await quickActivity.getByRole('button', { name: '이송개시 기록' }).click();
