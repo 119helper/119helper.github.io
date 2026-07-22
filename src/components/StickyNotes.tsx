@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
+import { useUndoToast } from '../contexts/UndoToastContext';
 
 interface Note {
   id: string;
@@ -24,6 +25,7 @@ export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
   const [notes, setNotes] = useLocalStorageState<Note[]>('119helper-notes', []);
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const { showUndo } = useUndoToast();
 
   // 드래그 앤 드롭 상태
   const [dragId, setDragId] = useState<string | null>(null);
@@ -46,8 +48,25 @@ export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
   };
 
   const deleteNote = (id: string) => {
-    setNotes(notes.filter(n => n.id !== id));
+    const index = notes.findIndex(note => note.id === id);
+    const removed = notes[index];
+    if (!removed) return;
+
+    const wasSelected = selectedNoteId === id;
+    setNotes(current => current.filter(note => note.id !== id));
     if (selectedNoteId === id) setSelectedNoteId(null);
+    showUndo({
+      message: '메모를 삭제했습니다.',
+      undo: () => {
+        setNotes(current => {
+          if (current.some(note => note.id === removed.id)) return current;
+          const restored = [...current];
+          restored.splice(Math.min(index, restored.length), 0, removed);
+          return restored;
+        });
+        if (wasSelected) setSelectedNoteId(removed.id);
+      },
+    });
   };
 
   // 색상 클릭 — 선택된 메모가 있으면 색 변경, 없으면 새 메모용 색 선택
@@ -201,7 +220,7 @@ export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
                     type="button"
                     aria-label="메모 삭제"
                     onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-on-surface-variant hover:text-error"
+                    className="flex h-11 w-11 items-center justify-center rounded-lg text-on-surface-variant opacity-100 transition-all hover:bg-error/10 hover:text-error sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 focus:opacity-100"
                   >
                     <span className="material-symbols-outlined text-lg">close</span>
                   </button>

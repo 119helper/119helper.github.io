@@ -12,6 +12,7 @@ import { START_STEPS, JUMPSTART_STEPS, type TriageStep } from '../data/triageFlo
 import { matchHospitals, type MatchedHospital } from '../utils/hospitalMatch';
 import { getERRealTimeBeds, CITY_TO_SIDO } from '../services/erApi';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
+import { useUndoToast } from '../contexts/UndoToastContext';
 
 type Mode = 'adult' | 'child';
 type Answers = Record<string, boolean | undefined>;
@@ -45,6 +46,7 @@ const STATUS_LABEL: Record<PatientStatus, string> = {
 };
 
 export default function TriageView({ city = 'seoul' }: { city?: string }) {
+  const { showUndo } = useUndoToast();
   const [mode, setMode] = useState<Mode>('adult');
   const [patients, setPatients] = useLocalStorageState<TriagePatient[]>('119helper-triage-patients', []);
 
@@ -76,10 +78,37 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
     setPatients(prev => [next, ...prev]);
   };
 
-  const removePatient = (id: string) => setPatients(prev => prev.filter(p => p.id !== id));
+  const removePatient = (id: string) => {
+    const index = patients.findIndex(patient => patient.id === id);
+    const removed = patients[index];
+    if (!removed) return;
+
+    setPatients(current => current.filter(patient => patient.id !== id));
+    showUndo({
+      message: '환자 기록을 삭제했습니다.',
+      undo: () => setPatients(current => {
+        if (current.some(patient => patient.id === removed.id)) return current;
+        const restored = [...current];
+        restored.splice(Math.min(index, restored.length), 0, removed);
+        return restored;
+      }),
+    });
+  };
   const updatePatient = (id: string, patch: Partial<TriagePatient>) =>
     setPatients(prev => prev.map(p => (p.id === id ? { ...p, ...patch } : p)));
-  const clearAll = () => setPatients([]);
+  const clearAll = () => {
+    if (!window.confirm(`현장 환자 ${patients.length}명의 기록을 모두 삭제할까요? 삭제 직후에는 실행 취소할 수 있습니다.`)) return;
+    const removed = patients;
+    setPatients([]);
+    showUndo({
+      message: `환자 기록 ${removed.length}건을 모두 삭제했습니다.`,
+      durationMs: 15_000,
+      undo: () => setPatients(current => {
+        const currentIds = new Set(current.map(patient => patient.id));
+        return [...removed.filter(patient => !currentIds.has(patient.id)), ...current];
+      }),
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -277,7 +306,7 @@ function PatientCard({
           <div className="text-sm font-bold text-on-surface truncate mt-0.5">{patient.label}</div>
           <div className="text-[11px] text-on-surface-variant">{patient.mode === 'adult' ? '성인' : '소아'} · {patient.createdAt}</div>
         </div>
-        <button onClick={onRemove} className="text-on-surface-variant hover:text-error">
+        <button type="button" aria-label={`${patient.label} 환자 기록 삭제`} onClick={onRemove} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-on-surface-variant hover:bg-error/10 hover:text-error">
           <span className="material-symbols-outlined text-lg">close</span>
         </button>
       </div>

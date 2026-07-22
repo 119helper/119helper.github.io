@@ -3,6 +3,7 @@ import { getStaticHolidays } from '../data/holidays';
 import { getShiftForDate, SHIFT_CYCLE_DANGBIBI, type ShiftSetting } from '../utils/shiftCalculator';
 import { loadStoredJson, saveStoredJson } from '../services/privacySettings';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
+import { useUndoToast } from '../contexts/UndoToastContext';
 
 interface Schedule {
   id: string;
@@ -101,6 +102,7 @@ const generateICS = (schedulesToExport: Schedule[]) => {
   return lines.map(foldIcsLine).join('\r\n');
 };
 export default function Calendar() {
+  const { showUndo } = useUndoToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>(loadSchedules);
@@ -209,7 +211,20 @@ export default function Calendar() {
   };
 
   const deleteSchedule = (id: string) => {
-    setSchedules(schedules.filter(s => s.id !== id));
+    const index = schedules.findIndex(schedule => schedule.id === id);
+    const removed = schedules[index];
+    if (!removed) return;
+
+    setSchedules(current => current.filter(schedule => schedule.id !== id));
+    showUndo({
+      message: '일정을 삭제했습니다.',
+      undo: () => setSchedules(current => {
+        if (current.some(schedule => schedule.id === removed.id)) return current;
+        const restored = [...current];
+        restored.splice(Math.min(index, restored.length), 0, removed);
+        return restored;
+      }),
+    });
   };
 
   const exportICS = (type: 'all' | 'month') => {
@@ -431,8 +446,9 @@ export default function Calendar() {
                           </div>
                           <button
                             type="button"
+                            aria-label={`${s.title} 일정 삭제`}
                             onClick={() => deleteSchedule(s.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="flex h-11 w-11 items-center justify-center rounded-lg opacity-100 transition-all hover:bg-error/10 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 focus:opacity-100"
                           >
                             <span className="material-symbols-outlined text-on-surface-variant text-lg hover:text-error">close</span>
                           </button>

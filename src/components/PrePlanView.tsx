@@ -4,6 +4,7 @@ import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { type PrePlan, type PrePlanContact, createEmptyPrePlan } from '../types/preplan';
 import { resizeImage, savePhoto, getPhoto, deletePhoto, MAX_PREPLAN_PHOTO_DATA_URL_LENGTH } from '../services/preplanPhotos';
 import { confirmSensitiveExport } from '../utils/sensitiveExport';
+import { useUndoToast } from '../contexts/UndoToastContext';
 
 const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
 const MAX_IMPORT_PLANS = 500;
@@ -47,6 +48,7 @@ interface PrePlanViewProps {
 }
 
 export default function PrePlanView({ incidentContext = null }: PrePlanViewProps) {
+  const { showUndo } = useUndoToast();
   const [plans, setPlans] = useLocalStorageState<PrePlan[]>('119helper-preplans', []);
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -75,10 +77,23 @@ export default function PrePlanView({ incidentContext = null }: PrePlanViewProps
     setPlans(prev => prev.map(p => (p.id === updated.id ? { ...updated, updatedAt: Date.now() } : p)));
   };
 
-  const deletePlan = async (plan: PrePlan) => {
-    await Promise.all(plan.photoKeys.map(k => deletePhoto(k).catch(() => {})));
+  const deletePlan = (plan: PrePlan) => {
+    const index = plans.findIndex(item => item.id === plan.id);
     setPlans(prev => prev.filter(p => p.id !== plan.id));
     if (editingId === plan.id) setEditingId(null);
+    showUndo({
+      message: '대상물 정보를 삭제했습니다.',
+      undo: () => {
+        setPlans(current => {
+          if (current.some(item => item.id === plan.id)) return current;
+          const restored = [...current];
+          restored.splice(Math.min(Math.max(index, 0), restored.length), 0, plan);
+          return restored;
+        });
+        setEditingId(plan.id);
+      },
+      onExpire: () => Promise.all(plan.photoKeys.map(key => deletePhoto(key).catch(() => {}))).then(() => undefined),
+    });
   };
 
   const exportAll = async () => {

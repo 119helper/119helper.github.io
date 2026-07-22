@@ -28,6 +28,7 @@ import { useAutoRefresh } from './hooks/useAutoRefresh';
 import { useIncidentSession } from './hooks/useIncidentSession';
 import { useDialogAccessibility } from './hooks/useDialogAccessibility';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
+import { useUndoToast } from './contexts/UndoToastContext';
 import { applyPrivacyRetention } from './services/privacySettings';
 import { loadDisplaySettings, saveDisplaySettings } from './services/displaySettings';
 import {
@@ -72,6 +73,7 @@ export default function App() {
   const [fieldReadabilityMode, setFieldReadabilityMode] = useState(() => loadDisplaySettings().fieldReadabilityMode);
   const [navPreferences, setNavPreferences] = useState(loadNavigationPreferences);
   const networkStatus = useNetworkStatus();
+  const { finalizeAll: finalizeUndoActions } = useUndoToast();
   const lastRefreshRef = useRef<Date>(new Date());
   const refreshSeqRef = useRef(0);
   const [regionOpen, setRegionOpen] = useState(false);
@@ -86,6 +88,15 @@ export default function App() {
   const [isDesktopSidebar, setIsDesktopSidebar] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
   const sidebarInteractive = isDesktopSidebar || sidebarOpen;
   const sidebarRef = useDialogAccessibility<HTMLElement>(sidebarOpen && !isDesktopSidebar, () => setSidebarOpen(false));
+  const undoRouteRef = useRef(`${activeTab}:${activeSubId ?? ''}:${shelterCategory}`);
+
+  useEffect(() => {
+    const routeKey = `${activeTab}:${activeSubId ?? ''}:${shelterCategory}`;
+    if (undoRouteRef.current !== routeKey) {
+      finalizeUndoActions();
+      undoRouteRef.current = routeKey;
+    }
+  }, [activeSubId, activeTab, finalizeUndoActions, shelterCategory]);
 
   // 오프라인 대비: 핵심 화면(계산기·매뉴얼·타이머 등) 청크 사전 로드
   useEffect(() => {

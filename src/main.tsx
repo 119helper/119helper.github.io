@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import { TimerProvider } from './contexts/TimerContext'
 import { UserProfileProvider } from './contexts/UserProfileContext'
+import { UndoToastProvider } from './contexts/UndoToastContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import ConnectivityStatus from './components/ConnectivityStatus'
 import { installGlobalErrorReporting } from './services/telemetry'
@@ -30,9 +31,11 @@ if (window.self !== window.top) {
         fallbackDescription="앱 초기화 중 오류가 발생했습니다. 새로고침 후에도 반복되면 최근 변경 사항을 확인하세요."
       >
         <UserProfileProvider>
-          <TimerProvider>
-            <App />
-          </TimerProvider>
+          <UndoToastProvider>
+            <TimerProvider>
+              <App />
+            </TimerProvider>
+          </UndoToastProvider>
         </UserProfileProvider>
       </ErrorBoundary>
       <ConnectivityStatus />
