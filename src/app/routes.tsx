@@ -4,6 +4,7 @@ import type { CityIndex } from '../services/fireWaterApi';
 import type { FireFacility } from '../data/mockData';
 import type { FacilityFilterState, FacilityViewState, ShelterCategory, TabId, NavigateTarget } from '../types/navigation';
 import type { IncidentSession } from '../services/incidentSession';
+import type { BuildingWorkspaceState } from '../types/buildingWorkspace';
 
 const DashboardView = lazy(() => import('../components/DashboardView'));
 const WeatherDashboard = lazy(() => import('../components/WeatherDashboard'));
@@ -47,11 +48,13 @@ export interface RouteContext {
   facilityFilterState: FacilityFilterState;
   facilityViewState: FacilityViewState;
   preplanSearch: string;
+  buildingWorkspace: BuildingWorkspaceState;
   onDistrictChange: (district: string) => void;
   onShelterCategoryChange: (category: ShelterCategory) => void;
   onFacilityFilterChange: (patch: Partial<FacilityFilterState>) => void;
   onFacilityViewStateChange: (patch: Partial<FacilityViewState>) => void;
   onPreplanSearchChange: (query: string) => void;
+  onBuildingWorkspaceChange: (patch: Partial<BuildingWorkspaceState>) => void;
   onNavigate: (tab: NavigateTarget | string, subId?: string) => void;
   incidentSession: IncidentSession;
 }
@@ -89,6 +92,8 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
         onFilterStateChange={ctx.onFacilityFilterChange}
         onViewStateChange={ctx.onFacilityViewStateChange}
         incidentAddress={ctx.incidentSession.active ? ctx.incidentSession.address : ''}
+        buildingWorkspace={ctx.buildingWorkspace}
+        onBuildingWorkspaceChange={ctx.onBuildingWorkspaceChange}
       />
     ),
   },

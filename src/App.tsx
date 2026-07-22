@@ -23,6 +23,7 @@ import { buildTabHash, readTabLocation } from './app/tabHash';
 import { readMainScrollTop, withMainScrollTop } from './app/historyScroll';
 import { isTabId } from './types/navigation';
 import type { FacilityFilterState, FacilityViewState, ShelterCategory, TabId, NavigateTarget } from './types/navigation';
+import { createBuildingWorkspaceState, type BuildingWorkspaceState } from './types/buildingWorkspace';
 import { useUserProfile } from './contexts/UserProfileContext';
 import { useGeolocation } from './hooks/useGeolocation';
 import { useAutoRefresh } from './hooks/useAutoRefresh';
@@ -66,6 +67,7 @@ export default function App() {
   const [facilityFilterStates, setFacilityFilterStates] = useState<Record<string, FacilityFilterState>>({});
   const [facilityViewStates, setFacilityViewStates] = useState<Record<string, FacilityViewState>>({});
   const [preplanSearch, setPreplanSearch] = useState('');
+  const [buildingWorkspace, setBuildingWorkspace] = useState<BuildingWorkspaceState>(() => createBuildingWorkspaceState());
   const { gpsStatus, locationNotice, setGpsStatus, setLocationNotice } = useGeolocation(setCity);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['group-monitoring']);
@@ -583,6 +585,9 @@ export default function App() {
       },
     }));
   }, [facilityViewKey]);
+  const updateBuildingWorkspace = useCallback((patch: Partial<BuildingWorkspaceState>) => {
+    setBuildingWorkspace(previous => ({ ...previous, ...patch }));
+  }, []);
 
   const routeContext: RouteContext = {
     activeSubId,
@@ -596,11 +601,13 @@ export default function App() {
     facilityFilterState,
     facilityViewState,
     preplanSearch,
+    buildingWorkspace,
     onDistrictChange: loadDistrict,
     onShelterCategoryChange: handleShelterCategoryChange,
     onFacilityFilterChange: updateFacilityFilter,
     onFacilityViewStateChange: updateFacilityViewState,
     onPreplanSearchChange: setPreplanSearch,
+    onBuildingWorkspaceChange: updateBuildingWorkspace,
     onNavigate: handleNavigate,
     incidentSession,
   };

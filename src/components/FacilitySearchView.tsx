@@ -10,6 +10,7 @@ import BuildingView from './BuildingView';
 import DataStatePanel from './DataStatePanel';
 import type { KakaoMapInstance, KakaoMarker } from '../types/kakao';
 import type { FacilityFilterState, FacilityViewState, ShelterCategory } from '../types/navigation';
+import type { BuildingWorkspaceState } from '../types/buildingWorkspace';
 import { formatDatasetDate, formatFreshnessSourceDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
 
 // EPSG:5179 (GRS80 UTM-K) 정의 — 공공데이터포털(재난안전데이터) 최신 좌표계
@@ -30,6 +31,8 @@ interface FacilitySearchProps {
   onFilterStateChange: (patch: Partial<FacilityFilterState>) => void;
   onViewStateChange: (patch: Partial<FacilityViewState>) => void;
   incidentAddress?: string;
+  buildingWorkspace: BuildingWorkspaceState;
+  onBuildingWorkspaceChange: (patch: Partial<BuildingWorkspaceState>) => void;
 }
 
 const cityToCtprvn: Record<string, string> = {
@@ -110,6 +113,8 @@ export default function FacilitySearchView({
   onFilterStateChange,
   onViewStateChange,
   incidentAddress,
+  buildingWorkspace,
+  onBuildingWorkspaceChange,
 }: FacilitySearchProps) {
   const [facilities, setFacilities] = useState<FacilityItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -584,7 +589,11 @@ export default function FacilitySearchView({
       {/* ═══ 건축물대장 카테고리 ═══ */}
       {isBuilding && (
         <div className="mt-4">
-          <BuildingView initialAddress={incidentAddress} />
+          <BuildingView
+            initialAddress={incidentAddress}
+            workspace={buildingWorkspace}
+            onWorkspaceChange={onBuildingWorkspaceChange}
+          />
         </div>
       )}
 
