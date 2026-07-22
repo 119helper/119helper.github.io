@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import type { FireFacility } from '../data/mockData';
 import type { CityIndex } from '../services/fireWaterApi';
-import type { FacilityFilterState } from '../types/navigation';
+import type { FacilityFilterState, FacilityViewState } from '../types/navigation';
 import KakaoMap from './KakaoMap';
 import DataStatePanel from './DataStatePanel';
 
@@ -18,6 +18,8 @@ interface Props {
   onDistrictChange?: (district: string) => void;
   filterState: FacilityFilterState;
   onFilterStateChange: (patch: Partial<FacilityFilterState>) => void;
+  viewState: FacilityViewState;
+  onViewStateChange: (patch: Partial<FacilityViewState>) => void;
 }
 
 const PAGE_SIZE = 50;
@@ -25,18 +27,12 @@ const PAGE_SIZE = 50;
 export default function FacilityList({
   data, title, icon, typeLabel, city, isLoading = false,
   cityIndex, selectedDistrict, onDistrictChange, filterState, onFilterStateChange,
+  viewState, onViewStateChange,
 }: Props) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const search = filterState.query;
   const filterDistrict = filterState.district;
-
-  // 데이터 범위가 바뀌면 페이지와 선택만 초기화하고 검색 조건은 유지한다.
-  useEffect(() => {
-    setPage(1);
-    setSelectedId(null);
-  }, [city, selectedDistrict, typeLabel]);
+  const selectedId = viewState.selectedKey;
 
   // 분할 도시 여부 판단
   const isSplit = !!cityIndex && !!onDistrictChange;
@@ -58,26 +54,36 @@ export default function FacilityList({
 
   // 페이지네이션
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const page = Math.min(Math.max(1, viewState.page), Math.max(1, totalPages));
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    if (viewState.page !== page) onViewStateChange({ page });
+  }, [onViewStateChange, page, viewState.page]);
+
+  const setPage = (nextPage: number | ((currentPage: number) => number)) => {
+    const candidate = typeof nextPage === 'function' ? nextPage(page) : nextPage;
+    onViewStateChange({ page: Math.min(Math.max(1, candidate), Math.max(1, totalPages)) });
+  };
+  const toggleSelectedId = (id: string) => {
+    onViewStateChange({ selectedKey: selectedId === id ? null : id });
+  };
 
   // 검색/필터 변경 시 페이지 리셋
   const handleSearchChange = (query: string) => {
     onFilterStateChange({ query });
-    setPage(1);
-    setSelectedId(null);
+    onViewStateChange({ page: 1, selectedKey: null });
   };
   const handleFilterChange = (district: string) => {
     onFilterStateChange({ district });
-    setPage(1);
-    setSelectedId(null);
+    onViewStateChange({ page: 1, selectedKey: null });
   };
   const hasSearch = search.trim().length > 0;
   const hasDistrictFilter = !isSplit && filterDistrict !== '전체';
   const hasActiveFilters = hasSearch || hasDistrictFilter;
   const resetFilters = () => {
     onFilterStateChange({ query: '', district: '전체' });
-    setPage(1);
-    setSelectedId(null);
+    onViewStateChange({ page: 1, selectedKey: null });
     window.requestAnimationFrame(() => searchInputRef.current?.focus());
   };
 
@@ -257,39 +263,47 @@ export default function FacilityList({
 
           {/* Pagination info */}
           {filtered.length > PAGE_SIZE && (
-            <div className="flex items-center justify-between text-sm mt-4">
+            <div className="mt-4 flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
               <span className="text-on-surface-variant">
                 {((page - 1) * PAGE_SIZE + 1).toLocaleString()}~{Math.min(page * PAGE_SIZE, filtered.length).toLocaleString()} / {filtered.length.toLocaleString()}건
               </span>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center justify-between gap-1 sm:justify-start">
                 <button
+                  type="button"
+                  aria-label="첫 페이지"
                   onClick={() => setPage(1)}
                   disabled={page === 1}
-                  className="p-1.5 rounded-lg hover:bg-surface-container transition-colors disabled:opacity-30"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-colors hover:bg-surface-container disabled:opacity-30"
                 >
                   <span className="material-symbols-outlined text-sm">first_page</span>
                 </button>
                 <button
+                  type="button"
+                  aria-label="이전 페이지"
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="p-1.5 rounded-lg hover:bg-surface-container transition-colors disabled:opacity-30"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-colors hover:bg-surface-container disabled:opacity-30"
                 >
                   <span className="material-symbols-outlined text-sm">chevron_left</span>
                 </button>
-                <span className="px-3 py-1 text-on-surface font-bold text-xs">
+                <span aria-live="polite" aria-atomic="true" className="px-3 py-1 text-on-surface font-bold text-xs">
                   {page} / {totalPages}
                 </span>
                 <button
+                  type="button"
+                  aria-label="다음 페이지"
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="p-1.5 rounded-lg hover:bg-surface-container transition-colors disabled:opacity-30"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-colors hover:bg-surface-container disabled:opacity-30"
                 >
                   <span className="material-symbols-outlined text-sm">chevron_right</span>
                 </button>
                 <button
+                  type="button"
+                  aria-label="마지막 페이지"
                   onClick={() => setPage(totalPages)}
                   disabled={page === totalPages}
-                  className="p-1.5 rounded-lg hover:bg-surface-container transition-colors disabled:opacity-30"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-colors hover:bg-surface-container disabled:opacity-30"
                 >
                   <span className="material-symbols-outlined text-sm">last_page</span>
                 </button>
@@ -334,11 +348,11 @@ export default function FacilityList({
                         key={item.id}
                         tabIndex={0}
                         aria-selected={selectedId === item.id}
-                        onClick={() => setSelectedId(prev => prev === item.id ? null : item.id)}
+                        onClick={() => toggleSelectedId(item.id)}
                         onKeyDown={event => {
                           if (event.key === 'Enter' || event.key === ' ') {
                             event.preventDefault();
-                            setSelectedId(prev => prev === item.id ? null : item.id);
+                            toggleSelectedId(item.id);
                           }
                         }}
                         className={`cursor-pointer transition-colors ${
@@ -390,7 +404,7 @@ export default function FacilityList({
                   >
                     <button
                       type="button"
-                      onClick={() => setSelectedId(prev => prev === item.id ? null : item.id)}
+                      onClick={() => toggleSelectedId(item.id)}
                       aria-expanded={selectedId === item.id}
                       className="w-full p-4 pr-24 text-left"
                     >
@@ -426,16 +440,20 @@ export default function FacilityList({
           {filtered.length > PAGE_SIZE && (
             <div className="flex items-center justify-center gap-1">
               <button
+                type="button"
+                aria-label="첫 페이지"
                 onClick={() => setPage(1)}
                 disabled={page === 1}
-                className="p-2 rounded-lg hover:bg-surface-container transition-colors disabled:opacity-30"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-colors hover:bg-surface-container disabled:opacity-30"
               >
                 <span className="material-symbols-outlined text-sm">first_page</span>
               </button>
               <button
+                type="button"
+                aria-label="이전 페이지"
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-2 rounded-lg hover:bg-surface-container transition-colors disabled:opacity-30"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-colors hover:bg-surface-container disabled:opacity-30"
               >
                 <span className="material-symbols-outlined text-sm">chevron_left</span>
               </button>
@@ -443,16 +461,20 @@ export default function FacilityList({
                 {page} / {totalPages}
               </span>
               <button
+                type="button"
+                aria-label="다음 페이지"
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="p-2 rounded-lg hover:bg-surface-container transition-colors disabled:opacity-30"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-colors hover:bg-surface-container disabled:opacity-30"
               >
                 <span className="material-symbols-outlined text-sm">chevron_right</span>
               </button>
               <button
+                type="button"
+                aria-label="마지막 페이지"
                 onClick={() => setPage(totalPages)}
                 disabled={page === totalPages}
-                className="p-2 rounded-lg hover:bg-surface-container transition-colors disabled:opacity-30"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg transition-colors hover:bg-surface-container disabled:opacity-30"
               >
                 <span className="material-symbols-outlined text-sm">last_page</span>
               </button>

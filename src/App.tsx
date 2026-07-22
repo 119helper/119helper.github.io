@@ -20,8 +20,9 @@ import { useNotifications, formatTimeAgo } from './hooks/useNotifications';
 import { BOTTOM_TABS, INCIDENT_BOTTOM_TABS, NAV_ITEMS, cityNames, getTabLabel } from './app/navigation';
 import { renderTabRoute, type RouteContext } from './app/routes';
 import { buildTabHash, readTabLocation } from './app/tabHash';
+import { readMainScrollTop, withMainScrollTop } from './app/historyScroll';
 import { isTabId } from './types/navigation';
-import type { FacilityFilterState, ShelterCategory, TabId, NavigateTarget } from './types/navigation';
+import type { FacilityFilterState, FacilityViewState, ShelterCategory, TabId, NavigateTarget } from './types/navigation';
 import { useUserProfile } from './contexts/UserProfileContext';
 import { useGeolocation } from './hooks/useGeolocation';
 import { useAutoRefresh } from './hooks/useAutoRefresh';
@@ -63,6 +64,7 @@ export default function App() {
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
   const [shelterCategory, setShelterCategory] = useState<ShelterCategory>(initialRoute.shelterCategory ?? 'building');
   const [facilityFilterStates, setFacilityFilterStates] = useState<Record<string, FacilityFilterState>>({});
+  const [facilityViewStates, setFacilityViewStates] = useState<Record<string, FacilityViewState>>({});
   const [preplanSearch, setPreplanSearch] = useState('');
   const { gpsStatus, locationNotice, setGpsStatus, setLocationNotice } = useGeolocation(setCity);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -83,6 +85,8 @@ export default function App() {
   const settingsRef = useRef<HTMLDivElement>(null);
   const notiRef = useRef<HTMLDivElement>(null);
   const mainScrollRef = useRef<HTMLDivElement>(null);
+  const pendingHistoryScrollRef = useRef<number | null>(null);
+  const scrollSaveFrameRef = useRef<number | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const settingsReturnFocusRef = useRef<HTMLElement | null>(null);
@@ -117,8 +121,15 @@ export default function App() {
     return () => media.removeEventListener('change', syncSidebarMode);
   }, []);
 
+  useEffect(() => () => {
+    if (scrollSaveFrameRef.current !== null) {
+      window.cancelAnimationFrame(scrollSaveFrameRef.current);
+    }
+  }, []);
+
   useEffect(() => {
-    const syncFromLocation = () => {
+    const syncFromLocation = (scrollTop: number) => {
+      pendingHistoryScrollRef.current = scrollTop;
       const next = readTabLocation();
       setActiveTab(next.tab);
       setActiveSubId(next.subId);
@@ -126,12 +137,14 @@ export default function App() {
         setShelterCategory(next.shelterCategory ?? 'building');
       }
     };
+    const handleHistoryNavigation = (event: PopStateEvent) => syncFromLocation(readMainScrollTop(event.state));
+    const handleHashNavigation = () => syncFromLocation(readMainScrollTop(window.history.state));
 
-    window.addEventListener('hashchange', syncFromLocation);
-    window.addEventListener('popstate', syncFromLocation);
+    window.addEventListener('hashchange', handleHashNavigation);
+    window.addEventListener('popstate', handleHistoryNavigation);
     return () => {
-      window.removeEventListener('hashchange', syncFromLocation);
-      window.removeEventListener('popstate', syncFromLocation);
+      window.removeEventListener('hashchange', handleHashNavigation);
+      window.removeEventListener('popstate', handleHistoryNavigation);
     };
   }, []);
 
@@ -141,15 +154,59 @@ export default function App() {
     const nextHash = buildTabHash(activeTab, activeSubId, shelterCategory);
     const isFirstSync = !hashInitializedRef.current;
     hashInitializedRef.current = true;
-    if (window.location.hash === nextHash) return;
+    if (window.location.hash === nextHash) {
+      if (isFirstSync) {
+        window.history.replaceState(
+          withMainScrollTop(window.history.state, mainScrollRef.current?.scrollTop ?? 0),
+          '',
+          window.location.href,
+        );
+      }
+      return;
+    }
 
     const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;
     if (isFirstSync) {
-      window.history.replaceState(null, '', nextUrl);
+      window.history.replaceState(
+        withMainScrollTop(window.history.state, mainScrollRef.current?.scrollTop ?? 0),
+        '',
+        nextUrl,
+      );
     } else {
-      window.history.pushState(null, '', nextUrl);
+      window.history.pushState(withMainScrollTop(null, 0), '', nextUrl);
     }
   }, [activeTab, activeSubId, shelterCategory]);
+
+  useEffect(() => {
+    const targetTop = pendingHistoryScrollRef.current;
+    if (targetTop === null) return;
+    pendingHistoryScrollRef.current = null;
+
+    let cancelled = false;
+    let retryTimer: number | undefined;
+    let attempts = 0;
+    const restore = () => {
+      if (cancelled) return;
+      const scroller = mainScrollRef.current;
+      if (!scroller) return;
+      const maxScrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+      if (targetTop <= maxScrollTop || attempts >= 30) {
+        const restoredTop = Math.min(targetTop, maxScrollTop);
+        scroller.scrollTo({ top: restoredTop, behavior: 'auto' });
+        setShowScrollTop(restoredTop > 300);
+        return;
+      }
+      attempts += 1;
+      retryTimer = window.setTimeout(restore, 100);
+    };
+    const frame = window.requestAnimationFrame(restore);
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
+  }, [activeSubId, activeTab, shelterCategory]);
 
   // ─── 테마 시스템 ───
   const [theme, setTheme] = useState<string>(() => {
@@ -438,7 +495,20 @@ export default function App() {
   // 최초/도시변경 즉시 갱신 + 주기 갱신 + 설정 변경 감지 (훅이 캡슐화)
   useAutoRefresh(refreshData);
 
+  function persistMainScrollPosition() {
+    if (scrollSaveFrameRef.current !== null) {
+      window.cancelAnimationFrame(scrollSaveFrameRef.current);
+      scrollSaveFrameRef.current = null;
+    }
+    window.history.replaceState(
+      withMainScrollTop(window.history.state, mainScrollRef.current?.scrollTop ?? 0),
+      '',
+    );
+  }
+
   const handleNavigate = (tab: NavigateTarget | string, subId?: string) => {
+    persistMainScrollPosition();
+    pendingHistoryScrollRef.current = null;
     let nextTab: TabId;
     // hydrants/waterTowers/building → shelter 탭으로 통합 매핑
     if (tab === 'hydrants' || tab === 'waterTowers' || tab === 'building') {
@@ -461,13 +531,31 @@ export default function App() {
   };
 
   const handleScroll = () => {
-    if (mainScrollRef.current) {
-      setShowScrollTop(mainScrollRef.current.scrollTop > 300);
-    }
+    const scroller = mainScrollRef.current;
+    if (!scroller) return;
+    setShowScrollTop(scroller.scrollTop > 300);
+    if (scrollSaveFrameRef.current !== null) return;
+    scrollSaveFrameRef.current = window.requestAnimationFrame(() => {
+      scrollSaveFrameRef.current = null;
+      const currentScroller = mainScrollRef.current;
+      if (!currentScroller) return;
+      window.history.replaceState(
+        withMainScrollTop(window.history.state, currentScroller.scrollTop),
+        '',
+      );
+    });
   };
 
   const scrollToTop = (smooth = true) => {
     mainScrollRef.current?.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+  };
+
+  const handleShelterCategoryChange = (category: ShelterCategory) => {
+    if (category === shelterCategory) return;
+    persistMainScrollPosition();
+    pendingHistoryScrollRef.current = null;
+    setShelterCategory(category);
+    setTimeout(() => scrollToTop(false), 50);
   };
 
   const facilityFilterKey = `${city}:${shelterCategory}`;
@@ -481,6 +569,20 @@ export default function App() {
       },
     }));
   };
+  const facilityViewDistrict = shelterCategory === 'hydrants' || shelterCategory === 'waterTowers'
+    ? selectedDistrict ?? 'all'
+    : 'all';
+  const facilityViewKey = `${facilityFilterKey}:${facilityViewDistrict}`;
+  const facilityViewState = facilityViewStates[facilityViewKey] ?? { selectedKey: null, page: 1, listScrollTop: 0 };
+  const updateFacilityViewState = useCallback((patch: Partial<FacilityViewState>) => {
+    setFacilityViewStates(previous => ({
+      ...previous,
+      [facilityViewKey]: {
+        ...(previous[facilityViewKey] ?? { selectedKey: null, page: 1, listScrollTop: 0 }),
+        ...patch,
+      },
+    }));
+  }, [facilityViewKey]);
 
   const routeContext: RouteContext = {
     activeSubId,
@@ -492,10 +594,12 @@ export default function App() {
     selectedDistrict,
     shelterCategory,
     facilityFilterState,
+    facilityViewState,
     preplanSearch,
     onDistrictChange: loadDistrict,
-    onShelterCategoryChange: setShelterCategory,
+    onShelterCategoryChange: handleShelterCategoryChange,
     onFacilityFilterChange: updateFacilityFilter,
+    onFacilityViewStateChange: updateFacilityViewState,
     onPreplanSearchChange: setPreplanSearch,
     onNavigate: handleNavigate,
     incidentSession,

@@ -9,7 +9,7 @@ import proj4 from 'proj4';
 import BuildingView from './BuildingView';
 import DataStatePanel from './DataStatePanel';
 import type { KakaoMapInstance, KakaoMarker } from '../types/kakao';
-import type { FacilityFilterState, ShelterCategory } from '../types/navigation';
+import type { FacilityFilterState, FacilityViewState, ShelterCategory } from '../types/navigation';
 import { formatDatasetDate, formatFreshnessSourceDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
 
 // EPSG:5179 (GRS80 UTM-K) 정의 — 공공데이터포털(재난안전데이터) 최신 좌표계
@@ -25,8 +25,10 @@ interface FacilitySearchProps {
   onDistrictChange?: (district: string) => void;
   activeCategory: ShelterCategory;
   filterState: FacilityFilterState;
+  viewState: FacilityViewState;
   onCategoryChange: (category: ShelterCategory) => void;
   onFilterStateChange: (patch: Partial<FacilityFilterState>) => void;
+  onViewStateChange: (patch: Partial<FacilityViewState>) => void;
   incidentAddress?: string;
 }
 
@@ -71,6 +73,10 @@ type FacilitySourceItem = Record<string, unknown>;
 
 const fieldText = (item: FacilitySourceItem, key: string) => String(item[key] ?? '');
 
+const facilityItemKey = (facility: FacilityItem) => facility.id
+  ? `id:${facility.id}`
+  : `location:${facility.name}|${facility.address}|${facility.lat}|${facility.lng}`;
+
 const escapeHtml = (value: unknown) => {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -99,15 +105,16 @@ export default function FacilitySearchView({
   onDistrictChange,
   activeCategory,
   filterState,
+  viewState,
   onCategoryChange,
   onFilterStateChange,
+  onViewStateChange,
   incidentAddress,
 }: FacilitySearchProps) {
   const [facilities, setFacilities] = useState<FacilityItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
-  const [selectedFacility, setSelectedFacility] = useState<FacilityItem | null>(null);
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
   const [kakaoMap, setKakaoMap] = useState<KakaoMapInstance | null>(null);
   const [sdkReady, setSdkReady] = useState(false);
@@ -115,15 +122,21 @@ export default function FacilitySearchView({
   const mapRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<KakaoMarker[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const facilityListRef = useRef<HTMLDivElement>(null);
+  const listScrollFrameRef = useRef<number | null>(null);
+  const pendingListScrollTopRef = useRef(viewState.listScrollTop);
+  const persistedListScrollTopRef = useRef(viewState.listScrollTop);
   const filter = filterState.query;
   const filterDistrict = filterState.district;
   const setFilter = (query: string) => {
     onFilterStateChange({ query });
-    setSelectedFacility(null);
+    onViewStateChange({ selectedKey: null, listScrollTop: 0 });
+    facilityListRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   };
   const setFilterDistrict = (district: string) => {
     onFilterStateChange({ district });
-    setSelectedFacility(null);
+    onViewStateChange({ selectedKey: null, listScrollTop: 0 });
+    facilityListRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   };
 
   const [restroomIndex, setRestroomIndex] = useState<CityIndex | null>(null);
@@ -174,10 +187,6 @@ export default function FacilitySearchView({
       : fireFacilities.filter(f => f.type === '급수탑' || f.type === '저수조')
     : [];
 
-  useEffect(() => {
-    setSelectedFacility(null);
-  }, [activeCategory, city]);
-
   // 대피소/화장실 데이터 로드
   const loadShelterData = useCallback(async () => {
     if (isFireWater || isBuilding) return; // 소방용수/건축물대장은 자체 관리
@@ -186,7 +195,6 @@ export default function FacilitySearchView({
     setApiError(null);
     setWarning(null);
     setFacilities([]);
-    setSelectedFacility(null);
 
     try {
       let items: FacilitySourceItem[] = [];
@@ -370,6 +378,10 @@ export default function FacilitySearchView({
     });
   }, [city, userPos, isFireWater, isBuilding, loading, apiError, kakaoMap, sdkReady]);
 
+  const selectFacility = useCallback((facility: FacilityItem) => {
+    onViewStateChange({ selectedKey: facilityItemKey(facility) });
+  }, [onViewStateChange]);
+
   // 마커 업데이트 (대피소용)
   useEffect(() => {
     if (isFireWater || isBuilding || !kakaoMap || !window.kakao) return;
@@ -416,16 +428,16 @@ export default function FacilitySearchView({
         </div>`
       });
       window.kakao.maps.event.addListener(marker, 'click', () => {
-        setSelectedFacility(fac);
+        selectFacility(fac);
         info.open(kakaoMap, marker);
         kakaoMap.panTo(pos);
       });
       markersRef.current.push(marker);
     });
-  }, [facilities, filter, isFireWater, isBuilding, kakaoMap, filterDistrict]);
+  }, [facilities, filter, isFireWater, isBuilding, kakaoMap, filterDistrict, selectFacility]);
 
   const handleSelectFacility = (fac: FacilityItem) => {
-    setSelectedFacility(fac);
+    selectFacility(fac);
     if (kakaoMap && window.kakao) {
       kakaoMap.panTo(new window.kakao.maps.LatLng(fac.lat, fac.lng));
       kakaoMap.setLevel(4);
@@ -436,13 +448,49 @@ export default function FacilitySearchView({
     (filterDistrict === '전체' || f.district === filterDistrict) &&
     (!filter || f.name.includes(filter) || f.address.includes(filter))
   );
+  const selectedFacility = facilities.find(facility => facilityItemKey(facility) === viewState.selectedKey) ?? null;
   const hasQuery = filter.trim().length > 0;
   const hasDistrictFilter = filterDistrict !== '전체';
   const hasActiveFilters = hasQuery || hasDistrictFilter;
   const resetFilters = () => {
     onFilterStateChange({ query: '', district: '전체' });
-    setSelectedFacility(null);
+    onViewStateChange({ selectedKey: null, listScrollTop: 0 });
+    facilityListRef.current?.scrollTo({ top: 0, behavior: 'auto' });
     window.requestAnimationFrame(() => searchInputRef.current?.focus());
+  };
+
+  useEffect(() => {
+    pendingListScrollTopRef.current = viewState.listScrollTop;
+    persistedListScrollTopRef.current = viewState.listScrollTop;
+    const frame = window.requestAnimationFrame(() => {
+      const list = facilityListRef.current;
+      if (!list) return;
+      list.scrollTo({
+        top: Math.min(viewState.listScrollTop, Math.max(0, list.scrollHeight - list.clientHeight)),
+        behavior: 'auto',
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeCategory, city, facilities.length, filter, filterDistrict, viewState.listScrollTop]);
+
+  useEffect(() => () => {
+    if (listScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(listScrollFrameRef.current);
+      listScrollFrameRef.current = null;
+    }
+    if (pendingListScrollTopRef.current !== persistedListScrollTopRef.current) {
+      onViewStateChange({ listScrollTop: pendingListScrollTopRef.current });
+    }
+  }, [onViewStateChange]);
+
+  const handleFacilityListScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    pendingListScrollTopRef.current = event.currentTarget.scrollTop;
+    if (listScrollFrameRef.current !== null) return;
+    listScrollFrameRef.current = window.requestAnimationFrame(() => {
+      listScrollFrameRef.current = null;
+      persistedListScrollTopRef.current = pendingListScrollTopRef.current;
+      onViewStateChange({ listScrollTop: pendingListScrollTopRef.current });
+    });
   };
 
   return (
@@ -528,6 +576,8 @@ export default function FacilitySearchView({
           onDistrictChange={onDistrictChange}
           filterState={filterState}
           onFilterStateChange={onFilterStateChange}
+          viewState={viewState}
+          onViewStateChange={onViewStateChange}
         />
       )}
 
@@ -673,10 +723,16 @@ export default function FacilitySearchView({
                       className="m-4 border-0 bg-transparent"
                     />
                   ) : (
-                    <div className="max-h-[420px] overflow-y-auto custom-scrollbar divide-y divide-outline-variant/10">
-                      {filtered.slice(0, 100).map((fac, idx) => (
+                    <div
+                      ref={facilityListRef}
+                      onScroll={handleFacilityListScroll}
+                      className="max-h-[420px] overflow-y-auto custom-scrollbar divide-y divide-outline-variant/10"
+                    >
+                      {filtered.slice(0, 100).map((fac, index) => (
                         <button
-                          key={`${fac.name}-${idx}`}
+                          key={`${facilityItemKey(fac)}:${index}`}
+                          type="button"
+                          aria-pressed={facilityItemKey(fac) === viewState.selectedKey}
                           onClick={() => handleSelectFacility(fac)}
                           className={`w-full text-left p-3 hover:bg-surface-container-high transition-colors ${
                             selectedFacility?.name === fac.name && selectedFacility?.lat === fac.lat
@@ -740,9 +796,12 @@ export default function FacilitySearchView({
                     )}
                   </div>
                 </div>
-                <button onClick={() => setSelectedFacility(null)}
+                <button
+                  type="button"
+                  aria-label="선택한 시설 닫기"
+                  onClick={() => onViewStateChange({ selectedKey: null })}
                   className="p-1 rounded-lg hover:bg-surface-container transition-colors">
-                  <span className="material-symbols-outlined text-on-surface-variant">close</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-on-surface-variant">close</span>
                 </button>
               </div>
             </div>

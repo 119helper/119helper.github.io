@@ -51,4 +51,10 @@ export interface FacilityFilterState {
   district: string;
 }
 
+export interface FacilityViewState {
+  selectedKey: string | null;
+  page: number;
+  listScrollTop: number;
+}
+
 export type NavigateTarget = TabId | LegacyShelterTab;
