@@ -211,7 +211,7 @@ test('활성 출동: 현장 모드와 사건 주소를 다른 도구로 이어�
 
   await page.goto('/#preplan');
   await expect(page.getByText('진행 중인 출동 정보 연결됨', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: /출동 정보로 추가/ }).click();
+  await page.getByRole('button', { name: '출동 정보로 추가', exact: true }).click();
   await expect(page.getByLabel('대상물명')).toHaveValue('세종대로 현장');
   await expect(page.getByLabel('주소')).toHaveValue('서울특별시 종로구 세종대로 209');
 });

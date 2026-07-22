@@ -126,7 +126,7 @@ test('오프라인: 앱 셸과 핵심 현장 도구(A등급)가 전부 동작한
 
   // 오프라인 배지 표시
   await expect(
-    page.getByText(/오프라인 · 실시간 정보/),
+    page.getByLabel('오프라인. 실시간 정보는 마지막 저장값으로 표시됩니다', { exact: true }),
     '오프라인 배지가 표시되어야 함',
   ).toBeVisible({ timeout: 10_000 });
 
