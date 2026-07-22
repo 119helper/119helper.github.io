@@ -7,7 +7,9 @@ import FacilityList from './FacilityList';
 import { loadKakaoMapSDK } from '../utils/kakaoLoader';
 import proj4 from 'proj4';
 import BuildingView from './BuildingView';
+import DataStatePanel from './DataStatePanel';
 import type { KakaoMapInstance, KakaoMarker } from '../types/kakao';
+import type { FacilityFilterState, ShelterCategory } from '../types/navigation';
 import { formatDatasetDate, formatFreshnessSourceDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
 
 // EPSG:5179 (GRS80 UTM-K) 정의 — 공공데이터포털(재난안전데이터) 최신 좌표계
@@ -21,8 +23,10 @@ interface FacilitySearchProps {
   cityIndex?: CityIndex | null;
   selectedDistrict?: string | null;
   onDistrictChange?: (district: string) => void;
-  // 초기 카테고리 (대시보드에서 바로 진입 시)
-  initialCategory?: string;
+  activeCategory: ShelterCategory;
+  filterState: FacilityFilterState;
+  onCategoryChange: (category: ShelterCategory) => void;
+  onFilterStateChange: (patch: Partial<FacilityFilterState>) => void;
   incidentAddress?: string;
 }
 
@@ -93,16 +97,16 @@ export default function FacilitySearchView({
   cityIndex,
   selectedDistrict,
   onDistrictChange,
-  initialCategory,
+  activeCategory,
+  filterState,
+  onCategoryChange,
+  onFilterStateChange,
   incidentAddress,
 }: FacilitySearchProps) {
-  const [activeCategory, setActiveCategory] = useState(initialCategory || 'building');
   const [facilities, setFacilities] = useState<FacilityItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
-  const [filter, setFilter] = useState('');
-  const [filterDistrict, setFilterDistrict] = useState('전체');
   const [selectedFacility, setSelectedFacility] = useState<FacilityItem | null>(null);
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
   const [kakaoMap, setKakaoMap] = useState<KakaoMapInstance | null>(null);
@@ -110,11 +114,17 @@ export default function FacilitySearchView({
   const [freshness, setFreshness] = useState<DatasetFreshness | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<KakaoMarker[]>([]);
-
-  // initialCategory가 변경되면 반영
-  useEffect(() => {
-    if (initialCategory) setActiveCategory(initialCategory);
-  }, [initialCategory]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const filter = filterState.query;
+  const filterDistrict = filterState.district;
+  const setFilter = (query: string) => {
+    onFilterStateChange({ query });
+    setSelectedFacility(null);
+  };
+  const setFilterDistrict = (district: string) => {
+    onFilterStateChange({ district });
+    setSelectedFacility(null);
+  };
 
   const [restroomIndex, setRestroomIndex] = useState<CityIndex | null>(null);
 
@@ -164,9 +174,8 @@ export default function FacilitySearchView({
       : fireFacilities.filter(f => f.type === '급수탑' || f.type === '저수조')
     : [];
 
-  // 카테고리/도시 변경 시 필터 초기화
   useEffect(() => {
-    setFilterDistrict('전체');
+    setSelectedFacility(null);
   }, [activeCategory, city]);
 
   // 대피소/화장실 데이터 로드
@@ -263,7 +272,7 @@ export default function FacilitySearchView({
         }
       }
 
-      if (items.length > 0 && activeCategory !== 'restrooms') {
+      if (items.length > 0) {
         const parsed: FacilityItem[] = items
           .map((it) => {
             let lat = parseFloat(
@@ -427,6 +436,14 @@ export default function FacilitySearchView({
     (filterDistrict === '전체' || f.district === filterDistrict) &&
     (!filter || f.name.includes(filter) || f.address.includes(filter))
   );
+  const hasQuery = filter.trim().length > 0;
+  const hasDistrictFilter = filterDistrict !== '전체';
+  const hasActiveFilters = hasQuery || hasDistrictFilter;
+  const resetFilters = () => {
+    onFilterStateChange({ query: '', district: '전체' });
+    setSelectedFacility(null);
+    window.requestAnimationFrame(() => searchInputRef.current?.focus());
+  };
 
   return (
     <div className="space-y-4">
@@ -479,7 +496,9 @@ export default function FacilitySearchView({
           {CATEGORIES.map(cat => (
             <button
               key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
+              type="button"
+              aria-pressed={activeCategory === cat.id}
+              onClick={() => onCategoryChange(cat.id)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
                 activeCategory === cat.id
                   ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
@@ -507,6 +526,8 @@ export default function FacilitySearchView({
           cityIndex={cityIndex}
           selectedDistrict={selectedDistrict}
           onDistrictChange={onDistrictChange}
+          filterState={filterState}
+          onFilterStateChange={onFilterStateChange}
         />
       )}
 
@@ -528,6 +549,8 @@ export default function FacilitySearchView({
             </div>
             <div className="flex flex-wrap gap-1.5">
               <button
+                type="button"
+                aria-pressed={filterDistrict === '전체'}
                 onClick={() => setFilterDistrict('전체')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   filterDistrict === '전체'
@@ -543,6 +566,8 @@ export default function FacilitySearchView({
                 ).map(d => (
                 <button
                   key={d}
+                  type="button"
+                  aria-pressed={filterDistrict === d}
                   onClick={() => setFilterDistrict(d as string)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     filterDistrict === d
@@ -558,37 +583,35 @@ export default function FacilitySearchView({
 
           {/* API 에러 */}
           {!loading && apiError && (
-            <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-6 text-center mt-4">
-              <span className="material-symbols-outlined text-5xl text-red-400/60 mb-3 block">cloud_off</span>
-              <h3 className="text-lg font-bold text-on-surface mb-2">
-                {apiError.includes('방대하여') ? `${currentCat.label} 구역 선택 안내` : `${currentCat.label} API 연결 실패`}
-              </h3>
-              <p className="text-sm text-red-300/80 max-w-lg mx-auto mb-1">{apiError}</p>
-              {!apiError.includes('방대하여') && (
-                <button onClick={loadShelterData}
-                  className="mt-3 bg-red-500/20 text-red-300 px-5 py-2 rounded-lg text-sm font-bold hover:bg-red-500/30 transition-colors inline-flex items-center gap-2">
-                  <span className="material-symbols-outlined text-lg">refresh</span>
-                  다시 시도
-                </button>
-              )}
-            </div>
+            <DataStatePanel
+              tone={apiError.includes('방대하여') ? 'guidance' : 'error'}
+              icon={apiError.includes('방대하여') ? 'touch_app' : 'cloud_off'}
+              title={apiError.includes('방대하여') ? `${currentCat.label} 구역을 선택해 주세요` : `${currentCat.label} 정보를 불러오지 못했습니다`}
+              description={apiError}
+              action={apiError.includes('방대하여') ? undefined : {
+                label: '다시 시도',
+                icon: 'refresh',
+                onClick: () => void loadShelterData(),
+              }}
+              className="mt-4"
+            />
           )}
 
           {/* Warning */}
           {!loading && warning && (
-            <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-xl p-4 flex items-start gap-3 mt-4">
-              <span className="material-symbols-outlined text-yellow-400">warning</span>
+            <div role="status" className="mt-4 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+              <span aria-hidden="true" className="material-symbols-outlined text-amber-700 dark:text-amber-300">warning</span>
               <div className="flex-1">
-                <p className="text-sm font-bold text-yellow-300">최신 데이터 갱신 실패</p>
-                <p className="text-xs text-yellow-200/80 mt-1">{warning} 마지막으로 성공한 데이터를 표시 중입니다.</p>
+                <p className="text-sm font-bold text-amber-800 dark:text-amber-300">최신 데이터 갱신 실패</p>
+                <p className="mt-1 text-xs text-amber-900/80 dark:text-amber-200/80">{warning} 마지막으로 성공한 데이터를 표시 중입니다.</p>
               </div>
             </div>
           )}
 
           {/* 로딩 오버레이 (지도 위에 띄움) */}
           {loading && (
-            <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-12 flex items-center justify-center gap-3 mt-4">
-              <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+            <div role="status" aria-live="polite" className="mt-4 flex items-center justify-center gap-3 rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-12">
+              <div aria-hidden="true" className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               <span className="text-sm text-on-surface-variant">{currentCat.label} 데이터 로딩 중...</span>
             </div>
           )}
@@ -613,23 +636,42 @@ export default function FacilitySearchView({
                     <div className="relative">
                       <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
                       <input
+                        ref={searchInputRef}
                         aria-label="시설명 또는 주소 검색"
                         type="text" placeholder="시설명 또는 주소 검색..."
                         value={filter} onChange={e => setFilter(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2 text-sm bg-surface-container-lowest border border-outline-variant/20 rounded-lg text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        className="w-full rounded-lg border border-outline-variant/20 bg-surface-container-lowest py-2 pl-9 pr-12 text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/50"
                       />
+                      {hasQuery && (
+                        <button
+                          type="button"
+                          aria-label="시설 검색어 지우기"
+                          onClick={() => {
+                            setFilter('');
+                            window.requestAnimationFrame(() => searchInputRef.current?.focus());
+                          }}
+                          className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+                        >
+                          <span aria-hidden="true" className="material-symbols-outlined text-lg">close</span>
+                        </button>
+                      )}
                     </div>
                     <div className="flex items-center justify-between mt-2">
-                      <span className="text-[10px] text-on-surface-variant">{filtered.length}개 시설</span>
+                      <span role="status" aria-live="polite" className="text-[10px] text-on-surface-variant">{filtered.length}개 시설</span>
                       {userPos && <span className="text-[10px] text-primary">📍 거리순 정렬</span>}
                     </div>
                   </div>
 
                   {filtered.length === 0 ? (
-                    <div className="p-8 text-center">
-                      <span className="material-symbols-outlined text-on-surface-variant/40 text-4xl">location_off</span>
-                      <p className="text-sm text-on-surface-variant mt-2">해당 지역에 시설 데이터가 없습니다</p>
-                    </div>
+                    <DataStatePanel
+                      icon={hasActiveFilters ? 'search_off' : 'location_off'}
+                      title={hasActiveFilters ? '검색·필터 결과가 없습니다' : '표시할 시설 데이터가 없습니다'}
+                      description={hasActiveFilters
+                        ? <>{hasQuery && <><strong className="text-on-surface">‘{filter.trim()}’</strong> 검색어</>}{hasQuery && hasDistrictFilter ? '와 ' : ''}{hasDistrictFilter && <><strong className="text-on-surface">{filterDistrict}</strong> 지역 필터</>}에 맞는 시설이 없습니다.</>
+                        : '다른 지역이나 시설 종류를 선택해 확인해 주세요.'}
+                      action={hasActiveFilters ? { label: '검색·필터 초기화', icon: 'restart_alt', onClick: resetFilters } : undefined}
+                      className="m-4 border-0 bg-transparent"
+                    />
                   ) : (
                     <div className="max-h-[420px] overflow-y-auto custom-scrollbar divide-y divide-outline-variant/10">
                       {filtered.slice(0, 100).map((fac, idx) => (

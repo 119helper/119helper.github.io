@@ -2,7 +2,7 @@
 import { lazy, type ReactNode } from 'react';
 import type { CityIndex } from '../services/fireWaterApi';
 import type { FireFacility } from '../data/mockData';
-import type { ShelterCategory, TabId, NavigateTarget } from '../types/navigation';
+import type { FacilityFilterState, ShelterCategory, TabId, NavigateTarget } from '../types/navigation';
 import type { IncidentSession } from '../services/incidentSession';
 
 const DashboardView = lazy(() => import('../components/DashboardView'));
@@ -44,7 +44,12 @@ export interface RouteContext {
   cityIndex: CityIndex | null;
   selectedDistrict: string | null;
   shelterCategory: ShelterCategory;
+  facilityFilterState: FacilityFilterState;
+  preplanSearch: string;
   onDistrictChange: (district: string) => void;
+  onShelterCategoryChange: (category: ShelterCategory) => void;
+  onFacilityFilterChange: (patch: Partial<FacilityFilterState>) => void;
+  onPreplanSearchChange: (query: string) => void;
   onNavigate: (tab: NavigateTarget | string, subId?: string) => void;
   incidentSession: IncidentSession;
 }
@@ -75,7 +80,10 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
         cityIndex={ctx.cityIndex}
         selectedDistrict={ctx.selectedDistrict}
         onDistrictChange={ctx.onDistrictChange}
-        initialCategory={ctx.shelterCategory}
+        activeCategory={ctx.shelterCategory}
+        filterState={ctx.facilityFilterState}
+        onCategoryChange={ctx.onShelterCategoryChange}
+        onFilterStateChange={ctx.onFacilityFilterChange}
         incidentAddress={ctx.incidentSession.active ? ctx.incidentSession.address : ''}
       />
     ),
@@ -104,6 +112,8 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
   preplan: {
     render: ctx => (
       <PrePlanView
+        searchQuery={ctx.preplanSearch}
+        onSearchQueryChange={ctx.onPreplanSearchChange}
         incidentContext={ctx.incidentSession.active ? {
           title: ctx.incidentSession.title,
           address: ctx.incidentSession.address,

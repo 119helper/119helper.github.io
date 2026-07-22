@@ -1,7 +1,9 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { FireFacility } from '../data/mockData';
 import type { CityIndex } from '../services/fireWaterApi';
+import type { FacilityFilterState } from '../types/navigation';
 import KakaoMap from './KakaoMap';
+import DataStatePanel from './DataStatePanel';
 
 interface Props {
   data: FireFacility[];
@@ -14,26 +16,27 @@ interface Props {
   cityIndex?: CityIndex | null;
   selectedDistrict?: string | null;
   onDistrictChange?: (district: string) => void;
+  filterState: FacilityFilterState;
+  onFilterStateChange: (patch: Partial<FacilityFilterState>) => void;
 }
 
 const PAGE_SIZE = 50;
 
 export default function FacilityList({
   data, title, icon, typeLabel, city, isLoading = false,
-  cityIndex, selectedDistrict, onDistrictChange
+  cityIndex, selectedDistrict, onDistrictChange, filterState, onFilterStateChange,
 }: Props) {
-  const [search, setSearch] = useState('');
-  const [filterDistrict, setFilterDistrict] = useState('전체');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const search = filterState.query;
+  const filterDistrict = filterState.district;
 
-  // 도시나 카테고리가 변경될 때 필터 및 상태 초기화
+  // 데이터 범위가 바뀌면 페이지와 선택만 초기화하고 검색 조건은 유지한다.
   useEffect(() => {
-    setFilterDistrict('전체');
-    setSearch('');
     setPage(1);
     setSelectedId(null);
-  }, [city, typeLabel]);
+  }, [city, selectedDistrict, typeLabel]);
 
   // 분할 도시 여부 판단
   const isSplit = !!cityIndex && !!onDistrictChange;
@@ -58,8 +61,25 @@ export default function FacilityList({
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // 검색/필터 변경 시 페이지 리셋
-  const handleSearchChange = (val: string) => { setSearch(val); setPage(1); };
-  const handleFilterChange = (val: string) => { setFilterDistrict(val); setPage(1); };
+  const handleSearchChange = (query: string) => {
+    onFilterStateChange({ query });
+    setPage(1);
+    setSelectedId(null);
+  };
+  const handleFilterChange = (district: string) => {
+    onFilterStateChange({ district });
+    setPage(1);
+    setSelectedId(null);
+  };
+  const hasSearch = search.trim().length > 0;
+  const hasDistrictFilter = !isSplit && filterDistrict !== '전체';
+  const hasActiveFilters = hasSearch || hasDistrictFilter;
+  const resetFilters = () => {
+    onFilterStateChange({ query: '', district: '전체' });
+    setPage(1);
+    setSelectedId(null);
+    window.requestAnimationFrame(() => searchInputRef.current?.focus());
+  };
 
   const statusColor = (status: string) => {
     switch (status) {
@@ -116,6 +136,8 @@ export default function FacilityList({
             {districts.map(d => (
               <button
                 key={d}
+                type="button"
+                aria-pressed={selectedDistrict === d}
                 onClick={() => onDistrictChange!(d)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   selectedDistrict === d
@@ -186,15 +208,31 @@ export default function FacilityList({
 
           {/* Filters */}
           <div className="flex gap-3 flex-col sm:flex-row mt-4">
-            <input
-              aria-label="소방시설 검색"
-              type="text"
-              value={search}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="주소 또는 ID로 검색..."
-              disabled={isSplit && !selectedDistrict}
-              className="flex-1 bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
-            />
+            <div className="relative flex-1">
+              <input
+                ref={searchInputRef}
+                aria-label="소방시설 검색"
+                type="search"
+                value={search}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="주소 또는 ID로 검색..."
+                disabled={isSplit && !selectedDistrict}
+                className="w-full rounded-lg border border-outline-variant/20 bg-surface-container py-3 pl-4 pr-12 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
+              />
+              {hasSearch && !(isSplit && !selectedDistrict) && (
+                <button
+                  type="button"
+                  aria-label="소방시설 검색어 지우기"
+                  onClick={() => {
+                    handleSearchChange('');
+                    window.requestAnimationFrame(() => searchInputRef.current?.focus());
+                  }}
+                  className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+                >
+                  <span aria-hidden="true" className="material-symbols-outlined text-lg">close</span>
+                </button>
+              )}
+            </div>
             {/* 비분할 도시용 필터 (분할 도시에서는 이미 구별로 로드) */}
             {!isSplit && (
               <select
@@ -210,6 +248,12 @@ export default function FacilityList({
               </select>
             )}
           </div>
+
+          {(!isSplit || selectedDistrict) && (
+            <p role="status" aria-live="polite" className="mt-2 text-xs font-bold text-on-surface-variant">
+              {hasActiveFilters ? `조건에 맞는 시설 ${filtered.length.toLocaleString()}건` : `시설 ${filtered.length.toLocaleString()}건`}
+            </p>
+          )}
 
           {/* Pagination info */}
           {filtered.length > PAGE_SIZE && (
@@ -256,6 +300,20 @@ export default function FacilityList({
           {/* List — 페이지네이션된 데이터만 렌더링 (구/군 선택 전에 테이블 숨김) */}
           {(!isSplit || selectedDistrict) && (
             <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden mt-4">
+              {filtered.length === 0 ? (
+                <DataStatePanel
+                  icon={hasActiveFilters ? 'search_off' : 'location_off'}
+                  title={hasActiveFilters ? '검색·필터 결과가 없습니다' : '표시할 시설 데이터가 없습니다'}
+                  description={hasActiveFilters
+                    ? '검색어 또는 지역 조건을 바꿔 다시 확인해 주세요.'
+                    : selectedDistrict
+                      ? `${selectedDistrict}에서 불러온 ${typeLabel} 데이터가 없습니다.`
+                      : `현재 지역에서 불러온 ${typeLabel} 데이터가 없습니다.`}
+                  action={hasActiveFilters ? { label: '검색·필터 초기화', icon: 'restart_alt', onClick: resetFilters } : undefined}
+                  className="m-4 border-0 bg-transparent"
+                />
+              ) : (
+                <>
               {/* Desktop table */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
@@ -359,19 +417,7 @@ export default function FacilityList({
                   </div>
                 ))}
               </div>
-  
-              {isLoading && (
-                <div className="p-12 text-center text-on-surface-variant">
-                  <span className="material-symbols-outlined text-4xl animate-spin text-primary">progress_activity</span>
-                  <p className="mt-2 font-bold animate-pulse">공공데이터 불러오는 중...</p>
-                </div>
-              )}
-  
-              {!isLoading && data.length > 0 && filtered.length === 0 && (
-                <div className="p-12 text-center text-on-surface-variant">
-                  <span className="material-symbols-outlined text-4xl opacity-30">search_off</span>
-                  <p className="mt-2">검색 결과가 없습니다</p>
-                </div>
+                </>
               )}
             </div>
           )}

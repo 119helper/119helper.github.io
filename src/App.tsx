@@ -21,7 +21,7 @@ import { BOTTOM_TABS, INCIDENT_BOTTOM_TABS, NAV_ITEMS, cityNames, getTabLabel } 
 import { renderTabRoute, type RouteContext } from './app/routes';
 import { buildTabHash, readTabLocation } from './app/tabHash';
 import { isTabId } from './types/navigation';
-import type { ShelterCategory, TabId, NavigateTarget } from './types/navigation';
+import type { FacilityFilterState, ShelterCategory, TabId, NavigateTarget } from './types/navigation';
 import { useUserProfile } from './contexts/UserProfileContext';
 import { useGeolocation } from './hooks/useGeolocation';
 import { useAutoRefresh } from './hooks/useAutoRefresh';
@@ -62,6 +62,8 @@ export default function App() {
   const [cityIndex, setCityIndex] = useState<CityIndex | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
   const [shelterCategory, setShelterCategory] = useState<ShelterCategory>(initialRoute.shelterCategory ?? 'building');
+  const [facilityFilterStates, setFacilityFilterStates] = useState<Record<string, FacilityFilterState>>({});
+  const [preplanSearch, setPreplanSearch] = useState('');
   const { gpsStatus, locationNotice, setGpsStatus, setLocationNotice } = useGeolocation(setCity);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['group-monitoring']);
@@ -468,6 +470,18 @@ export default function App() {
     mainScrollRef.current?.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
   };
 
+  const facilityFilterKey = `${city}:${shelterCategory}`;
+  const facilityFilterState = facilityFilterStates[facilityFilterKey] ?? { query: '', district: '전체' };
+  const updateFacilityFilter = (patch: Partial<FacilityFilterState>) => {
+    setFacilityFilterStates(previous => ({
+      ...previous,
+      [facilityFilterKey]: {
+        ...(previous[facilityFilterKey] ?? { query: '', district: '전체' }),
+        ...patch,
+      },
+    }));
+  };
+
   const routeContext: RouteContext = {
     activeSubId,
     city,
@@ -477,7 +491,12 @@ export default function App() {
     cityIndex,
     selectedDistrict,
     shelterCategory,
+    facilityFilterState,
+    preplanSearch,
     onDistrictChange: loadDistrict,
+    onShelterCategoryChange: setShelterCategory,
+    onFacilityFilterChange: updateFacilityFilter,
+    onPreplanSearchChange: setPreplanSearch,
     onNavigate: handleNavigate,
     incidentSession,
   };

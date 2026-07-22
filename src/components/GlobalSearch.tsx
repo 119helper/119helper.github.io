@@ -82,11 +82,11 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const mobileTriggerRef = useRef<HTMLButtonElement>(null);
-  const mobileDialogRef = useDialogAccessibility<HTMLDivElement>(mobileOpen, () => {
+  const closeMobileSearch = () => {
     setMobileOpen(false);
     setIsOpen(false);
-    setQuery('');
-  }, mobileTriggerRef);
+  };
+  const mobileDialogRef = useDialogAccessibility<HTMLDivElement>(mobileOpen, closeMobileSearch, mobileTriggerRef);
 
   // 외부 클릭 시 닫기
   useEffect(() => {
@@ -165,15 +165,22 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
       setSelectedIdx(prev => Math.min(prev + 1, displayedResults.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (results.length === 0) return;
+      if (displayedResults.length === 0) return;
       setSelectedIdx(prev => Math.max(prev - 1, 0));
     } else if (e.key === 'Enter' && displayedResults[selectedIdx]) {
       e.preventDefault();
       handleSelect(displayedResults[selectedIdx]);
     } else if (e.key === 'Escape') {
-      setIsOpen(false);
-      setQuery('');
+      if (mobileOpen) closeMobileSearch();
+      else setIsOpen(false);
     }
+  };
+
+  const clearQuery = () => {
+    setQuery('');
+    setSelectedIdx(0);
+    setIsOpen(true);
+    window.requestAnimationFrame(() => (mobileOpen ? mobileInputRef.current : inputRef.current)?.focus());
   };
 
   const handleSelect = (result: SearchResult) => {
@@ -199,7 +206,7 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
       {displayedResults.length > 0 && (
         <>
           <div className="px-3 py-2 border-b border-outline-variant/10 flex items-center justify-between">
-            <span className="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">
+            <span role="status" aria-live="polite" className="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">
               {query.trim() ? `${displayedResults.length}개 결과` : favoriteResults.length > 0 ? '즐겨찾기 · 최근 사용' : '최근 사용'}
             </span>
             {!query.trim() && displayedResults.length > 0 && (
@@ -223,9 +230,10 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                   type="button"
                   onClick={() => handleSelect(result)}
                   onMouseEnter={() => setSelectedIdx(index)}
+                  aria-current={index === selectedIdx ? 'true' : undefined}
                   className="min-w-0 flex-1 flex items-center gap-3 px-4 py-3 text-left"
                 >
-                  <span className={`material-symbols-outlined text-lg ${result.color}`}>{result.icon}</span>
+                  <span aria-hidden="true" className={`material-symbols-outlined text-lg ${result.color}`}>{result.icon}</span>
                   <span className="flex-1 min-w-0">
                     <span className="text-sm font-bold text-on-surface truncate block">{result.title}</span>
                     <span className="text-[11px] text-on-surface-variant truncate block">{result.subtitle}</span>
@@ -247,9 +255,17 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
       )}
 
       {isOpen && query.trim() && displayedResults.length === 0 && (
-        <div className="p-6 text-center">
-          <span className="material-symbols-outlined text-2xl text-outline/40">search_off</span>
-          <p className="text-sm text-on-surface-variant mt-1">검색 결과가 없습니다</p>
+        <div role="status" className="p-6 text-center">
+          <span aria-hidden="true" className="material-symbols-outlined text-2xl text-outline/40">search_off</span>
+          <p className="mt-1 text-sm font-bold text-on-surface">‘{query.trim()}’ 검색 결과가 없습니다</p>
+          <p className="mt-1 text-xs text-on-surface-variant">날씨, 산불, 계산기처럼 기능 이름으로 검색해 보세요.</p>
+          <button
+            type="button"
+            onClick={clearQuery}
+            className="mt-3 min-h-11 rounded-xl bg-primary px-4 py-2 text-sm font-extrabold text-on-primary hover:bg-primary/90"
+          >
+            검색어 지우기
+          </button>
         </div>
       )}
 
@@ -299,7 +315,7 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm p-3 safe-area-top" onClick={() => setMobileOpen(false)}>
+        <div className="md:hidden fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm p-3 safe-area-top" onClick={closeMobileSearch}>
           <div ref={mobileDialogRef} role="dialog" aria-modal="true" aria-label="기능 검색" tabIndex={-1} className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl shadow-2xl p-3 mt-2" onClick={event => event.stopPropagation()}>
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
@@ -316,7 +332,7 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                   onKeyDown={handleKeyDown}
                 />
               </div>
-              <button type="button" aria-label="기능 검색 닫기" onClick={() => setMobileOpen(false)} className="w-12 h-12 rounded-xl flex items-center justify-center text-on-surface-variant hover:bg-surface-container">
+              <button type="button" aria-label="기능 검색 닫기" onClick={closeMobileSearch} className="w-12 h-12 rounded-xl flex items-center justify-center text-on-surface-variant hover:bg-surface-container">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>

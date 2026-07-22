@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchPolicyNews, type NewsItem } from '../services/newsApi';
+import DataStatePanel from './DataStatePanel';
 
 const stripHtml = (value: string | undefined) => (value || '').replace(/<[^>]*>/g, '');
 
@@ -168,29 +169,34 @@ export default function PolicyDashboard() {
           type="button"
           onClick={() => loadNews(true)}
           disabled={loading}
+          aria-label={loading ? '정책 정보 새로고침 중' : '정책 정보 새로고침'}
+          aria-busy={loading}
           className="p-2 rounded-full bg-surface-variant text-on-surface hover:bg-surface-tint hover:text-white transition-colors flex items-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          title="새로고침"
         >
-          <span className={`material-symbols-outlined ${loading ? 'animate-spin' : ''}`}>refresh</span>
+          <span aria-hidden="true" className={`material-symbols-outlined ${loading ? 'animate-spin' : ''}`}>refresh</span>
         </button>
       </div>
 
-      {error && !loading && (
-        <div className="p-4 rounded-xl bg-error/10 border border-error/30 text-error text-sm font-bold mb-6">
-          {error}
-        </div>
-      )}
-
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-10 h-10 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+        <div role="status" aria-live="polite" className="flex flex-col items-center justify-center py-20">
+          <div aria-hidden="true" className="w-10 h-10 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
           <p className="mt-4 text-on-surface-variant text-sm font-medium">전 부처 정책 정보를 수집 중입니다...</p>
         </div>
+      ) : error ? (
+        <DataStatePanel
+          tone="error"
+          icon="cloud_off"
+          title="정책 정보를 불러오지 못했습니다"
+          description="네트워크 연결을 확인한 뒤 다시 시도해 주세요."
+          action={{ label: '다시 시도', icon: 'refresh', onClick: () => void loadNews(true) }}
+        />
       ) : news.length === 0 ? (
-        <div className="text-center py-20 bg-surface-container rounded-2xl border border-outline-variant/20">
-          <span className="material-symbols-outlined text-on-surface-variant/40 text-4xl mb-3">search_off</span>
-          <p className="text-on-surface-variant">현재 불러올 수 있는 정책 뉴스가 없습니다.</p>
-        </div>
+        <DataStatePanel
+          icon="policy"
+          title="새 정책 소식이 없습니다"
+          description="소방청·관계 부처·국회의 새 정책 및 입법 소식이 아직 수집되지 않았습니다."
+          action={{ label: '새로고침', icon: 'refresh', onClick: () => void loadNews(true) }}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6 md:grid-flow-row-dense">
           {news.map((item, idx) => {
@@ -270,4 +276,3 @@ export default function PolicyDashboard() {
     </div>
   );
 }
-

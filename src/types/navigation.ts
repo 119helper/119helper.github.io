@@ -46,4 +46,9 @@ export function isTabId(value: string | null): value is TabId {
 export type LegacyShelterTab = 'hydrants' | 'waterTowers' | 'building';
 export type ShelterCategory = LegacyShelterTab | 'civil' | 'tsunami' | 'restrooms';
 
+export interface FacilityFilterState {
+  query: string;
+  district: string;
+}
+
 export type NavigateTarget = TabId | LegacyShelterTab;

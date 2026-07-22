@@ -5,6 +5,7 @@ import { type PrePlan, type PrePlanContact, createEmptyPrePlan } from '../types/
 import { resizeImage, savePhoto, getPhoto, deletePhoto, MAX_PREPLAN_PHOTO_DATA_URL_LENGTH } from '../services/preplanPhotos';
 import { buildSensitiveExportMessage } from '../utils/sensitiveExport';
 import { useAppFeedback } from '../contexts/FeedbackContext';
+import DataStatePanel from './DataStatePanel';
 
 const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
 const MAX_IMPORT_PLANS = 500;
@@ -45,14 +46,20 @@ const prePlanBundleSchema = z.object({
 
 interface PrePlanViewProps {
   incidentContext?: { title: string; address: string } | null;
+  searchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
 }
 
-export default function PrePlanView({ incidentContext = null }: PrePlanViewProps) {
+export default function PrePlanView({ incidentContext = null, searchQuery, onSearchQueryChange }: PrePlanViewProps) {
   const { showUndo, showNotice, confirmAction } = useAppFeedback();
   const [plans, setPlans] = useLocalStorageState<PrePlan[]>('119helper-preplans', []);
-  const [search, setSearch] = useState('');
+  const [localSearch, setLocalSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const fileImportRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const search = searchQuery ?? localSearch;
+  const setSearch = onSearchQueryChange ?? setLocalSearch;
+  const hasSearch = search.trim().length > 0;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -200,20 +207,58 @@ export default function PrePlanView({ incidentContext = null }: PrePlanViewProps
         </div>
       )}
 
-      <input
-        aria-label="대상물 검색"
-        type="text"
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder="대상물명 또는 주소 검색"
-        className="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30"
-      />
+      <div>
+        <div className="relative">
+          <input
+            ref={searchInputRef}
+            aria-label="대상물 검색"
+            type="search"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="대상물명 또는 주소 검색"
+            className="w-full rounded-lg border border-outline-variant/20 bg-surface-container py-3 pl-4 pr-12 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          {hasSearch && (
+            <button
+              type="button"
+              aria-label="대상물 검색어 지우기"
+              onClick={() => {
+                setSearch('');
+                window.requestAnimationFrame(() => searchInputRef.current?.focus());
+              }}
+              className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-lg">close</span>
+            </button>
+          )}
+        </div>
+        <p role="status" aria-live="polite" className="mt-2 text-xs font-bold text-on-surface-variant">
+          {hasSearch ? `검색 결과 ${filtered.length}개` : `등록된 대상물 ${plans.length}개`}
+        </p>
+      </div>
 
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-on-surface-variant">
-          <span className="material-symbols-outlined text-6xl opacity-30">apartment</span>
-          <p className="mt-4 text-sm">{search ? '검색 결과가 없습니다' : '등록된 대상물이 없습니다. "새 대상물"로 추가하세요'}</p>
-        </div>
+        <DataStatePanel
+          icon={hasSearch ? 'search_off' : 'apartment'}
+          title={hasSearch ? '검색 결과가 없습니다' : '등록된 대상물이 없습니다'}
+          description={hasSearch
+            ? <><strong className="text-on-surface">‘{search.trim()}’</strong>와 일치하는 대상물명이나 주소가 없습니다.</>
+            : '출동 전에 위험요소·연락처·진입 정보를 미리 등록해 두세요.'}
+          action={hasSearch
+            ? {
+                label: '검색어 지우기',
+                icon: 'restart_alt',
+                onClick: () => {
+                  setSearch('');
+                  window.requestAnimationFrame(() => searchInputRef.current?.focus());
+                },
+              }
+            : {
+                label: incidentContext ? '출동 정보로 추가' : '새 대상물 추가',
+                icon: 'add',
+                onClick: createNew,
+              }}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {filtered.map(p => (
