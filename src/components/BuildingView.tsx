@@ -43,6 +43,20 @@ const loadRecentSearches = (): RecentSearchItem[] => {
   });
 };
 
+const formatNumber = (value: number) => value.toLocaleString('ko-KR');
+
+const formatMetric = (value: number | undefined, unit: string) => {
+  return value === undefined ? '확인불가' : `${formatNumber(value)} ${unit}`;
+};
+
+const formatFloorCount = (label: string, value: number | undefined) => {
+  return value === undefined ? `${label} 확인불가` : `${label} ${formatNumber(value)}층`;
+};
+
+const formatRatio = (value: number | undefined) => {
+  return value === undefined ? '확인불가' : `${formatNumber(value)}%`;
+};
+
 interface BuildingViewProps {
   initialAddress?: string;
   workspace: BuildingWorkspaceState;
@@ -51,12 +65,14 @@ interface BuildingViewProps {
 
 export default function BuildingView({ initialAddress = '', workspace, onWorkspaceChange }: BuildingViewProps) {
   const normalizedInitialAddress = initialAddress.trim();
-  const { address, errorMsg, warningMsg, bldgInfo, hasSearched, fireAccom, fireSys, fireStatus, fireError } = workspace;
+  const { address, errorMsg, warningMsg, bldgInfo, hasSearched, fireAccom, fireSys, fireSido, fireStatus, fireError } = workspace;
   const [isLoading, setIsLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>(loadRecentSearches);
   const [fireLoading, setFireLoading] = useState(false);
   const requestSeqRef = useRef(0);
   const appliedInitialAddressRef = useRef('');
+  const resultHeadingRef = useRef<HTMLHeadingElement>(null);
+  const shouldFocusResultRef = useRef(false);
   const updateWorkspace = useCallback((patch: Partial<BuildingWorkspaceState>) => {
     onWorkspaceChange(patch);
   }, [onWorkspaceChange]);
@@ -80,6 +96,109 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
     }
   }, [address, normalizedInitialAddress, updateWorkspace]);
 
+  useEffect(() => {
+    if (isLoading || !bldgInfo || !shouldFocusResultRef.current) return;
+
+    shouldFocusResultRef.current = false;
+    const resultHeading = resultHeadingRef.current;
+    if (!resultHeading) return;
+
+    resultHeading.focus({ preventScroll: true });
+    const isCompactViewport = typeof window.matchMedia === 'function'
+      ? window.matchMedia('(max-width: 639px)').matches
+      : window.innerWidth < 640;
+    if (!isCompactViewport) return;
+
+    const prefersReducedMotion = typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    resultHeading.scrollIntoView?.({
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      block: 'start',
+    });
+  }, [bldgInfo, isLoading]);
+
+  const fetchFireReferences = async (sido: string, seq: number, forceRefresh = false) => {
+    if (!sido) {
+      if (seq === requestSeqRef.current) {
+        updateWorkspace({
+          fireSido: '',
+          fireStatus: 'error',
+          fireError: '소방시설 참고정보를 조회할 시·도 정보를 확인하지 못했습니다.',
+        });
+      }
+      return;
+    }
+
+    if (seq !== requestSeqRef.current) return;
+
+    setFireLoading(true);
+    updateWorkspace({ fireSido: sido, fireError: '' });
+    try {
+      const [accomRes, sysRes] = await Promise.allSettled([
+        fetchFireObjectAccom(sido, '50', '1', forceRefresh),
+        fetchFireObjectFireSys(sido, '50', '1', forceRefresh),
+      ]);
+
+      if (seq !== requestSeqRef.current) return;
+
+      let failedFireRequests = 0;
+      let usedCachedFireData = false;
+      const fireNotices: string[] = [];
+      let nextFireAccom: FireObjectAccom[] = [];
+      let nextFireSys: FireObjectFireSys[] = [];
+
+      if (accomRes.status === 'fulfilled') {
+        nextFireAccom = accomRes.value.items || [];
+      } else if (isStaleDataError(accomRes.reason)) {
+        usedCachedFireData = true;
+        const cached = accomRes.reason.cachedData as PaginatedItemsResponse<FireObjectAccom>;
+        nextFireAccom = cached.items || [];
+        const t = accomRes.reason.cachedAt ? ` (성공: ${new Date(accomRes.reason.cachedAt).toLocaleTimeString()})` : '';
+        fireNotices.push(`${accomRes.reason.message}${t}`);
+      } else {
+        failedFireRequests += 1;
+        console.warn('[BuildingView] fire accom failed:', accomRes.reason);
+      }
+
+      if (sysRes.status === 'fulfilled') {
+        nextFireSys = sysRes.value.items || [];
+      } else if (isStaleDataError(sysRes.reason)) {
+        usedCachedFireData = true;
+        const cached = sysRes.reason.cachedData as PaginatedItemsResponse<FireObjectFireSys>;
+        nextFireSys = cached.items || [];
+        const t = sysRes.reason.cachedAt ? ` (성공: ${new Date(sysRes.reason.cachedAt).toLocaleTimeString()})` : '';
+        fireNotices.push(`${sysRes.reason.message}${t}`);
+      } else {
+        failedFireRequests += 1;
+        console.warn('[BuildingView] fire sys failed:', sysRes.reason);
+      }
+
+      if (failedFireRequests === 2) {
+        fireNotices.push('소방시설 참고정보를 불러오지 못했습니다.');
+      } else if (failedFireRequests === 1) {
+        fireNotices.push('일부 소방시설 참고정보를 불러오지 못했습니다.');
+      }
+      const hasFireData = nextFireAccom.length > 0 || nextFireSys.length > 0;
+      const nextFireStatus = failedFireRequests === 2
+        ? 'error'
+        : failedFireRequests > 0 || usedCachedFireData
+          ? 'partial'
+          : hasFireData
+            ? 'success'
+            : 'empty';
+      updateWorkspace({
+        fireAccom: nextFireAccom,
+        fireSys: nextFireSys,
+        fireStatus: nextFireStatus,
+        fireError: [...new Set(fireNotices)].join(' '),
+      });
+    } finally {
+      if (seq === requestSeqRef.current) {
+        setFireLoading(false);
+      }
+    }
+  };
+
   const runSearch = (target: string | RecentSearchItem, forceRefresh = false) => {
     const isObj = typeof target === 'object';
     const targetAddress = isObj ? target.address : target;
@@ -87,6 +206,7 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
 
     if (!targetAddress.trim()) return;
 
+    shouldFocusResultRef.current = true;
     const seq = ++requestSeqRef.current;
     setIsLoading(true);
     setFireLoading(false);
@@ -98,6 +218,7 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
       hasSearched: true,
       fireAccom: [],
       fireSys: [],
+      fireSido: '',
       fireStatus: 'idle',
       fireError: '',
     });
@@ -123,7 +244,11 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
 
       if (apiRes) {
         updateWorkspace({
-          bldgInfo: { ...apiRes, searchedAddress: parsed.address_name },
+          bldgInfo: {
+            ...apiRes,
+            searchedAddress: parsed.address_name,
+            queryAddress: targetAddress,
+          },
           warningMsg: buildingWarning,
         });
         setRecentSearches(prev => {
@@ -142,82 +267,7 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
         setIsLoading(false);
       }
 
-      // 소방시설 정보 조회
-      const sido = parsed.sido;
-      if (sido) {
-        if (seq === requestSeqRef.current) {
-          setFireLoading(true);
-        }
-        try {
-          const [accomRes, sysRes] = await Promise.allSettled([
-            fetchFireObjectAccom(sido, '50', '1', forceRefresh),
-            fetchFireObjectFireSys(sido, '50', '1', forceRefresh),
-          ]);
-          
-          if (seq !== requestSeqRef.current) return;
-
-          let failedFireRequests = 0;
-          let usedCachedFireData = false;
-          const fireNotices: string[] = [];
-          let nextFireAccom: FireObjectAccom[] = [];
-          let nextFireSys: FireObjectFireSys[] = [];
-
-          if (accomRes.status === 'fulfilled') {
-            nextFireAccom = accomRes.value.items || [];
-          } else if (isStaleDataError(accomRes.reason)) {
-            usedCachedFireData = true;
-            const cached = accomRes.reason.cachedData as PaginatedItemsResponse<FireObjectAccom>;
-            nextFireAccom = cached.items || [];
-            const t = accomRes.reason.cachedAt ? ` (성공: ${new Date(accomRes.reason.cachedAt).toLocaleTimeString()})` : '';
-            fireNotices.push(`${accomRes.reason.message}${t}`);
-          } else {
-            failedFireRequests += 1;
-            console.warn('[BuildingView] fire accom failed:', accomRes.reason);
-          }
-
-          if (sysRes.status === 'fulfilled') {
-            nextFireSys = sysRes.value.items || [];
-          } else if (isStaleDataError(sysRes.reason)) {
-            usedCachedFireData = true;
-            const cached = sysRes.reason.cachedData as PaginatedItemsResponse<FireObjectFireSys>;
-            nextFireSys = cached.items || [];
-            const t = sysRes.reason.cachedAt ? ` (성공: ${new Date(sysRes.reason.cachedAt).toLocaleTimeString()})` : '';
-            fireNotices.push(`${sysRes.reason.message}${t}`);
-          } else {
-            failedFireRequests += 1;
-            console.warn('[BuildingView] fire sys failed:', sysRes.reason);
-          }
-
-          if (failedFireRequests === 2) {
-            fireNotices.push('소방시설 참고정보를 불러오지 못했습니다.');
-          } else if (failedFireRequests === 1) {
-            fireNotices.push('일부 소방시설 참고정보를 불러오지 못했습니다.');
-          }
-          const hasFireData = nextFireAccom.length > 0 || nextFireSys.length > 0;
-          const nextFireStatus = failedFireRequests === 2
-            ? 'error'
-            : failedFireRequests > 0 || usedCachedFireData
-              ? 'partial'
-              : hasFireData
-                ? 'success'
-                : 'empty';
-          updateWorkspace({
-            fireAccom: nextFireAccom,
-            fireSys: nextFireSys,
-            fireStatus: nextFireStatus,
-            fireError: [...new Set(fireNotices)].join(' '),
-          });
-        } finally {
-          if (seq === requestSeqRef.current) {
-            setFireLoading(false);
-          }
-        }
-      } else if (seq === requestSeqRef.current) {
-        updateWorkspace({
-          fireStatus: 'error',
-          fireError: '소방시설 참고정보를 조회할 시·도 정보를 확인하지 못했습니다.',
-        });
-      }
+      await fetchFireReferences(parsed.sido, seq, forceRefresh);
     };
 
     if (targetParams) {
@@ -297,6 +347,13 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
     runSearch(address);
   };
 
+  const retryFireReferences = () => {
+    if (!fireSido || fireLoading) return;
+
+    const seq = ++requestSeqRef.current;
+    void fetchFireReferences(fireSido, seq, true);
+  };
+
   const YnBadge = ({ val, label }: { val?: string; label: string }) => {
     const isY = val === 'Y' || val === '1';
     return (
@@ -309,6 +366,9 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
 
   const showFireSection = fireLoading || fireStatus !== 'idle';
   const fireHasNoData = fireSys.length === 0 && fireAccom.length === 0;
+  const switchableRecentSearches = bldgInfo
+    ? recentSearches.filter(item => item.address !== (bldgInfo.queryAddress || address))
+    : [];
   const fireStatusMeta = fireLoading
     ? { label: '조회 중', icon: 'progress_activity', className: 'bg-primary/10 text-primary' }
     : fireStatus === 'success'
@@ -416,7 +476,7 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
             {recentSearches.map((term, i) => (
               <button
                 type="button"
-                key={i}
+                key={`${term.address}-${i}`}
                 onClick={() => runSearch(term)}
                 className="bg-surface-container-lowest border border-outline-variant/20 hover:border-primary/50 px-3 py-1.5 rounded-lg text-sm text-on-surface transition-all flex items-center gap-1.5 group shadow-sm hover:shadow-md hover:-translate-y-0.5"
               >
@@ -431,7 +491,11 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
       {bldgInfo && !isLoading && (
         <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-2xl p-6 md:p-8 space-y-6 max-w-4xl shadow-xl shadow-surface-container/10">
           <div className="border-b border-outline-variant/10 pb-4">
-            <h3 className="text-xl md:text-2xl font-extrabold text-on-surface mb-1 text-primary">
+            <h3
+              ref={resultHeadingRef}
+              tabIndex={-1}
+              className="mb-1 scroll-mt-24 text-xl font-extrabold text-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:text-2xl"
+            >
               {bldgInfo.bldNm || '건물명 없음 (미등재/일반건축물)'}
             </h3>
             <p className="text-sm font-bold text-on-surface-variant tracking-wide">
@@ -441,11 +505,11 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-5">
             {[
               { label: '주요 구조', value: bldgInfo.strctCdNm || '미분류' },
-              { label: '층수', value: `지하 ${bldgInfo.ugrndFlrCnt || 0}층 / 지상 ${bldgInfo.grndFlrCnt || 0}층` },
+              { label: '층수', value: `${formatFloorCount('지하', bldgInfo.ugrndFlrCnt)} / ${formatFloorCount('지상', bldgInfo.grndFlrCnt)}` },
               { label: '주 용도', value: bldgInfo.mainPurpsCdNm || '확인불가' },
-              { label: '연면적', value: bldgInfo.totArea ? `${bldgInfo.totArea} ㎡` : '확인불가' },
-              { label: '건축면적', value: bldgInfo.archArea ? `${bldgInfo.archArea} ㎡` : '확인불가' },
-              { label: '건폐 / 용적률', value: `${bldgInfo.bcRat || 0}% / ${bldgInfo.vlRat || 0}%` },
+              { label: '연면적', value: formatMetric(bldgInfo.totArea, '㎡') },
+              { label: '건축면적', value: formatMetric(bldgInfo.archArea, '㎡') },
+              { label: '건폐율 / 용적률', value: `${formatRatio(bldgInfo.bcRat)} / ${formatRatio(bldgInfo.vlRat)}` },
               { label: '준공(사용승인)일', value: bldgInfo.useAprDay ? `${bldgInfo.useAprDay.substring(0,4)}년 ${bldgInfo.useAprDay.substring(4,6)}월 ${bldgInfo.useAprDay.substring(6,8)}일` : '미상' },
             ].map(item => (
               <div key={item.label} className="bg-surface-container hover:bg-surface-container-high transition-colors rounded-xl p-4 border border-outline-variant/5">
@@ -455,6 +519,33 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
             ))}
           </div>
         </div>
+      )}
+
+      {bldgInfo && !isLoading && switchableRecentSearches.length > 0 && (
+        <section aria-labelledby="building-recent-switch-title" className="max-w-4xl rounded-2xl border border-outline-variant/10 bg-surface-container p-4 shadow-sm md:p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 id="building-recent-switch-title" className="flex items-center gap-2 text-sm font-extrabold text-on-surface">
+              <span aria-hidden="true" className="material-symbols-outlined text-xl text-primary">swap_horiz</span>
+              이전 조회로 전환
+            </h3>
+            <span className="shrink-0 text-xs font-bold text-on-surface-variant">{switchableRecentSearches.length}건</span>
+          </div>
+          <div className="custom-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            {switchableRecentSearches.map(term => (
+              <button
+                type="button"
+                key={term.address}
+                aria-label={`${term.address} 다시 조회`}
+                title={term.address}
+                onClick={() => runSearch(term)}
+                className="group flex min-h-11 max-w-[18rem] shrink-0 items-center gap-2 rounded-xl border border-outline-variant/20 bg-surface-container-lowest px-3 py-2 text-left text-sm font-bold text-on-surface shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined shrink-0 text-base text-outline group-hover:text-primary">history</span>
+                <span className="truncate">{term.address}</span>
+              </button>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* 소방시설 정보 섹션 */}
@@ -493,11 +584,11 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
                   </div>
                   <button
                     type="button"
-                    onClick={() => runSearch(address, true)}
-                    disabled={!address.trim()}
+                    onClick={retryFireReferences}
+                    disabled={fireLoading || !fireSido}
                     className="min-h-11 shrink-0 self-end rounded-xl border border-current/25 px-3 text-xs font-extrabold transition-colors hover:bg-surface-container-lowest/60 disabled:opacity-50 sm:self-auto"
                   >
-                    전체 다시 조회
+                    소방정보 다시 조회
                   </button>
                 </div>
               )}
@@ -513,7 +604,7 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
               {fireStatus === 'partial' && fireHasNoData && (
                 <div className="rounded-xl border border-outline-variant/15 bg-surface-container px-4 py-5 text-center text-on-surface-variant">
                   <p className="text-sm font-bold text-on-surface">확인 가능한 결과가 없습니다</p>
-                  <p className="mt-1 text-xs leading-5">응답하지 않은 데이터 원본은 ‘전체 다시 조회’로 재확인할 수 있습니다.</p>
+                  <p className="mt-1 text-xs leading-5">응답하지 않은 항목은 ‘소방정보 다시 조회’로 재확인할 수 있습니다.</p>
                 </div>
               )}
 

@@ -34,10 +34,11 @@ export interface BuildingWorkspaceState {
   address: string;
   errorMsg: string;
   warningMsg: string;
-  bldgInfo: (BuildingRegisterInfo & { searchedAddress?: string }) | null;
+  bldgInfo: (BuildingRegisterInfo & { searchedAddress?: string; queryAddress?: string }) | null;
   hasSearched: boolean;
   fireAccom: FireObjectAccom[];
   fireSys: FireObjectFireSys[];
+  fireSido: string;
   fireStatus: FireReferenceStatus;
   fireError: string;
 }
@@ -50,6 +51,7 @@ export const createBuildingWorkspaceState = (initialAddress = ''): BuildingWorks
   hasSearched: false,
   fireAccom: [],
   fireSys: [],
+  fireSido: '',
   fireStatus: 'idle',
   fireError: '',
 });

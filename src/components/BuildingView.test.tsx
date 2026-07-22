@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 
 import '@testing-library/jest-dom/vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { BuildingRegisterInfo } from '../services/buildingApi';
 import { createBuildingWorkspaceState, type BuildingWorkspaceState } from '../types/buildingWorkspace';
+
+const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
 
 const apiMocks = vi.hoisted(() => ({
   fetchBuildingRegister: vi.fn(),
@@ -49,7 +52,7 @@ function installSuccessfulGeocoder() {
   });
 }
 
-function mockBuildingResult() {
+function mockBuildingResult(overrides: Partial<BuildingRegisterInfo> = {}) {
   apiMocks.fetchBuildingRegister.mockResolvedValue({
     bldNm: '테스트센터',
     strctCdNm: '철근콘크리트구조',
@@ -59,6 +62,7 @@ function mockBuildingResult() {
     totArea: 1234,
     archArea: 234,
     useAprDay: '20260102',
+    ...overrides,
   });
 }
 
@@ -103,6 +107,15 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  if (originalScrollIntoView) {
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: originalScrollIntoView,
+    });
+  } else {
+    Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+  }
   Reflect.deleteProperty(window, 'kakao');
 });
 
@@ -146,6 +159,84 @@ describe('BuildingView', () => {
     expect(apiMocks.fetchFireObjectFireSys).toHaveBeenCalledTimes(1);
   });
 
+  it('distinguishes missing building metrics from actual zero values', async () => {
+    installSuccessfulGeocoder();
+    mockBuildingResult({
+      grndFlrCnt: undefined,
+      ugrndFlrCnt: undefined,
+      totArea: undefined,
+      archArea: 0,
+      bcRat: undefined,
+      vlRat: 0,
+    });
+    apiMocks.fetchFireObjectAccom.mockResolvedValue({ items: [] });
+    apiMocks.fetchFireObjectFireSys.mockResolvedValue({ items: [] });
+
+    render(<Harness />);
+    submitBuildingLookup();
+
+    expect(await screen.findByText('지하 확인불가 / 지상 확인불가')).toBeInTheDocument();
+    expect(screen.getByText('확인불가 / 0%')).toBeInTheDocument();
+    expect(screen.getByText('0 ㎡')).toBeInTheDocument();
+    expect(screen.queryByText('지하 0층 / 지상 0층')).not.toBeInTheDocument();
+  });
+
+  it('focuses and scrolls to a completed result on compact viewports', async () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+      matches: query === '(max-width: 639px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })));
+    installSuccessfulGeocoder();
+    mockBuildingResult();
+    apiMocks.fetchFireObjectAccom.mockResolvedValue({ items: [] });
+    apiMocks.fetchFireObjectFireSys.mockResolvedValue({ items: [] });
+
+    render(<Harness />);
+    submitBuildingLookup();
+
+    const resultHeading = await screen.findByRole('heading', { name: '테스트센터' });
+    expect(resultHeading).toHaveFocus();
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+  });
+
+  it('offers other recent lookups from a completed result', async () => {
+    installSuccessfulGeocoder();
+    mockBuildingResult();
+    apiMocks.fetchFireObjectAccom.mockResolvedValue({ items: [] });
+    apiMocks.fetchFireObjectFireSys.mockResolvedValue({ items: [] });
+
+    render(<Harness />);
+    const addressInput = screen.getByRole('textbox', { name: '건축물 주소' });
+    const firstAddress = '서울특별시 종로구 세종대로 209';
+    const secondAddress = '서울특별시 중구 세종대로 110';
+
+    submitBuildingLookup();
+    await screen.findByRole('heading', { name: '테스트센터' });
+    fireEvent.change(addressInput, { target: { value: secondAddress } });
+    fireEvent.click(screen.getByRole('button', { name: '검색' }));
+
+    await waitFor(() => expect(apiMocks.fetchBuildingRegister).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole('heading', { name: '이전 조회로 전환' })).toBeInTheDocument();
+    const previousLookup = screen.getByRole('button', { name: `${firstAddress} 다시 조회` });
+    expect(screen.queryByRole('button', { name: `${secondAddress} 다시 조회` })).not.toBeInTheDocument();
+
+    fireEvent.click(previousLookup);
+
+    await waitFor(() => expect(apiMocks.fetchBuildingRegister).toHaveBeenCalledTimes(3));
+    expect(addressInput).toHaveValue(firstAddress);
+  });
+
   it('shows loading and preserves an explicit empty result after remounting', async () => {
     installSuccessfulGeocoder();
     mockBuildingResult();
@@ -187,8 +278,28 @@ describe('BuildingView', () => {
     const fireAlert = await screen.findByRole('alert');
     expect(fireAlert).toHaveTextContent('소방시설 참고정보를 불러오지 못했습니다.');
     expect(screen.getByText('조회 실패')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '전체 다시 조회' })).toBeInTheDocument();
+    const retryButton = screen.getByRole('button', { name: '소방정보 다시 조회' });
+    expect(retryButton).toBeInTheDocument();
     expect(screen.queryByText('표시할 소방시설 참고정보가 없습니다')).not.toBeInTheDocument();
+
+    const accomResult = deferred<{ items: [] }>();
+    const systemResult = deferred<{ items: [] }>();
+    apiMocks.fetchFireObjectAccom.mockReturnValueOnce(accomResult.promise);
+    apiMocks.fetchFireObjectFireSys.mockReturnValueOnce(systemResult.promise);
+    fireEvent.click(retryButton);
+
+    expect(screen.getByText('테스트센터')).toBeInTheDocument();
+    expect(await screen.findByText('소방시설 참고정보 조회 중...')).toBeInTheDocument();
+    expect(apiMocks.fetchBuildingRegister).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      accomResult.resolve({ items: [] });
+      systemResult.resolve({ items: [] });
+      await Promise.all([accomResult.promise, systemResult.promise]);
+    });
+
+    expect(await screen.findByText('결과 없음')).toBeInTheDocument();
+    expect(apiMocks.fetchFireObjectAccom).toHaveBeenCalledTimes(2);
+    expect(apiMocks.fetchFireObjectFireSys).toHaveBeenCalledTimes(2);
   });
 
   it('keeps available results visible when only one fire-reference source fails', async () => {

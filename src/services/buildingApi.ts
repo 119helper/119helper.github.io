@@ -34,12 +34,20 @@ function text(value: unknown): string {
   return value === undefined || value === null ? '' : String(value);
 }
 
-function numberFrom(value: unknown): number {
-  return Number.parseFloat(text(value)) || 0;
+function numberFrom(value: unknown): number | undefined {
+  const normalized = text(value).trim();
+  if (!normalized) return undefined;
+
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function intFrom(value: unknown): number {
-  return Number.parseInt(text(value), 10) || 0;
+function intFrom(value: unknown): number | undefined {
+  const normalized = text(value).trim();
+  if (!normalized) return undefined;
+
+  const parsed = Number.parseInt(normalized, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function parseBuildingItem(items: BuildingApiItem[]): BuildingRegisterInfo | null {
