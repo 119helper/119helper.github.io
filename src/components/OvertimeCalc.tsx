@@ -116,11 +116,13 @@ export default function OvertimeCalc() {
 
     setShifts((prev) => {
       const current = prev[dateKey];
-      let next: ShiftId | null = null;
-      if (!current) next = 'FIRE';
-      else if (current === 'FIRE') next = 'DAY';
-      else if (current === 'DAY') next = 'NIGHT';
-      else next = null;
+      const next: ShiftId | null = !current
+        ? 'FIRE'
+        : current === 'FIRE'
+          ? 'DAY'
+          : current === 'DAY'
+            ? 'NIGHT'
+            : null;
 
       if (next) return { ...prev, [dateKey]: next };
       const newShifts = { ...prev };
@@ -158,9 +160,9 @@ export default function OvertimeCalc() {
   }, [checkIsHoliday, currentDate, holidays]);
 
   useEffect(() => {
-    let finalOvertime = 0;
-    let finalNightHours = 0;
-    let finalHolidayCount = 0;
+    let finalOvertime: number;
+    let finalNightHours: number;
+    let finalHolidayCount: number;
 
     if (activeTab === 'simple') {
       finalOvertime = Number(simpleOvertime);

@@ -63,7 +63,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
-  const lastTickRef = useRef<number>(Date.now());
+  const lastTickRef = useRef<number>(0);
 
   const requestWakeLock = useCallback(async () => {
     try {
@@ -79,7 +79,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const timersRef = useRef(timers);
-  timersRef.current = timers;
+  useEffect(() => {
+    timersRef.current = timers;
+  }, [timers]);
 
   const timerPersistenceKey = useMemo(() => JSON.stringify(timers.map(timer => ({
     id: timer.id,

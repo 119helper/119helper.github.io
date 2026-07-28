@@ -149,6 +149,6 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
   'offline-readiness': { render: ctx => <OfflineReadinessView city={ctx.city} cityLabel={ctx.cityLabel} /> },
 };
 
-export function renderTabRoute(tab: TabId, context: RouteContext): ReactNode {
+export function TabRouteView({ tab, context }: { tab: TabId; context: RouteContext }): ReactNode {
   return TAB_ROUTES[tab]?.render(context) ?? TAB_ROUTES.dashboard.render(context);
 }

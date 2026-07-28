@@ -18,7 +18,7 @@ import { fetchDisasterMsgs } from './services/disasterMsgApi';
 import { useNotifications, formatTimeAgo } from './hooks/useNotifications';
 
 import { BOTTOM_TABS, INCIDENT_BOTTOM_TABS, NAV_ITEMS, cityNames, getTabLabel } from './app/navigation';
-import { renderTabRoute, type RouteContext } from './app/routes';
+import { TabRouteView, type RouteContext } from './app/routes';
 import { buildTabHash, readTabLocation } from './app/tabHash';
 import { readMainScrollTop, withMainScrollTop } from './app/historyScroll';
 import { isTabId } from './types/navigation';
@@ -1045,7 +1045,7 @@ export default function App() {
                 fallbackDescription="이 탭에서 오류가 발생했습니다. 왼쪽 메뉴나 하단 탭으로 다른 기능은 계속 사용할 수 있습니다."
               >
                 <Suspense fallback={<TabLoading label={getTabLabel(activeTab)} />}>
-                  {renderTabRoute(activeTab, routeContext)}
+                  <TabRouteView tab={activeTab} context={routeContext} />
                 </Suspense>
               </ErrorBoundary>
             </div>

@@ -92,7 +92,7 @@ async function getNewsWithCache(type: string, query: string, env: NewsEnv, force
     }
   }
 
-  let xmlText = '';
+  let xmlText: string;
 
   try {
     // 2. Fetch 뉴스 데이터

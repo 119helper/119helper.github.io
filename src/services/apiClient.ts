@@ -523,7 +523,7 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
         }
       }
 
-      throw new Error(errMsg);
+      throw new Error(errMsg, { cause: err });
     } finally {
       clearTimeout(timer);
     }
