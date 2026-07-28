@@ -22,7 +22,11 @@ describe('dam discharge adapter', () => {
   });
 
   it('calls the official operation with a bounded date range after activation', async () => {
-    const fetchMock = vi.fn(async () => new Response(XML, { status: 200 }));
+    let requestedUrl = '';
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      requestedUrl = String(input);
+      return new Response(XML, { status: 200 });
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await handleDamDischarge(
@@ -31,7 +35,7 @@ describe('dam discharge adapter', () => {
       true,
     );
 
-    const upstream = new URL(String(fetchMock.mock.calls[0]?.[0]));
+    const upstream = new URL(requestedUrl);
     expect(upstream.pathname).toContain('/DamDisChargeInfo/flugdschginfo');
     expect(upstream.searchParams.get('stDt')).toBe('20260727');
     expect(upstream.searchParams.get('edDt')).toBe('20260728');

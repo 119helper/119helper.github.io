@@ -9,7 +9,11 @@ describe('AED nearby proxy', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('forwards validated coordinates without exposing the key to the client response', async () => {
-    const fetchMock = vi.fn(async () => new Response(SUCCESS_XML, { status: 200 }));
+    let requestedUrl = '';
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      requestedUrl = String(input);
+      return new Response(SUCCESS_XML, { status: 200 });
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await handleAed(
@@ -17,7 +21,7 @@ describe('AED nearby proxy', () => {
       'test+key/value',
     );
 
-    const upstream = new URL(String(fetchMock.mock.calls[0]?.[0]));
+    const upstream = new URL(requestedUrl);
     expect(upstream.hostname).toBe('apis.data.go.kr');
     expect(upstream.searchParams.get('WGS84_LAT')).toBe('35.1595');
     expect(upstream.searchParams.get('WGS84_LON')).toBe('126.8526');

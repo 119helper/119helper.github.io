@@ -97,7 +97,7 @@ function normalizeItem(item: Record<string, unknown>) {
 
 export async function handleDisasterMsg(url: URL, apiKey?: string): Promise<{ data: unknown; cacheTtl: number }> {
   const serviceKey = requireSecret(apiKey, 'DISASTER_API_KEY');
-  const numOfRows = sanitizeNumericParam(url, 'numOfRows', 1, 100, 20);
+  const numOfRows = Number(sanitizeNumericParam(url, 'numOfRows', 1, 100, 20));
 
   // 날짜 조건이 없으면 API가 2023년의 첫 페이지부터 반환한다.
   // 오늘 발송분을 최신 페이지부터 읽고, 자정 직후 아직 발송분이 없을 때만 전날로 폴백한다.
