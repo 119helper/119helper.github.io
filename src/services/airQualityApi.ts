@@ -2,6 +2,7 @@
 
 import { fetchAirQuality, isStaleDataError, tagStale } from './apiClient';
 import type { ApiRecord } from './apiClient';
+import { GWANGJU_CURRENT_NAME, isFormerGwangjuAddress } from './administrativeRegions';
 
 export interface AirQualityData {
   stationName: string;
@@ -16,6 +17,7 @@ export interface AirQualityData {
 }
 
 function getSidoName(addressName: string): string {
+  if (addressName === GWANGJU_CURRENT_NAME || isFormerGwangjuAddress(addressName)) return '광주';
   if (addressName.startsWith('서울')) return '서울';
   if (addressName.startsWith('부산')) return '부산';
   if (addressName.startsWith('대구')) return '대구';

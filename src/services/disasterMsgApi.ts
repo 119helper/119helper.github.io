@@ -21,22 +21,15 @@ const disasterMsgSchema = z.object({
   msgType: z.string().optional(),
 }).passthrough();
 
-const disasterResponseSchema = z.object({
-  DisasterMsg: z.tuple([
-    z.unknown(),
-    z.object({ row: z.array(disasterMsgSchema).catch([]) }).passthrough(),
-  ]).optional(),
-}).passthrough();
+const disasterResponseSchema = z.array(disasterMsgSchema);
 
 export const fetchDisasterMsgs = async (): Promise<DisasterMsg[]> => {
   try {
     // 재난문자는 시의성이 생명 — 1시간 넘은 폴백 캐시는 사용하지 않는다.
-    const data = await apiFetch<z.infer<typeof disasterResponseSchema>>('/api/disaster-msg', undefined, { schema: disasterResponseSchema, maxStaleMs: 1000 * 60 * 60 });
-    
-    if (data && Array.isArray(data.DisasterMsg?.[1]?.row)) {
-      return data.DisasterMsg[1].row;
-    }
-    return [];
+    return await apiFetch<DisasterMsg[]>('/api/disaster-msg', undefined, {
+      schema: disasterResponseSchema,
+      maxStaleMs: 1000 * 60 * 60,
+    });
   } catch (error) {
     console.error('Error fetching disaster messages:', error);
     return [];

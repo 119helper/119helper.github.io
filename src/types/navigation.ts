@@ -3,6 +3,7 @@ export type TabId =
   | 'shelter'
   | 'er'
   | 'weather'
+  | 'dam-discharge'
   | 'calculator'
   | 'calendar'
   | 'emergency'
@@ -31,7 +32,7 @@ export type TabId =
 
 // URL ?tab= 파라미터 검증용 런타임 목록 (manifest 바로가기, E2E 테스트에서 사용)
 export const ALL_TAB_IDS: readonly TabId[] = [
-  'dashboard', 'shelter', 'er', 'weather', 'calculator', 'calendar',
+  'dashboard', 'shelter', 'er', 'weather', 'dam-discharge', 'calculator', 'calendar',
   'emergency', 'fire-analysis', 'multiuse', 'hazmat', 'annual-fire',
   'fire-damage', 'hazards', 'manual', 'field-timer', 'news', 'policy',
   'wildfire', 'law', 'checklist', 'equipment-cert',
@@ -44,7 +45,7 @@ export function isTabId(value: string | null): value is TabId {
 }
 
 export type LegacyShelterTab = 'hydrants' | 'waterTowers' | 'building';
-export type ShelterCategory = LegacyShelterTab | 'civil' | 'tsunami' | 'restrooms';
+export type ShelterCategory = LegacyShelterTab | 'civil' | 'tsunami' | 'restrooms' | 'aed';
 
 export interface FacilityFilterState {
   query: string;

@@ -12,6 +12,7 @@
     "test": "vitest run src",
     "test:unit": "vitest run src",
     "test:worker": "vitest run worker/src",
+    "audit:regions": "node scripts/audit-administrative-regions.js",
     "test:e2e": "npm run test:e2e:ui && npm run test:e2e:offline",
     "test:e2e:ui": "playwright test --config=playwright.config.ts",
     "test:e2e:offline": "playwright test --config=playwright.offline.config.ts"

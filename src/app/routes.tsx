@@ -8,6 +8,7 @@ import type { BuildingWorkspaceState } from '../types/buildingWorkspace';
 
 const DashboardView = lazy(() => import('../components/DashboardView'));
 const WeatherDashboard = lazy(() => import('../components/WeatherDashboard'));
+const DamDischargeView = lazy(() => import('../components/DamDischargeView'));
 const FacilitySearchView = lazy(() => import('../components/FacilitySearchView'));
 const ERDashboard = lazy(() => import('../components/ERDashboard'));
 const EmergencyAnalysis = lazy(() => import('../components/EmergencyAnalysis'));
@@ -76,6 +77,7 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
     ),
   },
   weather: { render: ctx => <WeatherDashboard city={ctx.city} /> },
+  'dam-discharge': { render: () => <DamDischargeView /> },
   shelter: {
     render: ctx => (
       <FacilitySearchView

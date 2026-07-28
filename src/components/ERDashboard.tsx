@@ -85,8 +85,14 @@ export default function ERDashboard({ city }: ERViewProps) {
       if (bedsResult.status === 'rejected') throw bedsResult.reason;
 
       const beds = bedsResult.value;
-      const msgs = messagesResult.status === 'fulfilled' ? messagesResult.value : [];
-      const severe = severeResult.status === 'fulfilled' ? severeResult.value : [];
+      const bedNames = new Set(beds.map(item => item.dutyName));
+      const bedHpids = new Set(beds.map(item => item.phpid).filter(Boolean));
+      const msgs = messagesResult.status === 'fulfilled'
+        ? messagesResult.value.filter(item => bedNames.has(item.dutyName))
+        : [];
+      const severe = severeResult.status === 'fulfilled'
+        ? severeResult.value.filter(item => bedHpids.has(item.hpid))
+        : [];
 
       setErData(beds);
       setMessages(msgs);

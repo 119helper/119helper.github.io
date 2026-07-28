@@ -32,6 +32,7 @@ import { useDialogAccessibility } from './hooks/useDialogAccessibility';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { useAppFeedback } from './contexts/FeedbackContext';
 import { applyPrivacyRetention } from './services/privacySettings';
+import { disasterLocationMatchesCity } from './services/administrativeRegions';
 import { loadDisplaySettings, saveDisplaySettings } from './services/displaySettings';
 import {
   loadNavigationPreferences,
@@ -472,7 +473,7 @@ export default function App() {
           // 최신순으로 정렬된 데이터를 과거 데이터부터 처리하여 가장 최신이 마지막에 오도록 (상단에 위치하도록)
           [...msgs].reverse().forEach(msg => {
             const kname = cityNames[city];
-            if (msg.location_name.includes(kname) || msg.location_name.includes('전국')) {
+            if (disasterLocationMatchesCity(city, msg.location_name)) {
               const text = msg.msg || '';
               
               // 산불 로직

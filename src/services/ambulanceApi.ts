@@ -1,5 +1,6 @@
 import { apiFetch, isStaleDataError } from './apiClient';
 import { CITY_TO_SIDO } from './erApi';
+import { GWANGJU_CURRENT_NAME, isFormerGwangjuAddress } from './administrativeRegions';
 import { z } from 'zod';
 
 export interface PrivateAmbulance {
@@ -46,11 +47,19 @@ export async function fetchPrivateAmbulances(city: string, forceRefresh = false)
       schema: ambulanceResponseSchema,
     });
 
-    return parseAmbulances(response.xml);
+    const items = parseAmbulances(response.xml);
+    return sidoName === GWANGJU_CURRENT_NAME
+      ? items.filter(item => isFormerGwangjuAddress(item.dutyAddr))
+      : items;
   } catch (err) {
     if (isStaleDataError(err)) {
       const xml = (err.cachedData as { xml?: string })?.xml;
-      if (xml) return parseAmbulances(xml);
+      if (xml) {
+        const items = parseAmbulances(xml);
+        return city === 'gwangju'
+          ? items.filter(item => isFormerGwangjuAddress(item.dutyAddr))
+          : items;
+      }
     }
     console.error('Private Ambulance Fetch Error:', err);
     return [];

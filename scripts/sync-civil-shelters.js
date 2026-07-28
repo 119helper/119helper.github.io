@@ -27,6 +27,8 @@ const SUPPORTED_CITIES = {
   jeju: ['제주특별자치도'],
 };
 
+const FORMER_GWANGJU_DISTRICTS = new Set(['동구', '서구', '남구', '북구', '광산구']);
+
 function serviceKey() {
   const value = API_KEY?.trim();
   if (!value) throw new Error('민방위대피시설 동기화에 사용할 공공데이터 API 키가 필요합니다.');
@@ -58,7 +60,12 @@ function addressOf(item) {
 function cityKeyOf(item) {
   const address = addressOf(item);
   for (const [cityKey, prefixes] of Object.entries(SUPPORTED_CITIES)) {
-    if (prefixes.some(prefix => address.startsWith(prefix))) return cityKey;
+    if (!prefixes.some(prefix => address === prefix || address.startsWith(`${prefix} `))) continue;
+    if (cityKey === 'gwangju') {
+      const district = address.trim().split(/\s+/)[1] || '';
+      if (!FORMER_GWANGJU_DISTRICTS.has(district)) return null;
+    }
+    return cityKey;
   }
   return null;
 }
@@ -202,10 +209,16 @@ async function main() {
   const allItems = [...first.items];
   console.log(`민방위대피시설 원본 ${first.totalCount.toLocaleString()}건, ${pages}페이지`);
 
-  for (let pageNo = 2; pageNo <= pages; pageNo += 1) {
-    const page = await fetchPage(pageNo);
-    allItems.push(...page.items);
-    if (pageNo % 5 === 0 || pageNo === pages) console.log(`다운로드 ${pageNo}/${pages}페이지`);
+  const concurrency = 8;
+  for (let startPage = 2; startPage <= pages; startPage += concurrency) {
+    const pageNumbers = Array.from(
+      { length: Math.min(concurrency, pages - startPage + 1) },
+      (_, index) => startPage + index,
+    );
+    const results = await Promise.all(pageNumbers.map(fetchPage));
+    results.forEach(page => allItems.push(...page.items));
+    const completedPage = pageNumbers.at(-1);
+    console.log(`다운로드 ${completedPage}/${pages}페이지`);
     await delay(100);
   }
 

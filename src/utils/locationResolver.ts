@@ -9,6 +9,10 @@
  */
 
 import { loadKakaoMapSDK } from './kakaoLoader';
+import {
+  FORMER_GWANGJU_DISTRICTS,
+  GWANGJU_CURRENT_NAME,
+} from '../services/administrativeRegions';
 
 interface KakaoRegionResult {
   region_type?: string;
@@ -29,6 +33,16 @@ export const KAKAO_REGION_TO_CITY: Record<string, string> = {
   세종특별자치시: 'sejong',
   제주특별자치도: 'jeju',
 };
+
+/** 통합 특별시 전체를 종전 광주로 오인하지 않도록 2depth까지 함께 판정한다. */
+export function kakaoRegionToCity(region1: string, region2 = ''): string | undefined {
+  if (region1 === GWANGJU_CURRENT_NAME) {
+    return (FORMER_GWANGJU_DISTRICTS as readonly string[]).includes(region2)
+      ? 'gwangju'
+      : undefined;
+  }
+  return KAKAO_REGION_TO_CITY[region1];
+}
 
 /** 지원 도시 대표 좌표 (폴백 거리 계산용) */
 export const SUPPORTED_CITY_COORDS: Record<string, { lat: number; lng: number }> = {
@@ -94,7 +108,7 @@ export async function resolveCityByKakao(latitude: number, longitude: number): P
         .join(' ');
 
       resolve({
-        cityKey: KAKAO_REGION_TO_CITY[region.region_1depth_name],
+        cityKey: kakaoRegionToCity(region.region_1depth_name, region.region_2depth_name),
         regionLabel,
       });
     });

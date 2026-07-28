@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { fetchWildfires, type WildfireItem } from '../services/wildfireApi';
+import { isAddressInAppCity } from '../services/administrativeRegions';
 
 export const WildfireTicker: React.FC<{ cityName?: string; onClick?: () => void }> = ({ cityName, onClick }) => {
   const [ongoingFires, setOngoingFires] = useState<WildfireItem[]>([]);
@@ -16,7 +17,7 @@ export const WildfireTicker: React.FC<{ cityName?: string; onClick?: () => void 
         if (cityName) {
           ongoing = ongoing.filter(f => {
             if (cityName === '광주') {
-              return f.address.includes('광주광역시') || (f.address.includes('광주') && !f.address.includes('경기'));
+              return isAddressInAppCity('gwangju', f.address);
             }
             return f.address.includes(cityName);
           });

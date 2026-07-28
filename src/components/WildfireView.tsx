@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { fetchWildfires, type WildfireItem } from '../services/wildfireApi';
 import { latLngToGrid, getUltraShortNow, parseCurrentWeather, type CurrentWeather } from '../services/weatherApi';
 import { WindCompass } from './WindCompass';
+import { isAddressInAppCity } from '../services/administrativeRegions';
 
 export const WildfireView: React.FC<{ cityName?: string }> = ({ cityName }) => {
   const [fires, setFires] = useState<WildfireItem[]>([]);
@@ -49,7 +50,7 @@ export const WildfireView: React.FC<{ cityName?: string }> = ({ cityName }) => {
   const displayFires = filterMode === 'local' && cityName
     ? fires.filter(f => {
         if (cityName === '광주') {
-          return f.address.includes('광주광역시') || (f.address.includes('광주') && !f.address.includes('경기'));
+          return isAddressInAppCity('gwangju', f.address);
         }
         return f.address.includes(cityName);
       })

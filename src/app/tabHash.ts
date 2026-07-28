@@ -12,7 +12,8 @@ function isShelterCategory(value: string | null): value is ShelterCategory {
     || value === 'waterTowers'
     || value === 'civil'
     || value === 'tsunami'
-    || value === 'restrooms';
+    || value === 'restrooms'
+    || value === 'aed';
 }
 
 export function readTabLocation(): TabLocationState {

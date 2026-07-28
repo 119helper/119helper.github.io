@@ -30,4 +30,35 @@ describe('KMA official warning status parser', () => {
     expect(filterWeatherAlertsByCity(alerts, '제주')).toHaveLength(1);
     expect(filterWeatherAlertsByCity(alerts, '부산')).toEqual([]);
   });
+
+  it('excludes former Jeonnam subregions from the app Gwangju scope after the merger', () => {
+    const alerts = [
+      {
+        id: 'gwangju',
+        parentRegionCode: 'L1',
+        parentRegionName: '전남광주통합특별시',
+        regionCode: 'L2',
+        regionName: '서구',
+        announcedAt: '',
+        effectiveAt: '',
+        warning: '폭염',
+        level: '주의',
+        command: '발표',
+      },
+      {
+        id: 'mokpo',
+        parentRegionCode: 'L1',
+        parentRegionName: '전남광주통합특별시',
+        regionCode: 'L3',
+        regionName: '목포시',
+        announcedAt: '',
+        effectiveAt: '',
+        warning: '폭염',
+        level: '주의',
+        command: '발표',
+      },
+    ];
+
+    expect(filterWeatherAlertsByCity(alerts, '광주').map(alert => alert.id)).toEqual(['gwangju']);
+  });
 });

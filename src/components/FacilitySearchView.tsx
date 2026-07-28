@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { fetchCivilShelters, fetchTsunamiShelters, isStaleDataError } from '../services/apiClient';
+import { fetchCivilShelters, fetchTsunamiShelters, getStaleAt, isStaleDataError } from '../services/apiClient';
 import { fetchRestrooms, fetchRestroomCityIndex } from '../services/restroomApi';
+import { getNearbyAeds } from '../services/aedApi';
 import type { FireFacility } from '../data/mockData';
 import type { CityIndex } from '../services/fireWaterApi';
 import FacilityList from './FacilityList';
@@ -12,6 +13,7 @@ import type { KakaoMapInstance, KakaoMarker } from '../types/kakao';
 import type { FacilityFilterState, FacilityViewState, ShelterCategory } from '../types/navigation';
 import type { BuildingWorkspaceState } from '../types/buildingWorkspace';
 import { formatDatasetDate, formatFreshnessSourceDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
+import { CITY_TO_STATIC_PROVINCE, districtFromAddress, recordMatchesAppCity } from '../services/administrativeRegions';
 
 // EPSG:5179 (GRS80 UTM-K) 정의 — 공공데이터포털(재난안전데이터) 최신 좌표계
 proj4.defs("EPSG:5179", "+proj=tmerc +lat_0=38 +lon_0=127.5 +k=0.9996 +x_0=1000000 +y_0=2000000 +ellps=GRS80 +units=m +no_defs");
@@ -34,11 +36,6 @@ interface FacilitySearchProps {
   buildingWorkspace: BuildingWorkspaceState;
   onBuildingWorkspaceChange: (patch: Partial<BuildingWorkspaceState>) => void;
 }
-
-const cityToCtprvn: Record<string, string> = {
-  seoul: '서울특별시', busan: '부산광역시', daegu: '대구광역시', incheon: '인천광역시',
-  gwangju: '광주광역시', daejeon: '대전광역시', ulsan: '울산광역시', sejong: '세종특별자치시', jeju: '제주특별자치도',
-};
 
 const cityShort: Record<string, string> = {
   seoul: '서울', busan: '부산', daegu: '대구', incheon: '인천',
@@ -70,6 +67,12 @@ interface FacilityItem {
   hasBell?: 'Y' | 'N';
   maleToilet?: number;
   femaleToilet?: number;
+  distanceKm?: number | null;
+  phone?: string;
+  managerPhone?: string;
+  todayHours?: string;
+  manufacturer?: string;
+  model?: string;
 }
 
 type FacilitySourceItem = Record<string, unknown>;
@@ -89,6 +92,13 @@ const escapeHtml = (value: unknown) => {
     .replaceAll("'", '&#039;');
 };
 
+const formatDistance = (distanceKm?: number | null) => {
+  if (distanceKm === undefined || distanceKm === null || !Number.isFinite(distanceKm)) return '';
+  return distanceKm < 1
+    ? `${Math.max(1, Math.round(distanceKm * 1000))}m`
+    : `${distanceKm.toFixed(1)}km`;
+};
+
 // 통합 카테고리 정의
 const CATEGORIES = [
   { id: 'building', label: '건축물대장', icon: 'apartment', desc: '건축물대장 및 소방시설 현황 조회', isFireWater: false, isBuilding: true },
@@ -96,6 +106,7 @@ const CATEGORIES = [
   { id: 'waterTowers', label: '급수탑/저수조', icon: 'water_pump', desc: '급수탑 · 저수조', isFireWater: true, isBuilding: false },
   { id: 'civil', label: '민방위 대피시설', icon: 'shield', desc: '전시/재난 대비 지하 대피시설', isFireWater: false, isBuilding: false },
   { id: 'tsunami', label: '지진해일 대피소', icon: 'tsunami', desc: '지진해일 긴급 대피장소', isFireWater: false, isBuilding: false },
+  { id: 'aed', label: '자동심장충격기', icon: 'cardiology', desc: '현재 위치 주변 AED', isFireWater: false, isBuilding: false },
   { id: 'restrooms', label: '공중화장실', icon: 'wc', desc: '공공 개방 화장실', isFireWater: false, isBuilding: false },
 ] as const;
 
@@ -203,9 +214,34 @@ export default function FacilitySearchView({
 
     try {
       let items: FacilitySourceItem[] = [];
-      const ctprvnNm = cityToCtprvn[city] || '서울특별시';
+      const ctprvnNm = CITY_TO_STATIC_PROVINCE[city] || '서울특별시';
 
-      if (activeCategory === 'tsunami') {
+      if (activeCategory === 'aed') {
+        const origin = userPos || cityCenters[city] || cityCenters.seoul;
+        const aeds = await getNearbyAeds(origin.lat, origin.lng);
+        const staleAt = getStaleAt(aeds);
+        if (staleAt) {
+          setWarning(`AED 최신 조회에 실패했습니다. (${new Date(staleAt).toLocaleTimeString()} 성공)`);
+        }
+        setFacilities(aeds.map(aed => ({
+          id: aed.id,
+          name: aed.name,
+          address: aed.address,
+          type: aed.locationDetail,
+          lat: aed.lat,
+          lng: aed.lng,
+          category: activeCategory,
+          district: aed.district,
+          distanceKm: aed.distanceKm,
+          phone: aed.phone,
+          managerPhone: aed.managerPhone,
+          todayHours: aed.todayHours,
+          manufacturer: aed.manufacturer,
+          model: aed.model,
+        })));
+        setLoading(false);
+        return;
+      } else if (activeCategory === 'tsunami') {
         let rawItems: FacilitySourceItem[];
         try {
           rawItems = await fetchTsunamiShelters() as FacilitySourceItem[];
@@ -224,11 +260,7 @@ export default function FacilitySearchView({
           const addr4 = fieldText(it, 'RDNMADR');
           const ctprvn = fieldText(it, 'CTPRVN_NM') || fieldText(it, 'ctprvnNm');
           
-          return ctprvn === ctprvnNm ||
-            addr1.startsWith(ctprvnNm) ||
-            addr2.startsWith(ctprvnNm) ||
-            addr3.startsWith(ctprvnNm) ||
-            addr4.startsWith(ctprvnNm);
+          return recordMatchesAppCity(city, ctprvn, addr1, addr2, addr3, addr4);
         });
       } else if (activeCategory === 'civil') {
         let rawItems: FacilitySourceItem[];
@@ -247,10 +279,7 @@ export default function FacilitySearchView({
           const addr2 = fieldText(it, 'RDNMADR');
           const addr3 = fieldText(it, 'rdnmadr');
           const ctprvn = fieldText(it, 'CTPRVN_NM') || fieldText(it, 'ctprvnNm');
-          return ctprvn === ctprvnNm ||
-            addr1.startsWith(ctprvnNm) ||
-            addr2.startsWith(ctprvnNm) ||
-            addr3.startsWith(ctprvnNm);
+          return recordMatchesAppCity(city, ctprvn, addr1, addr2, addr3);
         });
 
         if (items.length === 0) {
@@ -310,10 +339,7 @@ export default function FacilitySearchView({
 
             const addressStr = fieldText(it, 'LCTN_WHOL_ADDR') || fieldText(it, 'rdnmadr') || fieldText(it, 'SHNT_PLACE_DTL_POSITION') || fieldText(it, 'RN_DTL_ADRES') || fieldText(it, 'RDNMADR') || fieldText(it, 'lnmadr') || fieldText(it, 'LNMADR') || fieldText(it, 'dtlAdres') || fieldText(it, 'ronAdres') || fieldText(it, 'adres') || '주소 미상';
             
-            let district = '전체';
-            const addressTokens = addressStr.split(' ');
-            const dToken = addressTokens.find((t: string) => (t.endsWith('구') || t.endsWith('군')) && !t.includes('광역시') && !t.includes('특별시'));
-            if (dToken) district = dToken;
+            const district = districtFromAddress(addressStr, city);
 
             return {
               name: fieldText(it, 'FCLT_NM') || fieldText(it, 'fcltNm') || fieldText(it, 'SHNT_PLACE_NM') || fieldText(it, 'shltNm') || fieldText(it, 'SHLT_NM') || fieldText(it, 'fclt_nm') || fieldText(it, 'shelter_nm') || '무명 시설',
@@ -409,6 +435,9 @@ export default function FacilitySearchView({
       if (fac.category === 'restrooms') {
         const markerSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#1e88e5"><path d="M12 2c-3.3 0-6 2.7-6 6v3h2V8c0-2.2 1.8-4 4-4s4 1.8 4 4v3h2V8c0-3.3-2.7-6-6-6zm-1 14h2v6h-2zM8 12c-1.1 0-2 .9-2 2v6h2v-6h4v6h2v-6c0-1.1-.9-2-2-2H8z"/></svg>`;
         imageSrc = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(markerSvg);
+      } else if (fac.category === 'aed') {
+        const markerSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36"><path fill="#d32f2f" d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.3 21.7 0 14 0z"/><path fill="#fff" d="M12.2 7.2h4.6l-2 5.2h3.7l-7.1 9.1 1.9-6.2H9.5z"/></svg>`;
+        imageSrc = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(markerSvg);
       } else if (fac.category === 'tsunami') {
          const markerSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#00acc1"><path d="M14.54 11.23c-1.63-.5-2.7-1.46-3.8-2.65C9.72 7.45 8.5 6.5 6 6.5s-3.72.95-4.74 2.08L2.68 7.1C4 5.76 5.58 5 8 5s4 .76 5.32 2.1c1.1 1.19 2.17 2.15 3.8 2.65V11.23zM8 11c-2.5 0-3.72.95-4.74 2.08l1.42 1.48C6 13.24 7.58 12.5 10 12.5s4 .76 5.32 2.1c1.1 1.19 2.17 2.15 3.8 2.65v-1.47c-1.63-.5-2.7-1.46-3.8-2.65C13.22 11.95 12 11 8 11zM10 17c-2.5 0-3.72.95-4.74 2.08l1.42 1.48C8 19.24 9.58 18.5 12 18.5s4 .76 5.32 2.1c1.1 1.19 2.17 2.15 3.8 2.65v-1.47c-1.63-.5-2.7-1.46-3.8-2.65C15.22 17.95 14 17 10 17z"/></svg>`;
         imageSrc = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(markerSvg);
@@ -422,14 +451,19 @@ export default function FacilitySearchView({
       const safeCapacity = escapeHtml(fac.capacity?.toLocaleString());
       const safeMaleToilet = escapeHtml(fac.maleToilet || 0);
       const safeFemaleToilet = escapeHtml(fac.femaleToilet || 0);
+      const safeDistance = escapeHtml(formatDistance(fac.distanceKm));
+      const safeHours = escapeHtml(fac.todayHours);
       const capacityInfo = fac.capacity && fac.capacity > 0 ? `<br/><span style="color:#333;">👥 수용 ${safeCapacity}명</span>` : '';
       const restroomInfo = fac.category === 'restrooms' ? `<br/><span style="color:#333;">🚻 남 ${safeMaleToilet} / 여 ${safeFemaleToilet} ${fac.hasBell === 'Y' ? ' (비상벨🚨)' : ''}</span>` : '';
+      const aedInfo = fac.category === 'aed'
+        ? `<br/><span style="color:#b71c1c;">⚡ ${safeDistance || '거리 미상'} · 오늘 ${safeHours || '운영시간 확인 필요'}</span>`
+        : '';
       
       const info = new window.kakao.maps.InfoWindow({
         content: `<div style="padding:6px 10px;font-size:12px;max-width:220px;line-height:1.4;">
           <strong style="color:#1a73e8;">${safeName}</strong><br/>
           <span style="color:#666;">${safeAddress}</span>
-          ${capacityInfo}${restroomInfo}
+          ${capacityInfo}${restroomInfo}${aedInfo}
         </div>`
       });
       window.kakao.maps.event.addListener(marker, 'click', () => {
@@ -600,6 +634,20 @@ export default function FacilitySearchView({
       {/* ═══ 대피소 카테고리: 기존 지도+목록 뷰 ═══ */}
       {!isFireWater && !isBuilding && (
         <>
+          {activeCategory === 'aed' && (
+            <div className="mt-4 flex items-start gap-3 rounded-xl border border-red-500/25 bg-red-500/10 p-4">
+              <span aria-hidden="true" className="material-symbols-outlined text-red-600 dark:text-red-300">cardiology</span>
+              <div>
+                <p className="text-sm font-bold text-on-surface">
+                  {userPos ? '현재 GPS 위치 기준 가까운 AED입니다.' : `${cityShort[city] || city} 중심 좌표 기준입니다.`}
+                </p>
+                <p className="mt-1 text-xs text-on-surface-variant">
+                  설치 위치와 운영시간은 기관 제공 참고정보입니다. 사용 전 현장 접근 가능 여부를 확인하고, 심정지 상황에서는 즉시 119에 신고하세요.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* 구/군 필터 UI (대피소/화장실용) 항상 표시되도록 밖으로 뺌 */}
           <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-4 mt-4">
             <div className="flex items-center gap-2 mb-3">
@@ -764,6 +812,16 @@ export default function FacilitySearchView({
                                     👥 {fac.capacity.toLocaleString()}명
                                   </span>
                                 )}
+                                {fac.category === 'aed' && fac.distanceKm !== undefined && fac.distanceKm !== null && (
+                                  <span className="text-[10px] bg-red-500/10 text-red-700 dark:text-red-300 px-1.5 py-0.5 rounded font-bold">
+                                    ⚡ {formatDistance(fac.distanceKm)}
+                                  </span>
+                                )}
+                                {fac.category === 'aed' && fac.todayHours && (
+                                  <span className="text-[10px] bg-surface-container px-1.5 py-0.5 rounded text-on-surface-variant">
+                                    오늘 {fac.todayHours}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -791,7 +849,9 @@ export default function FacilitySearchView({
                     {selectedFacility.type && (
                       <div className="text-center">
                         <p className="text-sm font-bold text-primary">{selectedFacility.type}</p>
-                        <p className="text-[10px] text-on-surface-variant">시설유형</p>
+                        <p className="text-[10px] text-on-surface-variant">
+                          {selectedFacility.category === 'aed' ? '설치 위치' : '시설유형'}
+                        </p>
                       </div>
                     )}
                     {selectedFacility.capacity !== undefined && selectedFacility.capacity > 0 && (
@@ -804,6 +864,32 @@ export default function FacilitySearchView({
                       </>
                     )}
                   </div>
+                  {selectedFacility.category === 'aed' && (
+                    <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+                      {selectedFacility.distanceKm !== undefined && selectedFacility.distanceKm !== null && (
+                        <span className="rounded-lg bg-red-500/10 px-3 py-2 font-bold text-red-700 dark:text-red-300">
+                          현재 기준 {formatDistance(selectedFacility.distanceKm)}
+                        </span>
+                      )}
+                      <span className="rounded-lg bg-surface-container px-3 py-2 text-on-surface">
+                        오늘 {selectedFacility.todayHours || '운영시간 확인 필요'}
+                      </span>
+                      {(selectedFacility.phone || selectedFacility.managerPhone) && (
+                        <a
+                          href={`tel:${selectedFacility.phone || selectedFacility.managerPhone}`}
+                          className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 font-bold text-on-primary hover:opacity-90"
+                        >
+                          <span aria-hidden="true" className="material-symbols-outlined text-base">call</span>
+                          {selectedFacility.phone || selectedFacility.managerPhone}
+                        </a>
+                      )}
+                      {(selectedFacility.manufacturer || selectedFacility.model) && (
+                        <span className="rounded-lg bg-surface-container px-3 py-2 text-xs text-on-surface-variant">
+                          {[selectedFacility.manufacturer, selectedFacility.model].filter(Boolean).join(' · ')}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <button
                   type="button"

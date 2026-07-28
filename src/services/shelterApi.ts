@@ -1,6 +1,7 @@
 // 지진해일 긴급 대피장소 — 검증된 정적 스냅샷 사용
 
 import { fetchTsunamiShelters, type ApiRecord } from './apiClient';
+import { recordMatchesAppCity } from './administrativeRegions';
 
 export interface ShelterData {
   shelterName: string;     // 대피장소명
@@ -69,16 +70,13 @@ function numberFrom(value: unknown): number {
 }
 
 export async function getShelters(cityKey: string, userLat?: number, userLng?: number): Promise<ShelterData[]> {
-  const ctprvnNm = CITY_TO_CTPRVN[cityKey] || '서울특별시';
-
   try {
     const items = await fetchTsunamiShelters();
 
     const shelters: ShelterData[] = items
       .filter((item: ShelterApiItem) => {
         const address = text(item.RN_DTL_ADRES || item.SHNT_PLACE_DTL_POSITION || item.rdnmadr || item.lnmadr);
-        return address.startsWith(ctprvnNm)
-          || (cityKey === 'gwangju' && address.startsWith('광주광역시'));
+        return recordMatchesAppCity(cityKey, address);
       })
       .map((item: ShelterApiItem) => {
         const lat = numberFrom(item.LA || item.lat || item.latitude);

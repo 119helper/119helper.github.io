@@ -10,6 +10,8 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ENVIRONMENT = "production"
+# 공공데이터포털 댐 방류정보 활용신청 승인 후에만 true로 변경
+DAM_DISCHARGE_ENABLED = "false"
 
 [observability]
 enabled = true
@@ -41,6 +43,7 @@ crons = ["*/30 * * * *"]
 # API 키는 시크릿으로 등록:
 # wrangler secret put KMA_API_KEY
 # wrangler secret put ER_API_KEY
+# 선택: 별도 data.go.kr 공용 키를 쓸 때만 wrangler secret put PUBLIC_DATA_API_KEY
 # wrangler secret put AIR_API_KEY
 # wrangler secret put BUILDING_API_KEY
 # wrangler secret put FIRE_WATER_API_KEY

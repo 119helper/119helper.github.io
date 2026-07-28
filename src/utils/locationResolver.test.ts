@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getDistanceKm, getNearestSupportedCity, SUPPORTED_CITY_COORDS } from './locationResolver';
+import {
+  getDistanceKm,
+  getNearestSupportedCity,
+  kakaoRegionToCity,
+  SUPPORTED_CITY_COORDS,
+} from './locationResolver';
 
 describe('getDistanceKm', () => {
   it('returns ~0 for identical points', () => {
@@ -36,5 +41,17 @@ describe('getNearestSupportedCity', () => {
   it('picks Jeju for a southern-island coordinate', () => {
     const nearest = getNearestSupportedCity(33.45, 126.55);
     expect(nearest.key).toBe('jeju');
+  });
+});
+
+describe('kakaoRegionToCity', () => {
+  it('keeps only the former five Gwangju districts inside the merged province', () => {
+    expect(kakaoRegionToCity('전남광주통합특별시', '서구')).toBe('gwangju');
+    expect(kakaoRegionToCity('전남광주통합특별시', '목포시')).toBeUndefined();
+    expect(kakaoRegionToCity('전남광주통합특별시')).toBeUndefined();
+  });
+
+  it('still supports the legacy Gwangju name during provider transition', () => {
+    expect(kakaoRegionToCity('광주광역시', '광산구')).toBe('gwangju');
   });
 });

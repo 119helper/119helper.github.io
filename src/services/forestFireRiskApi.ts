@@ -4,6 +4,11 @@ import {
   type ApiRecord,
   type ForestFireRiskResponse,
 } from './apiClient';
+import {
+  GWANGJU_CURRENT_NAME,
+  GWANGJU_LEGACY_NAME,
+  isFormerGwangjuAddress,
+} from './administrativeRegions';
 
 export type ForestFireRiskLevel = '낮음' | '보통' | '높음' | '매우 높음';
 
@@ -107,6 +112,19 @@ function matchesRegion(item: ApiRecord, cityLabel: string): boolean {
   const targetNames = [shortName, fullName].map(compact);
 
   const explicitRegion = text(getByLooseKey(item, REGION_KEYS));
+  if (cityLabel === '광주') {
+    const matchesFormerGwangju = (value: string) => {
+      const candidate = value.trim().replace(/\s+/g, ' ');
+      if (!candidate) return false;
+      if (candidate === '광주' || candidate === GWANGJU_LEGACY_NAME) return true;
+      if (candidate === GWANGJU_CURRENT_NAME) return false;
+      return isFormerGwangjuAddress(candidate);
+    };
+
+    if (explicitRegion) return matchesFormerGwangju(explicitRegion);
+    return Object.values(item).some(value => matchesFormerGwangju(text(value)));
+  }
+
   if (explicitRegion && targetNames.some(target => compact(explicitRegion).includes(target))) {
     return true;
   }

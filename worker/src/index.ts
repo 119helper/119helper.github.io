@@ -33,11 +33,16 @@ import { handleLaw } from './routes/law';
 import { handleDisasterMsg } from './routes/disaster';
 import { handleConsumerHazard } from './routes/consumerHazard';
 import { handleAmbulance } from './routes/ambulance';
+import { handleAed } from './routes/aed';
+import { handleDamDischarge } from './routes/damDischarge';
 import { readLastKnownGood, saveLastKnownGood } from './referenceCache';
 
 export interface Env {
   KMA_API_KEY: string;
   ER_API_KEY: string;
+  /** data.go.kr 계정 공용 키. 미설정 시 기존 ER_API_KEY를 함께 사용한다. */
+  PUBLIC_DATA_API_KEY?: string;
+  DAM_DISCHARGE_ENABLED?: string;
   AIR_API_KEY: string;
   BUILDING_API_KEY: string;
   FIRE_WATER_API_KEY: string;
@@ -146,6 +151,12 @@ export default {
       else if (path.startsWith('/api/weather/')) result = await handleWeather(path, url, env.KMA_API_KEY);
       else if (path === '/api/air') result = await handleAir(url, env.AIR_API_KEY);
       else if (path.startsWith('/api/er/')) result = await handleER(path, url, env.ER_API_KEY);
+      else if (path === '/api/aed/nearby') result = await handleAed(url, env.PUBLIC_DATA_API_KEY || env.ER_API_KEY);
+      else if (path === '/api/dam-discharge') result = await handleDamDischarge(
+        url,
+        env.PUBLIC_DATA_API_KEY || env.ER_API_KEY,
+        env.DAM_DISCHARGE_ENABLED === 'true',
+      );
       else if (path === '/api/building') result = await handleBuilding(url, env.BUILDING_API_KEY);
       else if (path.startsWith('/api/fire-object/')) result = await handleFireObject(path, url, env.FIRE_OBJECT_API_KEY);
       else if (path === '/api/firewater') result = await handleFireWater(url, env.FIRE_WATER_API_KEY);

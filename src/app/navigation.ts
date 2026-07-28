@@ -28,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
     id: 'group-monitoring', icon: 'monitor', label: '모니터링',
     subItems: [
       { id: 'weather', label: '날씨' },
+      { id: 'dam-discharge', label: '댐 방류' },
       { id: 'aviation', label: '항공/드론' },
       { id: 'wildfire', label: '산불현황' },
       { id: 'er', label: '응급실 현황' },
@@ -108,6 +109,7 @@ const TAB_ICONS: Partial<Record<TabId, string>> = {
   shelter: 'location_city',
   er: 'local_hospital',
   weather: 'partly_cloudy_day',
+  'dam-discharge': 'water',
   calculator: 'calculate',
   calendar: 'calendar_month',
   emergency: 'ambulance',

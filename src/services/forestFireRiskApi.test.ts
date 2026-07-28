@@ -57,4 +57,18 @@ describe('forest fire risk utilities', () => {
     expect(risk?.avg).toBe(47);
     expect(risk?.level).toBe('매우 높음');
   });
+
+  it('does not treat the whole merged Gwangju-Jeonnam province as former Gwangju', () => {
+    const risk = normalizeForestFireRisk({
+      items: [
+        { 지역: '전남광주통합특별시', 최대값: '95' },
+        { 지역: '전남광주통합특별시 목포시', 최대값: '91' },
+        { 지역: '전남광주통합특별시 동구', 최대값: '63', 평균값: '41' },
+      ],
+      totalCount: 3,
+    }, '광주');
+
+    expect(risk?.value).toBe(63);
+    expect(risk?.sidoName).toBe('광주광역시');
+  });
 });

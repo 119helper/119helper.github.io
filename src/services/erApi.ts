@@ -1,6 +1,7 @@
 // 응급의료기관 정보 조회 API — Cloudflare Worker 프록시 경유
 
 import { fetchERBeds, fetchERList, fetchERMessages, fetchERSevereIllness, isStaleDataError, tagStale } from './apiClient';
+import { GWANGJU_CURRENT_NAME, isFormerGwangjuAddress } from './administrativeRegions';
 
 // 네트워크 실패 시 StaleDataError에 실린 캐시 XML을 파싱해 반환 (신선도 태그 포함).
 // 오프라인에서 "0병상"으로 오인되는 것보다 "N분 전 기준 데이터"가 안전하다.
@@ -38,22 +39,13 @@ export interface ERRealTimeData {
   hvidate: string;
 }
 
-const MERGED_GWANGJU_SIDO = '전남광주통합특별시';
-const FORMER_GWANGJU_DISTRICTS = new Set(['동구', '서구', '남구', '북구', '광산구']);
-
 /**
  * 앱의 `gwangju` 선택은 기존 광주 생활권을 뜻한다. 통합 시도 API에서 받은
  * 광주·전남 전체 결과 중 기존 광주 5개 구만 남긴다.
  */
 export function filterBedsForRequestedRegion(sido: string, beds: ERRealTimeData[]): ERRealTimeData[] {
-  if (sido !== MERGED_GWANGJU_SIDO) return beds;
-  return beds.filter(bed => {
-    const address = bed.dutyAddr?.trim() || '';
-    if (address.startsWith('광주광역시 ')) return true;
-    if (!address.startsWith(`${MERGED_GWANGJU_SIDO} `)) return false;
-    const district = address.slice(MERGED_GWANGJU_SIDO.length).trim().split(/\s+/)[0];
-    return FORMER_GWANGJU_DISTRICTS.has(district);
-  });
+  if (sido !== GWANGJU_CURRENT_NAME) return beds;
+  return beds.filter(bed => isFormerGwangjuAddress(bed.dutyAddr || ''));
 }
 
 export interface ERListItem {
@@ -127,11 +119,17 @@ export async function getERRealTimeBeds(sido: string = '서울특별시', gugun:
 
 // 3. 응급의료기관 목록 조회
 export async function getERList(sido: string = '서울특별시', gugun: string = '', forceRefresh = false): Promise<ERListItem[]> {
+  const parseList = (xml: string) => {
+    const items = parseXmlItems<ERListItem>(xml);
+    return sido === GWANGJU_CURRENT_NAME
+      ? items.filter(item => isFormerGwangjuAddress(item.dutyAddr || ''))
+      : items;
+  };
   try {
     const xmlText = await fetchERList(sido, gugun, forceRefresh);
-    return parseXmlItems<ERListItem>(xmlText);
+    return parseList(xmlText);
   } catch (error) {
-    const stale = recoverStaleXml(error, (xml) => parseXmlItems<ERListItem>(xml));
+    const stale = recoverStaleXml(error, parseList);
     if (stale) return stale;
     console.error('응급의료기관 목록 조회 실패:', error);
     throw error;
@@ -171,7 +169,7 @@ export const CITY_TO_SIDO: Record<string, string> = {
   daegu: '대구광역시',
   incheon: '인천광역시',
   // 2026-07-01 광주광역시·전라남도 통합 출범 이후 공공 API의 시도명이 변경됨.
-  gwangju: MERGED_GWANGJU_SIDO,
+  gwangju: GWANGJU_CURRENT_NAME,
   daejeon: '대전광역시',
   ulsan: '울산광역시',
   sejong: '세종특별자치시',

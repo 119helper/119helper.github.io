@@ -6,11 +6,14 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = path.join(__dirname, '..', 'public', 'data', 'restrooms');
 const COORDINATE_INDEX_PATH = path.join(__dirname, '..', 'public', 'data', 'restroom-v1-coordinates.json');
+const GEOCODE_CACHE_PATH = path.join(__dirname, '..', 'public', 'data', 'restroom-geocoded-coordinates.json');
+const RESEARCHED_COORDINATE_PATH = path.join(__dirname, '..', 'public', 'data', 'restroom-researched-coordinates.json');
 const DATA_MANIFEST_PATH = path.join(__dirname, '..', 'public', 'data', 'manifest.json');
 
 const API_KEY = process.env.RESTROOM_API_KEY || process.env.PUBLIC_DATA_API_KEY;
 const SOURCE_DATE_OVERRIDE = process.env.RESTROOM_SOURCE_DATE || process.env.STATIC_DATA_SOURCE_DATE || '';
 const LEGACY_COORDINATE_GIT_REF = process.env.RESTROOM_LEGACY_COORDINATE_GIT_REF || '';
+const GEOCODE_GAPS_PATH = process.env.RESTROOM_GEOCODE_GAPS_PATH || '';
 const API_URL = 'https://apis.data.go.kr/1741000/public_restroom_info_v2/info_v2';
 const SOURCE_URL = 'https://www.data.go.kr/data/15155058/openapi.do';
 const NUM_OF_ROWS = 1000;
@@ -27,6 +30,9 @@ const SUPPORTED_CITIES = {
   sejong: ['세종특별자치시'],
   jeju: ['제주특별자치도'],
 };
+
+const FORMER_GWANGJU_DISTRICTS = new Set(['동구', '서구', '남구', '북구', '광산구']);
+const GWANGJU_DISTRICT_PATTERN = [...FORMER_GWANGJU_DISTRICTS].join('|');
 
 function encodeServiceKey(key) {
   const value = key?.trim();
@@ -80,15 +86,39 @@ function normalizedName(value) {
   return String(value || '').normalize('NFKC').replace(/[^\p{L}\p{N}]/gu, '');
 }
 
-function normalizedAddress(value) {
+function cleanTransitionAddress(value) {
   return String(value || '')
     .normalize('NFKC')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(
+      new RegExp(`^광주광역시\\s+(${GWANGJU_DISTRICT_PATTERN})\\s+전남광주통합특별시\\s+\\1\\s+`),
+      '전남광주통합특별시 $1 ',
+    )
+    .replace(
+      new RegExp(`^전남광주통합특별시\\s+(${GWANGJU_DISTRICT_PATTERN})\\s+광주광역시\\s+\\1\\s+`),
+      '전남광주통합특별시 $1 ',
+    );
+}
+
+function normalizedAddress(value) {
+  return cleanTransitionAddress(value)
     .replace(/^전남광주통합특별시/, '광주광역시')
     .replace(/[^\p{L}\p{N}]/gu, '');
 }
 
 function coordinateSignature(name, address) {
   return `${normalizedName(name)}|${normalizedAddress(address)}`;
+}
+
+function localCoordinateSignature(name, address) {
+  const cleaned = cleanTransitionAddress(address)
+    .replace(/^전남광주통합특별시/, '광주광역시');
+  const match = cleaned.match(/^(\S+(?:특별자치시|특별자치도|특별시|광역시|도))\s+(.+)$/);
+  if (!match) return `${normalizedName(name)}|${normalizedAddress(cleaned)}`;
+  const city = normalizedName(match[1]);
+  const local = match[2].replace(/^\S+(?:구|군)\s+/, '');
+  return `${normalizedName(name)}|${city}|${normalizedAddress(local)}`;
 }
 
 function coordinateRecord(item) {
@@ -152,18 +182,34 @@ function loadPreviousCoordinates() {
   const byId = new Map();
   const bySignature = new Map();
   const byAddress = new Map();
+  const byLocalSignature = new Map();
 
   const addRecords = records => {
     for (const item of records) {
-      const coordinate = { lat: item.lat, lng: item.lng };
+      const coordinate = { lat: item.lat, lng: item.lng, addr: item.addr };
       if (item.id) byId.set(item.id, coordinate);
       bySignature.set(coordinateSignature(item.nm, item.addr), coordinate);
       byAddress.set(normalizedAddress(item.addr), coordinate);
+      byLocalSignature.set(localCoordinateSignature(item.nm, item.addr), coordinate);
     }
   };
 
   if (fs.existsSync(COORDINATE_INDEX_PATH)) {
     addRecords(recordsFromJson(JSON.parse(fs.readFileSync(COORDINATE_INDEX_PATH, 'utf8'))));
+  }
+
+  let geocodedCount = 0;
+  if (fs.existsSync(GEOCODE_CACHE_PATH)) {
+    const geocodedRecords = recordsFromJson(JSON.parse(fs.readFileSync(GEOCODE_CACHE_PATH, 'utf8')));
+    addRecords(geocodedRecords);
+    geocodedCount = geocodedRecords.length;
+  }
+
+  let researchedCount = 0;
+  if (fs.existsSync(RESEARCHED_COORDINATE_PATH)) {
+    const researchedRecords = recordsFromJson(JSON.parse(fs.readFileSync(RESEARCHED_COORDINATE_PATH, 'utf8')));
+    addRecords(researchedRecords);
+    researchedCount = researchedRecords.length;
   }
 
   if (fs.existsSync(OUTPUT_DIR)) {
@@ -188,50 +234,66 @@ function loadPreviousCoordinates() {
     console.log(`Git ${LEGACY_COORDINATE_GIT_REF}에서 공식 v1 좌표 인덱스 ${saved.toLocaleString()}건을 보존했습니다.`);
   }
 
-  return { byId, bySignature, byAddress };
+  return {
+    byId,
+    bySignature,
+    byAddress,
+    byLocalSignature,
+    geocodedCount,
+    researchedCount,
+  };
 }
 
 function findCity(address) {
   for (const [cityKey, prefixes] of Object.entries(SUPPORTED_CITIES)) {
-    if (prefixes.some(prefix => address.startsWith(prefix))) return cityKey;
+    if (!prefixes.some(prefix => address === prefix || address.startsWith(`${prefix} `))) continue;
+    if (cityKey === 'gwangju') {
+      const district = cleanTransitionAddress(address).split(/\s+/)[1] || '';
+      if (!FORMER_GWANGJU_DISTRICTS.has(district)) return null;
+    }
+    return cityKey;
   }
   return null;
 }
 
 function districtOf(address, cityKey) {
-  const tokens = address.split(/\s+/).filter(Boolean);
+  const tokens = cleanTransitionAddress(address).split(/\s+/).filter(Boolean);
   const candidates = tokens.slice(1);
   const district = candidates.find(token =>
     token.length <= 12
     && (token.endsWith('구') || token.endsWith('군') || (cityKey === 'jeju' && token.endsWith('시')))
   );
-  return district || candidates[0] || '기타';
+  return district || '기타';
 }
 
 function optimizeItem(item, previousCoordinates) {
   const id = String(item.MNG_NO || '');
   const name = String(item.RSTRM_NM || '무명 화장실');
-  const address = String(item.LCTN_ROAD_NM_ADDR || item.LCTN_LOTNO_ADDR || '주소 미상');
+  const address = cleanTransitionAddress(item.LCTN_ROAD_NM_ADDR || item.LCTN_LOTNO_ADDR || '주소 미상');
   const embeddedLat = Number.parseFloat(item.WGS84_LAT || '0');
   const embeddedLng = Number.parseFloat(item.WGS84_LOT || '0');
   const previous = previousCoordinates.byId.get(id)
     || previousCoordinates.bySignature.get(coordinateSignature(name, address))
-    || previousCoordinates.byAddress.get(normalizedAddress(address));
+    || previousCoordinates.byAddress.get(normalizedAddress(address))
+    || previousCoordinates.byLocalSignature.get(localCoordinateSignature(name, address));
   const lat = embeddedLat || previous?.lat || 0;
   const lng = embeddedLng || previous?.lng || 0;
   const openHours = String(item.OPN_HR || '');
 
   return {
-    id,
-    nm: name,
-    lat,
-    lng,
-    addr: address,
-    isOpenAtNight: /24|상시/.test(openHours) ? 'Y' : 'N',
-    hasBell: item.EMRGNCBLL_INSTL_YN === 'Y' ? 'Y' : 'N',
-    male: Number.parseInt(item.MALE_TOILT_CNT || 0, 10) || 0,
-    female: Number.parseInt(item.FEMALE_TOILT_CNT || 0, 10) || 0,
-    type: item.SE_NM || '공중화장실',
+    facility: {
+      id,
+      nm: name,
+      lat,
+      lng,
+      addr: address,
+      isOpenAtNight: /24|상시/.test(openHours) ? 'Y' : 'N',
+      hasBell: item.EMRGNCBLL_INSTL_YN === 'Y' ? 'Y' : 'N',
+      male: Number.parseInt(item.MALE_TOILT_CNT || 0, 10) || 0,
+      female: Number.parseInt(item.FEMALE_TOILT_CNT || 0, 10) || 0,
+      type: item.SE_NM || '공중화장실',
+    },
+    matchedAddress: previous?.addr || '',
   };
 }
 
@@ -303,8 +365,12 @@ function updateDataManifest(metadata) {
     upstreamTotal: metadata.upstreamTotal,
     supportedCityTotal: metadata.supportedCityTotal,
     missingCoordinateCount: metadata.missingCoordinateCount,
-    coordinateSource: '2026-06 API 정책 변경 전 마지막 공식 v1 WGS84 스냅샷',
+    coordinateSource: '2026-06 API 정책 변경 전 마지막 공식 v1 WGS84 스냅샷 + 주소 지오코딩·교차검증 보충',
     coordinateIndex: '/data/restroom-v1-coordinates.json',
+    geocodeIndex: '/data/restroom-geocoded-coordinates.json',
+    geocodedCount: metadata.geocodedCount,
+    researchedCoordinateIndex: '/data/restroom-researched-coordinates.json',
+    researchedCount: metadata.researchedCount,
   };
 
   fs.writeFileSync(DATA_MANIFEST_PATH, JSON.stringify(manifest, null, 2), 'utf8');
@@ -314,6 +380,12 @@ async function main() {
   console.log('전국 공중화장실 v2 데이터 동기화를 시작합니다.');
   const previousCoordinates = loadPreviousCoordinates();
   console.log(`기존 공식 좌표 ${previousCoordinates.byId.size.toLocaleString()}건을 불러왔습니다.`);
+  if (previousCoordinates.geocodedCount > 0) {
+    console.log(`주소 지오코딩 보충 좌표 ${previousCoordinates.geocodedCount.toLocaleString()}건을 불러왔습니다.`);
+  }
+  if (previousCoordinates.researchedCount > 0) {
+    console.log(`교차검증 보충 좌표 ${previousCoordinates.researchedCount.toLocaleString()}건을 불러왔습니다.`);
+  }
 
   const first = await fetchPage(1);
   const returnedPageSize = first.items.length || NUM_OF_ROWS;
@@ -321,12 +393,15 @@ async function main() {
   const allItems = [...first.items];
   console.log(`원본 API 총 ${first.totalCount.toLocaleString()}건, ${totalPages}페이지`);
 
-  for (let pageNo = 2; pageNo <= totalPages; pageNo += 1) {
-    const page = await fetchPage(pageNo);
-    allItems.push(...page.items);
-    if (pageNo % 10 === 0 || pageNo === totalPages) {
-      console.log(`다운로드 ${pageNo}/${totalPages}페이지`);
-    }
+  const concurrency = 8;
+  for (let startPage = 2; startPage <= totalPages; startPage += concurrency) {
+    const pageNumbers = Array.from(
+      { length: Math.min(concurrency, totalPages - startPage + 1) },
+      (_, index) => startPage + index,
+    );
+    const results = await Promise.all(pageNumbers.map(fetchPage));
+    results.forEach(page => allItems.push(...page.items));
+    console.log(`다운로드 ${pageNumbers.at(-1)}/${totalPages}페이지`);
     await delay(100);
   }
 
@@ -334,21 +409,45 @@ async function main() {
   let supportedCityTotal = 0;
   let coordinateMatchedCount = 0;
   let missingCoordinateCount = 0;
+  const gwangjuSourceDistricts = {};
+  const gwangjuUnmatchedSamples = [];
+  const geocodeGaps = [];
 
   for (const item of allItems) {
     const address = String(item.LCTN_ROAD_NM_ADDR || item.LCTN_LOTNO_ADDR || '');
+    if (address.includes('광주')) {
+      const district = districtOf(address, 'gwangju');
+      gwangjuSourceDistricts[district] = (gwangjuSourceDistricts[district] || 0) + 1;
+      if (!findCity(address) && gwangjuUnmatchedSamples.length < 5) {
+        gwangjuUnmatchedSamples.push(address);
+      }
+    }
     const cityKey = findCity(address);
     if (!cityKey) continue;
     supportedCityTotal += 1;
 
-    const optimized = optimizeItem(item, previousCoordinates);
+    const { facility: optimized, matchedAddress } = optimizeItem(item, previousCoordinates);
     if (!optimized.lat || !optimized.lng) {
       missingCoordinateCount += 1;
+      if (cityKey === 'gwangju' || cityKey === 'incheon') {
+        geocodeGaps.push({
+          id: optimized.id,
+          nm: optimized.nm,
+          addr: optimized.addr,
+          roadAddr: cleanTransitionAddress(item.LCTN_ROAD_NM_ADDR || ''),
+          lotAddr: cleanTransitionAddress(item.LCTN_LOTNO_ADDR || ''),
+          city: cityKey,
+          district: districtOf(address, cityKey),
+        });
+      }
       continue;
     }
     coordinateMatchedCount += 1;
 
-    const district = districtOf(address, cityKey);
+    const sourceDistrict = districtOf(address, cityKey);
+    const district = sourceDistrict === '기타' && matchedAddress
+      ? districtOf(matchedAddress, cityKey)
+      : sourceDistrict;
     const cityMap = byCity[cityKey];
     if (!cityMap.has(district)) cityMap.set(district, []);
     cityMap.get(district).push(optimized);
@@ -380,7 +479,7 @@ async function main() {
         city: cityKey,
         sourceDate,
         generatedAt,
-        coordinateSource: 'API 정책 변경 전 마지막 공식 v1 WGS84 스냅샷',
+        coordinateSource: 'API 정책 변경 전 마지막 공식 v1 WGS84 스냅샷 + 주소 지오코딩·교차검증 보충',
       },
     };
     fs.writeFileSync(path.join(cityDir, 'index.json'), JSON.stringify(index), 'utf8');
@@ -394,8 +493,26 @@ async function main() {
     supportedCityTotal,
     coordinateMatchedCount,
     missingCoordinateCount,
+    geocodedCount: previousCoordinates.geocodedCount,
+    researchedCount: previousCoordinates.researchedCount,
   });
 
+  if (GEOCODE_GAPS_PATH) {
+    const resolvedGapPath = path.resolve(GEOCODE_GAPS_PATH);
+    fs.mkdirSync(path.dirname(resolvedGapPath), { recursive: true });
+    fs.writeFileSync(resolvedGapPath, JSON.stringify({
+      version: 1,
+      generatedAt,
+      total: geocodeGaps.length,
+      items: geocodeGaps,
+    }), 'utf8');
+    console.log(`광주·인천 좌표 보충 대상 ${geocodeGaps.length.toLocaleString()}건을 ${resolvedGapPath}에 기록했습니다.`);
+  }
+
+  console.log(`광주 원본 구별 행: ${JSON.stringify(gwangjuSourceDistricts)}`);
+  if (gwangjuUnmatchedSamples.length > 0) {
+    console.log(`광주 미분류 주소 예시: ${JSON.stringify(gwangjuUnmatchedSamples)}`);
+  }
   console.log(`완료: 지원 도시 ${supportedCityTotal.toLocaleString()}건 중 좌표 결합 ${coordinateMatchedCount.toLocaleString()}건, 좌표 없음 ${missingCoordinateCount.toLocaleString()}건`);
 }
 

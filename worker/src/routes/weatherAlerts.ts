@@ -37,6 +37,26 @@ const CITY_REGION_NAMES: Record<string, string[]> = {
   제주: ['제주', '제주도', '제주특별자치도', '제주시', '서귀포시'],
 };
 
+const GWANGJU_CURRENT_NAME = '전남광주통합특별시';
+const GWANGJU_DISTRICTS = ['동구', '서구', '남구', '북구', '광산구'];
+
+function isGwangjuAlertRelevant(alert: OfficialWeatherAlert): boolean {
+  const parent = alert.parentRegionName.trim();
+  const region = alert.regionName.trim();
+  if (parent.includes('광주광역시') || region.includes('광주광역시')) return true;
+  if (region === '광주' || region.startsWith('광주')) return true;
+  if (parent !== GWANGJU_CURRENT_NAME && !parent.includes(GWANGJU_CURRENT_NAME)
+    && region !== GWANGJU_CURRENT_NAME && !region.includes(GWANGJU_CURRENT_NAME)) {
+    return false;
+  }
+  if (region === GWANGJU_CURRENT_NAME || region === parent) return true;
+  return GWANGJU_DISTRICTS.some(district =>
+    region === district
+    || region.startsWith(`${district} `)
+    || region.startsWith(`${GWANGJU_CURRENT_NAME} ${district}`)
+  );
+}
+
 function kmaTimeToIso(value: string): string {
   if (!/^\d{12}$/.test(value)) return '';
   return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}T${value.slice(8, 10)}:${value.slice(10, 12)}:00+09:00`;
@@ -110,6 +130,9 @@ export function filterWeatherAlertsByCity(
 ): OfficialWeatherAlert[] {
   if (!city) return alerts;
   const normalized = city.trim();
+  if (normalized === '광주' || normalized === '광주광역시' || normalized === GWANGJU_CURRENT_NAME) {
+    return alerts.filter(isGwangjuAlertRelevant);
+  }
   const regionNames = CITY_REGION_NAMES[normalized] ?? [normalized];
   return alerts.filter(alert => regionNames.some(regionName =>
     alert.parentRegionName.includes(regionName) || alert.regionName.includes(regionName)

@@ -88,6 +88,8 @@ cd worker
 npm install
 wrangler secret put KMA_API_KEY
 wrangler secret put ER_API_KEY
+# AED와 댐 방류는 같은 data.go.kr 계정 키를 재사용합니다.
+# 별도 키를 분리하려면: wrangler secret put PUBLIC_DATA_API_KEY
 npm run dev
 # worker/wrangler.dev.toml이 ENVIRONMENT=development와 포트 8787을 고정하므로
 # 로컬에서는 APP_ACCESS_TOKEN 없이 실행 가능
@@ -122,6 +124,13 @@ TSUNAMI_SOURCE_DATE=2025-07-16 node scripts/update-static-data-manifest.mjs
 ```
 
 운영 리스크와 후속 보완 과제는 [`docs/operational_risks.md`](docs/operational_risks.md)에 정리되어 있습니다.
+2026-07 행정구역 개편 대응 범위와 검증 결과는
+[`docs/administrative-region-audit-2026-07.md`](docs/administrative-region-audit-2026-07.md)에서 확인할 수 있습니다.
+데이터를 갱신한 뒤에는 `npm run audit:regions`로 광주·인천 행정구역과 좌표 정합성을 검사합니다.
+
+한국수자원공사 댐 방류정보 활용신청이 승인되면 `worker/wrangler.toml`의
+`DAM_DISCHARGE_ENABLED`를 `"true"`로 바꾼 뒤 Worker를 배포합니다. 승인 전에는
+화면에 심의 대기 상태만 표시하며 업스트림 API를 호출하지 않습니다.
 
 ---
 

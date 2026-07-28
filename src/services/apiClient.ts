@@ -97,6 +97,16 @@ const apiRecordSchema = z.record(z.string(), z.unknown());
 const apiRecordArraySchema = z.array(apiRecordSchema);
 const xmlResponseSchema = z.object({ xml: z.string() }).passthrough();
 const weatherBriefingSchema = z.object({ briefing: z.string().catch('') }).passthrough();
+const damDischargeResponseSchema = z.object({
+  status: z.enum(['pending-approval', 'active']),
+  items: z.array(z.unknown()).optional(),
+  message: z.string().optional(),
+  payload: z.string().optional(),
+  format: z.enum(['xml', 'json']).optional(),
+  fetchedAt: z.string().optional(),
+  source: z.string().optional(),
+  sourceUrl: z.string().optional(),
+}).passthrough();
 
 export type ApiRecord = z.infer<typeof apiRecordSchema>;
 
@@ -603,6 +613,31 @@ export async function fetchERMessages(sido: string, gugun?: string, forceRefresh
 }
 export async function fetchERSevereIllness(sido: string, gugun?: string, forceRefresh = false) {
   return apiFetchXml('/api/er/severe-illness', { sido, gugun: gugun || '' }, { ...ER_OPTS, forceRefresh });
+}
+
+// ═══════ 자동심장충격기(AED) 위치 (5분, 폴백 최대 24시간) ═══════
+export async function fetchNearbyAedXml(lat: number, lng: number, forceRefresh = false): Promise<string> {
+  return apiFetchXml('/api/aed/nearby', {
+    lat: String(lat),
+    lng: String(lng),
+    pageNo: '1',
+    numOfRows: '50',
+  }, {
+    cacheTtlMs: 5 * MINUTE_MS,
+    maxStaleMs: DAY_MS,
+    forceRefresh,
+  });
+}
+
+export type DamDischargeApiResponse = z.infer<typeof damDischargeResponseSchema>;
+
+export async function fetchDamDischarge(forceRefresh = false): Promise<DamDischargeApiResponse> {
+  return apiFetch<DamDischargeApiResponse>('/api/dam-discharge', { days: '2' }, {
+    cacheTtlMs: 15 * MINUTE_MS,
+    maxStaleMs: HOUR_MS,
+    forceRefresh,
+    schema: damDischargeResponseSchema,
+  });
 }
 
 // ═══════ 건축물대장 (변경 적음 7일) ═══════
