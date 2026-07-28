@@ -1,15 +1,26 @@
 import { useState, useEffect } from 'react';
 import { fetchConsumerHazards, type HazardItem } from '../services/consumerHazardApi';
+import { getStaleAt } from '../services/apiClient';
+import StaleBadge from './StaleBadge';
 
 export default function ConsumerHazardView() {
   const [hazards, setHazards] = useState<HazardItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [staleAt, setStaleAt] = useState<number | null>(null);
 
   const loadData = async (force: boolean) => {
     setLoading(true);
-    const data = await fetchConsumerHazards(force);
-    setHazards(data);
-    setLoading(false);
+    setError(null);
+    try {
+      const data = await fetchConsumerHazards(force);
+      setHazards(data);
+      setStaleAt(getStaleAt(data));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '위해정보 API를 불러오지 못했습니다.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -23,6 +34,7 @@ export default function ConsumerHazardView() {
           <h2 className="text-xl font-extrabold text-on-surface flex items-center gap-2 font-headline">
             <span className="material-symbols-outlined text-orange-700 dark:text-orange-300">warning</span>
             소비자 위해 정보 동향
+            <StaleBadge at={staleAt} />
           </h2>
           <p className="text-on-surface-variant text-sm mt-1">한국소비자원 기반 일상생활 위해 및 안전사고 통계</p>
         </div>
@@ -36,6 +48,20 @@ export default function ConsumerHazardView() {
         </button>
       </div>
 
+      {error && (
+        <div role="alert" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+          <span>한국소비자원 위해정보를 불러오지 못했습니다. {error}</span>
+          <button
+            type="button"
+            onClick={() => loadData(true)}
+            disabled={loading}
+            className="shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+          >
+            다시 시도
+          </button>
+        </div>
+      )}
+
       {loading && hazards.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-on-surface-variant">
           <span className="material-symbols-outlined text-4xl animate-spin mb-4 text-orange-700 dark:text-orange-300">progress_activity</span>
@@ -44,7 +70,7 @@ export default function ConsumerHazardView() {
       ) : hazards.length === 0 ? (
         <div className="col-span-full py-16 text-center text-on-surface-variant bg-surface-container-lowest rounded-xl border border-dashed border-outline-variant/20">
           <span className="material-symbols-outlined text-4xl mb-2 opacity-50">search_off</span>
-          <p>조회 가능한 데이터가 없습니다.</p>
+          <p>{error ? 'API 연결을 복구한 뒤 다시 시도해 주세요.' : '조회 결과가 0건입니다.'}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -1,5 +1,4 @@
-import { apiFetch } from './apiClient';
-import { isStaleDataError } from './apiClient';
+import { apiFetch, isStaleDataError, tagStale } from './apiClient';
 import { z } from 'zod';
 
 export interface HazardItem {
@@ -85,9 +84,9 @@ export async function fetchConsumerHazards(forceRefresh = false): Promise<Hazard
     return mapHazards(json);
   } catch (err) {
     if (isStaleDataError(err)) {
-      return mapHazards(err.cachedData as HazardApiResponse);
+      return tagStale(mapHazards(err.cachedData as HazardApiResponse), err.cachedAt);
     }
     console.error('Consumer Hazard Fetch Error:', err);
-    return [];
+    throw err;
   }
 }

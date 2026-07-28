@@ -8,7 +8,7 @@
  * Swagger: https://infuser.odcloud.kr/oas/docs?namespace=15066545/v1
  */
 
-import { encodeServiceKey, fetchWithTimeout, parsePublicDataJson } from './publicData';
+import { encodeServiceKey, fetchWithRetry, parsePublicDataJson } from './publicData';
 import { sanitizeNumericParam } from '../middleware/cors';
 
 // 연도별 UDDI 엔드포인트
@@ -32,7 +32,7 @@ export async function handleMultiUse(url: URL, apiKey: string): Promise<{ data: 
     perPage,
   });
 
-  const res = await fetchWithTimeout(
+  const res = await fetchWithRetry(
     `https://api.odcloud.kr/api/15066545/v1/${uddi}?serviceKey=${serviceKey}&${params}`,
     { headers: { 'User-Agent': '119-helper-worker/1.0' } }
   );

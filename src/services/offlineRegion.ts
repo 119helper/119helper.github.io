@@ -124,9 +124,9 @@ async function buildUrlList(city: string): Promise<string[]> {
     urls.push(restroomIndexUrl, ...restroomUrls);
   }
 
-  // 3. 대피소 (전국 단일 파일)
+  // 3. 대피소 (지진해일 전국 파일 + 민방위 지역 파일)
   urls.push('/data/tsunami.json');
-  urls.push('/data/civil.json');
+  urls.push(`/data/civil/${city}.json`);
 
   return urls;
 }

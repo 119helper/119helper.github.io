@@ -1,1 +1,1 @@
-{"total":825,"districts":{"북구":261,"남구":201,"광산구":363}}
+{"total":827,"districts":{"광산구":364,"남구":201,"북구":262},"metadata":{"dataset":"행정안전부_공중화장실정보 조회서비스 v2","sourceUrl":"https://www.data.go.kr/data/15155058/openapi.do","apiUrl":"https://apis.data.go.kr/1741000/public_restroom_info_v2/info_v2","city":"gwangju","sourceDate":"2026-07-22","generatedAt":"2026-07-28T06:47:49.501Z","coordinateSource":"API 정책 변경 전 마지막 공식 v1 WGS84 스냅샷"}}

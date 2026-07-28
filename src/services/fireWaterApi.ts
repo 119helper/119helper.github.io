@@ -12,6 +12,7 @@ export interface FireWaterFacility {
   fcltyKndNm?: string;
   fcltySeNm?: string;
   fcltyTyNm?: string;
+  fcltySeCode?: string;
   fcltyNm?: string;
   insptnSttusNm?: string;
 }

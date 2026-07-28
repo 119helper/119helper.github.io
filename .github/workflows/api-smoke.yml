@@ -8,6 +8,7 @@ on:
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -22,3 +23,4 @@ jobs:
         env:
           VITE_API_BASE: https://119-helper-api.teemozipsa.workers.dev
           VITE_APP_TOKEN: ${{ secrets.VITE_APP_TOKEN }}
+          SMOKE_MODE: scheduled

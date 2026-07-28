@@ -23,7 +23,6 @@ const CACHE_TTL = 3 * 60 * 1000; // 3분 캐시
 
 const localNewsCache: Record<string, CacheEntry> = {};
 let policyNewsCache: CacheEntry | null = null;
-const alertCache: Record<string, { data: NewsItem | null; timestamp: number }> = {};
 
 function safeHttpUrl(value?: string): string {
   if (!value) return '';
@@ -248,30 +247,5 @@ export async function fetchPolicyNews(forceRefresh = false): Promise<NewsItem[]>
   } catch (error) {
     console.error('Policy News fetch error:', error);
     return policyNewsCache?.data || [];
-  }
-}
-
-// 3. 기상특보 글로벌 배너용 단일 파싱
-export async function fetchWeatherAlerts(city?: string, forceRefresh = false): Promise<NewsItem | null> {
-  const cacheKey = city || 'ALL';
-  if (!forceRefresh && alertCache[cacheKey] && Date.now() - alertCache[cacheKey].timestamp < CACHE_TTL) {
-    return alertCache[cacheKey].data;
-  }
-  try {
-    const query = city ? `기상특보 OR 날씨특보 발효 ${city}` : '기상특보 OR 날씨특보 발효';
-    const alerts = await fetchRssAndParse(`${API_BASE}/api/news?type=google&query=${encodeURIComponent(query)}`, '기상청 특보', true, 3);
-    const sorted = processAndSort([alerts]);
-    let finalResult: NewsItem | null = null;
-    if (sorted.length > 0) {
-      // 12시간 이내의 특보만 유효하다고 판단
-      const recent = new Date().getTime() - new Date(alerts[0].pubDateStr).getTime();
-      if (recent < 12 * 60 * 60 * 1000) {
-        finalResult = sorted[0];
-      }
-    }
-    alertCache[cacheKey] = { data: finalResult, timestamp: Date.now() };
-    return finalResult;
-  } catch {
-    return alertCache[cacheKey]?.data || null;
   }
 }

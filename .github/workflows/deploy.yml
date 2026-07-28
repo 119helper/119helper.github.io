@@ -332,6 +332,7 @@ jobs:
         env:
           VITE_API_BASE: https://119-helper-api.teemozipsa.workers.dev
           VITE_APP_TOKEN: ${{ secrets.VITE_APP_TOKEN }}
+          SMOKE_MODE: deploy
 
       - name: Setup Pages
         uses: actions/configure-pages@v6

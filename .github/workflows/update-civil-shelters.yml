@@ -1,0 +1,52 @@
+name: Update Civil Shelter Data
+
+on:
+  schedule:
+    - cron: '11 1 * * 1'
+  workflow_dispatch:
+    inputs:
+      source_date:
+        description: '원본 데이터 기준일(선택, 예: 2026-07-28)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  update-civil-shelters:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Validate API secret
+        run: test -n "$CIVIL_SYNC_KEY" || { echo "RESTROOM_API_KEY, FIRE_WATER_API_KEY, or PUBLIC_DATA_API_KEY secret is required"; exit 1; }
+        env:
+          CIVIL_SYNC_KEY: ${{ secrets.RESTROOM_API_KEY || secrets.FIRE_WATER_API_KEY || secrets.PUBLIC_DATA_API_KEY }}
+
+      - name: Sync civil shelter data
+        run: node scripts/sync-civil-shelters.js
+        env:
+          CIVIL_SHELTER_SYNC_API_KEY: ${{ secrets.RESTROOM_API_KEY || secrets.FIRE_WATER_API_KEY || secrets.PUBLIC_DATA_API_KEY }}
+          CIVIL_SOURCE_DATE: ${{ inputs.source_date }}
+
+      - name: Check changes
+        id: check
+        run: |
+          git diff --name-only public/data/civil/ public/data/manifest.json | head -20
+          echo "changed=$(git diff --quiet public/data/civil/ public/data/manifest.json && echo 'false' || echo 'true')" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/civil/ public/data/manifest.json
+          git commit -m "chore: 민방위 대피시설 데이터 업데이트 ($(date +%Y-%m-%d))"
+          git push

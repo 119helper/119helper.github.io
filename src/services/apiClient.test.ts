@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiFetch, fetchTsunamiShelters, StaleDataError } from './apiClient';
+import { apiFetch, fetchCivilShelters, fetchTsunamiShelters, StaleDataError } from './apiClient';
 
 const cache = vi.hoisted(() => new Map<string, unknown>());
 
@@ -69,6 +69,30 @@ describe('apiFetch stale cache fallback', () => {
       maxStaleMs: 5_000,
     })).rejects.toBeInstanceOf(StaleDataError);
   });
+
+  it('surfaces Worker last-known-good metadata as stale data', async () => {
+    const cachedAt = '2026-07-28T01:02:03.000Z';
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-119-Data-Stale': 'true',
+        'X-119-Data-Cached-At': cachedAt,
+      },
+    })));
+
+    try {
+      await apiFetch('/api/test', undefined, {
+        customCacheKey: 'worker-last-known-good',
+        useCache: false,
+      });
+      expect.fail('expected stale data error');
+    } catch (error) {
+      expect(error).toBeInstanceOf(StaleDataError);
+      expect((error as StaleDataError).cachedData).toEqual({ ok: true });
+      expect((error as StaleDataError).cachedAt).toBe(Date.parse(cachedAt));
+    }
+  });
 });
 
 describe('fetchTsunamiShelters', () => {
@@ -84,5 +108,29 @@ describe('fetchTsunamiShelters', () => {
   it('rejects malformed static data', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ items: [] })));
     await expect(fetchTsunamiShelters()).rejects.toThrow('형식이 올바르지 않습니다');
+  });
+});
+
+describe('fetchCivilShelters', () => {
+  it('loads the selected city partition', async () => {
+    const data = [{ FCLT_NM: '테스트 민방위 대피시설' }];
+    const fetchMock = vi.fn(async () => jsonResponse(data));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchCivilShelters('부산광역시')).resolves.toEqual(data);
+    expect(fetchMock).toHaveBeenCalledWith('/data/civil/busan.json');
+  });
+
+  it('maps the reorganized Gwangju name to the Gwangju partition', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse([]));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchCivilShelters('전남광주통합특별시');
+    expect(fetchMock).toHaveBeenCalledWith('/data/civil/gwangju.json');
+  });
+
+  it('rejects malformed city data', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ items: [] })));
+    await expect(fetchCivilShelters('서울특별시')).rejects.toThrow('형식이 올바르지 않습니다');
   });
 });

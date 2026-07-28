@@ -4,7 +4,7 @@
  * GET /api/civil-shelter
  */
 
-import { isRecord, errorMessage, fetchWithTimeout, requireSecret } from './publicData';
+import { isRecord, errorMessage, fetchWithRetry, requireSecret } from './publicData';
 import { sanitizeNumericParam } from '../middleware/cors';
 
 export async function handleCivilShelter(url: URL, apiKey?: string): Promise<{ data: unknown; cacheTtl: number }> {
@@ -25,7 +25,7 @@ export async function handleCivilShelter(url: URL, apiKey?: string): Promise<{ d
   const apiUrl = `https://www.safetydata.go.kr/V2/api/DSSP-IF-10166?${qs}`;
 
   try {
-    const res = await fetchWithTimeout(apiUrl, {
+    const res = await fetchWithRetry(apiUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',

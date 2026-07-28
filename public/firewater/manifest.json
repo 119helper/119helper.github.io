@@ -1,18 +1,1 @@
-{
-  "version": 1,
-  "generatedAt": "2026-07-06",
-  "dataset": "전국소방용수시설표준데이터",
-  "sourceUrl": "https://www.data.go.kr/data/15034538/standard.do",
-  "maxAgeDays": 120,
-  "cities": {
-    "서울특별시": { "city": "서울특별시", "sourceDate": null, "generatedAt": "2026-07-03", "total": 105952, "hydrants": 63074, "waterTowers": 42878 },
-    "부산광역시": { "city": "부산광역시", "sourceDate": null, "generatedAt": "2026-07-03", "total": 19630, "hydrants": 11370, "waterTowers": 8260 },
-    "대구광역시": { "city": "대구광역시", "sourceDate": null, "generatedAt": "2026-07-03", "total": 10121, "hydrants": 7244, "waterTowers": 2877 },
-    "인천광역시": { "city": "인천광역시", "sourceDate": null, "generatedAt": "2026-07-03", "total": 12499, "hydrants": 10987, "waterTowers": 1512 },
-    "광주광역시": { "city": "광주광역시", "sourceDate": null, "generatedAt": "2026-07-03", "total": 6018, "hydrants": 5073, "waterTowers": 945 },
-    "대전광역시": { "city": "대전광역시", "sourceDate": null, "generatedAt": "2026-07-03", "total": 4790, "hydrants": 3485, "waterTowers": 1305 },
-    "울산광역시": { "city": "울산광역시", "sourceDate": null, "generatedAt": "2026-07-03", "total": 3701, "hydrants": 3527, "waterTowers": 174 },
-    "세종특별자치시": { "city": "세종특별자치시", "sourceDate": null, "generatedAt": "2026-07-03", "total": 1769, "hydrants": 1756, "waterTowers": 13 },
-    "제주특별자치도": { "city": "제주특별자치도", "sourceDate": null, "generatedAt": "2026-07-03", "total": 2780, "hydrants": 2764, "waterTowers": 16 }
-  }
-}
+{"version":1,"generatedAt":"2026-07-28T06:50:45.553Z","dataset":"전국소방용수시설표준데이터","sourceUrl":"https://www.data.go.kr/data/15034538/standard.do","maxAgeDays":120,"cities":{"서울특별시":{"dataset":"전국소방용수시설표준데이터","sourceUrl":"https://www.data.go.kr/data/15034538/standard.do","city":"서울특별시","sourceDate":"2024-02-07","generatedAt":"2026-07-28T07:01:47.530Z","total":62827,"hydrants":62541,"waterTowers":286},"부산광역시":{"dataset":"전국소방용수시설표준데이터","sourceUrl":"https://www.data.go.kr/data/15034538/standard.do","city":"부산광역시","sourceDate":"2024-02-07","generatedAt":"2026-07-28T07:03:55.257Z","total":11207,"hydrants":11032,"waterTowers":175},"대구광역시":{"dataset":"전국소방용수시설표준데이터","sourceUrl":"https://www.data.go.kr/data/15034538/standard.do","city":"대구광역시","sourceDate":"2024-02-07","generatedAt":"2026-07-28T07:05:21.922Z","total":7215,"hydrants":7180,"waterTowers":35},"인천광역시":{"dataset":"전국소방용수시설표준데이터","sourceUrl":"https://www.data.go.kr/data/15034538/standard.do","city":"인천광역시","sourceDate":"2024-02-07","generatedAt":"2026-07-28T07:07:25.537Z","total":10848,"hydrants":10544,"waterTowers":304},"광주광역시":{"dataset":"전국소방용수시설표준데이터","sourceUrl":"https://www.data.go.kr/data/15034538/standard.do","city":"광주광역시","sourceDate":"2024-02-07","generatedAt":"2026-07-28T07:08:25.926Z","total":5002,"hydrants":4902,"waterTowers":100},"대전광역시":{"dataset":"전국소방용수시설표준데이터","sourceUrl":"https://www.data.go.kr/data/15034538/standard.do","city":"대전광역시","sourceDate":"2024-02-07","generatedAt":"2026-07-28T07:09:03.817Z","total":3422,"hydrants":3244,"waterTowers":178},"울산광역시":{"dataset":"전국소방용수시설표준데이터","sourceUrl":"https://www.data.go.kr/data/15034538/standard.do","city":"울산광역시","sourceDate":"2024-02-07","generatedAt":"2026-07-28T07:09:36.838Z","total":3481,"hydrants":3434,"waterTowers":47},"세종특별자치시":{"dataset":"전국소방용수시설표준데이터","sourceUrl":"https://www.data.go.kr/data/15034538/standard.do","city":"세종특별자치시","sourceDate":"2024-02-07","generatedAt":"2026-07-28T07:09:54.503Z","total":1755,"hydrants":1754,"waterTowers":1},"제주특별자치도":{"dataset":"전국소방용수시설표준데이터","sourceUrl":"https://www.data.go.kr/data/15034538/standard.do","city":"제주특별자치도","sourceDate":"2024-02-07","generatedAt":"2026-07-28T07:10:20.893Z","total":2764,"hydrants":2760,"waterTowers":4}}}

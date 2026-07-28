@@ -7,7 +7,7 @@
  *   GET /api/er/location?lat=37.5&lng=127.0  → 위치 기반 검색
  */
 
-import { encodeServiceKey, fetchWithTimeout } from './publicData';
+import { encodeServiceKey, fetchWithRetry } from './publicData';
 import { sanitizeStringParam } from '../middleware/cors';
 
 const ER_BASE = 'https://apis.data.go.kr/B552657/ErmctInfoInqireService';
@@ -28,7 +28,7 @@ function sanitizeCoordinate(url: URL, key: string, min: number, max: number, fal
 async function fetchErXml(erUrl: string): Promise<string> {
   let lastErr = '';
   for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await fetchWithTimeout(erUrl, { headers: { 'User-Agent': '119-helper-worker/1.0' } });
+    const res = await fetchWithRetry(erUrl, { headers: { 'User-Agent': '119-helper-worker/1.0' } });
     const text = await res.text();
     if (res.ok && text.trimStart().startsWith('<')) return text;
     lastErr = `ER upstream ${res.status}: ${text.replace(/\s+/g, ' ').slice(0, 100)}`;

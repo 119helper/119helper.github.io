@@ -3,8 +3,9 @@
  * Base: https://apis.data.go.kr/1661000/EmergencyStatisticsService
  */
 
-import { encodeServiceKey, fetchWithTimeout, parsePublicDataJson, pickItemsAndCount } from './publicData';
+import { encodeServiceKey, fetchWithRetry, parsePublicDataJson, pickItemsAndCount } from './publicData';
 import { sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
+import { normalizeEmergencyHeadquarters } from './emergencyRegions';
 
 const BASE = 'https://apis.data.go.kr/1661000/EmergencyStatisticsService';
 
@@ -44,8 +45,14 @@ export async function handleEmergencyStats(
   const legacyStn = sanitizeStringParam(url, 'fireStn', 40);
   if (legacyStn && !params.has('rsacGutFsttOgidNm')) params.set('rsacGutFsttOgidNm', legacyStn);
 
+  const headquarters = normalizeEmergencyHeadquarters(params.get('sidoHqOgidNm'));
+  if (!headquarters) {
+    throw new Error('구급통계 조회에는 시도 지역이 필요합니다.');
+  }
+  params.set('sidoHqOgidNm', headquarters);
+
   const serviceKey = encodeServiceKey(apiKey, 'EMERGENCY_API_KEY');
-  const res = await fetchWithTimeout(`${BASE}/${opName}?serviceKey=${serviceKey}&${params}`, {
+  const res = await fetchWithRetry(`${BASE}/${opName}?serviceKey=${serviceKey}&${params}`, {
     headers: { 'User-Agent': '119-helper-worker/1.0' },
   });
   const text = await res.text();

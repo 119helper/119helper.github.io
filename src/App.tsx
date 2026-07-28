@@ -343,7 +343,19 @@ export default function App() {
       if (item.insptnSttusNm?.includes('고장')) status = '고장';
       else if (item.insptnSttusNm?.includes('점검')) status = '점검필요';
 
-      const kindRaw = item.fcltyKndNm || item.fcltySeNm || item.fcltyTyNm || '';
+      const facilityTypeByCode: Record<string, string> = {
+        '1': '소화전', '01': '소화전',
+        '2': '소화전', '02': '소화전',
+        '3': '급수탑', '03': '급수탑',
+        '4': '저수조', '04': '저수조',
+        '5': '소화전', '05': '소화전',
+        '6': '비상소화장치', '06': '비상소화장치',
+      };
+      const kindRaw = item.fcltyKndNm
+        || item.fcltySeNm
+        || item.fcltyTyNm
+        || facilityTypeByCode[item.fcltySeCode?.trim() || '']
+        || '';
       let type: '소화전' | '급수탑' | '저수조' | '비상소화장치' = '소화전';
       if (kindRaw.includes('급수탑')) type = '급수탑';
       else if (kindRaw.includes('저수조')) type = '저수조';

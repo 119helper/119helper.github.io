@@ -102,6 +102,7 @@ export function encodeServiceKey(key: string | undefined, secretName: string): s
 }
 
 const RETRYABLE_HTTP_STATUS = new Set([500, 502, 503, 504]);
+const DEFAULT_RETRY_ATTEMPTS = 2;
 
 function compact(text: string): string {
   return text.replace(/\s+/g, ' ').slice(0, 140);
@@ -133,6 +134,57 @@ export async function fetchWithTimeout(
   }
 }
 
+interface FetchRetryOptions {
+  attempts?: number;
+  timeoutMs?: number;
+  baseDelayMs?: number;
+}
+
+function fetchFailureMessage(error: unknown): string {
+  if (error instanceof Error) {
+    if (error.name === 'AbortError') return 'timeout';
+    return error.message || error.name;
+  }
+  return String(error);
+}
+
+/**
+ * 일시적인 네트워크 오류·타임아웃·5xx를 짧게 재시도한다.
+ * 인증/입력 오류인 4xx는 즉시 반환해 호출자가 원인을 그대로 표시할 수 있게 한다.
+ */
+export async function fetchWithRetry(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  {
+    attempts = DEFAULT_RETRY_ATTEMPTS,
+    timeoutMs = 8_000,
+    baseDelayMs = 150,
+  }: FetchRetryOptions = {},
+): Promise<Response> {
+  let lastError: unknown;
+  let lastResponse: Response | undefined;
+  const totalAttempts = Math.max(1, attempts);
+
+  for (let attempt = 0; attempt < totalAttempts; attempt += 1) {
+    try {
+      const response = await fetchWithTimeout(input, init, timeoutMs);
+      if (!RETRYABLE_HTTP_STATUS.has(response.status) || attempt === totalAttempts - 1) {
+        return response;
+      }
+      lastResponse = response;
+      await response.body?.cancel().catch(() => undefined);
+    } catch (error) {
+      lastError = error;
+      if (attempt === totalAttempts - 1) break;
+    }
+
+    await delay(baseDelayMs * (attempt + 1));
+  }
+
+  if (lastResponse) return lastResponse;
+  throw new Error(`UPSTREAM_FETCH_FAILED: ${fetchFailureMessage(lastError)}`, { cause: lastError });
+}
+
 export async function fetchPublicDataText(
   url: string,
   source: string,
@@ -143,22 +195,26 @@ export async function fetchPublicDataText(
   let lastText = '';
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const res = await fetchWithTimeout(url, {
-      ...init,
-      headers: {
-        'User-Agent': '119-helper-worker/1.0',
-        ...(init?.headers || {}),
-      },
-    });
-    lastStatus = res.status;
-    lastText = await res.text();
+    try {
+      const res = await fetchWithTimeout(url, {
+        ...init,
+        headers: {
+          'User-Agent': '119-helper-worker/1.0',
+          ...(init?.headers || {}),
+        },
+      });
+      lastStatus = res.status;
+      lastText = await res.text();
 
-    if (res.ok && !isGatewayErrorText(lastText)) {
-      return lastText;
-    }
+      if (res.ok && !isGatewayErrorText(lastText)) {
+        return lastText;
+      }
 
-    if (!RETRYABLE_HTTP_STATUS.has(res.status) && !isGatewayErrorText(lastText)) {
-      break;
+      if (!RETRYABLE_HTTP_STATUS.has(res.status) && !isGatewayErrorText(lastText)) {
+        break;
+      }
+    } catch (error) {
+      lastText = fetchFailureMessage(error);
     }
 
     if (attempt < attempts - 1) {
@@ -166,7 +222,8 @@ export async function fetchPublicDataText(
     }
   }
 
-  throw new Error(`${source} API ${lastStatus}: ${compact(lastText)}`);
+  const status = lastStatus || 'network';
+  throw new Error(`${source} API ${status}: ${compact(lastText)}`);
 }
 
 /** XML/JSON 공통 — 공공데이터 에러 응답이면 throw, 아니면 null */

@@ -57,20 +57,31 @@ function readArray(fileName) {
   return Array.isArray(value) ? value : [];
 }
 
+function readPartitionedArrays(directoryName) {
+  const directory = path.join(DATA_DIR, directoryName);
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory)
+    .filter(fileName => fileName.endsWith('.json'))
+    .flatMap(fileName => readJson(path.join(directory, fileName)))
+    .filter(item => item && typeof item === 'object');
+}
+
 const manifest = readJson(MANIFEST_PATH);
 manifest.datasets = manifest.datasets || {};
 
 const generatedAt = new Date().toISOString().slice(0, 10);
 manifest.generatedAt = generatedAt;
 
-const civilItems = readArray('civil.json');
+const civilItems = readPartitionedArrays('civil');
+const previousCivil = manifest.datasets.civil || {};
 manifest.datasets.civil = {
+  ...previousCivil,
   label: '민방위 대피시설',
-  path: '/data/civil.json',
-  sourceUrl: 'https://www.safekorea.go.kr',
-  sourceDate: process.env.CIVIL_SOURCE_DATE || inferSourceDate(civilItems),
-  generatedAt: manifest.datasets.civil?.generatedAt || generatedAt,
-  maxAgeDays: 90,
+  path: '/data/civil/{city}.json',
+  sourceUrl: previousCivil.sourceUrl || 'https://www.data.go.kr/data/15155067/openapi.do',
+  sourceDate: process.env.CIVIL_SOURCE_DATE || inferSourceDate(civilItems) || previousCivil.sourceDate || null,
+  generatedAt: previousCivil.generatedAt || generatedAt,
+  maxAgeDays: previousCivil.maxAgeDays || 14,
   total: civilItems.length,
 };
 

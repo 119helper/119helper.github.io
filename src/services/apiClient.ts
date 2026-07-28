@@ -461,11 +461,23 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
         data = parsed.data;
       }
 
+      if (res.headers.get('X-119-Data-Stale') === 'true') {
+        const cachedAtHeader = res.headers.get('X-119-Data-Cached-At');
+        const parsedCachedAt = cachedAtHeader ? Date.parse(cachedAtHeader) : Number.NaN;
+        const cachedAt = Number.isFinite(parsedCachedAt) ? parsedCachedAt : Date.now();
+        throw new StaleDataError(
+          data,
+          '원본 API가 일시적으로 응답하지 않아 마지막 정상 데이터를 표시합니다.',
+          cachedAt,
+        );
+      }
+
       if (useCache) {
         await saveToCache(cacheKey, data);
       }
       return data as T;
     } catch (err: unknown) {
+      if (isStaleDataError(err)) throw err;
       if (err instanceof Error && err.name === 'AbortError') isTimeout = true;
 
       // res가 없으면 fetch 자체가 실패한 것 = 네트워크 레벨 장애 (타임아웃 포함)
@@ -617,17 +629,30 @@ export async function fetchTsunamiShelters() {
   }
 
   const data: unknown = await response.json();
-  if (!Array.isArray(data)) {
+  const parsed = apiRecordArraySchema.safeParse(data);
+  if (!parsed.success) {
     throw new Error('지진해일 대피소 데이터 형식이 올바르지 않습니다.');
   }
-  return data;
+  return parsed.data;
 }
 
 // ═══════ 민방위대피시설 ═══════
 export async function fetchCivilShelters(ctprvnNm?: string, sgnNm?: string) {
-  void ctprvnNm;
+  const cityPaths: Record<string, string> = {
+    서울특별시: 'seoul',
+    부산광역시: 'busan',
+    대구광역시: 'daegu',
+    인천광역시: 'incheon',
+    광주광역시: 'gwangju',
+    전남광주통합특별시: 'gwangju',
+    대전광역시: 'daejeon',
+    울산광역시: 'ulsan',
+    세종특별자치시: 'sejong',
+    제주특별자치도: 'jeju',
+  };
   void sgnNm;
-  const response = await fetch('/data/civil.json');
+  const cityPath = cityPaths[ctprvnNm || ''] || 'seoul';
+  const response = await fetch(`/data/civil/${cityPath}.json`);
   if (!response.ok) {
     throw new Error(`민방위 대피시설 데이터를 불러오지 못했습니다. (${response.status})`);
   }

@@ -6,7 +6,7 @@
  * 응답 형식: XML (Hub 서비스는 JSON 미지원)
  */
 
-import { encodeServiceKey, fetchWithTimeout } from './publicData';
+import { encodeServiceKey, fetchWithRetry } from './publicData';
 
 function sanitizeDigits(value: string | null, length: number, fallback: string): string {
   const trimmed = value?.trim() || '';
@@ -36,7 +36,7 @@ export async function handleBuilding(url: URL, apiKey: string): Promise<{ data: 
   });
 
   const apiUrl = `https://apis.data.go.kr/1613000/BldRgstHubService/getBrTitleInfo?serviceKey=${serviceKey}&${params}`;
-  const res = await fetchWithTimeout(apiUrl, {
+  const res = await fetchWithRetry(apiUrl, {
     method: 'GET',
     redirect: 'follow',
     headers: {

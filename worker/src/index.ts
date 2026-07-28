@@ -8,6 +8,7 @@
 import { handleOptions, jsonResponse, errorResponse, isOriginAllowed, isAppTokenRequired, isAppTokenValid, checkRateLimitDistributed, rateLimitResponse, applyCors, type RateLimitBinding } from './middleware/cors';
 import { handleClientLog } from './routes/clientLog';
 import { handleWeather } from './routes/weather';
+import { handleWeatherAlerts } from './routes/weatherAlerts';
 import { handleAir } from './routes/air';
 import { handleER } from './routes/er';
 import { handleBuilding } from './routes/building';
@@ -32,6 +33,7 @@ import { handleLaw } from './routes/law';
 import { handleDisasterMsg } from './routes/disaster';
 import { handleConsumerHazard } from './routes/consumerHazard';
 import { handleAmbulance } from './routes/ambulance';
+import { readLastKnownGood, saveLastKnownGood } from './referenceCache';
 
 export interface Env {
   KMA_API_KEY: string;
@@ -140,6 +142,7 @@ export default {
       let newsResponse: Response | null = null;
 
       if (path === '/api/health') result = { data: { status: 'ok', version: '1.0.0', timestamp: new Date().toISOString() }, cacheTtl: 0 };
+      else if (path === '/api/weather-alerts') result = await handleWeatherAlerts(url, env.KMA_API_KEY);
       else if (path.startsWith('/api/weather/')) result = await handleWeather(path, url, env.KMA_API_KEY);
       else if (path === '/api/air') result = await handleAir(url, env.AIR_API_KEY);
       else if (path.startsWith('/api/er/')) result = await handleER(path, url, env.ER_API_KEY);
@@ -185,6 +188,7 @@ export default {
           ctx.waitUntil(cachePutBestEffort(cache, cacheKey, cacheableResponse));
         }
       } else if (result) {
+        ctx.waitUntil(saveLastKnownGood(env.NEWS_CACHE, url, result.data));
         response = jsonResponse(result.data, request, 200, result.cacheTtl, env.ENVIRONMENT);
         
         // ?상 ?답(?이????error ?성 ?음)???만 Edge ?경??캐싱
@@ -204,6 +208,15 @@ export default {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Internal server error';
       console.error(`[119-helper-api] ${path} error:`, message);
+      const fallback = await readLastKnownGood(env.NEWS_CACHE, url);
+      if (fallback) {
+        console.warn(`[119-helper-api] ${path} serving last-known-good data from ${new Date(fallback.cachedAt).toISOString()}`);
+        const staleResponse = jsonResponse(fallback.data, request, 200, 0, env.ENVIRONMENT);
+        staleResponse.headers.set('X-119-Data-Stale', 'true');
+        staleResponse.headers.set('X-119-Data-Cached-At', new Date(fallback.cachedAt).toISOString());
+        staleResponse.headers.set('Warning', '110 119-helper-api "Response is stale"');
+        return applyCors(staleResponse, request, env.ENVIRONMENT);
+      }
       // API ??관???러 메시지 ??
       const safeMessage = message.includes('authKey') || message.includes('serviceKey')
         ? 'API 인증 오류. 관리자에게 문의하세요'

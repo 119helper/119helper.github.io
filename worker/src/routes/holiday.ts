@@ -3,7 +3,7 @@
  * Route: GET /api/holiday?year=2026&month=4
  */
 
-import { encodeServiceKey, fetchWithTimeout, findPublicDataError } from './publicData';
+import { encodeServiceKey, fetchWithRetry, findPublicDataError } from './publicData';
 
 export async function handleHoliday(url: URL, apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
   const year = url.searchParams.get('year') || String(new Date().getFullYear());
@@ -13,7 +13,7 @@ export async function handleHoliday(url: URL, apiKey: string): Promise<{ data: u
   const serviceKey = encodeServiceKey(apiKey, 'HOLIDAY_API_KEY');
   const apiUrl = `https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?serviceKey=${serviceKey}&solYear=${year}&solMonth=${month}&numOfRows=30`;
 
-  const res = await fetchWithTimeout(apiUrl, {
+  const res = await fetchWithRetry(apiUrl, {
     headers: { 'User-Agent': '119-helper-worker/1.0' },
   });
   const text = await res.text();

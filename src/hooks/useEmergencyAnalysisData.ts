@@ -71,15 +71,19 @@ export interface FirstAidItem {
 export type ViewMode = 'stats' | 'response-time' | 'patient' | 'search';
 
 export const SIDO_LIST = [
-  '전체', '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종',
+  '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종',
   '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주',
 ];
 
-export function getRecentMonths(count: number): string[] {
+// 원본 API를 실조회해 확인한 현재 최신 제공 월. API가 새 월을 공개하면 갱신한다.
+export const LATEST_EMERGENCY_DATA_YM = '202512';
+
+export function getRecentMonths(count: number, latestYm = LATEST_EMERGENCY_DATA_YM): string[] {
   const months: string[] = [];
-  const now = new Date();
+  const year = Number.parseInt(latestYm.slice(0, 4), 10);
+  const month = Number.parseInt(latestYm.slice(4, 6), 10);
   for (let i = 0; i < count; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const d = new Date(year, month - 1 - i, 1);
     months.push(`${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`);
   }
   return months;
@@ -118,8 +122,8 @@ function itemsFrom(result: EmergencySettledResult): ApiRecord[] {
 export function useEmergencyAnalysisData() {
   const requestSeqRef = useRef(0);
   const months = getRecentMonths(24);
-  const [selectedMonth, setSelectedMonth] = useState(months[1] || months[0]);
-  const [selectedSido, setSelectedSido] = useState('전체');
+  const [selectedMonth, setSelectedMonth] = useState(months[0]);
+  const [selectedSido, setSelectedSido] = useState('서울');
   const [viewMode, setViewMode] = useState<ViewMode>('stats');
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -139,10 +143,8 @@ export function useEmergencyAnalysisData() {
     const seq = ++requestSeqRef.current;
     const statsParams: Record<string, string> = { reqYm: selectedMonth };
     const infoParams: Record<string, string> = { reportYm: selectedMonth };
-    if (selectedSido !== '전체') {
-      statsParams.sido = selectedSido;
-      infoParams.sido = selectedSido;
-    }
+    statsParams.sido = selectedSido;
+    infoParams.sido = selectedSido;
 
     try {
       setWarning(null);
@@ -151,7 +153,7 @@ export function useEmergencyAnalysisData() {
         fetchEmergencyStats('dispatch-type', statsParams, forceRefresh),
         fetchEmergencyStats('age', statsParams, forceRefresh),
         fetchEmergencyStats('location', statsParams, forceRefresh),
-        fetchEmergencyInfo('vehicles', selectedSido !== '전체' ? { sido: selectedSido } : {}, forceRefresh),
+        fetchEmergencyInfo('vehicles', { sido: selectedSido }, forceRefresh),
         fetchEmergencyInfo('activity', infoParams, forceRefresh),
         fetchEmergencyInfo('transfer', infoParams, forceRefresh),
         fetchEmergencyInfo('first-aid', infoParams, forceRefresh),

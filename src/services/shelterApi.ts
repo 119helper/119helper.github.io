@@ -1,6 +1,6 @@
-// 지진해일 긴급 대피장소 API — Cloudflare Worker 프록시 경유
+// 지진해일 긴급 대피장소 — 검증된 정적 스냅샷 사용
 
-import { fetchShelters, type ApiRecord } from './apiClient';
+import { fetchTsunamiShelters, type ApiRecord } from './apiClient';
 
 export interface ShelterData {
   shelterName: string;     // 대피장소명
@@ -50,6 +50,14 @@ type ShelterApiItem = ApiRecord & {
   seaLvlHght?: unknown;
   altitude?: unknown;
   useYn?: unknown;
+  LA?: unknown;
+  LO?: unknown;
+  SHNT_PLACE_NM?: unknown;
+  RN_DTL_ADRES?: unknown;
+  SHNT_PLACE_DTL_POSITION?: unknown;
+  PSBL_NMPR?: unknown;
+  EV_ANTCTY?: unknown;
+  USE_AT?: unknown;
 };
 
 function text(value: unknown, fallback = ''): string {
@@ -64,20 +72,25 @@ export async function getShelters(cityKey: string, userLat?: number, userLng?: n
   const ctprvnNm = CITY_TO_CTPRVN[cityKey] || '서울특별시';
 
   try {
-    const items = await fetchShelters(ctprvnNm, '', '200');
+    const items = await fetchTsunamiShelters();
 
     const shelters: ShelterData[] = items
+      .filter((item: ShelterApiItem) => {
+        const address = text(item.RN_DTL_ADRES || item.SHNT_PLACE_DTL_POSITION || item.rdnmadr || item.lnmadr);
+        return address.startsWith(ctprvnNm)
+          || (cityKey === 'gwangju' && address.startsWith('광주광역시'));
+      })
       .map((item: ShelterApiItem) => {
-        const lat = numberFrom(item.lat || item.latitude);
-        const lng = numberFrom(item.lot || item.longitude || item.lon);
+        const lat = numberFrom(item.LA || item.lat || item.latitude);
+        const lng = numberFrom(item.LO || item.lot || item.longitude || item.lon);
         if (!lat || !lng) return null;
 
         const shelter: ShelterData = {
-          shelterName: text(item.shelterNm || item.shelterName || item.shltNm, '무명 대피소'),
-          address: text(item.rdnmadr || item.lnmadr || item.dtlAdres, '주소 미상'),
-          capacity: Number.parseInt(text(item.shltSeCo || item.acmPrsnCo || item.capacity), 10) || 0,
-          altitude: numberFrom(item.seaLvlHght || item.altitude),
-          isUsable: text(item.useYn) !== 'N',
+          shelterName: text(item.SHNT_PLACE_NM || item.shelterNm || item.shelterName || item.shltNm, '무명 대피소'),
+          address: text(item.RN_DTL_ADRES || item.SHNT_PLACE_DTL_POSITION || item.rdnmadr || item.lnmadr || item.dtlAdres, '주소 미상'),
+          capacity: Number.parseInt(text(item.PSBL_NMPR || item.shltSeCo || item.acmPrsnCo || item.capacity), 10) || 0,
+          altitude: numberFrom(item.EV_ANTCTY || item.seaLvlHght || item.altitude),
+          isUsable: text(item.USE_AT || item.useYn) !== 'N',
           lat,
           lng,
         };
@@ -98,7 +111,7 @@ export async function getShelters(cityKey: string, userLat?: number, userLng?: n
     return shelters;
   } catch (e) {
     console.error('대피소 데이터 조회 실패:', e);
-    return [];
+    throw e;
   }
 }
 

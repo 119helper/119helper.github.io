@@ -35,12 +35,22 @@ async function fetchStaticFireWater(city: string): Promise<unknown> {
 
 export async function handleFireWater(url: URL, apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
   const city = url.searchParams.get('city') || '서울특별시';
+  const upstreamProbe = url.searchParams.get('probe') === '1';
+
+  if (!upstreamProbe) {
+    try {
+      const items = await fetchStaticFireWater(city);
+      return { data: items, cacheTtl: 86400 };
+    } catch {
+      // 배포 정적 스냅샷을 읽지 못한 경우에만 원본 API로 폴백한다.
+    }
+  }
 
   try {
     const serviceKey = encodeServiceKey(apiKey, 'FIRE_WATER_API_KEY');
     const params = new URLSearchParams({
       pageNo: '1',
-      numOfRows: '50000',
+      numOfRows: upstreamProbe ? '1' : '10000',
       type: 'json',
       ctprvnNm: city,
     });
@@ -54,9 +64,15 @@ export async function handleFireWater(url: URL, apiKey: string): Promise<{ data:
     let res: Response | null = null;
     let text = '';
     for (const apiUrl of paths) {
-      res = await fetchWithTimeout(apiUrl, { headers: { 'User-Agent': '119-helper-worker/1.0' } });
-      text = await res.text();
-      if (res.ok && !text.trimStart().toLowerCase().startsWith('error code:')) break;
+      try {
+        res = await fetchWithTimeout(apiUrl, { headers: { 'User-Agent': '119-helper-worker/1.0' } });
+        text = await res.text();
+        if (res.ok && !text.trimStart().toLowerCase().startsWith('error code:')) break;
+      } catch (error) {
+        text = error instanceof Error
+          ? (error.name === 'AbortError' ? 'timeout' : error.message)
+          : String(error);
+      }
     }
     if (!res || !res.ok) throw new Error(`FireWater API ${res?.status}: ${text.replace(/\s+/g, ' ').slice(0, 140)}`);
 
@@ -65,7 +81,8 @@ export async function handleFireWater(url: URL, apiKey: string): Promise<{ data:
     const items = asArray(isRecord(rawItems) ? rawItems.item : rawItems);
 
     return { data: items, cacheTtl: 86400 };
-  } catch {
+  } catch (error) {
+    if (upstreamProbe) throw error;
     const items = await fetchStaticFireWater(city);
     return { data: items, cacheTtl: 86400 };
   }

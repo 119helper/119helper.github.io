@@ -72,8 +72,11 @@ cd 119helper.github.io
 npm install
 mkdir -p ../key/119-helper
 cp .env.example ../key/119-helper/.env
-# ../key/119-helper/.env 에 VITE_KAKAO_MAP_KEY, 필요 시 VITE_API_BASE 설정
+# ../key/119-helper/.env 에 VITE_KAKAO_MAP_KEY 설정
+# 기본 예시는 로컬 Worker(http://localhost:8787)에 연결됨
 # 운영 배포에서는 VITE_APP_TOKEN을 Worker의 APP_ACCESS_TOKEN과 동일하게 설정
+npm run dev:worker
+# 다른 터미널에서:
 npm run dev -- --host
 # → http://localhost:5173
 ```
@@ -85,10 +88,9 @@ cd worker
 npm install
 wrangler secret put KMA_API_KEY
 wrangler secret put ER_API_KEY
-wrangler secret put APP_ACCESS_TOKEN
 npm run dev
-# 로컬 Worker를 쓸 때는 프런트 env에 VITE_API_BASE=http://localhost:8787 설정
-# 토큰 없이 로컬 테스트하려면 wrangler.toml의 ENVIRONMENT를 development로 설정
+# worker/wrangler.dev.toml이 ENVIRONMENT=development와 포트 8787을 고정하므로
+# 로컬에서는 APP_ACCESS_TOKEN 없이 실행 가능
 ```
 
 운영 참고: `VITE_APP_TOKEN`은 브라우저 번들에 포함되는 공개값이므로 완전한 비밀 인증 수단이 아닙니다.
@@ -106,6 +108,10 @@ GitHub Actions 운영 배포에는 다음 secret도 필요합니다.
 ```bash
 FIRE_WATER_API_KEY=... node scripts/sync-firewater.js
 RESTROOM_API_KEY=... node scripts/sync-restrooms.js
+# v2 최초 마이그레이션 때만: 마지막 v1 좌표를 Git 기준점에서 영구 인덱스로 보존
+RESTROOM_API_KEY=... RESTROOM_LEGACY_COORDINATE_GIT_REF=HEAD node scripts/sync-restrooms.js
+CIVIL_SHELTER_SYNC_API_KEY=... node scripts/sync-civil-shelters.js
+TSUNAMI_SHELTER_API_KEY=... node scripts/sync-tsunami-shelters.js
 ```
 
 민방위/지진해일 정적 데이터 manifest는 체크인된 JSON에서 기준일과 건수를 보강할 수 있습니다. 지진해일 원본 파일에는 행별 기준일 필드가 없어 공공데이터포털 API 상세의 수정일을 `API 수정일`로 기록합니다.

@@ -1,1 +1,1 @@
-{"total":2003,"districts":{"남동구":261,"미추홀구":301,"강화군":165,"부평구":244,"동구":86,"계양구":345,"옹진군":196,"연수구":178,"중구":226,"굴포로":1}}
+{"total":1767,"districts":{"강화군":165,"계양구":345,"굴포로":1,"남동구":261,"미추홀구":290,"부평구":242,"연수구":178,"옹진군":196,"중구":89},"metadata":{"dataset":"행정안전부_공중화장실정보 조회서비스 v2","sourceUrl":"https://www.data.go.kr/data/15155058/openapi.do","apiUrl":"https://apis.data.go.kr/1741000/public_restroom_info_v2/info_v2","city":"incheon","sourceDate":"2026-07-22","generatedAt":"2026-07-28T06:47:49.501Z","coordinateSource":"API 정책 변경 전 마지막 공식 v1 WGS84 스냅샷"}}

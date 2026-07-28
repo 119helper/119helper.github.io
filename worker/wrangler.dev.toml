@@ -1,0 +1,17 @@
+name = "119-helper-api-local"
+main = "src/index.ts"
+compatibility_date = "2026-07-07"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "development"
+
+[dev]
+port = 8787
+local_protocol = "http"
+
+# 로컬 에뮬레이션용 KV입니다. 운영 NEWS_CACHE와 데이터를 공유하지 않습니다.
+[[kv_namespaces]]
+binding = "NEWS_CACHE"
+id = "119-helper-news-cache-local"
+preview_id = "119-helper-news-cache-local-preview"

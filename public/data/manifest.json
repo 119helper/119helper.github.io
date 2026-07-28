@@ -1,34 +1,64 @@
 {
   "version": 1,
-  "generatedAt": "2026-07-09",
+  "generatedAt": "2026-07-28T06:47:49.501Z",
   "datasets": {
     "civil": {
       "label": "민방위 대피시설",
-      "path": "/data/civil.json",
-      "sourceUrl": "https://www.safekorea.go.kr",
-      "sourceDate": "2026-04-04",
-      "generatedAt": "2026-06-12",
-      "maxAgeDays": 90,
-      "total": 1498
+      "path": "/data/civil/{city}.json",
+      "sourceUrl": "https://www.data.go.kr/data/15155067/openapi.do",
+      "apiUrl": "https://apis.data.go.kr/1741000/civil_defense_shelter_info/info",
+      "sourceDate": "2026-07-27",
+      "sourceDateLabel": "원본 행 최신 갱신일",
+      "generatedAt": "2026-07-28T06:40:18.580Z",
+      "maxAgeDays": 14,
+      "total": 8934,
+      "upstreamTotal": 18819,
+      "uniqueUpstreamTotal": 18819,
+      "activeUpstreamTotal": 17229,
+      "latestStatusCounts": {
+        "사용중": 17229,
+        "사용중지": 1574,
+        "일시중지": 16
+      },
+      "cities": {
+        "seoul": 2902,
+        "busan": 1313,
+        "daegu": 777,
+        "incheon": 790,
+        "gwangju": 1395,
+        "daejeon": 626,
+        "ulsan": 499,
+        "sejong": 178,
+        "jeju": 454
+      }
     },
     "tsunami": {
       "label": "지진해일 대피소",
       "path": "/data/tsunami.json",
       "sourceUrl": "https://www.data.go.kr/data/15138870/openapi.do",
+      "apiUrl": "https://www.safetydata.go.kr/V2/api/DSSP-IF-10944",
       "sourceDate": "2025-07-16",
-      "generatedAt": "2026-04-06",
-      "maxAgeDays": 180,
-      "total": 644,
-      "sourceDateLabel": "API 수정일",
-      "sourceDateSource": "공공데이터포털 행정안전부_지진해일 긴급대피장소 수정일"
+      "sourceDateLabel": "API 상세 수정일",
+      "sourceDateSource": "공공데이터포털 행정안전부_지진해일 긴급대피장소 수정일",
+      "generatedAt": "2026-07-28T06:27:59.424Z",
+      "maxAgeDays": 90,
+      "total": 647
     },
     "restrooms": {
       "label": "공중화장실",
       "path": "/data/restrooms",
-      "sourceUrl": "https://apis.data.go.kr/1741000/public_restroom_info/info",
-      "sourceDate": null,
-      "generatedAt": "2026-04-06",
-      "maxAgeDays": 90
+      "sourceUrl": "https://www.data.go.kr/data/15155058/openapi.do",
+      "apiUrl": "https://apis.data.go.kr/1741000/public_restroom_info_v2/info_v2",
+      "sourceDate": "2026-07-22",
+      "sourceDateLabel": "원본 행 최신 기준일",
+      "generatedAt": "2026-07-28T06:47:49.501Z",
+      "maxAgeDays": 30,
+      "total": 9525,
+      "upstreamTotal": 53547,
+      "supportedCityTotal": 21323,
+      "missingCoordinateCount": 11798,
+      "coordinateSource": "2026-06 API 정책 변경 전 마지막 공식 v1 WGS84 스냅샷",
+      "coordinateIndex": "/data/restroom-v1-coordinates.json"
     }
   }
 }

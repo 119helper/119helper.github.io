@@ -31,23 +31,29 @@ export async function fetchSafetydataJson(
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     for (const host of SAFETYDATA_HOSTS) {
-      const res = await fetchWithTimeout(`${host}${path}?${params}`, {
-        headers: {
-          Accept: 'application/json',
-          'Cache-Control': 'no-cache',
-          'User-Agent': '119-helper-worker/1.0',
-          ...headers,
-        },
-      });
+      try {
+        const res = await fetchWithTimeout(`${host}${path}?${params}`, {
+          headers: {
+            Accept: 'application/json',
+            'Cache-Control': 'no-cache',
+            'User-Agent': '119-helper-worker/1.0',
+            ...headers,
+          },
+        });
 
-      lastStatus = res.status;
-      lastText = await res.text();
+        lastStatus = res.status;
+        lastText = await res.text();
 
-      if (!res.ok || isSafetydataEdgeError(res.status, lastText)) {
-        continue;
+        if (!res.ok || isSafetydataEdgeError(res.status, lastText)) {
+          continue;
+        }
+
+        return JSON.parse(lastText) as unknown;
+      } catch (error) {
+        lastText = error instanceof Error
+          ? (error.name === 'AbortError' ? 'timeout' : error.message)
+          : String(error);
       }
-
-      return JSON.parse(lastText) as unknown;
     }
 
     if (attempt < attempts - 1) {

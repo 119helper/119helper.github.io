@@ -7,7 +7,7 @@
  */
 
 import { z } from 'zod';
-import { encodeServiceKey, fetchWithTimeout } from './publicData';
+import { encodeServiceKey, fetchWithRetry } from './publicData';
 
 const BASE = 'https://api.odcloud.kr/api/15060386/v1';
 const ANNUAL_FIRE_SOURCE_NAME = '소방청_연간화재통계_20241231';
@@ -172,9 +172,9 @@ function aggregate(records: AnnualFireRawRecord[]) {
 }
 
 async function fetchAnnualFirePage(url: string, label: string): Promise<z.infer<typeof odcloudAnnualFireSchema>> {
-  const res = await fetchWithTimeout(url, {
+  const res = await fetchWithRetry(url, {
     headers: { 'User-Agent': '119-helper-worker/1.0' },
-  }, 10_000);
+  }, { timeoutMs: 10_000 });
   if (!res.ok) throw new Error(`${label}: ${res.status}`);
   return odcloudAnnualFireSchema.parse(await res.json());
 }
@@ -191,6 +191,23 @@ export async function handleAnnualFireStats(
         nextExpectedUpdate: NEXT_EXPECTED_UPDATE,
       },
       cacheTtl: 86400,
+    };
+  }
+
+  if (path === '/api/fire-annual/probe') {
+    const year = SUPPORTED_YEARS[0];
+    const uddi = YEAR_UDDI[year];
+    const serviceKey = encodeServiceKey(apiKey, 'ANNUAL_FIRE_API_KEY');
+    const countUrl = `${BASE}/${uddi}?serviceKey=${serviceKey}&page=1&perPage=1`;
+    const countData = await fetchAnnualFirePage(countUrl, 'AnnualFireStats probe');
+    return {
+      data: {
+        status: 'ok',
+        year,
+        totalCount: countData.totalCount || 0,
+        sourceName: ANNUAL_FIRE_SOURCE_NAME,
+      },
+      cacheTtl: 3600,
     };
   }
 

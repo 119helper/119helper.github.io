@@ -1,0 +1,53 @@
+name: Update Tsunami Shelter Data
+
+on:
+  schedule:
+    - cron: '37 1 1 * *'
+  workflow_dispatch:
+    inputs:
+      source_date:
+        description: '공공데이터포털 API 수정일(선택)'
+        required: false
+        default: '2025-07-16'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  update-tsunami-shelters:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Validate API secret
+        run: test -n "$TSUNAMI_SHELTER_API_KEY" || { echo "TSUNAMI_SHELTER_API_KEY secret is required"; exit 1; }
+        env:
+          TSUNAMI_SHELTER_API_KEY: ${{ secrets.TSUNAMI_SHELTER_API_KEY }}
+
+      - name: Sync tsunami shelter data
+        run: node scripts/sync-tsunami-shelters.js
+        env:
+          TSUNAMI_SHELTER_API_KEY: ${{ secrets.TSUNAMI_SHELTER_API_KEY }}
+          TSUNAMI_SOURCE_DATE: ${{ inputs.source_date }}
+
+      - name: Check changes
+        id: check
+        run: |
+          git diff --name-only public/data/tsunami.json public/data/manifest.json | head -20
+          echo "changed=$(git diff --quiet public/data/tsunami.json public/data/manifest.json && echo 'false' || echo 'true')" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/tsunami.json public/data/manifest.json
+          git commit -m "chore: 지진해일 대피소 데이터 업데이트 ($(date +%Y-%m-%d))"
+          git push

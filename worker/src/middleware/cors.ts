@@ -75,6 +75,7 @@ export function corsHeaders(request: Request, environment?: string): Record<stri
     'Access-Control-Allow-Origin': isAllowed ? origin : '',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-App-Token',
+    'Access-Control-Expose-Headers': 'X-119-Data-Stale, X-119-Data-Cached-At, Warning',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
   };

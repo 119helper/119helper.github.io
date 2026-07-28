@@ -504,7 +504,7 @@ export default function EmergencyAnalysis() {
         <div>
           <h2 className="text-2xl font-extrabold text-on-surface font-headline">🚑 구급 출동 분석</h2>
           <p className="text-sm text-on-surface-variant mt-1">
-            소방청 구급통계·구급정보 서비스 · 전국 데이터
+            소방청 구급통계·구급정보 서비스 · 지역별 공식 데이터
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
