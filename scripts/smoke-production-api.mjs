@@ -31,6 +31,30 @@ function hasXmlEnvelope(data) {
   return isRecord(data) && typeof data.xml === 'string' && data.xml.trimStart().startsWith('<');
 }
 
+function xmlTagValues(data, tag) {
+  if (!hasXmlEnvelope(data)) return [];
+  const pattern = new RegExp(`<${tag}>\\s*([^<]*?)\\s*</${tag}>`, 'gi');
+  return [...data.xml.matchAll(pattern)].map(match => match[1].trim());
+}
+
+function xmlItemCount(data) {
+  if (!hasXmlEnvelope(data)) return 0;
+  return (data.xml.match(/<item>/gi) || []).length;
+}
+
+function xmlTotalCount(data) {
+  const value = xmlTagValues(data, 'totalCount')[0];
+  return Number(value);
+}
+
+function hasNonEmptyXmlItems(data) {
+  return hasXmlEnvelope(data) && xmlItemCount(data) > 0 && xmlTotalCount(data) > 0;
+}
+
+function isFormerGwangjuAddress(value) {
+  return /^(?:전남광주통합특별시|광주광역시)\s+(?:동구|서구|남구|북구|광산구)(?:\s|$)/.test(value);
+}
+
 function hasPaginatedItems(data) {
   return isRecord(data) && Array.isArray(data.items) && Number.isFinite(Number(data.totalCount));
 }
@@ -62,10 +86,25 @@ const checks = [
       && typeof data.observedAt === 'string',
   },
   {
-    name: 'er-beds',
+    name: 'er-beds-seoul',
     severity: 'critical',
     url: endpoint('/api/er/beds', { sido: '서울특별시' }),
-    validate: hasXmlEnvelope,
+    validate: hasNonEmptyXmlItems,
+  },
+  {
+    name: 'er-beds-gwangju-merged',
+    severity: 'critical',
+    url: endpoint('/api/er/beds', { sido: '전남광주통합특별시' }),
+    validate: data => hasNonEmptyXmlItems(data)
+      && xmlTagValues(data, 'hpid').some(Boolean),
+  },
+  {
+    name: 'er-facilities-gwangju-complete',
+    severity: 'critical',
+    url: endpoint('/api/er/list', { sido: '전남광주통합특별시' }),
+    validate: data => hasNonEmptyXmlItems(data)
+      && xmlItemCount(data) >= xmlTotalCount(data)
+      && xmlTagValues(data, 'dutyAddr').some(isFormerGwangjuAddress),
   },
   {
     name: 'aed-nearby',
@@ -93,6 +132,12 @@ const checks = [
     severity: 'critical',
     url: endpoint('/api/air', { sido: '서울' }),
     validate: Array.isArray,
+  },
+  {
+    name: 'air-quality-gwangju',
+    severity: 'critical',
+    url: endpoint('/api/air', { sido: '광주' }),
+    validate: data => Array.isArray(data) && data.length > 0,
   },
   {
     name: 'disaster-msg',
@@ -214,6 +259,13 @@ const checks = [
     severity: 'standard',
     url: endpoint('/api/ambulance', { Q0: '서울특별시' }),
     validate: hasXmlEnvelope,
+  },
+  {
+    name: 'ambulance-gwangju-merged',
+    severity: 'standard',
+    url: endpoint('/api/ambulance', { Q0: '전남광주통합특별시' }),
+    validate: data => hasNonEmptyXmlItems(data)
+      && xmlTagValues(data, 'dutyAddr').some(isFormerGwangjuAddress),
   },
   {
     name: 'consumer-hazard',

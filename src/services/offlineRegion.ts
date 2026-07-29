@@ -10,15 +10,10 @@
  * (페이지에서 Cache API로 직접 쓰고, SW가 fetch 시 같은 캐시에서 읽는다)
  */
 
+import { CITY_TO_STATIC_PROVINCE } from './administrativeRegions';
+
 const DATA_CACHE = '119-data-v1'; // sw.js와 동일해야 함
 const STATUS_KEY = '119helper-offline-region';
-
-// 영문 도시키 → 소방용수 파일명(한글 시도명)
-const CITY_KR: Record<string, string> = {
-  seoul: '서울특별시', busan: '부산광역시', daegu: '대구광역시',
-  incheon: '인천광역시', gwangju: '광주광역시', daejeon: '대전광역시',
-  ulsan: '울산광역시', sejong: '세종특별자치시', jeju: '제주특별자치도',
-};
 
 // 소방용수 데이터가 구별로 분할된 도시
 const SPLIT_CITIES = new Set(['서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시']);
@@ -105,7 +100,7 @@ async function listDistrictUrls(indexUrl: string, baseDir: string): Promise<stri
 
 /** 다운로드 대상 URL 목록 구성 */
 async function buildUrlList(city: string): Promise<string[]> {
-  const kr = CITY_KR[city] || '서울특별시';
+  const kr = CITY_TO_STATIC_PROVINCE[city] || '서울특별시';
   const urls: string[] = [];
 
   // 1. 소방용수시설

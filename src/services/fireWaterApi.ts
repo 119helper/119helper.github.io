@@ -1,6 +1,8 @@
 // 소방용수시설 API — 로컬 정적 데이터 (소방청_소방용수시설 CSV 추출 기반)
 // 대형 도시(서울, 부산, 대구, 인천, 광주)는 구별 분할 데이터 사용
 
+import { CITY_TO_STATIC_PROVINCE } from './administrativeRegions';
+
 export interface FireWaterFacility {
   fcltyNo?: string;
   ctprvnNm?: string;
@@ -24,12 +26,6 @@ export interface CityIndex {
   waterTowers?: number;  // 급수탑 + 저수조 합계
 }
 
-const CITY_MAP: Record<string, string> = {
-  seoul: '서울특별시', busan: '부산광역시', daegu: '대구광역시',
-  incheon: '인천광역시', gwangju: '광주광역시', daejeon: '대전광역시',
-  ulsan: '울산광역시', sejong: '세종특별자치시', jeju: '제주특별자치도'
-};
-
 // 구별 분할된 도시 목록
 const SPLIT_CITIES = new Set(['서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시']);
 
@@ -38,7 +34,7 @@ const SPLIT_CITIES = new Set(['서울특별시', '부산광역시', '대구광�
  * 분할되지 않은 도시는 null 반환
  */
 export async function fetchCityIndex(cityQuery: string): Promise<CityIndex | null> {
-  const searchCity = CITY_MAP[cityQuery] || '서울특별시';
+  const searchCity = CITY_TO_STATIC_PROVINCE[cityQuery] || '서울특별시';
   if (!SPLIT_CITIES.has(searchCity)) return null;
 
   try {
@@ -60,7 +56,7 @@ export async function fetchFireWaterFacilities(
   cityQuery: string,
   district?: string
 ): Promise<FireWaterFacility[]> {
-  const searchCity = CITY_MAP[cityQuery] || '서울특별시';
+  const searchCity = CITY_TO_STATIC_PROVINCE[cityQuery] || '서울특별시';
   const isSplit = SPLIT_CITIES.has(searchCity);
 
   try {
@@ -90,6 +86,6 @@ export async function fetchFireWaterFacilities(
  * 해당 도시가 구별 분할되어 있는지 확인
  */
 export function isSplitCity(cityQuery: string): boolean {
-  const searchCity = CITY_MAP[cityQuery] || '서울특별시';
+  const searchCity = CITY_TO_STATIC_PROVINCE[cityQuery] || '서울특별시';
   return SPLIT_CITIES.has(searchCity);
 }

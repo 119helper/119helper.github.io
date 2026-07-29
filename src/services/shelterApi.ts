@@ -1,7 +1,7 @@
 // 지진해일 긴급 대피장소 — 검증된 정적 스냅샷 사용
 
 import { fetchTsunamiShelters, type ApiRecord } from './apiClient';
-import { recordMatchesAppCity } from './administrativeRegions';
+import { CITY_TO_STATIC_PROVINCE, recordMatchesAppCity } from './administrativeRegions';
 
 export interface ShelterData {
   shelterName: string;     // 대피장소명
@@ -16,9 +16,7 @@ export interface ShelterData {
 
 // 시도 영문 → 한글 매핑
 const CITY_TO_CTPRVN: Record<string, string> = {
-  seoul: '서울특별시', busan: '부산광역시', daegu: '대구광역시',
-  incheon: '인천광역시', gwangju: '광주광역시', daejeon: '대전광역시',
-  ulsan: '울산광역시', sejong: '세종특별자치시', jeju: '제주특별자치도',
+  ...CITY_TO_STATIC_PROVINCE,
   gyeonggi: '경기도', gangwon: '강원특별자치도',
   chungbuk: '충청북도', chungnam: '충청남도',
   jeonbuk: '전북특별자치도', jeonnam: '전라남도',

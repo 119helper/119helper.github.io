@@ -53,7 +53,7 @@ export async function handleER(path: string, url: URL, apiKey: string): Promise<
     case '/api/er/list': {
       const sido = sanitizeStringParam(url, 'sido', 40) || '서울특별시';
       const gugun = sanitizeStringParam(url, 'gugun', 40) || '';
-      let erUrl = `${ER_BASE}/getEgytListInfoInqire?serviceKey=${serviceKey}&Q0=${encodeURIComponent(sido)}&pageNo=1&numOfRows=50`;
+      let erUrl = `${ER_BASE}/getEgytListInfoInqire?serviceKey=${serviceKey}&Q0=${encodeURIComponent(sido)}&pageNo=1&numOfRows=500`;
       if (gugun) erUrl += `&Q1=${encodeURIComponent(gugun)}`;
 
       const text = await fetchErXml(erUrl);

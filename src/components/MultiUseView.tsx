@@ -1,14 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchMultiUseFacilities, isStaleDataError } from '../services/apiClient';
+import { CITY_TO_STATIC_PROVINCE } from '../services/administrativeRegions';
 
 const cityShort: Record<string, string> = {
   seoul: '서울', busan: '부산', daegu: '대구', incheon: '인천',
   gwangju: '광주', daejeon: '대전', ulsan: '울산', sejong: '세종', jeju: '제주',
-};
-
-const cityToCtprvn: Record<string, string> = {
-  seoul: '서울특별시', busan: '부산광역시', daegu: '대구광역시', incheon: '인천광역시',
-  gwangju: '광주광역시', daejeon: '대전광역시', ulsan: '울산광역시', sejong: '세종특별자치시', jeju: '제주특별자치도',
 };
 
 // 업종별 아이콘/색상 매핑
@@ -99,7 +95,7 @@ export default function MultiUseView({ city }: MultiUseViewProps) {
     setApiError(null);
     setWarning(null);
     try {
-      const ctprvn = cityToCtprvn[city];
+      const ctprvn = CITY_TO_STATIC_PROVINCE[city];
 
       if (!ctprvn) {
         setApiError(`지원하지 않는 지역입니다: ${city}`);

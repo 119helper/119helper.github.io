@@ -1,14 +1,15 @@
 import { expect, test } from '@playwright/test';
 
-function erXml(hospitalName?: string): string {
+function erXml(hospitalName?: string, includeAddress = true): string {
   if (!hospitalName) return '<response><body><items /></body></response>';
   const address = hospitalName.startsWith('광주')
     ? '전남광주통합특별시 서구 상무대로 1'
     : '서울특별시 중구 테스트로 1';
   return `<response><body><items><item>
     <dutyName>${hospitalName}</dutyName>
-    <dutyAddr>${address}</dutyAddr>
+    ${includeAddress ? `<dutyAddr>${address}</dutyAddr>` : ''}
     <dutyTel3>062-000-0000</dutyTel3>
+    <hpid>TEST-1</hpid>
     <phpid>TEST-1</phpid>
     <hvec>5</hvec>
     <hvgc>10</hvgc>
@@ -36,14 +37,15 @@ test('응급실: 광주 선택 시 통합 시도명으로 다시 조회한다', 
     const sido = url.searchParams.get('sido') || '';
     requestedSidos.push(sido);
     const isBeds = url.pathname.endsWith('/beds');
-    const hospitalName = isBeds
+    const isList = url.pathname.endsWith('/list');
+    const hospitalName = isBeds || isList
       ? sido === '전남광주통합특별시' ? '광주통합병원' : '서울테스트병원'
       : undefined;
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ xml: erXml(hospitalName) }),
+      body: JSON.stringify({ xml: erXml(hospitalName, !isBeds) }),
     });
   });
 

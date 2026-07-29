@@ -137,6 +137,9 @@ export default {
       if (path === '/api/multiuse') {
         cacheUrl.searchParams.set('_cv', '1'); // 정적 전용 응답에서 승인 API 우선 조회로 전환
       }
+      if (path === '/api/er/list') {
+        cacheUrl.searchParams.set('_cv', '1'); // 기관 목록 50건 제한 응답 무효화
+      }
 
       const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
       const cache = caches.default;

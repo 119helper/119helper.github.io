@@ -1,3 +1,5 @@
+import { CITY_TO_STATIC_PROVINCE } from './administrativeRegions';
+
 export interface DatasetFreshness {
   label: string;
   sourceDate: string | null;
@@ -23,18 +25,6 @@ interface FirewaterManifest {
     waterTowers?: number;
   }>;
 }
-
-const CITY_TO_KR: Record<string, string> = {
-  seoul: '서울특별시',
-  busan: '부산광역시',
-  daegu: '대구광역시',
-  incheon: '인천광역시',
-  gwangju: '광주광역시',
-  daejeon: '대전광역시',
-  ulsan: '울산광역시',
-  sejong: '세종특별자치시',
-  jeju: '제주특별자치도',
-};
 
 let staticManifestPromise: Promise<StaticDataManifest | null> | null = null;
 let firewaterManifestPromise: Promise<FirewaterManifest | null> | null = null;
@@ -62,7 +52,7 @@ function firewaterManifest() {
 export async function getDatasetFreshness(category: string, city: string): Promise<DatasetFreshness | null> {
   if (category === 'hydrants' || category === 'waterTowers') {
     const manifest = await firewaterManifest();
-    const cityName = CITY_TO_KR[city] || city;
+    const cityName = CITY_TO_STATIC_PROVINCE[city] || city;
     const meta = manifest?.cities?.[cityName];
     if (!meta) return null;
     return {

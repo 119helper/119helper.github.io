@@ -6,6 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'public', 'data');
 const RESTROOM_DIR = path.join(DATA_DIR, 'restrooms');
+const FIREWATER_DIR = path.join(ROOT, 'public', 'firewater');
 
 const GWANGJU_NAMES = new Set(['광주광역시', '전남광주통합특별시']);
 const GWANGJU_DISTRICTS = new Set(['동구', '서구', '남구', '북구', '광산구']);
@@ -161,12 +162,52 @@ function auditCoordinateMetadata() {
   return { geocoded: cacheItems.length, researched: researchedItems.length };
 }
 
+function auditGwangjuFirewater() {
+  const cityDir = path.join(FIREWATER_DIR, '광주광역시');
+  const index = readJson(path.join(cityDir, 'index.json'));
+  const districtEntries = Object.entries(index.districts || {});
+  const districtTotal = districtEntries.reduce((sum, [, count]) => sum + Number(count), 0);
+  check(districtTotal === Number(index.total), '광주 소방용수 인덱스 합계가 total과 다릅니다.');
+
+  for (const district of GWANGJU_DISTRICTS) {
+    check(district in (index.districts || {}), `광주 소방용수에서 ${district}가 누락됐습니다.`);
+  }
+  for (const district of Object.keys(index.districts || {})) {
+    check(GWANGJU_DISTRICTS.has(district), `광주 소방용수에 종전 5개 구 밖 분류가 있습니다: ${district}`);
+  }
+
+  let actualTotal = 0;
+  for (const [district, expectedCount] of districtEntries) {
+    const payload = readJson(path.join(cityDir, `${district}.json`));
+    const items = payload?.response?.body?.items || [];
+    actualTotal += items.length;
+    check(items.length === Number(expectedCount), `광주/${district} 소방용수 개수가 인덱스와 다릅니다.`);
+
+    for (const item of items) {
+      check(item.signguNm === district, `광주/${district} 소방용수의 signguNm이 다릅니다: ${item.fcltyNo || '식별자 없음'}`);
+      const addresses = [item.rdnmadr, item.lnmadr].filter(Boolean);
+      check(
+        addresses.some(isFormerGwangjuAddress),
+        `광주/${district} 소방용수에 종전 광주 5개 구 밖 주소가 있습니다: ${item.fcltyNo || '식별자 없음'}`,
+      );
+    }
+  }
+
+  const manifest = readJson(path.join(FIREWATER_DIR, 'manifest.json'));
+  const manifestTotal = Number(manifest.cities?.['광주광역시']?.total);
+  check(manifestTotal === Number(index.total), '광주 소방용수 매니페스트 합계가 인덱스와 다릅니다.');
+  check(actualTotal === Number(index.total), '광주 소방용수 조각 파일 합계가 인덱스와 다릅니다.');
+  return Number(index.total);
+}
+
 const civil = auditCivilGwangju();
 const restrooms = auditRestrooms();
 const coordinateCounts = auditCoordinateMetadata();
+const firewaterTotal = auditGwangjuFirewater();
 
 console.log(`광주 민방위 대피시설: ${civil.total.toLocaleString()}건`);
 console.log(`광주 공중화장실: ${restrooms.gwangju?.total.toLocaleString() || 0}건`);
+console.log(`광주 소방용수: ${firewaterTotal.toLocaleString()}건`);
 console.log(`인천 공중화장실: ${restrooms.incheon?.total.toLocaleString() || 0}건`);
 console.log(`주소 지오코딩 보충 좌표: ${coordinateCounts.geocoded.toLocaleString()}건`);
 console.log(`교차검증 보충 좌표: ${coordinateCounts.researched.toLocaleString()}건`);

@@ -15,7 +15,14 @@ vi.mock('./apiClient', () => ({
   tagStale: <T>(value: T) => value,
 }));
 
-import { CITY_TO_SIDO, filterBedsForRequestedRegion, getERRealTimeBeds, type ERRealTimeData } from './erApi';
+import {
+  CITY_TO_SIDO,
+  attachFacilityInfoAndFilterBeds,
+  filterBedsForRequestedRegion,
+  getERRealTimeBeds,
+  type ERListItem,
+  type ERRealTimeData,
+} from './erApi';
 
 describe('erApi', () => {
   beforeEach(() => {
@@ -35,6 +42,37 @@ describe('erApi', () => {
 
     expect(filterBedsForRequestedRegion('전남광주통합특별시', beds).map(item => item.dutyName))
       .toEqual(['광주병원', '광산병원']);
+  });
+
+  it('joins facility addresses before filtering merged Gwangju beds', async () => {
+    apiMocks.fetchERBeds.mockResolvedValueOnce(`<response><body><items>
+      <item><dutyName>광주병원</dutyName><hpid>GW-1</hpid><phpid>GW-1</phpid><hvec>5</hvec></item>
+      <item><dutyName>목포병원</dutyName><hpid>JN-1</hpid><phpid>JN-1</phpid><hvec>7</hvec></item>
+    </items></body></response>`);
+    apiMocks.fetchERList.mockResolvedValueOnce(`<response><body><items>
+      <item><dutyName>광주병원</dutyName><hpid>GW-1</hpid><phpid>GW-1</phpid><dutyAddr>전남광주통합특별시 서구 상무대로 1</dutyAddr><wgs84Lat>35.1</wgs84Lat><wgs84Lon>126.8</wgs84Lon></item>
+      <item><dutyName>목포병원</dutyName><hpid>JN-1</hpid><phpid>JN-1</phpid><dutyAddr>전남광주통합특별시 목포시 영산로 3</dutyAddr></item>
+    </items></body></response>`);
+
+    const beds = await getERRealTimeBeds('전남광주통합특별시', '', true);
+
+    expect(beds).toHaveLength(1);
+    expect(beds[0]).toMatchObject({
+      dutyName: '광주병원',
+      dutyAddr: '전남광주통합특별시 서구 상무대로 1',
+      wgs84Lat: '35.1',
+      wgs84Lon: '126.8',
+    });
+    expect(apiMocks.fetchERList).toHaveBeenCalledWith('전남광주통합특별시', '', true);
+  });
+
+  it('drops merged-region beds whose facility address cannot be verified', () => {
+    const beds = [
+      { dutyName: '주소없는병원', hpid: 'UNKNOWN', phpid: 'UNKNOWN' },
+    ] as ERRealTimeData[];
+    const facilities = [] as ERListItem[];
+
+    expect(attachFacilityInfoAndFilterBeds('전남광주통합특별시', beds, facilities)).toEqual([]);
   });
 
   it('propagates a beds request failure so the UI can distinguish it from an empty result', async () => {

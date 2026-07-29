@@ -147,6 +147,21 @@ describe('proxy input sanitization', () => {
     expect(upstream.searchParams.has('evil')).toBe(false);
   });
 
+  it('requests the complete merged-region ER facility catalog', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => new Response('<response><body><items></items></body></response>'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await handleER(
+      '/api/er/list',
+      new URL('https://api.example.test/api/er/list?sido=전남광주통합특별시'),
+      'er-key',
+    );
+
+    const upstream = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(upstream.searchParams.get('Q0')).toBe('전남광주통합특별시');
+    expect(upstream.searchParams.get('numOfRows')).toBe('500');
+  });
+
   it('sanitizes air quality region names', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL) => jsonResponse({
       response: { body: { items: [] } },

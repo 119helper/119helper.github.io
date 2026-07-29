@@ -1,6 +1,9 @@
 import { apiFetch, isStaleDataError } from './apiClient';
-import { CITY_TO_SIDO } from './erApi';
-import { GWANGJU_CURRENT_NAME, isFormerGwangjuAddress } from './administrativeRegions';
+import {
+  CITY_TO_CURRENT_PROVINCE,
+  GWANGJU_CURRENT_NAME,
+  isFormerGwangjuAddress,
+} from './administrativeRegions';
 import { z } from 'zod';
 
 export interface PrivateAmbulance {
@@ -38,7 +41,7 @@ function parseAmbulances(xmlText: string): PrivateAmbulance[] {
 
 export async function fetchPrivateAmbulances(city: string, forceRefresh = false): Promise<PrivateAmbulance[]> {
   try {
-    const sidoName = CITY_TO_SIDO[city] || '서울특별시';
+    const sidoName = CITY_TO_CURRENT_PROVINCE[city] || '서울특별시';
     
     // Cloudflare Worker 프록시 통신
     const response = await apiFetch<z.infer<typeof ambulanceResponseSchema>>('/api/ambulance', { Q0: sidoName }, {
