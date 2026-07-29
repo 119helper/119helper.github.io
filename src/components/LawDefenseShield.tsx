@@ -8,9 +8,9 @@ export default function LawDefenseShield() {
 
   const categories: { id: DefenseCategory | 'ALL'; label: string; icon: LucideIcon }[] = [
     { id: 'ALL', label: '전체 보기', icon: ShieldAlert },
-    { id: '강제처분', label: '강제처분/파손 면책', icon: Gavel },
-    { id: '구급면책', label: '구급대원 방어권', icon: FileCheck },
-    { id: '주취자방어', label: '주취자 폭행 대응', icon: Siren },
+    { id: '강제처분', label: '강제처분·손실보상', icon: Gavel },
+    { id: '구급활동', label: '구급활동·기록', icon: FileCheck },
+    { id: '현장안전', label: '현장안전·법률지원', icon: Siren },
   ];
 
   const filteredDocs = useMemo(() => {
@@ -22,8 +22,8 @@ export default function LawDefenseShield() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <p className="text-sm text-on-surface-variant leading-relaxed">
-          긴급한 현장 판단을 돕기 위한 법령·판례 참고 자료입니다. <br className="hidden sm:block"/>
-          <strong className="text-amber-600 dark:text-amber-400">실제 면책 및 법적 책임 여부</strong>는 상황별 사실관계, 절차 준수 여부, 사후 기록에 따라 달라질 수 있습니다.
+          긴급한 현장 판단을 돕기 위해 현행 법령에서 직접 확인한 범위만 정리했습니다. <br className="hidden sm:block"/>
+          <strong className="text-amber-600 dark:text-amber-400">실제 권한·보상·법적 책임 여부</strong>는 상황별 사실관계, 필요성·상당성, 기관 지침과 절차 준수 여부에 따라 달라질 수 있습니다.
         </p>
       </div>
 
@@ -115,14 +115,14 @@ export default function LawDefenseShield() {
                     </div>
                   </div>
 
-                  {/* 승소 판례 */}
+                  {/* 공식 법령 확인사항 */}
                   <div>
                     <h4 className="text-sm font-bold text-on-surface mb-2 flex items-center gap-1.5">
                       <Gavel size={16} className="text-emerald-500" />
-                      관련 판례·사례 참고
+                      공식 법령 확인사항
                     </h4>
                     <div className="p-4 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-xl text-sm leading-relaxed text-emerald-900 dark:text-emerald-100 border border-emerald-500/20">
-                      <strong>참고 사례: </strong> {doc.winPrecedent}
+                      {doc.officialBasis}
                     </div>
                   </div>
 
@@ -146,29 +146,25 @@ export default function LawDefenseShield() {
                     </div>
                   </div>
 
-                  {/* 메타데이터 (출처, 기준일 등) */}
-                  {(doc.source || doc.caseNumber || doc.lastReviewed) && (
-                    <div className="pt-2 flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-on-surface-variant/70 border-t border-outline-variant/10 mt-4">
-                      {doc.source && (
-                        <span className="flex items-center gap-1">
+                  {/* 메타데이터 (공식 원문, 기준일) */}
+                  <div className="pt-2 flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-on-surface-variant/70 border-t border-outline-variant/10 mt-4">
+                    {doc.sources.map(source => (
+                      <a
+                        key={source.url}
+                        href={source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 underline underline-offset-2 hover:text-primary"
+                      >
                           <span className="material-symbols-outlined text-[14px]">link</span>
-                          출처: {doc.source}
-                        </span>
-                      )}
-                      {doc.caseNumber && (
-                        <span className="flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[14px]">balance</span>
-                          사건번호: {doc.caseNumber}
-                        </span>
-                      )}
-                      {doc.lastReviewed && (
-                        <span className="flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[14px]">update</span>
-                          기준일: {doc.lastReviewed}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                          {source.label}
+                      </a>
+                    ))}
+                    <span className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">update</span>
+                      현행 여부 확인: {doc.lastReviewed}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>

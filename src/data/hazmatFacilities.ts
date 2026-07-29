@@ -1,7 +1,7 @@
 // 위험물제조소 설치현황 — 경상북도 (KOSIS 통계)
 // 자동 API 없음 → 정적 JSON (KOSIS에서 수동 갱신 필요)
 // 출처: 「경상북도기본통계」 경상북도 (예방안전과)
-// 최종 갱신: 2025-05-30 (2023년 기준 데이터)
+// 최신 여부 확인: 2026-07-29 — KOSIS 공식 표의 최신 공표연도는 여전히 2023년
 // KOSIS URL: https://kosis.kr/statHtml/statHtml.do?orgId=216&tblId=DT_21603_P001027&conn_path=I3
 
 export interface HazmatFacilityStats {
@@ -53,11 +53,11 @@ export const HAZMAT_FACILITY_DATA: HazmatFacilityStats[] = [
   { fireDept: '울진소방서', total: 289, manufacturing: 0, handling: { subtotal: 83, gasStation: 42, sales: 0, transfer: 0, general: 41 }, storage: { subtotal: 206, indoor: 4, outdoorTank: 46, indoorTank: 60, underground: 14, simple: 0, mobile: 78, outdoor: 4, rock: 0 } },
 ];
 
-// 데이터 갱신일 (마지막으로 KOSIS에서 다운로드한 날짜)
 export const HAZMAT_DATA_INFO = {
   source: 'KOSIS 경상북도기본통계 (예방안전과)',
   dataYear: 2023,
   lastDownloaded: '2026-04-02',
+  lastChecked: '2026-07-29',
   kosisUrl: 'https://kosis.kr/statHtml/statHtml.do?orgId=216&tblId=DT_21603_P001027&conn_path=I3',
-  note: '자동 API 미제공. KOSIS에서 수동 다운로드 필요. 통상 연 1회(5~6월) 갱신.',
+  note: 'KOSIS 공식 표(2011~2023) 대조 결과 2023년이 최신 공표연도입니다. 새 연도가 공표되기 전까지 현재 값을 유지합니다.',
 };

@@ -118,6 +118,9 @@ TSUNAMI_SHELTER_API_KEY=... node scripts/sync-tsunami-shelters.js
 
 민방위/지진해일 정적 데이터 manifest는 체크인된 JSON에서 기준일과 건수를 보강할 수 있습니다. 지진해일 원본 파일에는 행별 기준일 필드가 없어 공공데이터포털 API 상세의 수정일을 `API 수정일`로 기록합니다.
 
+2026-07-29 API 승인 확인, 최신 공개자료 대조, 법령 교정 및 추가 API 우선순위는
+[`docs/data-source-audit-2026-07-29.md`](docs/data-source-audit-2026-07-29.md)에 정리되어 있습니다.
+
 ```bash
 node scripts/update-static-data-manifest.mjs
 TSUNAMI_SOURCE_DATE=2025-07-16 node scripts/update-static-data-manifest.mjs
@@ -128,9 +131,14 @@ TSUNAMI_SOURCE_DATE=2025-07-16 node scripts/update-static-data-manifest.mjs
 [`docs/administrative-region-audit-2026-07.md`](docs/administrative-region-audit-2026-07.md)에서 확인할 수 있습니다.
 데이터를 갱신한 뒤에는 `npm run audit:regions`로 광주·인천 행정구역과 좌표 정합성을 검사합니다.
 
-한국수자원공사 댐 방류정보 활용신청이 승인되면 `worker/wrangler.toml`의
-`DAM_DISCHARGE_ENABLED`를 `"true"`로 바꾼 뒤 Worker를 배포합니다. 승인 전에는
-화면에 심의 대기 상태만 표시하며 업스트림 API를 호출하지 않습니다.
+한국수자원공사 댐 방류정보는 2026-07-29 개발계정 승인을 확인해 운영 연동을
+활성화했습니다. API는 15분 주기로 갱신되며, 현재 방류 기록이 없는 경우에도
+정상 응답과 조회 시각을 표시합니다. 자체 배포 환경에서는 활용신청 승인 전까지
+`DAM_DISCHARGE_ENABLED = "false"`를 유지하세요.
+
+소방청 다중이용업소 영업장별 API도 2026-07-29 추가 신청과 자동 승인을 완료했습니다.
+앱은 2025 개별 업소 API를 지역·업종별로 집계하고, 키 누락이나 외부 장애 시에는 같은
+공식 CSV 154,873행에서 검증한 정적 집계로 자동 폴백합니다.
 
 ---
 

@@ -1,6 +1,8 @@
 // 증상별 응급처치 프로토콜 참고 데이터(정적).
 // ⚠️ 참고용 — 실제 처치는 의료지도·표준지침·현장 판단을 우선한다.
-// 출처: 소방청 119구급대원 현장응급처치 표준지침 / KACPR 가이드라인 공개본 기반.
+// 운용 기준: 소방청 119구급대원 현장응급처치 표준지침 2023년 개정본.
+// 2026-07-29 확인 결과 소방청이 공개한 현장 표준지침의 최신 개정본은 2023년판이다.
+// KACPR은 별도의 2025 심폐소생술 가이드라인을 공개했으므로 모든 항목의 공통 출처로 표기하지 않는다.
 
 export type ProtocolCategory = '심정지' | '아나필락시스' | '경련' | '중독' | '분만' | '외상';
 
@@ -14,7 +16,16 @@ export interface EmsProtocol {
   revisedYear: number;
 }
 
-const SOURCE = '소방청 구급대원 표준지침 / KACPR';
+export const EMS_SOURCE_INFO = {
+  operationalBaseline: '소방청 119구급대원 현장응급처치 표준지침',
+  baselineYear: 2023,
+  latestCprGuideline: '대한심폐소생협회 2025년 한국 심폐소생술 가이드라인',
+  lastChecked: '2026-07-29',
+  nfaUrl: 'https://www.nfa.go.kr/nfa/publicrelations/legalinformation/archives/?cntId=50&mode=view',
+  kacprUrl: 'https://www.kacpr.org/download/2025%EB%85%84%20%ED%95%9C%EA%B5%AD%20%EC%8B%AC%ED%8F%90%EC%86%8C%EC%83%9D%EC%88%A0%20%EA%B0%80%EC%9D%B4%EB%93%9C%EB%9D%BC%EC%9D%B8.pdf',
+} as const;
+
+const SOURCE = EMS_SOURCE_INFO.operationalBaseline;
 const YEAR = 2023;
 
 export const EMS_PROTOCOLS: EmsProtocol[] = [

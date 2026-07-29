@@ -68,6 +68,27 @@ const checks = [
     validate: hasXmlEnvelope,
   },
   {
+    name: 'aed-nearby',
+    severity: 'critical',
+    url: endpoint('/api/aed/nearby', {
+      lat: 35.1595,
+      lng: 126.8526,
+      numOfRows: 1,
+      pageNo: 1,
+    }),
+    validate: hasXmlEnvelope,
+  },
+  {
+    name: 'dam-discharge',
+    severity: 'critical',
+    url: endpoint('/api/dam-discharge', { days: 2, numOfRows: 1, pageNo: 1 }),
+    validate: data => isRecord(data)
+      && data.status === 'active'
+      && data.format === 'xml'
+      && typeof data.payload === 'string'
+      && data.payload.trimStart().startsWith('<'),
+  },
+  {
     name: 'air-quality',
     severity: 'critical',
     url: endpoint('/api/air', { sido: '서울' }),
@@ -151,8 +172,14 @@ const checks = [
   {
     name: 'multiuse',
     severity: 'standard',
-    url: endpoint('/api/multiuse', { year: 2024, page: 1, perPage: 1 }),
-    validate: Array.isArray,
+    url: endpoint('/api/multiuse', { year: 2025, ctprvnNm: '전남광주통합특별시' }),
+    validate: data => Array.isArray(data)
+      && data.length === 1
+      && data[0]?.소방본부 === '광주광역시'
+      && data[0]?.연도 === '2025'
+      && Object.entries(data[0])
+        .filter(([key, value]) => key !== '연도' && typeof value === 'number')
+        .reduce((sum, [, value]) => sum + value, 0) === 3_873,
   },
   {
     name: 'emergency-stats',

@@ -290,6 +290,7 @@ jobs:
             '',
             '[vars]',
             'ENVIRONMENT = "production"',
+            'DAM_DISCHARGE_ENABLED = "true"',
             '',
             '[observability]',
             'enabled = true',

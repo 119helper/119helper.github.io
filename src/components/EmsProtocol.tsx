@@ -1,6 +1,6 @@
 import { useState, useEffect, useId } from 'react';
 import MedicalDisclaimer from './common/MedicalDisclaimer';
-import { EMS_PROTOCOLS, type ProtocolCategory } from '../data/emsProtocols';
+import { EMS_PROTOCOLS, EMS_SOURCE_INFO, type ProtocolCategory } from '../data/emsProtocols';
 import { EMS_DRUGS } from '../data/emsDrugs';
 import { calculateDrugDose, calculateGCS, calculateAPGAR, type ApgarScores } from '../utils/emsCalculations';
 
@@ -35,7 +35,23 @@ export default function EmsProtocol({ subId }: { subId?: string }) {
         <p className="text-sm text-on-surface-variant mt-1">증상별 프로토콜 · 체중기반 약물 용량 · 평가 스코어</p>
       </div>
 
-      <MedicalDisclaimer source="소방청 119구급대원 현장응급처치 표준지침 / KACPR" revisedYear={2023} />
+      <div className="space-y-2">
+        <MedicalDisclaimer
+          source={EMS_SOURCE_INFO.operationalBaseline}
+          revisedYear={`${EMS_SOURCE_INFO.baselineYear} 개정본`}
+          note={`공식 최신 공개본 여부를 ${EMS_SOURCE_INFO.lastChecked}에 확인했습니다. CPR 분야의 별도 최신 자료는 KACPR 2025 가이드라인이며, 이 화면의 값은 기관 최신 지침·의료지도를 우선해 재확인하십시오.`}
+        />
+        <p className="text-[11px] text-on-surface-variant px-1">
+          공식 원문:{' '}
+          <a href={EMS_SOURCE_INFO.nfaUrl} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-primary">
+            소방청 2023 현장 표준지침
+          </a>
+          {' '}·{' '}
+          <a href={EMS_SOURCE_INFO.kacprUrl} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-primary">
+            KACPR 2025 심폐소생술 가이드라인
+          </a>
+        </p>
+      </div>
 
       <div className="flex gap-2 bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-1.5 overflow-x-auto">
         {SUB_TABS.map(tab => (

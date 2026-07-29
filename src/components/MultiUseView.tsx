@@ -191,6 +191,17 @@ export default function MultiUseView({ city }: MultiUseViewProps) {
             소방청 다중이용업소 정보 서비스 · <span className="text-primary font-bold">{cityShort[city] || city}</span>
             {!loading && !apiError && <span className="ml-2">· 총 <span className="font-bold text-primary">{total.toLocaleString()}</span>개소</span>}
           </p>
+          <p className="text-[11px] text-on-surface-variant mt-1">
+            <a
+              href="https://www.data.go.kr/data/15083979/fileData.do"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2 hover:text-primary"
+            >
+              소방청 공식 OpenAPI·CSV
+            </a>
+            {' '}· 영업상태 ‘정상’ 실시간 집계 · API 오류 시 2025-09-15 검증값
+          </p>
         </div>
         <button type="button" onClick={fetchData} disabled={loading}
           className="bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/20 transition-colors flex items-center gap-2 disabled:opacity-50">

@@ -174,8 +174,16 @@ export default function HazmatView() {
             <span className="material-symbols-outlined text-orange-700 dark:text-orange-300 text-lg">table_chart</span>
             소방서별 상세 현황
           </h3>
-          <span className="text-[10px] text-on-surface-variant">
-            출처: {HAZMAT_DATA_INFO.source} | 데이터 갱신: {HAZMAT_DATA_INFO.lastDownloaded}
+          <span className="text-[10px] text-on-surface-variant text-right">
+            <a
+              href={HAZMAT_DATA_INFO.kosisUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2 hover:text-primary"
+            >
+              출처: {HAZMAT_DATA_INFO.source}
+            </a>
+            {' '}| 공식 최신 여부 확인: {HAZMAT_DATA_INFO.lastChecked}
           </span>
         </div>
         <div className="overflow-x-auto custom-scrollbar">

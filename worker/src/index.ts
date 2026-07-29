@@ -131,6 +131,12 @@ export default {
       if (path.startsWith('/api/fire-annual/')) {
         cacheUrl.searchParams.set('_cv', '3'); // 기존 캐시 버전 관리용
       }
+      if (path === '/api/dam-discharge') {
+        cacheUrl.searchParams.set('_cv', '1'); // 승인 대기 응답 캐시 무효화
+      }
+      if (path === '/api/multiuse') {
+        cacheUrl.searchParams.set('_cv', '1'); // 정적 전용 응답에서 승인 API 우선 조회로 전환
+      }
 
       const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
       const cache = caches.default;

@@ -1,6 +1,8 @@
 // 구급 약물 참고 데이터(정적). 체중기반 용량 자동계산용.
 // ⚠️ 참고용 — 실제 투약은 의료지도·표준지침·현장 판단을 우선한다. 사용 전 최신 지침 확인 필수.
-// 출처: 소방청 119구급대원 현장응급처치 표준지침 / 대한심폐소생협회(KACPR) 가이드라인 공개본 기반.
+// 운용 기준: 소방청 119구급대원 현장응급처치 표준지침 2023년 개정본.
+// 대한심폐소생협회 2025 가이드라인은 CPR 분야의 별도 최신 자료이며,
+// 이 정적 약물표 전체의 출처로 오인되지 않도록 분리 표기한다.
 
 export interface EmsDrug {
   id: string;
@@ -18,7 +20,7 @@ export interface EmsDrug {
   revisedYear: number;
 }
 
-const SOURCE = '소방청 구급대원 표준지침 / KACPR';
+const SOURCE = '소방청 119구급대원 현장응급처치 표준지침';
 const YEAR = 2023;
 
 export const EMS_DRUGS: EmsDrug[] = [
