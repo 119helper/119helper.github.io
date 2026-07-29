@@ -36,9 +36,7 @@ import { disasterLocationMatchesCity } from './services/administrativeRegions';
 import { loadDisplaySettings, saveDisplaySettings } from './services/displaySettings';
 import {
   loadNavigationPreferences,
-  recordRecentNavigation,
   saveNavigationPreferences,
-  setWorkPreset,
   toggleNavigationFavorite,
 } from './services/navigationPreferences';
 
@@ -302,9 +300,6 @@ export default function App() {
   const handleFieldModeChange = useCallback((enabled: boolean) => {
     setFieldReadabilityMode(enabled);
     saveDisplaySettings({ fieldReadabilityMode: enabled });
-    if (enabled) {
-      setNavPreferences(previous => setWorkPreset(previous, 'incident'));
-    }
     try {
       navigator.vibrate?.(enabled ? [60, 40, 60] : 40);
     } catch {
@@ -538,7 +533,6 @@ export default function App() {
       nextTab = 'dashboard';
     }
     setActiveTab(nextTab);
-    setNavPreferences(previous => recordRecentNavigation(previous, nextTab));
     setActiveSubId(subId);
     setSidebarOpen(false);
     // 탭 이동 시 맨 위로 스크롤
@@ -683,7 +677,6 @@ export default function App() {
             preferences={navPreferences}
             activeTab={activeTab}
             onNavigate={handleNavigate}
-            onPresetChange={preset => setNavPreferences(previous => setWorkPreset(previous, preset))}
           />
           <p className="px-2 pb-1 pt-2 text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">전체 메뉴</p>
           {NAV_ITEMS.map(item => {

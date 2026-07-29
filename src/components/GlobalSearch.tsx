@@ -45,9 +45,6 @@ const MENU_ITEMS: { keyword: string[]; tab: NavigateTarget; subId?: string; labe
   { keyword: ['다중', '이용', '업소', 'multiuse', '안전'], tab: 'multiuse', label: '다중이용업소', subtitle: '다중이용업소 안전관리 현황', icon: 'storefront', color: 'text-green-500' },
 ];
 
-const RECENT_KEY = '119helper-recent-tools';
-const FAVORITES_KEY = '119helper-favorite-tools';
-
 function toSearchResult(item: (typeof MENU_ITEMS)[number]): SearchResult {
   return {
     id: `menu-${item.tab}-${item.subId || 'main'}`,
@@ -60,24 +57,11 @@ function toSearchResult(item: (typeof MENU_ITEMS)[number]): SearchResult {
   };
 }
 
-const ALL_RESULTS = MENU_ITEMS.map(toSearchResult);
-
-function loadStoredIds(key: string): string[] {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(key) || '[]');
-    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string').slice(0, 8) : [];
-  } catch {
-    return [];
-  }
-}
-
 export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(0);
-  const [recentIds, setRecentIds] = useState<string[]>(() => loadStoredIds(RECENT_KEY));
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => loadStoredIds(FAVORITES_KEY));
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
@@ -141,14 +125,7 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
     return out.slice(0, 8);
   }, [query]);
 
-  const favoriteResults = favoriteIds
-    .map(id => ALL_RESULTS.find(result => result.id === id))
-    .filter((result): result is SearchResult => Boolean(result));
-  const recentResults = recentIds
-    .filter(id => !favoriteIds.includes(id))
-    .map(id => ALL_RESULTS.find(result => result.id === id))
-    .filter((result): result is SearchResult => Boolean(result));
-  const displayedResults = query.trim() ? results : [...favoriteResults, ...recentResults].slice(0, 8);
+  const displayedResults = results;
 
   useEffect(() => {
     setSelectedIdx(prev => {
@@ -184,21 +161,10 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
   };
 
   const handleSelect = (result: SearchResult) => {
-    const nextRecent = [result.id, ...recentIds.filter(id => id !== result.id)].slice(0, 6);
-    setRecentIds(nextRecent);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(nextRecent));
     onNavigate(result.tab, result.subId);
     setQuery('');
     setIsOpen(false);
     setMobileOpen(false);
-  };
-
-  const toggleFavorite = (result: SearchResult) => {
-    const next = favoriteIds.includes(result.id)
-      ? favoriteIds.filter(id => id !== result.id)
-      : [result.id, ...favoriteIds].slice(0, 8);
-    setFavoriteIds(next);
-    localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
   };
 
   const renderResults = (mobile = false) => (
@@ -207,50 +173,28 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
         <>
           <div className="px-3 py-2 border-b border-outline-variant/10 flex items-center justify-between">
             <span role="status" aria-live="polite" className="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">
-              {query.trim() ? `${displayedResults.length}개 결과` : favoriteResults.length > 0 ? '즐겨찾기 · 최근 사용' : '최근 사용'}
+              {displayedResults.length}개 결과
             </span>
-            {!query.trim() && displayedResults.length > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setRecentIds([]);
-                  localStorage.removeItem(RECENT_KEY);
-                }}
-                className="text-[10px] text-on-surface-variant hover:text-on-surface px-2 py-1"
-              >
-                최근 기록 지우기
-              </button>
-            )}
           </div>
-          {displayedResults.map((result, index) => {
-            const favorite = favoriteIds.includes(result.id);
-            return (
-              <div key={result.id} className={`flex items-center transition-colors ${index === selectedIdx ? 'bg-primary/10' : 'hover:bg-surface-container/50'}`}>
-                <button
-                  type="button"
-                  onClick={() => handleSelect(result)}
-                  onMouseEnter={() => setSelectedIdx(index)}
-                  aria-current={index === selectedIdx ? 'true' : undefined}
-                  className="min-w-0 flex-1 flex items-center gap-3 px-4 py-3 text-left"
-                >
-                  <span aria-hidden="true" className={`material-symbols-outlined text-lg ${result.color}`}>{result.icon}</span>
-                  <span className="flex-1 min-w-0">
-                    <span className="text-sm font-bold text-on-surface truncate block">{result.title}</span>
-                    <span className="text-[11px] text-on-surface-variant truncate block">{result.subtitle}</span>
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  aria-label={`${result.title} ${favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}`}
-                  aria-pressed={favorite}
-                  onClick={() => toggleFavorite(result)}
-                  className={`w-11 h-11 mr-1 rounded-full flex items-center justify-center ${favorite ? 'text-amber-400' : 'text-outline hover:text-on-surface'}`}
-                >
-                  <span className="material-symbols-outlined" style={favorite ? { fontVariationSettings: "'FILL' 1" } : undefined}>star</span>
-                </button>
-              </div>
-            );
-          })}
+          {displayedResults.map((result, index) => (
+            <button
+              key={result.id}
+              type="button"
+              onClick={() => handleSelect(result)}
+              onMouseEnter={() => setSelectedIdx(index)}
+              aria-current={index === selectedIdx ? 'true' : undefined}
+              className={`flex w-full min-w-0 items-center gap-3 px-4 py-3 text-left transition-colors ${
+                index === selectedIdx ? 'bg-primary/10' : 'hover:bg-surface-container/50'
+              }`}
+            >
+              <span aria-hidden="true" className={`material-symbols-outlined text-lg ${result.color}`}>{result.icon}</span>
+              <span className="flex-1 min-w-0">
+                <span className="text-sm font-bold text-on-surface truncate block">{result.title}</span>
+                <span className="text-[11px] text-on-surface-variant truncate block">{result.subtitle}</span>
+              </span>
+              <span aria-hidden="true" className="material-symbols-outlined text-base text-on-surface-variant">arrow_forward</span>
+            </button>
+          ))}
         </>
       )}
 
@@ -273,7 +217,7 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
         <div className="p-6 text-center text-on-surface-variant">
           <span className="material-symbols-outlined text-2xl text-outline/40">manage_search</span>
           <p className="text-sm mt-1">기능 이름을 검색해 바로 이동하세요.</p>
-          <p className="text-[11px] mt-1">별표를 누르면 즐겨찾기에 고정됩니다.</p>
+          <p className="text-[11px] mt-1">날씨, 산불, 계산기처럼 입력해 보세요.</p>
         </div>
       )}
     </div>

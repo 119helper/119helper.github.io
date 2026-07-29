@@ -57,7 +57,7 @@ test('응급실: 광주 선택 시 통합 시도명으로 다시 조회한다', 
   expect(requestedSidos).toContain('전남광주통합특별시');
 });
 
-test('모바일: 통합 검색으로 기능을 열고 최근 사용에 저장한다', async ({ page }) => {
+test('모바일: 통합 검색으로 기능을 바로 연다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
 
@@ -67,32 +67,24 @@ test('모바일: 통합 검색으로 기능을 열고 최근 사용에 저장한
   await dialog.getByRole('button', { name: /실시간 날씨·예보·특보/ }).click();
 
   await expect(page).toHaveURL(/#weather$/);
-  const recent = await page.evaluate(() => JSON.parse(localStorage.getItem('119helper-recent-tools') || '[]'));
-  expect(recent).toContain('menu-weather-main');
 });
 
-test('모바일: 업무 프리셋·즐겨찾기·최근 사용을 보존하고 데이터 상태를 화면 안에 표시한다', async ({ page }) => {
+test('모바일: 즐겨찾기를 보존하고 데이터 상태를 화면 안에 표시한다', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto('/');
 
   await page.getByRole('button', { name: '전체 메뉴 열기' }).click();
   const sidebar = page.getByRole('dialog', { name: '전체 메뉴' });
-  const quickAccess = sidebar.getByRole('region', { name: '빠른 메뉴' });
-  await quickAccess.getByRole('button', { name: '구급', exact: true }).click();
-  await expect(quickAccess.getByRole('button', { name: '구급', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  const favorites = sidebar.getByRole('region', { name: '즐겨찾기' });
+  await expect(favorites).toContainText('전체 메뉴의 별표를 눌러 기능을 추가하세요.');
 
   await sidebar.getByRole('button', { name: '날씨 즐겨찾기 추가' }).click();
-  await expect(quickAccess.getByText('즐겨찾기', { exact: true })).toBeVisible();
-  await expect(quickAccess.getByRole('button', { name: '날씨', exact: true })).toBeVisible();
-
-  await quickAccess.getByRole('button', { name: '응급실 현황' }).click();
-  await page.getByRole('button', { name: '전체 메뉴 열기' }).click();
-  await expect(quickAccess.getByText('최근 사용', { exact: true })).toBeVisible();
-  await expect(quickAccess.getByRole('button', { name: '응급실 현황' })).toHaveCount(2);
+  await expect(favorites.getByRole('button', { name: '날씨', exact: true })).toBeVisible();
+  await expect(favorites.getByText('최근 사용', { exact: true })).toHaveCount(0);
 
   await page.reload();
   await page.getByRole('button', { name: '전체 메뉴 열기' }).click();
-  await expect(quickAccess.getByRole('button', { name: '구급', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(favorites.getByRole('button', { name: '날씨', exact: true })).toBeVisible();
   await expect(sidebar.getByRole('button', { name: '날씨 즐겨찾기 해제' })).toBeVisible();
   await sidebar.getByRole('button', { name: '전체 메뉴 닫기' }).click();
 
