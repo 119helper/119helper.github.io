@@ -1,5 +1,7 @@
 // 공중화장실 API — 로컬 정적 데이터 (scripts/sync-restrooms.js 스크립트로 분할된 JSON 사용)
 
+import { normalizeLiveGwangjuAddress } from './administrativeRegions';
+
 export interface RestroomFacility {
   id: string;              // MNG_NO
   nm: string;              // 화장실명
@@ -69,7 +71,11 @@ export async function fetchRestrooms(
     let items: RestroomFacility[] = json?.items || [];
 
     // 필터링 및 거리 계산 (유효한 위치 정보 확보)
-    items = items.filter(item => item.lat && item.lng);
+    items = items
+      .filter(item => item.lat && item.lng)
+      .map(item => cityQuery === 'gwangju'
+        ? { ...item, addr: normalizeLiveGwangjuAddress(item.addr) || item.addr }
+        : item);
 
     if (userLat && userLng) {
       items.forEach(item => {

@@ -1,4 +1,5 @@
 import { apiFetch, type ApiRecord } from './apiClient';
+import { normalizeGwangjuDisplayText } from './administrativeRegions';
 import { z } from 'zod';
 
 export interface WildfireItem {
@@ -72,7 +73,7 @@ export async function fetchWildfires(numOfRows = '200', pageNo = '1', forceRefre
 
       return {
         id: text(item.FRSTFR_INFO_ID) || Math.random().toString(),
-        address: text(item.FRSTFR_DCLR_ADDR) || '위치 미상',
+        address: normalizeGwangjuDisplayText(text(item.FRSTFR_DCLR_ADDR)) || '위치 미상',
         occurredAt: occurredAtStr,
         extinguishedAt: extinguished,
         isOngoing,

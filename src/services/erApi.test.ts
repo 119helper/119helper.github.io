@@ -59,7 +59,7 @@ describe('erApi', () => {
     expect(beds).toHaveLength(1);
     expect(beds[0]).toMatchObject({
       dutyName: '광주병원',
-      dutyAddr: '전남광주통합특별시 서구 상무대로 1',
+      dutyAddr: '광주광역시 서구 상무대로 1',
       wgs84Lat: '35.1',
       wgs84Lon: '126.8',
     });

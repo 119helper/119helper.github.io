@@ -122,10 +122,16 @@ describe('fetchCivilShelters', () => {
   });
 
   it('maps the reorganized Gwangju name to the Gwangju partition', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse([]));
+    const fetchMock = vi.fn(async () => jsonResponse([{
+      FCLT_NM: '광주 대피시설',
+      LCTN_WHOL_ADDR: '전남광주통합특별시 서구 상무대로 1',
+    }]));
     vi.stubGlobal('fetch', fetchMock);
 
-    await fetchCivilShelters('전남광주통합특별시');
+    await expect(fetchCivilShelters('전남광주통합특별시')).resolves.toEqual([{
+      FCLT_NM: '광주 대피시설',
+      LCTN_WHOL_ADDR: '광주광역시 서구 상무대로 1',
+    }]);
     expect(fetchMock).toHaveBeenCalledWith('/data/civil/gwangju.json');
   });
 

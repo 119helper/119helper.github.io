@@ -16,7 +16,7 @@ function erXml(hospitalName?: string, includeAddress = true): string {
   </item></items></body></response>`;
 }
 
-test('응급실: 광주 선택 시 통합 시도명으로 다시 조회한다', async ({ page }) => {
+test('응급실: 공급자 조회명과 광주 화면 표시명을 분리한다', async ({ page }) => {
   const requestedSidos: string[] = [];
 
   await page.route('**/api/er/**', async route => {
@@ -56,6 +56,9 @@ test('응급실: 광주 선택 시 통합 시도명으로 다시 조회한다', 
   await page.getByRole('button', { name: '광주', exact: true }).click();
 
   await expect(page.getByText('광주통합병원', { exact: true })).toBeVisible();
+  await expect(page.getByText('광주광역시', { exact: true })).toBeVisible();
+  await expect(page.getByText('광주광역시 서구 상무대로 1', { exact: true })).toBeVisible();
+  await expect(page.getByText('전남광주통합특별시 서구 상무대로 1', { exact: true })).toHaveCount(0);
   expect(requestedSidos).toContain('전남광주통합특별시');
 });
 

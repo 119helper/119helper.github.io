@@ -9,6 +9,7 @@ import { createStore, del, get, keys, set } from 'idb-keyval';
 import { z } from 'zod';
 import { reportClientError } from './telemetry';
 import { API_BASE, workerHeaders } from './apiConfig';
+import { normalizeGwangjuDisplayText } from './administrativeRegions';
 
 const API_TIMEOUT_MS = 15_000;
 const CACHE_PREFIX = '119_cache_v1_';
@@ -702,7 +703,13 @@ export async function fetchCivilShelters(ctprvnNm?: string, sgnNm?: string) {
     throw new Error('민방위 대피시설 데이터 형식이 올바르지 않습니다.');
   }
 
-  return parsed.data;
+  if (cityPath !== 'gwangju') return parsed.data;
+  return parsed.data.map(record => Object.fromEntries(
+    Object.entries(record).map(([key, value]) => [
+      key,
+      typeof value === 'string' ? normalizeGwangjuDisplayText(value, true) : value,
+    ]),
+  ));
 }
 
 // ═══════ 다중이용업소 (7일) ═══════

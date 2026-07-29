@@ -60,6 +60,8 @@ describe('ERDashboard', () => {
     view.rerender(<ERDashboard city="gwangju" />);
 
     expect(await screen.findByText('광주통합병원')).toBeInTheDocument();
+    expect(screen.getByText('광주광역시')).toBeInTheDocument();
+    expect(screen.queryByText('전남광주통합특별시')).not.toBeInTheDocument();
 
     await act(async () => {
       seoul.resolve([bed('서울지연병원', 'SE-1')]);

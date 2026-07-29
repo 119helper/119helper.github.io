@@ -1,5 +1,10 @@
 import { fetchNearbyAedXml, isStaleDataError, tagStale } from './apiClient';
-import { districtFromAddress, normalizeLiveGwangjuAddress } from './administrativeRegions';
+import {
+  districtFromAddress,
+  isFormerGwangjuAddress,
+  normalizeGwangjuDisplayText,
+  normalizeLiveGwangjuAddress,
+} from './administrativeRegions';
 
 export interface AedFacility {
   id: string;
@@ -60,13 +65,16 @@ export function parseNearbyAeds(xmlText: string, now = new Date()): AedFacility[
       if (!Number.isFinite(lat) || !Number.isFinite(lng) || !lat || !lng) return null;
 
       const rawAddress = childText(item, 'buildaddress');
+      const isGwangjuScope = isFormerGwangjuAddress(rawAddress);
       const address = normalizeLiveGwangjuAddress(rawAddress) || rawAddress || '주소 미상';
       const rawDistance = Number.parseFloat(childText(item, 'distance'));
+      const rawName = childText(item, 'org') || childText(item, 'buildplace') || '자동심장충격기';
+      const rawLocationDetail = childText(item, 'buildplace') || '설치 위치 확인 필요';
 
       return {
         id: childText(item, 'serialSeq') || `aed-${lat}-${lng}-${index}`,
-        name: childText(item, 'org') || childText(item, 'buildplace') || '자동심장충격기',
-        locationDetail: childText(item, 'buildplace') || '설치 위치 확인 필요',
+        name: normalizeGwangjuDisplayText(rawName, isGwangjuScope),
+        locationDetail: normalizeGwangjuDisplayText(rawLocationDetail, isGwangjuScope),
         address,
         lat,
         lng,

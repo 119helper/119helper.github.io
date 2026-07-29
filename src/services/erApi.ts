@@ -5,6 +5,8 @@ import {
   CITY_TO_CURRENT_PROVINCE,
   GWANGJU_CURRENT_NAME,
   isFormerGwangjuAddress,
+  normalizeGwangjuDisplayText,
+  normalizeLiveGwangjuAddress,
 } from './administrativeRegions';
 
 // 네트워크 실패 시 StaleDataError에 실린 캐시 XML을 파싱해 반환 (신선도 태그 포함).
@@ -61,7 +63,13 @@ export interface ERRealTimeData {
  */
 export function filterBedsForRequestedRegion(sido: string, beds: ERRealTimeData[]): ERRealTimeData[] {
   if (sido !== GWANGJU_CURRENT_NAME) return beds;
-  return beds.filter(bed => isFormerGwangjuAddress(bed.dutyAddr || ''));
+  return beds
+    .filter(bed => isFormerGwangjuAddress(bed.dutyAddr || ''))
+    .map(bed => ({
+      ...bed,
+      dutyName: normalizeGwangjuDisplayText(bed.dutyName, true),
+      dutyAddr: normalizeLiveGwangjuAddress(bed.dutyAddr),
+    }));
 }
 
 export interface ERListItem {
@@ -101,12 +109,13 @@ export function attachFacilityInfoAndFilterBeds(
   return beds.flatMap((bed) => {
     const id = bed.hpid || bed.phpid;
     const facility = id ? facilitiesById.get(id) : undefined;
-    const dutyAddr = bed.dutyAddr || facility?.dutyAddr || '';
-    if (!isFormerGwangjuAddress(dutyAddr)) return [];
+    const rawDutyAddr = bed.dutyAddr || facility?.dutyAddr || '';
+    if (!isFormerGwangjuAddress(rawDutyAddr)) return [];
 
     return [{
       ...bed,
-      dutyAddr,
+      dutyName: normalizeGwangjuDisplayText(bed.dutyName, true),
+      dutyAddr: normalizeLiveGwangjuAddress(rawDutyAddr),
       dutyTel3: bed.dutyTel3 || facility?.dutyTel3 || '',
       wgs84Lat: bed.wgs84Lat || facility?.wgs84Lat || '',
       wgs84Lon: bed.wgs84Lon || facility?.wgs84Lon || '',
@@ -194,7 +203,13 @@ export async function getERList(sido: string = '서울특별시', gugun: string 
   const parseList = (xml: string) => {
     const items = parseXmlItems<ERListItem>(xml);
     return sido === GWANGJU_CURRENT_NAME
-      ? items.filter(item => isFormerGwangjuAddress(item.dutyAddr || ''))
+      ? items
+        .filter(item => isFormerGwangjuAddress(item.dutyAddr || ''))
+        .map(item => ({
+          ...item,
+          dutyName: normalizeGwangjuDisplayText(item.dutyName, true),
+          dutyAddr: normalizeLiveGwangjuAddress(item.dutyAddr),
+        }))
       : items;
   };
   try {

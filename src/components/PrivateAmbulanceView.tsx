@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchPrivateAmbulances, type PrivateAmbulance } from '../services/ambulanceApi';
-import { CITY_TO_SIDO } from '../services/erApi';
+import { CITY_TO_DISPLAY_PROVINCE } from '../services/administrativeRegions';
 import { useAppFeedback } from '../contexts/FeedbackContext';
 
 const SMS_TEMPLATE = "[119 Helper 안내]\n요청하신 민간 이송업체(사설 구급차) 연락처입니다.\n\n업체명: {name}\n연락처: {tel}\n\n* 본 정보는 국립중앙의료원 정식 등록 업체 정보입니다.";
@@ -60,7 +60,7 @@ export default function PrivateAmbulanceView({ city }: { city: string }) {
         <div>
           <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
             <span className="material-symbols-outlined">airport_shuttle</span>
-            {CITY_TO_SIDO[city] || '서울특별시'} 등록 구급차
+            {CITY_TO_DISPLAY_PROVINCE[city] || '서울특별시'} 등록 구급차
             <span className="bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded-full text-xs ml-2">
               총 {ambulances.length}건
             </span>

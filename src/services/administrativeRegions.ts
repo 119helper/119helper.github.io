@@ -8,8 +8,14 @@
  * 모두 유효한 행정구로 취급하되, 주소에 구가 없는 도로명(예: "굴포로")을 구로 오인하지 않는다.
  */
 
+/**
+ * 공급자 요청에는 2026-07-01 이후 공식 시도명을 사용하되, 이 앱의 `gwangju`는
+ * 종전 광주 5개 구만 가리킨다. 화면에는 통합 시도 전체로 오해할 수 있는 명칭을
+ * 노출하지 않고 익숙한 광주광역시 권역명으로 표시한다.
+ */
 export const GWANGJU_LEGACY_NAME = '광주광역시';
 export const GWANGJU_CURRENT_NAME = '전남광주통합특별시';
+export const GWANGJU_DISPLAY_NAME = GWANGJU_LEGACY_NAME;
 
 export const FORMER_GWANGJU_DISTRICTS = [
   '동구',
@@ -56,6 +62,12 @@ export const CITY_TO_STATIC_PROVINCE: Record<string, string> = {
   gwangju: GWANGJU_LEGACY_NAME,
 };
 
+/** 사용자에게 보여 주는 지역명. 공급자 조회용 CITY_TO_CURRENT_PROVINCE와 분리한다. */
+export const CITY_TO_DISPLAY_PROVINCE: Record<string, string> = {
+  ...CITY_TO_CURRENT_PROVINCE,
+  gwangju: GWANGJU_DISPLAY_NAME,
+};
+
 function compactWhitespace(value: string): string {
   return value.trim().replace(/\s+/g, ' ');
 }
@@ -73,26 +85,39 @@ export function isFormerGwangjuAddress(value: string): boolean {
 }
 
 /**
- * 공급자 전환 중 관측된 중복 주소를 정리한다.
- * 예: "광주광역시 서구 전남광주통합특별시 서구 내방로 111"
+ * 광주 5개 구에 속한다고 확인된 문자열을 화면 표시용으로 정리한다.
+ * scopedToFormerGwangju=true는 주소로 관할을 이미 확인한 기관명에도 쓸 수 있다.
  */
-export function normalizeLiveGwangjuAddress(value: string): string {
+export function normalizeGwangjuDisplayText(
+  value: string,
+  scopedToFormerGwangju = false,
+): string {
   let normalized = compactWhitespace(value);
   if (!normalized) return '';
 
+  const isScoped = scopedToFormerGwangju
+    || normalized === GWANGJU_CURRENT_NAME
+    || isFormerGwangjuAddress(normalized);
+  if (!isScoped) return normalized;
+
   normalized = normalized.replace(
     new RegExp(`^${GWANGJU_LEGACY_NAME}\\s+(${GWANGJU_DISTRICT_PATTERN})\\s+${GWANGJU_CURRENT_NAME}\\s+\\1\\s+`),
-    `${GWANGJU_CURRENT_NAME} $1 `,
+    `${GWANGJU_DISPLAY_NAME} $1 `,
   );
   normalized = normalized.replace(
     new RegExp(`^${GWANGJU_CURRENT_NAME}\\s+(${GWANGJU_DISTRICT_PATTERN})\\s+${GWANGJU_LEGACY_NAME}\\s+\\1\\s+`),
-    `${GWANGJU_CURRENT_NAME} $1 `,
+    `${GWANGJU_DISPLAY_NAME} $1 `,
   );
+  normalized = normalized.replaceAll(GWANGJU_CURRENT_NAME, GWANGJU_DISPLAY_NAME);
+  return compactWhitespace(normalized);
+}
 
-  if (isFormerGwangjuAddress(normalized) && normalized.startsWith(`${GWANGJU_LEGACY_NAME} `)) {
-    normalized = `${GWANGJU_CURRENT_NAME} ${normalized.slice(GWANGJU_LEGACY_NAME.length).trim()}`;
-  }
-  return normalized;
+/**
+ * 공급자 전환 중 관측된 중복 주소를 정리하고 광주 권역 표시명으로 반환한다.
+ * 예: "광주광역시 서구 전남광주통합특별시 서구 내방로 111"
+ */
+export function normalizeLiveGwangjuAddress(value: string): string {
+  return normalizeGwangjuDisplayText(value);
 }
 
 export function isAddressInAppCity(city: string, value: string): boolean {

@@ -1,7 +1,11 @@
 // 지진해일 긴급 대피장소 — 검증된 정적 스냅샷 사용
 
 import { fetchTsunamiShelters, type ApiRecord } from './apiClient';
-import { CITY_TO_STATIC_PROVINCE, recordMatchesAppCity } from './administrativeRegions';
+import {
+  CITY_TO_STATIC_PROVINCE,
+  normalizeGwangjuDisplayText,
+  recordMatchesAppCity,
+} from './administrativeRegions';
 
 export interface ShelterData {
   shelterName: string;     // 대피장소명
@@ -83,7 +87,10 @@ export async function getShelters(cityKey: string, userLat?: number, userLng?: n
 
         const shelter: ShelterData = {
           shelterName: text(item.SHNT_PLACE_NM || item.shelterNm || item.shelterName || item.shltNm, '무명 대피소'),
-          address: text(item.RN_DTL_ADRES || item.SHNT_PLACE_DTL_POSITION || item.rdnmadr || item.lnmadr || item.dtlAdres, '주소 미상'),
+          address: normalizeGwangjuDisplayText(
+            text(item.RN_DTL_ADRES || item.SHNT_PLACE_DTL_POSITION || item.rdnmadr || item.lnmadr || item.dtlAdres, '주소 미상'),
+            cityKey === 'gwangju',
+          ),
           capacity: Number.parseInt(text(item.PSBL_NMPR || item.shltSeCo || item.acmPrsnCo || item.capacity), 10) || 0,
           altitude: numberFrom(item.EV_ANTCTY || item.seaLvlHght || item.altitude),
           isUsable: text(item.USE_AT || item.useYn) !== 'N',

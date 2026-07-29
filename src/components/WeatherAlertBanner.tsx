@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { fetchOfficialWeatherAlerts, type OfficialWeatherAlertResponse } from '../services/weatherAlertApi';
 import { getStaleAt } from '../services/apiClient';
 import StaleBadge from './StaleBadge';
+import { normalizeGwangjuDisplayText } from '../services/administrativeRegions';
 
 export default function WeatherAlertBanner({ city }: { city: string }) {
   const [result, setResult] = useState<OfficialWeatherAlertResponse | null>(null);
@@ -38,7 +39,7 @@ export default function WeatherAlertBanner({ city }: { city: string }) {
 
   const primary = result.alerts[0];
   const warningLabels = [...new Set(result.alerts.map(alert => `${alert.warning} ${alert.level}`))];
-  const regions = [...new Set(result.alerts.map(alert => alert.regionName))];
+  const regions = [...new Set(result.alerts.map(alert => normalizeGwangjuDisplayText(alert.regionName)))];
   const regionSummary = regions.length <= 3
     ? regions.join(', ')
     : `${regions.slice(0, 3).join(', ')} 외 ${regions.length - 3}곳`;

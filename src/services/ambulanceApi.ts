@@ -3,6 +3,8 @@ import {
   CITY_TO_CURRENT_PROVINCE,
   GWANGJU_CURRENT_NAME,
   isFormerGwangjuAddress,
+  normalizeGwangjuDisplayText,
+  normalizeLiveGwangjuAddress,
 } from './administrativeRegions';
 import { z } from 'zod';
 
@@ -39,6 +41,16 @@ function parseAmbulances(xmlText: string): PrivateAmbulance[] {
   return items.filter(it => it.dutyName && it.onrTel !== '연락처 없음');
 }
 
+function filterAndNormalizeGwangju(items: PrivateAmbulance[]): PrivateAmbulance[] {
+  return items
+    .filter(item => isFormerGwangjuAddress(item.dutyAddr))
+    .map(item => ({
+      ...item,
+      dutyName: normalizeGwangjuDisplayText(item.dutyName, true),
+      dutyAddr: normalizeLiveGwangjuAddress(item.dutyAddr),
+    }));
+}
+
 export async function fetchPrivateAmbulances(city: string, forceRefresh = false): Promise<PrivateAmbulance[]> {
   try {
     const sidoName = CITY_TO_CURRENT_PROVINCE[city] || '서울특별시';
@@ -52,7 +64,7 @@ export async function fetchPrivateAmbulances(city: string, forceRefresh = false)
 
     const items = parseAmbulances(response.xml);
     return sidoName === GWANGJU_CURRENT_NAME
-      ? items.filter(item => isFormerGwangjuAddress(item.dutyAddr))
+      ? filterAndNormalizeGwangju(items)
       : items;
   } catch (err) {
     if (isStaleDataError(err)) {
@@ -60,7 +72,7 @@ export async function fetchPrivateAmbulances(city: string, forceRefresh = false)
       if (xml) {
         const items = parseAmbulances(xml);
         return city === 'gwangju'
-          ? items.filter(item => isFormerGwangjuAddress(item.dutyAddr))
+          ? filterAndNormalizeGwangju(items)
           : items;
       }
     }

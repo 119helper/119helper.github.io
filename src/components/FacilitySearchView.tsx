@@ -13,7 +13,12 @@ import type { KakaoMapInstance, KakaoMarker } from '../types/kakao';
 import type { FacilityFilterState, FacilityViewState, ShelterCategory } from '../types/navigation';
 import type { BuildingWorkspaceState } from '../types/buildingWorkspace';
 import { formatDatasetDate, formatFreshnessSourceDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
-import { CITY_TO_STATIC_PROVINCE, districtFromAddress, recordMatchesAppCity } from '../services/administrativeRegions';
+import {
+  CITY_TO_STATIC_PROVINCE,
+  districtFromAddress,
+  normalizeGwangjuDisplayText,
+  recordMatchesAppCity,
+} from '../services/administrativeRegions';
 
 // EPSG:5179 (GRS80 UTM-K) 정의 — 공공데이터포털(재난안전데이터) 최신 좌표계
 proj4.defs("EPSG:5179", "+proj=tmerc +lat_0=38 +lon_0=127.5 +k=0.9996 +x_0=1000000 +y_0=2000000 +ellps=GRS80 +units=m +no_defs");
@@ -337,7 +342,10 @@ export default function FacilitySearchView({
             
             if (!lat || !lng) return null;
 
-            const addressStr = fieldText(it, 'LCTN_WHOL_ADDR') || fieldText(it, 'rdnmadr') || fieldText(it, 'SHNT_PLACE_DTL_POSITION') || fieldText(it, 'RN_DTL_ADRES') || fieldText(it, 'RDNMADR') || fieldText(it, 'lnmadr') || fieldText(it, 'LNMADR') || fieldText(it, 'dtlAdres') || fieldText(it, 'ronAdres') || fieldText(it, 'adres') || '주소 미상';
+            const rawAddress = fieldText(it, 'LCTN_WHOL_ADDR') || fieldText(it, 'rdnmadr') || fieldText(it, 'SHNT_PLACE_DTL_POSITION') || fieldText(it, 'RN_DTL_ADRES') || fieldText(it, 'RDNMADR') || fieldText(it, 'lnmadr') || fieldText(it, 'LNMADR') || fieldText(it, 'dtlAdres') || fieldText(it, 'ronAdres') || fieldText(it, 'adres') || '주소 미상';
+            const addressStr = city === 'gwangju'
+              ? normalizeGwangjuDisplayText(rawAddress, true)
+              : rawAddress;
             
             const district = districtFromAddress(addressStr, city);
 

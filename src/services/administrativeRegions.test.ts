@@ -4,6 +4,7 @@ import {
   districtFromAddress,
   isAddressInAppCity,
   isFormerGwangjuAddress,
+  normalizeGwangjuDisplayText,
   normalizeLiveGwangjuAddress,
 } from './administrativeRegions';
 
@@ -17,7 +18,14 @@ describe('2026 administrative-region compatibility', () => {
   it('repairs duplicated transition-period Gwangju addresses', () => {
     expect(normalizeLiveGwangjuAddress(
       '광주광역시 서구 전남광주통합특별시 서구 내방로 111',
-    )).toBe('전남광주통합특별시 서구 내방로 111');
+    )).toBe('광주광역시 서구 내방로 111');
+    expect(normalizeGwangjuDisplayText(
+      '전남광주통합특별시의회',
+      true,
+    )).toBe('광주광역시의회');
+    expect(normalizeGwangjuDisplayText(
+      '전남광주통합특별시 목포시 영산로 3',
+    )).toBe('전남광주통합특별시 목포시 영산로 3');
   });
 
   it('recognizes the reorganized Incheon districts and rejects road names as districts', () => {

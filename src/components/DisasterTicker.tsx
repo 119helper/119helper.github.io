@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { fetchDisasterMsgs } from '../services/disasterMsgApi';
 import type { DisasterMsg } from '../services/disasterMsgApi';
+import { normalizeGwangjuDisplayText } from '../services/administrativeRegions';
 
 const getLocationLabel = (msg: DisasterMsg) => {
   const raw = msg.location_name || '';
   const first = raw.split(',')[0]?.trim();
-  return first || '전국';
+  return first ? normalizeGwangjuDisplayText(first) : '전국';
 };
 
 const truncate = (value: string, max = 120) => {

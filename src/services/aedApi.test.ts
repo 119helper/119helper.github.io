@@ -21,9 +21,9 @@ describe('AED XML parser', () => {
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
       id: '1',
-      name: '전남광주통합특별시의회',
+      name: '광주광역시의회',
       locationDetail: '시의회 1층',
-      address: '전남광주통합특별시 서구 내방로 111',
+      address: '광주광역시 서구 내방로 111',
       distanceKm: 0.12,
       todayHours: '09:00–18:00',
       district: '서구',

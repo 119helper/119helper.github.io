@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { getERRealTimeBeds, getERMessages, getERSevereIllness, CITY_TO_SIDO, type ERRealTimeData, type ERMessage, type ERSevereIllness } from '../services/erApi';
+import { CITY_TO_DISPLAY_PROVINCE } from '../services/administrativeRegions';
 import { getStaleAt } from '../services/apiClient';
 import StaleBadge from './StaleBadge';
 
@@ -152,7 +153,7 @@ export default function ERDashboard({ city }: ERViewProps) {
             구급/응급 안내
           </h2>
           <p className="text-sm text-on-surface-variant mt-1">
-            실시간 응급실 가용 현황 및 비응급 사설 구급차 안내 · <span className="text-primary font-bold">{CITY_TO_SIDO[city] || '서울특별시'}</span>
+            실시간 응급실 가용 현황 및 비응급 사설 구급차 안내 · <span className="text-primary font-bold">{CITY_TO_DISPLAY_PROVINCE[city] || '서울특별시'}</span>
           </p>
         </div>
       </div>
