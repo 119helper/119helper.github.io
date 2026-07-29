@@ -51,16 +51,16 @@ const ALL_QUICK_TOOLS: QuickToolDef[] = [
   { id: 'facility_hydrants', tab: 'hydrants', icon: 'fire_hydrant', label: '소화전', color: 'text-blue-400', category: '소방시설', bgImage: hydrantBg },
   { id: 'facility_towers', tab: 'waterTowers', icon: 'water_pump', label: '급수탑', color: 'text-emerald-400', category: '소방시설', bgImage: waterTowerBg },
   // 소방 계산기
-  { id: 'calc_hazmat', tab: 'calculator', subId: 'hazmat_calc', icon: 'science', label: '유해물질', color: 'text-orange-400', category: '계산기', bgImage: '/images/tools/diagram_hazmat_wind.svg' },
-  { id: 'calc_water', tab: 'calculator', subId: 'water_pressure_calc', icon: 'water_drop', label: '수압 계산', color: 'text-blue-400', category: '계산기', bgImage: '/images/tools/diagram_water_pressure.svg' },
-  { id: 'calc_hose', tab: 'calculator', subId: 'hose_length_calc', icon: 'straighten', label: '호스 전개', color: 'text-green-400', category: '계산기', bgImage: '/images/tools/diagram_hose_deployment.svg' },
-  { id: 'calc_air', tab: 'calculator', subId: 'air_tank_timer', icon: 'timer', label: '공기호흡기', color: 'text-amber-400', category: '계산기', bgImage: '/images/tools/diagram_air_tank.svg' },
+  { id: 'calc_hazmat', tab: 'calculator', subId: 'hazmat_calc', icon: 'science', label: '유해물질', color: 'text-orange-400', category: '계산기', bgImage: '/images/tools/quick_hazmat.webp' },
+  { id: 'calc_water', tab: 'calculator', subId: 'water_pressure_calc', icon: 'water_drop', label: '수압 계산', color: 'text-blue-400', category: '계산기', bgImage: '/images/tools/quick_water.webp' },
+  { id: 'calc_hose', tab: 'calculator', subId: 'hose_length_calc', icon: 'straighten', label: '호스 전개', color: 'text-green-400', category: '계산기', bgImage: '/images/tools/quick_water.webp' },
+  { id: 'calc_air', tab: 'calculator', subId: 'air_tank_timer', icon: 'timer', label: '공기호흡기', color: 'text-amber-400', category: '계산기', bgImage: '/images/tools/quick_air_tank.webp' },
   { id: 'calc_unit', tab: 'calculator', subId: 'unit_converter', icon: 'swap_horiz', label: '단위 변환', color: 'text-indigo-700 dark:text-indigo-300', category: '계산기' },
   // 주요 탭
-  { id: 'incident', tab: 'incident', icon: 'assignment', label: '출동 상황판', color: 'text-red-400', category: '현장 도구', bgImage: '/images/tools/diagram_incident.svg' },
-  { id: 'aviation', tab: 'aviation', icon: 'flight_takeoff', label: '항공/드론', color: 'text-cyan-400', category: '현장 도구', bgImage: '/images/tools/diagram_aviation.svg' },
-  { id: 'law_defense', tab: 'law', subId: 'DEFENSE', icon: 'gavel', label: '법률 방어망', color: 'text-rose-500', category: '법률 보호', bgImage: '/images/tools/diagram_law_defense.svg' },
-  { id: 'checklist', tab: 'checklist', icon: 'check_circle', label: '장비점검', color: 'text-orange-400', category: '현장 도구', bgImage: '/images/dashboard/ppe-check.svg' },
+  { id: 'incident', tab: 'incident', icon: 'assignment', label: '출동 상황판', color: 'text-red-400', category: '현장 도구', bgImage: '/images/tools/quick_incident.webp' },
+  { id: 'aviation', tab: 'aviation', icon: 'flight_takeoff', label: '항공/드론', color: 'text-cyan-400', category: '현장 도구', bgImage: '/images/tools/quick_aviation.webp' },
+  { id: 'law_defense', tab: 'law', subId: 'DEFENSE', icon: 'gavel', label: '법률 방어망', color: 'text-rose-500', category: '법률 보호', bgImage: '/images/tools/quick_law_defense.webp' },
+  { id: 'checklist', tab: 'checklist', icon: 'check_circle', label: '장비점검', color: 'text-orange-400', category: '현장 도구', bgImage: '/images/tools/quick_checklist.webp' },
   { id: 'field_timer', tab: 'field-timer', icon: 'timer', label: '현장 타이머', color: 'text-red-500', category: '현장 도구', bgImage: '/images/tools/bg_timer.webp' },
   { id: 'building', tab: 'shelter', subId: 'building', icon: 'apartment', label: '건축물대장', color: 'text-purple-400', category: '조회', bgImage: '/images/tools/bg_building.webp' },
   { id: 'shelter', tab: 'shelter', icon: 'location_city', label: '시설 조회', color: 'text-yellow-400', category: '조회', bgImage: '/images/tools/bg_shelter.webp' },
@@ -614,7 +614,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
                     />
                   )}
                   {/* Dark overlay for readability */}
-                  <div className={`absolute inset-0 transition-colors duration-500 ${tool.bgImage ? 'bg-black/60 backdrop-blur-[1px] group-hover:bg-black/40' : 'bg-transparent group-hover:bg-surface-container-highest'}`} />
+                  <div className={`absolute inset-0 transition-colors duration-500 ${tool.bgImage ? 'bg-black/50 group-hover:bg-black/30' : 'bg-transparent group-hover:bg-surface-container-highest'}`} />
                   
                   <div className="relative z-10 flex flex-col items-center gap-1.5">
                     <span className={`material-symbols-outlined text-3xl md:text-4xl ${tool.color} group-hover:-translate-y-1 transition-transform drop-shadow-md`}>{tool.icon}</span>
