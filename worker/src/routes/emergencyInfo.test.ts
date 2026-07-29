@@ -15,7 +15,7 @@ describe('handleEmergencyInfo', () => {
   });
 
   it('uses gutYm for activity details and requires a fire station', async () => {
-    const fetchMock = vi.fn(async () => response([{
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => response([{
       sidoHqOgidNm: '광주소방본부',
       rsacGutFsttOgidNm: '광산소방서',
       gutYm: '202512',

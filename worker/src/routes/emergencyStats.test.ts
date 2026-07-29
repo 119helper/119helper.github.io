@@ -16,7 +16,7 @@ describe('handleEmergencyStats', () => {
   });
 
   it('uses the current upstream headquarters name for Gwangju', async () => {
-    const fetchMock = vi.fn(async () => response(1, [{
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => response(1, [{
       sidoHqOgidNm: '광주소방본부',
       rsacGutFsttOgidNm: '광산소방서',
       rcptYm: '202512',
