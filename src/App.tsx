@@ -664,6 +664,9 @@ export default function App() {
                 <h1 className="text-xl font-extrabold tracking-tight text-on-surface font-headline">119 Helper</h1>
               </div>
               <p className="text-xs text-on-surface-variant font-medium">소방관 도우미</p>
+              <p className="mt-1 text-[10px] font-semibold text-on-surface-variant/70">
+                비공식 현장 참고 도구
+              </p>
             </div>
             <button
               type="button"

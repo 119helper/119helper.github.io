@@ -3,7 +3,7 @@
 소방 및 구급 대원의 신속한 출동과 현장 상황 파악을 지원하는 **종합 정보 대시보드**입니다.  
 모바일 기기와 데스크탑 환경 모두에서 완벽하게 동작하는 반응형 웹 앱입니다.
 
-🔗 **라이브:** [https://119helper.github.io/](https://119helper.github.io/)
+🔗 **라이브:** [https://119.teemozipsa.com/](https://119.teemozipsa.com/)
 
 ---
 

@@ -8,7 +8,8 @@
  */
 
 const ALLOWED_ORIGINS = [
-  'https://119helper.github.io',        // 프로덕션
+  'https://119.teemozipsa.com',         // 프로덕션 사용자 지정 도메인
+  'https://119helper.github.io',        // 기존 설치·전환기 호환
 ];
 
 const DEVELOPMENT_ORIGINS = [

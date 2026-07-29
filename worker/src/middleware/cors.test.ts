@@ -10,6 +10,7 @@ function requestWithOrigin(origin?: string, token?: string): Request {
 
 describe('isOriginAllowed', () => {
   it('allows configured production and development origins', () => {
+    expect(isOriginAllowed(requestWithOrigin('https://119.teemozipsa.com'))).toBe(true);
     expect(isOriginAllowed(requestWithOrigin('https://119helper.github.io'))).toBe(true);
     expect(isOriginAllowed(requestWithOrigin('http://localhost:5173'))).toBe(true);
     expect(isOriginAllowed(requestWithOrigin('http://127.0.0.1:5173'))).toBe(true);
@@ -27,6 +28,7 @@ describe('isOriginAllowed', () => {
   it('rejects localhost origins in production', () => {
     expect(isOriginAllowed(requestWithOrigin('http://localhost:5173'), 'production')).toBe(false);
     expect(isOriginAllowed(requestWithOrigin('http://127.0.0.1:5173'), 'production')).toBe(false);
+    expect(isOriginAllowed(requestWithOrigin('https://119.teemozipsa.com'), 'production')).toBe(true);
     expect(isOriginAllowed(requestWithOrigin('https://119helper.github.io'), 'production')).toBe(true);
   });
 
@@ -47,9 +49,9 @@ describe('isOriginAllowed', () => {
       headers: {
         'Access-Control-Allow-Origin': '*',
       },
-    }), requestWithOrigin('https://119helper.github.io'), 'production');
+    }), requestWithOrigin('https://119.teemozipsa.com'), 'production');
 
-    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://119helper.github.io');
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://119.teemozipsa.com');
     expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
     expect(response.headers.get('X-Frame-Options')).toBe('DENY');
     expect(response.headers.get('Content-Security-Policy')).toContain("default-src 'none'");

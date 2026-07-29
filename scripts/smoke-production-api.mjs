@@ -1,7 +1,7 @@
 import { appendFile } from 'node:fs/promises';
 
 const DEFAULT_API_BASE = 'https://119-helper-api.teemozipsa.workers.dev';
-const DEFAULT_ORIGIN = 'https://119helper.github.io';
+const DEFAULT_ORIGIN = 'https://119.teemozipsa.com';
 const CONCURRENCY = 4;
 const REQUEST_TIMEOUT_MS = 25_000;
 

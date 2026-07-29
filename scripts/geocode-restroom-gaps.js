@@ -14,7 +14,7 @@ const DEFAULT_OUTPUT_PATH = path.join(
 const INPUT_PATH = process.env.RESTROOM_GEOCODE_GAPS_PATH || '';
 const OUTPUT_PATH = path.resolve(process.env.RESTROOM_GEOCODE_OUTPUT_PATH || DEFAULT_OUTPUT_PATH);
 const KAKAO_KEY = (process.env.KAKAO_MAP_JS_KEY || process.env.VITE_KAKAO_MAP_KEY || '').trim();
-const KAKAO_ORIGIN = process.env.KAKAO_MAP_ORIGIN || 'https://119helper.github.io';
+const KAKAO_ORIGIN = process.env.KAKAO_MAP_ORIGIN || 'https://119.teemozipsa.com';
 const CONCURRENCY = 8;
 const REQUEST_TIMEOUT_MS = 10_000;
 

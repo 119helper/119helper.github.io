@@ -8,9 +8,14 @@
 ## 운영 방침
 
 - 이 프로젝트는 무료 공개 프로젝트로 유지한다.
-- 운영 URL은 GitHub Pages `https://119helper.github.io/`와 Cloudflare Worker `https://119-helper-api.teemozipsa.workers.dev`를 사용한다.
-- 별도 도메인 구매, Cloudflare zone/proxy 전환, 유료 호스팅 전환은 현재 범위에서 제외한다.
-- 따라서 GitHub Pages 응답 헤더 한계와 Cloudflare zone 기반 WAF 미적용은 수용 리스크로 관리하고, 코드/Worker/CI에서 가능한 방어를 우선한다.
+- 운영 URL은 GitHub Pages 사용자 지정 도메인 `https://119.teemozipsa.com/`과
+  Cloudflare Worker `https://119-helper-api.teemozipsa.workers.dev`를 사용한다.
+- 기존 `https://119helper.github.io/` Origin은 설치형 PWA와 전환기 사용자를 위해
+  API 허용 목록에 유지하되, 새로 안내하는 정식 주소는 사용자 지정 도메인으로 통일한다.
+- 기존 Cloudflare zone은 `119` 서브도메인의 DNS 연결에만 사용하고, Pages 트래픽을
+  프록시하거나 유료 호스팅으로 전환하지 않는다.
+- 따라서 GitHub Pages 응답 헤더 한계와 Cloudflare WAF 미적용은 수용 리스크로 관리하고,
+  코드·Worker·CI에서 가능한 방어를 우선한다.
 
 ## 이미 보완한 사항
 
