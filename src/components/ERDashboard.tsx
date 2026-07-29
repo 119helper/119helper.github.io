@@ -147,7 +147,10 @@ export default function ERDashboard({ city }: ERViewProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">🚑 구급/응급 안내</h2>
+          <h2 className="ui-page-title">
+            <span className="material-symbols-outlined ui-page-title-icon">local_hospital</span>
+            구급/응급 안내
+          </h2>
           <p className="text-sm text-on-surface-variant mt-1">
             실시간 응급실 가용 현황 및 비응급 사설 구급차 안내 · <span className="text-primary font-bold">{CITY_TO_SIDO[city] || '서울특별시'}</span>
           </p>

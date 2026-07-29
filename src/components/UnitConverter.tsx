@@ -100,8 +100,8 @@ export default function UnitConverter() {
             <span className="material-symbols-outlined text-indigo-400 text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>swap_horiz</span>
           </div>
           <div>
-            <h2 className="text-xl font-bold text-on-surface">소방 단위 변환기</h2>
-            <p className="text-xs text-on-surface-variant mt-0.5">수압 · 방수량 · 거리 · 온도 · 면적 변환</p>
+            <h2 className="ui-section-title">소방 단위 변환기</h2>
+            <p className="ui-section-description">수압 · 방수량 · 거리 · 온도 · 면적 변환</p>
           </div>
         </div>
       </div>

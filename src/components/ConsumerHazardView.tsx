@@ -31,7 +31,7 @@ export default function ConsumerHazardView() {
     <div className="space-y-6">
       <div className="flex items-center justify-between border-b border-outline-variant/20 pb-4">
         <div>
-          <h2 className="text-xl font-extrabold text-on-surface flex items-center gap-2 font-headline">
+          <h2 className="ui-page-title">
             <span className="material-symbols-outlined text-orange-700 dark:text-orange-300">warning</span>
             소비자 위해 정보 동향
             <StaleBadge at={staleAt} />

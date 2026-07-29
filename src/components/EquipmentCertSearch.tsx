@@ -102,7 +102,7 @@ export default function EquipmentCertSearch() {
       <div className="flex items-center justify-between border-b border-outline-variant p-4">
         <div className="flex items-center gap-2">
           <ShieldCheck className="text-primary" />
-          <h1 className="text-xl font-bold">장비 및 소화기 인증 조회</h1>
+          <h1 className="ui-page-title">장비 및 소화기 인증 조회</h1>
         </div>
       </div>
 

@@ -313,8 +313,8 @@ export default function SOPChecklist() {
               <span className="material-symbols-outlined text-green-400 text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>checklist</span>
             </div>
             <div>
-              <h2 className="text-xl font-bold text-on-surface">현장 대응 체크리스트</h2>
-              <p className="text-xs text-on-surface-variant mt-0.5">
+              <h2 className="ui-section-title">현장 대응 체크리스트</h2>
+              <p className="ui-section-description">
                 화재 유형별 SOP 참고 체크리스트
               </p>
               <p className="text-[11px] text-on-surface-variant mt-2 leading-relaxed">

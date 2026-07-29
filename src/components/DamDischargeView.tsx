@@ -57,7 +57,7 @@ export default function DamDischargeView() {
               <span aria-hidden="true" className="material-symbols-outlined text-2xl text-blue-600 dark:text-blue-300">water</span>
             </div>
             <div>
-              <h2 className="text-xl font-bold text-on-surface">댐 방류 현황</h2>
+              <h2 className="ui-page-title">댐 방류 현황</h2>
               <p className="mt-1 text-sm text-on-surface-variant">
                 한국수자원공사 방류 시작·종료 시각과 하류 영향지역
               </p>

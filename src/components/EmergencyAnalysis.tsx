@@ -502,7 +502,10 @@ export default function EmergencyAnalysis() {
       {/* 헤더 */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">🚑 구급 출동 분석</h2>
+          <h2 className="ui-page-title">
+            <span className="material-symbols-outlined ui-page-title-icon">emergency</span>
+            구급 출동 분석
+          </h2>
           <p className="text-sm text-on-surface-variant mt-1">
             소방청 구급통계·구급정보 서비스 · 지역별 공식 데이터
           </p>

@@ -85,7 +85,7 @@ export default function OfflineReadinessView({ city, cityLabel }: OfflineReadine
     <div className="space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">오프라인 현장 점검</h2>
+          <h2 className="ui-page-title">오프라인 현장 점검</h2>
           <p className="text-sm text-on-surface-variant mt-1">출동 전 관할 데이터가 기기에 준비되어 있는지 확인합니다.</p>
         </div>
       </div>

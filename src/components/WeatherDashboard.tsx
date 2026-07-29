@@ -261,7 +261,10 @@ export default function WeatherDashboard({ city }: WeatherDashboardProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">🌤️ 기상 정보</h2>
+          <h2 className="ui-page-title">
+            <span className="material-symbols-outlined ui-page-title-icon">partly_cloudy_day</span>
+            기상 정보
+          </h2>
           <p className="text-sm text-on-surface-variant mt-1">
             기상청 API 연동 · 5분 주기 자동 갱신 · <span className="text-primary font-bold">{grid.name}</span>
             {lastRefresh && <span className="ml-2 text-on-surface-variant">· 갱신 {lastRefresh}</span>}

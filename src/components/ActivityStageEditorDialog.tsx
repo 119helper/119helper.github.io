@@ -29,7 +29,6 @@ export default function ActivityStageEditorDialog({
   const titleId = useId();
   const errorId = useId();
   const [timeValue, setTimeValue] = useState('');
-  const [maximumTime, setMaximumTime] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const timeInputRef = useRef<HTMLInputElement>(null);
@@ -49,7 +48,6 @@ export default function ActivityStageEditorDialog({
   useEffect(() => {
     if (!stamp) return;
     setTimeValue(toLocalDateTimeInput(stamp.time));
-    setMaximumTime(Date.now());
     setError('');
     setConfirmDelete(false);
   }, [stamp]);
@@ -131,7 +129,6 @@ export default function ActivityStageEditorDialog({
             step="1"
             value={timeValue}
             min={earliestTime ? toLocalDateTimeInput(earliestTime) : undefined}
-            max={maximumTime ? toLocalDateTimeInput(maximumTime) : undefined}
             aria-describedby={error ? errorId : undefined}
             aria-invalid={Boolean(error)}
             onChange={event => {
@@ -146,7 +143,6 @@ export default function ActivityStageEditorDialog({
           type="button"
           onClick={() => {
             const currentTime = Date.now();
-            setMaximumTime(currentTime);
             setTimeValue(toLocalDateTimeInput(currentTime));
             setError('');
           }}

@@ -267,7 +267,10 @@ export default function Calculators({ subId }: { subId?: string }) {
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div>
-        <h2 className="text-2xl font-extrabold text-on-surface font-headline">🧮 119 계산기</h2>
+        <h2 className="ui-page-title">
+          <span className="material-symbols-outlined ui-page-title-icon">calculate</span>
+          119 계산기
+        </h2>
         <p className="text-sm text-on-surface-variant mt-1">현장 활동 및 행정에 필요한 계산 · 변환 도구 목록</p>
       </div>
 

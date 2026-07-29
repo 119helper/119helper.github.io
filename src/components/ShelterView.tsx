@@ -210,7 +210,7 @@ export default function ShelterView({ city }: ShelterViewProps) {
               <span className="material-symbols-outlined text-blue-400 text-2xl">emergency</span>
             </div>
             <div>
-              <h2 className="text-xl font-bold text-on-surface">지진·해일 긴급 대피소</h2>
+              <h2 className="ui-page-title">지진·해일 긴급 대피소</h2>
               <p className="text-xs text-on-surface-variant mt-0.5">
                 {cityToCtprvn[city] || city} 지역 | 총 {shelters.length}개소
                 {userPos && ' | GPS 기반 거리 정렬'}

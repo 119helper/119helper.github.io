@@ -381,7 +381,7 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
 
   return (
     <div className="space-y-6" aria-busy={isLoading || fireLoading}>
-      <h2 className="text-2xl md:text-3xl font-extrabold text-on-surface font-headline flex items-center gap-2">
+      <h2 className="ui-section-title">
         <span className="material-symbols-outlined text-4xl text-purple-700 dark:text-purple-300">apartment</span>
         건축물대장 현장 검색
       </h2>

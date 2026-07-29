@@ -76,7 +76,7 @@ export const WildfireView: React.FC<{ cityName?: string }> = ({ cityName }) => {
     <div className="p-4 safe-area-bottom pb-20 max-w-7xl mx-auto animate-fade-in">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-on-background flex items-center">
+          <h2 className="ui-page-title">
             <span className="material-symbols-outlined text-error mr-2">local_fire_department</span>
             산불 실시간 현황
           </h2>
@@ -87,13 +87,13 @@ export const WildfireView: React.FC<{ cityName?: string }> = ({ cityName }) => {
             <div className="flex bg-surface-container rounded-lg p-1 shadow-inner">
               <button 
                 onClick={() => setFilterMode('all')}
-                className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-bold transition-all ${filterMode === 'all' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+                className={`min-h-10 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${filterMode === 'all' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
               >
                 전국
               </button>
               <button 
                 onClick={() => setFilterMode('local')}
-                className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-bold transition-all flex items-center gap-1 ${filterMode === 'local' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+                className={`min-h-10 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-1 ${filterMode === 'local' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
               >
                 <span className="material-symbols-outlined text-[14px]">location_on</span>
                 {cityName} 한정

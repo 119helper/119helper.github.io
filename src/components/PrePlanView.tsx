@@ -170,7 +170,10 @@ export default function PrePlanView({ incidentContext = null, searchQuery, onSea
     <div className="space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">🏢 대상물 정보 (Pre-plan)</h2>
+          <h2 className="ui-page-title">
+            <span className="material-symbols-outlined ui-page-title-icon">apartment</span>
+            대상물 정보 (Pre-plan)
+          </h2>
           <p className="text-sm text-on-surface-variant mt-1">관할 대상물의 위험요소·연락처·소방시설·사진을 기기에 축적</p>
         </div>
         <div className="flex gap-2">

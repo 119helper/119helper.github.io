@@ -224,7 +224,10 @@ export default function FireAnalysis() {
       {/* 헤더 */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">🔥 화재 분석</h2>
+          <h2 className="ui-page-title">
+            <span className="material-symbols-outlined ui-page-title-icon">local_fire_department</span>
+            화재 분석
+          </h2>
           <p className="text-sm text-on-surface-variant mt-1">소방청 연간화재통계 · 전국 데이터</p>
         </div>
         <div className="flex items-center gap-3">

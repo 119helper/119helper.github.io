@@ -97,7 +97,10 @@ export default function HazmatView() {
       {/* 헤더 */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">⚠️ 위험물시설 현황</h2>
+          <h2 className="ui-page-title">
+            <span className="material-symbols-outlined ui-page-title-icon">warning</span>
+            위험물시설 현황
+          </h2>
           <p className="text-sm text-on-surface-variant mt-1">
             경상북도 위험물제조소등 설치현황 · KOSIS 통계 ({HAZMAT_DATA_INFO.dataYear}년 기준)
           </p>

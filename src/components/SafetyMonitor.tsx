@@ -34,7 +34,10 @@ export default function SafetyMonitor({ city = 'seoul' }: { city?: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-extrabold text-on-surface font-headline">🦺 대원 안전 모니터</h2>
+        <h2 className="ui-page-title">
+          <span className="material-symbols-outlined ui-page-title-icon">health_and_safety</span>
+          대원 안전 모니터
+        </h2>
         <p className="text-sm text-on-surface-variant mt-1">재진입 관리 · 열압박 경고 · 심신건강 자가관리</p>
       </div>
 

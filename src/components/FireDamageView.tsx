@@ -195,7 +195,10 @@ export default function FireDamageView() {
       {/* 헤더 */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">🗺️ 지역별 화재피해</h2>
+          <h2 className="ui-page-title">
+            <span className="material-symbols-outlined ui-page-title-icon">map</span>
+            지역별 화재피해
+          </h2>
           <p className="text-sm text-on-surface-variant mt-1">소방청 화재 조사 완료 건별 데이터 · 2019~2023</p>
         </div>
         <div className="flex items-center gap-3">

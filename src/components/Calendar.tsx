@@ -279,7 +279,10 @@ export default function Calendar() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">📅 달력 / 일정</h2>
+          <h2 className="ui-page-title">
+            <span className="material-symbols-outlined ui-page-title-icon">calendar_month</span>
+            달력 / 일정
+          </h2>
           <p className="text-sm text-on-surface-variant mt-1">근무·점검·교육 일정 관리</p>
         </div>
         <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">

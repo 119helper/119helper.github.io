@@ -94,7 +94,7 @@ export default function NewsDashboard({ city }: NewsDashboardProps) {
             <span className="material-symbols-outlined text-primary text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>newspaper</span>
           </div>
           <div>
-            <h1 className="text-2xl font-extrabold text-on-surface font-headline">{displayCity} 소방 뉴스</h1>
+            <h1 className="ui-page-title">{displayCity} 소방 뉴스</h1>
             <p className="text-sm text-on-surface-variant font-medium mt-1">지역 소방서 및 구조 관련 최신 뉴스</p>
           </div>
         </div>

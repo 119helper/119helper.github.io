@@ -186,7 +186,10 @@ export default function MultiUseView({ city }: MultiUseViewProps) {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">🏢 다중이용업소 현황</h2>
+          <h2 className="ui-page-title">
+            <span className="material-symbols-outlined ui-page-title-icon">domain</span>
+            다중이용업소 현황
+          </h2>
           <p className="text-sm text-on-surface-variant mt-1">
             소방청 다중이용업소 정보 서비스 · <span className="text-primary font-bold">{cityShort[city] || city}</span>
             {!loading && !apiError && <span className="ml-2">· 총 <span className="font-bold text-primary">{total.toLocaleString()}</span>개소</span>}

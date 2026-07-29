@@ -542,7 +542,7 @@ export default function FacilitySearchView({
               <span className="material-symbols-outlined text-primary text-2xl">location_city</span>
             </div>
             <div>
-              <h2 className="text-xl font-bold text-on-surface">시설 조회</h2>
+              <h2 className="ui-page-title">시설 조회</h2>
               <p className="text-xs text-on-surface-variant mt-0.5">
                 <span className="text-primary font-bold">{cityShort[city] || city}</span> 지역
                 {isFireWater

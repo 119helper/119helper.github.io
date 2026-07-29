@@ -30,34 +30,42 @@ const EquipmentChecklist: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
       {/* Header section */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-6 shadow-lg border border-slate-700">
+      <div className="ui-card p-5 md:p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-              <span className="material-symbols-outlined text-orange-400">check_circle</span>
+            <h2 className="ui-page-title">
+              <span className="material-symbols-outlined ui-page-title-icon">check_circle</span>
               개인안전장비 점검
             </h2>
-            <p className="text-slate-400 text-sm mt-1">현장 활동 전 본보호장비 이상 유무를 매일 확인하세요.</p>
+            <p className="ui-page-description">현장 활동 전 개인보호장비 이상 유무를 매일 확인하세요.</p>
           </div>
           
-          <div className="flex items-center gap-4 w-full sm:w-auto mt-2 sm:mt-0">
+          <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
             <div className="flex flex-col items-end flex-grow sm:flex-grow-0">
-              <span className="text-sm text-slate-300 font-bold mb-1">
+              <span className="text-xs text-on-surface-variant font-bold mb-1.5 tabular-nums">
                 점검률: {checkedItemsCount} / {totalItemsCount} ({progressPercent}%)
               </span>
-              <div className="w-full sm:w-32 h-2 bg-slate-700 rounded-full overflow-hidden">
+              <div
+                className="w-full sm:w-36 h-2 bg-surface-container-high rounded-full overflow-hidden"
+                role="progressbar"
+                aria-label="개인안전장비 점검률"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progressPercent}
+              >
                 <div 
-                  className={`h-full transition-all duration-500 ease-out ${progressPercent === 100 ? 'bg-green-500' : 'bg-orange-500'}`}
+                  className={`h-full transition-all duration-500 ease-out ${progressPercent === 100 ? 'bg-success' : 'bg-primary'}`}
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
             </div>
             
-            <button 
+            <button
+              type="button"
               onClick={resetChecks}
-              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 outline-none text-white rounded-lg shadow-sm font-medium transition-colors border border-slate-600 flex items-center gap-1 min-w-max"
+              className="ui-button ui-button--secondary"
             >
-              <span className="material-symbols-outlined text-sm">refresh</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-lg">refresh</span>
               초기화
             </button>
           </div>
@@ -65,56 +73,56 @@ const EquipmentChecklist: React.FC = () => {
       </div>
 
       {progressPercent === 100 && (
-        <div className="bg-green-500/10 border-l-4 border-green-500 p-4 rounded-md shadow-sm">
-          <div className="flex items-center">
-            <span className="material-symbols-outlined text-green-500 mr-2">verified</span>
-            <p className="text-green-400 font-bold">모든 개인안전장비 점검이 완료되었습니다. 오늘도 안전한 현장활동 되십시오!</p>
+        <div className="rounded-xl border border-success/30 bg-success-container p-4 text-on-success-container shadow-sm" role="status">
+          <div className="flex items-center gap-3">
+            <span aria-hidden="true" className="material-symbols-outlined text-success">verified</span>
+            <p className="text-sm font-bold">모든 개인안전장비 점검이 완료되었습니다. 오늘도 안전한 현장 활동 되십시오.</p>
           </div>
         </div>
       )}
 
       {/* Checklist Sections */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         {CHECKLIST_SECTIONS.map((section) => {
           const sectionTotal = section.items.length;
           const sectionChecked = section.items.filter(item => checkedItems[item.id]).length;
           const sectionDone = sectionTotal === sectionChecked;
 
           return (
-            <div key={section.id} className="bg-slate-800 rounded-xl overflow-hidden shadow-sm border border-slate-700 p-1">
-              <div className="bg-slate-900/50 px-4 py-3 border-b border-slate-700 flex justify-between items-center rounded-t-lg">
-                <h3 className="font-bold text-lg text-white flex items-center gap-2">
-                  {sectionDone && <span className="material-symbols-outlined text-green-500 text-sm">check_circle</span>}
+            <section key={section.id} className="ui-card overflow-hidden">
+              <div className="bg-surface-container px-4 py-3.5 border-b border-outline-variant/70 flex justify-between items-center">
+                <h3 className="font-bold text-base text-on-surface flex items-center gap-2">
+                  {sectionDone && <span aria-hidden="true" className="material-symbols-outlined text-success text-lg">check_circle</span>}
                   {section.title}
                 </h3>
-                <span className="text-xs font-semibold px-2 py-1 bg-slate-800 text-slate-300 rounded-md border border-slate-600">
+                <span className="ui-badge tabular-nums">
                   {sectionChecked} / {sectionTotal}
                 </span>
               </div>
-              <div className="divide-y divide-slate-700/50">
+              <div className="divide-y divide-outline-variant/60">
                 {section.items.map(item => (
                   <label 
                     key={item.id} 
-                    className="flex items-center px-4 py-4 hover:bg-slate-700/30 cursor-pointer transition-colors group"
+                    className="flex min-h-14 items-center px-4 py-3.5 hover:bg-surface-container/70 cursor-pointer transition-colors group"
                   >
                     <div className="relative flex items-center">
                       <input 
                         type="checkbox" 
                         checked={!!checkedItems[item.id]}
                         onChange={() => toggleCheck(item.id)}
-                        className="peer appearance-none w-6 h-6 border-2 border-slate-500 rounded bg-slate-800 checked:bg-orange-500 checked:border-orange-500 cursor-pointer transition-colors"
+                        className="peer appearance-none w-6 h-6 border-2 border-outline rounded-md bg-surface-container checked:bg-primary checked:border-primary cursor-pointer transition-colors"
                       />
-                      <span className="material-symbols-outlined absolute left-0 text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xl" style={{ marginLeft: '2px' }}>
+                      <span aria-hidden="true" className="material-symbols-outlined absolute left-0 text-on-primary opacity-0 peer-checked:opacity-100 pointer-events-none text-xl" style={{ marginLeft: '2px' }}>
                         check
                       </span>
                     </div>
-                    <span className={`ml-4 text-[15px] font-medium transition-colors ${checkedItems[item.id] ? 'text-slate-400 line-through' : 'text-slate-200 group-hover:text-white'}`}>
+                    <span className={`ml-4 text-sm font-semibold transition-colors ${checkedItems[item.id] ? 'text-on-surface-variant line-through' : 'text-on-surface'}`}>
                       {item.label}
                     </span>
                   </label>
                 ))}
               </div>
-            </div>
+            </section>
           );
         })}
       </div>

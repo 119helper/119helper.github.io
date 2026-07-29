@@ -97,15 +97,15 @@ export default function FieldTimer() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5">
+      <div className="ui-card p-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-orange-500/10 rounded-xl">
-              <span className="material-symbols-outlined text-orange-700 dark:text-orange-300 text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>timer</span>
-            </div>
             <div>
-              <h2 className="text-xl font-bold text-on-surface">현장 활동 타이머</h2>
-              <p className="text-xs text-on-surface-variant mt-0.5">
+              <h2 className="ui-page-title">
+                <span className="material-symbols-outlined ui-page-title-icon" style={{ fontVariationSettings: "'FILL' 1" }}>timer</span>
+                현장 활동 타이머
+              </h2>
+              <p className="ui-page-description">
                 공기호흡기 · 교대 · 출동 시간 관리
               </p>
             </div>
@@ -113,21 +113,21 @@ export default function FieldTimer() {
           <div className="flex gap-2">
             {notificationPermission === 'default' && (
               <button type="button" onClick={requestTimerNotifications}
-                className="bg-orange-500/10 text-orange-700 dark:text-orange-300 px-3 py-2 rounded-lg text-sm font-bold hover:bg-orange-500/20 transition-colors flex items-center gap-1.5">
+                className="ui-button ui-button--soft">
                 <span aria-hidden="true" className="material-symbols-outlined text-lg">notifications_active</span>
                 알림 켜기
               </button>
             )}
             {!showPresets && (
               <button type="button" onClick={() => setShowPresets(true)}
-                className="bg-primary/10 text-primary px-3 py-2 rounded-lg text-sm font-bold hover:bg-primary/20 transition-colors flex items-center gap-1.5">
+                className="ui-button ui-button--soft">
                 <span className="material-symbols-outlined text-lg">add_alarm</span>
                 추가
               </button>
             )}
             {(timers.length > 0 || laps.length > 0) && (
               <button type="button" onClick={copyReport}
-                className="bg-surface-container text-on-surface-variant px-3 py-2 rounded-lg text-sm font-bold hover:bg-surface-container-high transition-colors flex items-center gap-1.5">
+                className="ui-button ui-button--secondary">
                 <span className="material-symbols-outlined text-lg">content_copy</span>
                 기록 복사
               </button>
@@ -138,7 +138,7 @@ export default function FieldTimer() {
 
       {/* 프리셋 선택 */}
       {showPresets && (
-        <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5">
+        <div className="ui-card p-5">
           <h3 className="text-sm font-bold text-on-surface mb-3 flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-lg">add_alarm</span>
             타이머 추가
@@ -155,7 +155,7 @@ export default function FieldTimer() {
                     handleAddTimer(preset.seconds, preset.label);
                   }
                 }}
-                className="bg-surface-container border border-outline-variant/20 rounded-xl p-4 text-left hover:border-primary/30 hover:scale-[1.02] transition-all group"
+                className="ui-card ui-card--muted min-h-24 p-4 text-left transition-all hover:border-primary/40 hover:-translate-y-0.5 group"
               >
                 <div className="flex items-center gap-2 mb-1">
                   <span className={`w-8 h-8 ${preset.color} rounded-lg flex items-center justify-center`}>

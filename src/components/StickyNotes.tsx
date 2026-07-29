@@ -152,6 +152,10 @@ export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
           return (
             <button
               key={c.label}
+              type="button"
+              aria-label={selectedNoteId ? `메모 색상을 ${c.label}으로 변경` : `${c.label} 색 메모 만들기`}
+              aria-pressed={isActive}
+              data-compact-control
               onClick={() => handleColorClick(i)}
               title={selectedNoteId ? `메모 색상을 ${c.label}으로 변경` : `${c.label} 색 메모 만들기`}
               className={`w-7 h-7 rounded-full ${c.dot} border-2 transition-all duration-200 ${
@@ -164,8 +168,9 @@ export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
         })}
       </div>
       <button
+        type="button"
         onClick={addNote}
-        className="bg-primary hover:bg-primary/80 text-on-primary px-3 py-2 md:px-4 md:py-2.5 rounded-xl text-xs md:text-sm font-bold flex items-center gap-1.5 md:gap-2 transition-colors"
+        className="ui-button ui-button--primary"
       >
         <span className="material-symbols-outlined text-base md:text-lg">add</span>
         새 메모
@@ -209,8 +214,8 @@ export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-sm text-gray-400 dark:text-gray-500 cursor-grab active:cursor-grabbing">drag_indicator</span>
-                  <span className="text-[10px] text-gray-600 dark:text-gray-300 font-medium">{note.createdAt}</span>
+                  <span className="material-symbols-outlined text-sm text-black/45 dark:text-white/55 cursor-grab active:cursor-grabbing">drag_indicator</span>
+                  <span className="text-[10px] text-black/60 dark:text-white/70 font-medium">{note.createdAt}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   {isSelected && (
@@ -233,7 +238,7 @@ export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
                 onClick={(e) => e.stopPropagation()}
                 onFocus={() => handleNoteClick(note.id)}
                 placeholder="메모를 입력하세요..."
-                className="bg-transparent border-none resize-none flex-1 min-h-[120px] text-sm font-medium text-gray-900 dark:text-gray-50 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none focus:ring-0"
+                className="bg-transparent border-none resize-none flex-1 min-h-[120px] text-sm font-medium text-black/90 dark:text-white placeholder:text-black/45 dark:placeholder:text-white/55 focus:outline-none focus:ring-0"
               />
             </div>
           );
@@ -247,8 +252,10 @@ export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
       <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden shadow-sm transition-all mb-6">
         <div className="flex items-center justify-between border-b border-outline-variant/10 p-3 md:p-4">
           <button 
+            type="button"
+            aria-expanded={showMemo}
             onClick={() => setShowMemo(!showMemo)}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
+            className="ui-section-toggle"
           >
             <span className="material-symbols-outlined text-pink-700 dark:text-pink-300 text-xl">sticky_note_2</span>
             <h3 className="text-lg font-extrabold text-on-surface font-headline hidden sm:block">메모장</h3>
@@ -273,7 +280,10 @@ export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
     <div className="space-y-6">
       <div className="flex items-center flex-wrap gap-3 justify-between">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">📝 메모장</h2>
+          <h2 className="ui-section-title">
+            <span className="material-symbols-outlined">note_stack</span>
+            메모장
+          </h2>
           <p className="text-sm text-on-surface-variant mt-1">
             스티커 메모 — 브라우저에 자동 저장됩니다
             {selectedNoteId && <span className="ml-2 text-primary font-bold">• 색상을 클릭하면 선택된 메모의 색이 바뀝니다</span>}

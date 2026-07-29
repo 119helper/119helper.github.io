@@ -465,7 +465,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
               style={{ backgroundImage: `url(/images/dashboard/ppe-check.svg)` }}
             />
             {/* Dark overlay for text readability & mood */}
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-slate-900/30 transition-colors duration-1000" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/30 transition-colors duration-1000" />
             
             <div className="relative z-10 flex items-center gap-4 w-full">
               <div className="p-3 rounded-xl bg-orange-500/20 text-orange-400 border border-orange-500/30 backdrop-blur-sm">
@@ -474,17 +474,24 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
               <div className="flex-1">
                 <h4 className="text-white font-extrabold text-lg">개인안전장비 점검</h4>
                 <div className="flex items-center gap-2 mt-1">
-                  <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                  <div
+                    className="flex-1 h-2 bg-black/50 rounded-full overflow-hidden border border-white/15"
+                    role="progressbar"
+                    aria-label="개인안전장비 점검률"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={checklistProgress}
+                  >
                     <div 
-                      className={`h-full transition-all duration-500 ease-out ${checklistProgress === 100 ? 'bg-green-500' : 'bg-orange-500'}`}
+                      className={`h-full transition-all duration-500 ease-out ${checklistProgress === 100 ? 'bg-success' : 'bg-primary'}`}
                       style={{ width: `${checklistProgress}%` }}
                     />
                   </div>
-                  <span className={`text-xs font-bold w-9 text-right ${checklistProgress === 100 ? 'text-green-400' : 'text-orange-400'}`}>
+                  <span className={`text-xs font-bold w-9 text-right ${checklistProgress === 100 ? 'text-success' : 'text-primary-fixed-dim'}`}>
                     {checklistProgress}%
                   </span>
                 </div>
-                <p className="text-slate-300 text-[11px] mt-1">출근 직후 필수 점검 사항</p>
+                <p className="text-white/75 text-[11px] mt-1">출근 직후 필수 점검 사항</p>
               </div>
             </div>
             <span className="material-symbols-outlined text-white/50 relative z-10">chevron_right</span>
@@ -566,8 +573,10 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
       <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden shadow-sm transition-all">
         <div className="flex items-center justify-between border-b border-outline-variant/10 p-3 md:p-4">
           <button 
+            type="button"
+            aria-expanded={showQuickTools}
             onClick={() => setShowQuickTools(!showQuickTools)}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
+            className="ui-section-toggle"
           >
             <span className="material-symbols-outlined text-primary text-xl">build_circle</span>
             <h3 className="text-lg font-extrabold text-on-surface font-headline">빠른 도구</h3>
@@ -577,9 +586,10 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
           </button>
           
           <button
+            type="button"
             ref={toolsDialogTriggerRef}
             onClick={() => setIsEditingTools(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors text-xs font-bold text-on-surface-variant"
+            className="ui-button ui-button--secondary ui-button--sm"
           >
             <span className="material-symbols-outlined text-sm">edit</span>
             도구 편집
@@ -604,7 +614,7 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
                     />
                   )}
                   {/* Dark overlay for readability */}
-                  <div className={`absolute inset-0 transition-colors duration-500 ${tool.bgImage ? 'bg-slate-900/60 backdrop-blur-[1px] group-hover:bg-slate-900/40' : 'bg-transparent group-hover:bg-surface-container-highest'}`} />
+                  <div className={`absolute inset-0 transition-colors duration-500 ${tool.bgImage ? 'bg-black/60 backdrop-blur-[1px] group-hover:bg-black/40' : 'bg-transparent group-hover:bg-surface-container-highest'}`} />
                   
                   <div className="relative z-10 flex flex-col items-center gap-1.5">
                     <span className={`material-symbols-outlined text-3xl md:text-4xl ${tool.color} group-hover:-translate-y-1 transition-transform drop-shadow-md`}>{tool.icon}</span>
@@ -708,14 +718,16 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
 
             <div className="p-5 border-t border-outline-variant/20 bg-surface-container-lowest rounded-b-2xl flex justify-end gap-3 sticky bottom-0 z-10">
               <button
+                type="button"
                 onClick={() => saveTools(DEFAULT_TOOLS)}
-                className="px-5 py-2.5 rounded-lg text-sm font-bold text-on-surface-variant bg-surface-container hover:bg-surface-container-high transition-colors"
+                className="ui-button ui-button--secondary"
               >
                 초기화
               </button>
               <button
+                type="button"
                 onClick={() => setIsEditingTools(false)}
-                className="px-6 py-2.5 rounded-lg text-sm font-bold text-on-primary bg-primary hover:bg-primary/90 shadow-md shadow-primary/20 transition-all"
+                className="ui-button ui-button--primary"
               >
                 완료
               </button>

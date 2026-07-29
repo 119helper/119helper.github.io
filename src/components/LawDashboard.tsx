@@ -164,7 +164,7 @@ export default function LawDashboard({ subId }: { subId?: string }) {
       {/* 헤더 */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-outline-variant/20 pb-4">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface flex items-center gap-2 font-headline">
+          <h2 className="ui-page-title">
             <span className="material-symbols-outlined text-amber-700 dark:text-amber-300" style={{ fontVariationSettings: "'FILL' 1" }}>gavel</span>
             관련 법령
           </h2>

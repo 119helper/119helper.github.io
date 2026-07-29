@@ -47,7 +47,7 @@ export default function AviationView({ city }: AviationViewProps) {
     <div className="space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">항공/드론 비행 안전</h2>
+          <h2 className="ui-page-title">항공/드론 비행 안전</h2>
           <p className="text-sm text-on-surface-variant mt-1">풍속 기준으로 정찰 드론·항공 운용 전 1차 판단을 돕습니다.</p>
         </div>
         <button

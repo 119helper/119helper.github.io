@@ -109,8 +109,8 @@ export default function FacilityList({
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h2 className="text-xl md:text-2xl font-extrabold text-on-surface font-headline">{icon} {title}</h2>
-          <p className="text-sm text-on-surface-variant mt-1">{typeLabel} 위치 정보</p>
+          <h2 className="ui-section-title">{icon} {title}</h2>
+          <p className="ui-section-description">{typeLabel} 위치 정보</p>
         </div>
         <div className="flex items-center gap-3">
           {isLoading ? (

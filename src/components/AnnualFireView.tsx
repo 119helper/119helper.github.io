@@ -92,7 +92,7 @@ export default function AnnualFireView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline flex items-center gap-2">
+          <h2 className="ui-page-title">
             <span className="material-symbols-outlined text-error" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
             연간 화재통계
           </h2>

@@ -273,8 +273,8 @@ export default function FieldAssessment() {
               <span className="material-symbols-outlined text-red-700 dark:text-red-300 text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>emergency</span>
             </div>
             <div>
-              <h2 className="text-xl font-bold text-on-surface">현장 평가 (팔단기)</h2>
-              <p className="text-xs text-on-surface-variant mt-0.5">
+              <h2 className="ui-section-title">현장 평가 (팔단기)</h2>
+              <p className="ui-section-description">
                 8단계 현장 진행 평가 · {completedSteps}/8 단계 입력됨
               </p>
             </div>

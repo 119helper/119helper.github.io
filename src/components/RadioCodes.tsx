@@ -124,8 +124,8 @@ export default function RadioCodes() {
             <span className="material-symbols-outlined text-blue-400 text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>radio</span>
           </div>
           <div>
-            <h2 className="text-xl font-bold text-on-surface">현장 보고·용어 참고 카드</h2>
-            <p className="text-xs text-on-surface-variant mt-0.5">화재 대응단계, 상황 보고, 경보 신호, 용어 사전</p>
+            <h2 className="ui-section-title">현장 보고·용어 참고 카드</h2>
+            <p className="ui-section-description">화재 대응단계, 상황 보고, 경보 신호, 용어 사전</p>
           </div>
         </div>
         

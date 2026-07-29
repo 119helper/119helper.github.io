@@ -161,7 +161,7 @@ export default function PolicyDashboard() {
             <span className="material-symbols-outlined text-indigo-600 dark:text-indigo-400 text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>gavel</span>
           </div>
           <div>
-            <h1 className="text-2xl font-extrabold text-on-surface font-headline">소방 정책·입법 동향</h1>
+            <h1 className="ui-page-title">소방 정책·입법 동향</h1>
             <p className="text-sm text-on-surface-variant font-medium mt-1">소방청·행정안전부·보건복지부 및 국회 관련 소식</p>
           </div>
         </div>

@@ -361,7 +361,7 @@ export default function OvertimeCalc() {
             <span className="material-symbols-outlined text-2xl">payments</span>
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">초과근무 수당 계산기</h1>
+            <h2 className="ui-section-title ui-section-title--inverse">초과근무 수당 계산기</h2>
             <p className="text-on-primary text-xs sm:text-sm font-medium mt-0.5">2026년 기준 단가 적용</p>
           </div>
         </div>
@@ -393,7 +393,7 @@ export default function OvertimeCalc() {
           <div className="bg-surface-container rounded-lg p-3">
             <button
               onClick={() => setShowRateSettings(!showRateSettings)}
-              className="w-full flex items-center justify-between text-sm text-on-surface-variant font-medium hover:text-primary transition-colors py-1"
+              className="w-full min-h-10 flex items-center justify-between rounded-lg px-2 text-sm text-on-surface-variant font-bold hover:bg-surface-container-high hover:text-primary transition-colors"
             >
               <span>단가 수정 (기본 시간당 {formatCurrency(rates.overtime)}원)</span>
               <span className="material-symbols-outlined text-[18px]">

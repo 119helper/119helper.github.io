@@ -649,16 +649,16 @@ export default function App() {
         tabIndex={!isDesktopSidebar ? -1 : undefined}
         className={`
         fixed lg:static inset-y-0 left-0 z-50
-        w-64 bg-surface-container-lowest flex flex-col shrink-0 border-r border-outline-variant/20 safe-area-top
+        w-64 bg-surface-container-lowest flex flex-col shrink-0 border-r border-outline-variant/70 safe-area-top
         transform transition-transform duration-200 ease-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}
       >
-        <div className="p-6">
+        <div className="px-5 pb-4 pt-5">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-lg shadow-red-500/20">
+                <div className="w-9 h-9 rounded-xl bg-error flex items-center justify-center shadow-lg shadow-error/20">
                   <span aria-hidden="true" className="material-symbols-outlined text-white text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
                 </div>
                 <h1 className="text-xl font-extrabold tracking-tight text-on-surface font-headline">119 Helper</h1>
@@ -672,13 +672,13 @@ export default function App() {
               type="button"
               aria-label="전체 메뉴 닫기"
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden w-11 h-11 -mr-3 -mt-3 rounded-lg text-on-surface-variant hover:bg-surface-container flex items-center justify-center"
+              className="ui-icon-button flex lg:hidden -mr-3 -mt-3"
             >
               <span aria-hidden="true" className="material-symbols-outlined">close</span>
             </button>
           </div>
         </div>
-        <nav className="flex-1 px-3 space-y-1 mt-2 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 px-3 space-y-1 mt-1 overflow-y-auto custom-scrollbar">
           <SidebarQuickAccess
             preferences={navPreferences}
             activeTab={activeTab}
@@ -707,7 +707,7 @@ export default function App() {
                         handleNavigate(item.id as TabId);
                       }
                     }}
-                    className={`min-w-0 flex-1 flex items-center justify-between px-4 py-3 rounded-xl transition-all text-left ${
+                    className={`min-w-0 min-h-11 flex-1 flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all text-left ${
                       !hasSub && activeTab === item.id
                         ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
                         : isGroupActive && !isExpanded
@@ -737,7 +737,7 @@ export default function App() {
                       aria-label={`${item.label} ${navPreferences.favorites.includes(item.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}`}
                       aria-pressed={navPreferences.favorites.includes(item.id)}
                       onClick={() => setNavPreferences(previous => toggleNavigationFavorite(previous, item.id as TabId))}
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl hover:bg-surface-container-high ${
+                      className={`ui-icon-button flex shrink-0 ${
                         navPreferences.favorites.includes(item.id) ? 'text-amber-600 dark:text-amber-300' : 'text-on-surface-variant'
                       }`}
                     >
@@ -762,7 +762,7 @@ export default function App() {
                               type="button"
                               aria-current={isSubActive ? 'page' : undefined}
                               onClick={() => handleNavigate(sub.id as TabId)}
-                              className={`min-w-0 flex-1 flex items-center px-4 py-2.5 rounded-lg transition-all text-sm ${
+                              className={`ui-menu-item min-w-0 flex-1 ${
                                 isSubActive
                                   ? 'bg-primary/15 text-primary font-bold'
                                   : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-medium'
@@ -778,7 +778,7 @@ export default function App() {
                               aria-label={`${sub.label} ${isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}`}
                               aria-pressed={isFavorite}
                               onClick={() => setNavPreferences(previous => toggleNavigationFavorite(previous, sub.id))}
-                              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-high ${
+                              className={`ui-icon-button flex shrink-0 ${
                                 isFavorite ? 'text-amber-600 dark:text-amber-300' : 'text-on-surface-variant'
                               }`}
                             >
@@ -801,7 +801,7 @@ export default function App() {
             setSidebarOpen(false);
             setSettingsOpen(true);
           }}
-          className="w-full p-4 border-t border-outline-variant/20 flex items-center gap-3 hover:bg-surface-container/50 transition-colors text-left"
+          className="w-full min-h-16 px-4 py-3 border-t border-outline-variant/70 flex items-center gap-3 hover:bg-surface-container transition-colors text-left"
           title="내 정보 편집"
         >
           <div className="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center shrink-0">
@@ -822,7 +822,7 @@ export default function App() {
         className="flex-1 flex flex-col overflow-hidden min-w-0"
       >
         {/* Top Bar */}
-        <header className="app-header bg-surface-container-lowest flex items-center justify-between px-2 min-[360px]:px-4 md:px-6 border-b border-outline-variant/20 shrink-0 gap-1 min-[360px]:gap-2">
+        <header className="app-header relative z-40 bg-surface-container-lowest flex items-center justify-between px-2 min-[360px]:px-4 md:px-6 border-b border-outline-variant/70 shrink-0 gap-1 min-[360px]:gap-2">
           <div className="flex items-center gap-1 min-[360px]:gap-3 flex-1 min-w-0">
             {/* Mobile hamburger */}
             <button
@@ -830,7 +830,7 @@ export default function App() {
               type="button"
               aria-label="전체 메뉴 열기"
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden w-11 h-11 rounded-lg hover:bg-surface-container transition-colors shrink-0 flex items-center justify-center"
+              className="ui-icon-button flex lg:hidden shrink-0"
             >
               <span className="material-symbols-outlined text-on-surface-variant text-xl">menu</span>
             </button>
@@ -851,7 +851,7 @@ export default function App() {
                 aria-expanded={regionOpen}
                 onClick={() => setRegionOpen(!regionOpen)}
                 title={locationNotice?.message || `현재 지역: ${cityNames[city]}`}
-                className="min-h-11 min-w-11 flex items-center justify-center gap-1.5 bg-surface-container hover:bg-surface-container-high transition-colors rounded-full px-2 min-[360px]:px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="ui-button ui-button--secondary ui-button--pill min-w-11 px-2 min-[360px]:px-3"
               >
                 <span className={`material-symbols-outlined text-sm ${gpsStatus === 'unsupported' || gpsStatus === 'denied' ? 'text-amber-700 dark:text-amber-300' : 'text-primary'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
                   {gpsStatus === 'granted' ? 'my_location' : gpsStatus === 'loading' ? 'location_searching' : gpsStatus === 'unsupported' || gpsStatus === 'denied' ? 'location_disabled' : 'location_on'}
@@ -880,7 +880,7 @@ export default function App() {
                         aria-current={city === k ? 'true' : undefined}
                         key={k}
                         onClick={() => { handleCityChange(k); setRegionOpen(false); }}
-                        className={`w-full flex items-center px-4 py-2.5 text-sm transition-colors rounded-lg ${
+                        className={`ui-menu-item ${
                           city === k 
                             ? 'bg-primary/20 text-primary font-bold' 
                             : 'text-on-surface hover:bg-surface-container-highest font-medium'
@@ -902,7 +902,7 @@ export default function App() {
                 aria-label={`최근 알림${notifications.some(n => n.isNew) ? `, 새 알림 ${notifications.filter(n => n.isNew).length}개` : ''}${networkStatus.state !== 'online' ? `, 데이터 ${networkStatus.state === 'offline' ? '오프라인' : '연결 불안정'}` : ''}`}
                 aria-expanded={notiOpen}
                 onClick={() => setNotiOpen(!notiOpen)}
-                className={`w-11 h-11 flex items-center justify-center rounded-lg transition-colors ${notiOpen ? 'bg-surface-container-high' : 'hover:bg-surface-container'}`}
+                className="ui-icon-button flex"
               >
                 <span className="material-symbols-outlined text-on-surface-variant text-xl">notifications</span>
                 {(notifications.some(n => n.isNew) || networkStatus.state !== 'online') && (
@@ -955,16 +955,16 @@ export default function App() {
                         ))
                       )}
                     </div>
-                    <div className="p-2 border-t border-outline-variant/20 bg-surface-container/50 flex gap-1">
+                    <div className="p-2 border-t border-outline-variant/70 bg-surface-container/50 flex gap-1">
                       <button
                         onClick={markAllRead}
-                        className="flex-1 py-1.5 text-xs font-bold text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                        className="ui-button ui-button--soft ui-button--sm flex-1"
                       >
                         모두 읽음
                       </button>
                       <button
                         onClick={clearAll}
-                        className="flex-1 py-1.5 text-xs font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-lg transition-colors"
+                        className="ui-button ui-button--ghost ui-button--sm flex-1"
                       >
                         전체 삭제
                       </button>
@@ -978,7 +978,7 @@ export default function App() {
               type="button"
               aria-label={`${theme === 'dark' ? '라이트' : '다크'} 모드로 전환`}
               onClick={() => handleThemeChange(theme === 'dark' ? 'light' : 'dark')}
-              className="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-surface-container transition-colors"
+              className="ui-icon-button flex"
               title={`현재: ${theme === 'dark' ? '다크' : '라이트'} 모드`}
             >
               <span className="material-symbols-outlined text-on-surface-variant text-xl"
@@ -996,7 +996,7 @@ export default function App() {
                   settingsReturnFocusRef.current = event.currentTarget;
                   setSettingsOpen(!settingsOpen);
                 }}
-                className={`hidden sm:flex w-11 h-11 items-center justify-center rounded-lg transition-colors ${settingsOpen ? 'bg-surface-container-high' : 'hover:bg-surface-container'}`}
+                className="ui-icon-button hidden sm:flex"
               >
                 <span className="material-symbols-outlined text-on-surface-variant text-xl">settings</span>
               </button>
@@ -1041,7 +1041,7 @@ export default function App() {
             </div>
           )}
           <div className="p-4 md:p-6 lg:pb-6 min-h-full flex flex-col">
-            <div className="flex-1">
+            <div className="app-content flex-1">
               <ErrorBoundary
                 resetKey={activeTab}
                 fallbackTitle={`${getTabLabel(activeTab)} 화면 오류`}
@@ -1061,7 +1061,7 @@ export default function App() {
         {/* Scroll To Top FAB */}
         <button
           onClick={() => scrollToTop()}
-          className={`fixed right-5 bottom-24 lg:right-10 lg:bottom-12 z-[9999] p-4 rounded-full bg-primary text-on-primary shadow-2xl hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all duration-300 transform flex items-center justify-center ${
+          className={`fixed right-5 bottom-24 lg:right-10 lg:bottom-12 z-[9999] w-14 h-14 rounded-full bg-primary text-on-primary shadow-2xl hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all duration-300 transform flex items-center justify-center ${
             showScrollTop ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-16 opacity-0 scale-75 pointer-events-none'
           }`}
           aria-label="맨 위로 가기"
@@ -1070,8 +1070,8 @@ export default function App() {
         </button>
 
         {/* Mobile Bottom Navigation */}
-        <nav aria-label="주요 기능" className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-surface-container-lowest/95 backdrop-blur-lg border-t border-outline-variant/20 safe-area-bottom">
-          <div className="flex items-center justify-around h-16 px-1">
+        <nav aria-label="주요 기능" className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-surface-container-lowest/95 backdrop-blur-lg border-t border-outline-variant/70 safe-area-bottom">
+          <div className="flex items-center justify-around h-[4.25rem] px-1">
             {bottomTabs.map(tab => {
               const isActive = tab.id !== 'more' && activeTab === tab.id;
               return (
@@ -1087,7 +1087,7 @@ export default function App() {
                       handleNavigate(tab.id as TabId);
                     }
                   }}
-                  className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all min-w-[56px] ${
+                  className={`flex min-h-14 min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-1.5 transition-all ${
                     isActive
                       ? 'text-primary'
                       : 'text-on-surface-variant hover:text-on-surface'

@@ -23,7 +23,10 @@ export default function ManualView({ subId }: { subId?: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-extrabold text-on-surface font-headline">📖 대응 매뉴얼</h2>
+        <h2 className="ui-page-title">
+          <span className="material-symbols-outlined ui-page-title-icon">menu_book</span>
+          대응 매뉴얼
+        </h2>
         <p className="text-sm text-on-surface-variant mt-1">현장 활동 가이드라인 및 필수 참조 자료</p>
       </div>
 

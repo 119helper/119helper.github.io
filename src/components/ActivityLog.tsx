@@ -208,7 +208,10 @@ export default function ActivityLog() {
     <div className="space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">⏱️ 현장활동 타임라인</h2>
+          <h2 className="ui-page-title">
+            <span className="material-symbols-outlined ui-page-title-icon">history</span>
+            현장활동 타임라인
+          </h2>
           <p className="text-sm text-on-surface-variant mt-1">단계별 원터치 기록 → 표준 보고서 초안 자동 생성</p>
         </div>
         <button

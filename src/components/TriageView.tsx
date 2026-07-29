@@ -120,7 +120,10 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
     <div className="space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">🚨 중증도 분류 (MCI)</h2>
+          <h2 className="ui-page-title">
+            <span className="material-symbols-outlined ui-page-title-icon">emergency</span>
+            중증도 분류 (MCI)
+          </h2>
           <p className="text-sm text-on-surface-variant mt-1">START / JumpSTART 자동 분류 · 집계 · 수용병원 매칭</p>
         </div>
         <div className="flex gap-2 bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-1.5">

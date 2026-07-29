@@ -31,7 +31,10 @@ export default function EmsProtocol({ subId }: { subId?: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-extrabold text-on-surface font-headline">🚑 응급처치 · 약물</h2>
+        <h2 className="ui-page-title">
+          <span className="material-symbols-outlined ui-page-title-icon">medical_services</span>
+          응급처치 · 약물
+        </h2>
         <p className="text-sm text-on-surface-variant mt-1">증상별 프로토콜 · 체중기반 약물 용량 · 평가 스코어</p>
       </div>
 

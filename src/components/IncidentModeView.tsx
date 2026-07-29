@@ -167,7 +167,7 @@ export default function IncidentModeView({
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface font-headline">출동 상황판</h2>
+          <h2 className="ui-page-title">출동 상황판</h2>
           <p className="text-sm text-on-surface-variant mt-1">출동 중 필요한 핵심 화면과 현장 정보를 한 곳에서 열어둡니다.</p>
         </div>
 
