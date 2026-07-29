@@ -110,6 +110,11 @@ export default function FireDamageView() {
   const [warning, setWarning] = useState<string | null>(null);
   const [items, setItems] = useState<FireDamageItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [coverage, setCoverage] = useState({
+    availableFrom: '2019-01',
+    availableTo: '2023-12',
+    sourceUrl: 'https://www.data.go.kr/data/15142972/openapi.do',
+  });
   const [page, setPage] = useState(1);
   const [selectedSido, setSelectedSido] = useState('서울특별시');
   const PAGE_SIZE = 50;
@@ -147,6 +152,11 @@ export default function FireDamageView() {
     } else if (res) {
       setItems(res.items || []);
       setTotalCount(res.totalCount || 0);
+      setCoverage(current => ({
+        availableFrom: res.availableFrom ?? current.availableFrom,
+        availableTo: res.availableTo ?? current.availableTo,
+        sourceUrl: res.sourceUrl ?? current.sourceUrl,
+      }));
     }
     
     setLoading(false);
@@ -218,6 +228,20 @@ export default function FireDamageView() {
         </div>
       </div>
 
+      <div role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-tertiary/25 bg-tertiary-container/20 px-4 py-3 text-sm text-on-surface-variant">
+        <span className="material-symbols-outlined text-lg text-tertiary">date_range</span>
+        <strong className="text-on-surface">원 API 공식 제공범위 {coverage.availableFrom}~{coverage.availableTo}</strong>
+        <span>· 2024년 이후 값은 공급기관이 제공하지 않아 0건으로 대체하지 않음</span>
+        <a
+          href={coverage.sourceUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="font-bold text-primary hover:underline"
+        >
+          공식 원문
+        </a>
+      </div>
+
       {/* 요약 카드 */}
       {!loading && !error && items.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -260,7 +284,7 @@ export default function FireDamageView() {
       {/* 데이터 없음 */}
       {!loading && !error && items.length === 0 && (
         <EmptyState icon="search_off" text="조회된 화재 데이터가 없습니다"
-          sub="API 키가 방금 승인되었다면 활성화까지 1~2시간이 필요합니다. 필터 조건을 변경하거나 잠시 후 다시 시도해주세요." />
+          sub={`원 API 제공범위(${coverage.availableFrom}~${coverage.availableTo}) 안에서 선택 지역의 조회 결과가 없습니다.`} />
       )}
 
       {/* 차트 영역 2열 */}

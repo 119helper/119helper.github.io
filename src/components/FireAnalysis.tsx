@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { fetchAnnualFireStats, isStaleDataError } from '../services/apiClient';
+import {
+  fetchAnnualFireStats,
+  fetchAnnualFireYears,
+  isStaleDataError,
+  type AnnualFireYearsResponse,
+} from '../services/apiClient';
 
 /* ─── 색상 팔레트 ─── */
 const PALETTE = [
@@ -8,16 +13,7 @@ const PALETTE = [
   '#ec4899', '#f43f5e', '#64748b', '#84cc16',
 ];
 
-/* ─── 날짜 헬퍼 ─── */
-const LATEST_AVAILABLE_YEAR = 2024;
-
-function getRecentYears(count: number): string[] {
-  const years: string[] = [];
-  for (let i = 0; i < count; i++) {
-    years.push(String(LATEST_AVAILABLE_YEAR - i));
-  }
-  return years;
-}
+const FALLBACK_YEARS = Array.from({ length: 10 }, (_, index) => String(2024 - index));
 
 /* ─── 도넛 차트 ─── */
 interface ChartSlice {
@@ -150,8 +146,9 @@ function StatCard({ icon, iconColor, label, value, sub, loading }: {
 /* ═══════ 메인 컴포넌트 ═══════ */
 export default function FireAnalysis() {
   const requestSeqRef = useRef(0);
-  const years = getRecentYears(6);
-  const [selectedYear, setSelectedYear] = useState(years[0]);
+  const [years, setYears] = useState(FALLBACK_YEARS);
+  const [coverage, setCoverage] = useState<AnnualFireYearsResponse | null>(null);
+  const [selectedYear, setSelectedYear] = useState(FALLBACK_YEARS[0]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -163,6 +160,23 @@ export default function FireAnalysis() {
   const [sidoData, setSidoData] = useState<{ name: string; fires: number; death: number; injury: number; property: number }[]>([]);
   const [buildingData, setBuildingData] = useState<{ structure: string; count: number }[]>([]);
   const [casualtyData, setCasualtyData] = useState<{ sido: string; death: number; injury: number }[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAnnualFireYears()
+      .then(result => {
+        if (cancelled || result.years.length === 0) return;
+        setCoverage(result);
+        setYears(result.years);
+        setSelectedYear(current => result.years.includes(current)
+          ? current
+          : result.latestYear ?? result.years[0]);
+      })
+      .catch(error => console.warn('[FireAnalysis] supported years failed:', error));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const fetchAll = useCallback(async (forceRefresh = false) => {
     const seq = ++requestSeqRef.current;
@@ -252,6 +266,25 @@ export default function FireAnalysis() {
         </div>
       </div>
 
+      <div role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-on-surface-variant">
+        <span className="material-symbols-outlined text-lg text-primary">database</span>
+        <strong className="text-on-surface">
+          공식 최신 공개연도 {coverage?.latestYear ?? years[0]}년
+        </strong>
+        {coverage?.nextExpectedUpdate && (
+          <span>· 차기 등록 예정 {new Date(coverage.nextExpectedUpdate).toLocaleDateString('ko-KR')}</span>
+        )}
+        <span>· 새로고침이나 API 키 추가로 미공개 연도를 만들 수 없음</span>
+        <a
+          href="https://www.data.go.kr/tcs/dss/selectFileDataDetailView.do?publicDataPk=15060386"
+          target="_blank"
+          rel="noreferrer"
+          className="font-bold text-primary hover:underline"
+        >
+          공식 원문
+        </a>
+      </div>
+
       {/* 요약 카드 6장 */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <StatCard icon="local_fire_department" iconColor="text-red-700 dark:text-red-300" label="화재 발생" value={summary.total} loading={loading} />
@@ -295,7 +328,8 @@ export default function FireAnalysis() {
           <span className="material-symbols-outlined text-5xl text-on-surface-variant/30 mb-3 block">info</span>
           <h3 className="text-lg font-bold text-on-surface mb-2">{selectedYear}년 화재 데이터가 아직 없습니다</h3>
           <p className="text-sm text-on-surface-variant max-w-lg mx-auto">
-            소방청 연간화재통계는 현재 2015~2024년 데이터를 제공합니다. 연도 선택에서 더 이전 연도를 선택해 보세요.
+            소방청 연간화재통계의 공식 제공범위는 현재 {years.at(-1)}~{coverage?.latestYear ?? years[0]}년입니다.
+            연도 선택에서 공개된 연도를 선택해 보세요.
           </p>
         </div>
       )}

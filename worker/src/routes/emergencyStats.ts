@@ -8,6 +8,11 @@ import { sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
 import { normalizeEmergencyHeadquarters } from './emergencyRegions';
 
 const BASE = 'https://apis.data.go.kr/1661000/EmergencyStatisticsService';
+const SOURCE_NAME = '소방청_구급통계서비스';
+const SOURCE_URL = 'https://www.data.go.kr/data/15099428/openapi.do';
+const AVAILABILITY_HEADQUARTERS = '서울소방재난본부';
+const AVAILABILITY_MONTH_LIMIT = 18;
+const AVAILABILITY_BATCH_SIZE = 3;
 
 // 오퍼레이션 매핑
 const OPS: Record<string, string> = {
@@ -20,9 +25,90 @@ const OPS: Record<string, string> = {
   'center':         'get119EmgMngCenterOprStats',       // 119구급상황관리센터운영현황
 };
 
+function currentKstYm(): string {
+  const now = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function recentMonths(count: number, fromYm = currentKstYm()): string[] {
+  const startYear = Number(fromYm.slice(0, 4));
+  const startMonth = Number(fromYm.slice(4, 6));
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(Date.UTC(startYear, startMonth - 1 - index, 1));
+    return `${date.getUTCFullYear()}${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+  });
+}
+
+function monthLag(fromYm: string, toYm: string): number {
+  const from = Number(fromYm.slice(0, 4)) * 12 + Number(fromYm.slice(4, 6));
+  const to = Number(toYm.slice(0, 4)) * 12 + Number(toYm.slice(4, 6));
+  return Math.max(0, from - to);
+}
+
+async function fetchStats(
+  operation: string,
+  params: URLSearchParams,
+  serviceKey: string,
+): Promise<{ items: unknown[]; totalCount: number }> {
+  const res = await fetchWithRetry(`${BASE}/${operation}?serviceKey=${serviceKey}&${params}`, {
+    headers: { 'User-Agent': '119-helper-worker/1.0' },
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`EmergencyStats/${operation} ${res.status}: ${text.replace(/\s+/g, ' ').slice(0, 140)}`);
+  }
+
+  const data = parsePublicDataJson(text, `EmergencyStats/${operation}`);
+  return pickItemsAndCount(data);
+}
+
+async function findLatestAvailableMonth(apiKey: string) {
+  const serviceKey = encodeServiceKey(apiKey, 'EMERGENCY_API_KEY');
+  const currentYm = currentKstYm();
+  const months = recentMonths(AVAILABILITY_MONTH_LIMIT, currentYm);
+
+  for (let start = 0; start < months.length; start += AVAILABILITY_BATCH_SIZE) {
+    const batch = months.slice(start, start + AVAILABILITY_BATCH_SIZE);
+    const counts = await Promise.all(batch.map(async month => {
+      const params = new URLSearchParams({
+        pageNo: '1',
+        numOfRows: '1',
+        resultType: 'json',
+        sidoHqOgidNm: AVAILABILITY_HEADQUARTERS,
+        rcptYm: month,
+      });
+      const { totalCount } = await fetchStats(OPS.activity, params, serviceKey);
+      return { month, totalCount };
+    }));
+    const latest = counts.find(result => result.totalCount > 0);
+    if (latest) {
+      return {
+        latestYm: latest.month,
+        currentYm,
+        lagMonths: monthLag(currentYm, latest.month),
+      };
+    }
+  }
+
+  return { latestYm: null, currentYm, lagMonths: null };
+}
+
 export async function handleEmergencyStats(
   path: string, url: URL, apiKey: string
 ): Promise<{ data: unknown; cacheTtl: number }> {
+  if (path === '/api/emergency/stats/availability') {
+    const availability = await findLatestAvailableMonth(apiKey);
+    return {
+      data: {
+        ...availability,
+        checkedAt: new Date().toISOString(),
+        sourceName: SOURCE_NAME,
+        sourceUrl: SOURCE_URL,
+      },
+      cacheTtl: 6 * 60 * 60,
+    };
+  }
+
   // /api/emergency/stats/{op}
   const segments = path.split('/');
   const opKey = segments[segments.length - 1]; // activity, traffic, etc.
@@ -52,14 +138,16 @@ export async function handleEmergencyStats(
   params.set('sidoHqOgidNm', headquarters);
 
   const serviceKey = encodeServiceKey(apiKey, 'EMERGENCY_API_KEY');
-  const res = await fetchWithRetry(`${BASE}/${opName}?serviceKey=${serviceKey}&${params}`, {
-    headers: { 'User-Agent': '119-helper-worker/1.0' },
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`EmergencyStats/${opName} ${res.status}: ${text.replace(/\s+/g, ' ').slice(0, 140)}`);
+  const { items, totalCount } = await fetchStats(opName, params, serviceKey);
 
-  const data = parsePublicDataJson(text, `EmergencyStats/${opName}`);
-  const { items, totalCount } = pickItemsAndCount(data);
-
-  return { data: { items, totalCount }, cacheTtl: 3600 };
+  return {
+    data: {
+      items,
+      totalCount,
+      requestedYm: params.get('rcptYm'),
+      headquarters,
+      sourceName: SOURCE_NAME,
+    },
+    cacheTtl: 3600,
+  };
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { fetchAnnualFireStats, fetchAnnualFireYears, isStaleDataError } from '../services/apiClient';
-import type { AnnualFireStatsResponse } from '../services/apiClient';
+import type { AnnualFireStatsResponse, AnnualFireYearsResponse } from '../services/apiClient';
 
 const FALLBACK_YEARS = Array.from({ length: 10 }, (_, i) => String(2024 - i));
 
@@ -27,6 +27,7 @@ function formatNumber(n: number): string {
 export default function AnnualFireView() {
   const [year, setYear] = useState('2024');
   const [years, setYears] = useState<string[]>(FALLBACK_YEARS);
+  const [coverage, setCoverage] = useState<AnnualFireYearsResponse | null>(null);
   const [data, setData] = useState<AnnualFireStatsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +40,7 @@ export default function AnnualFireView() {
     fetchAnnualFireYears()
       .then(res => {
         if (cancelled || res.years.length === 0) return;
+        setCoverage(res);
         setYears(res.years);
         setYear(current => res.years.includes(current) ? current : res.latestYear ?? res.years[0]);
       })
@@ -149,6 +151,23 @@ export default function AnnualFireView() {
             </button>
           )}
         </div>
+      </div>
+
+      <div role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-on-surface-variant">
+        <span className="material-symbols-outlined text-lg text-primary">database</span>
+        <strong className="text-on-surface">공식 최신 공개연도 {coverage?.latestYear ?? years[0]}년</strong>
+        {coverage?.nextExpectedUpdate && (
+          <span>· 차기 등록 예정 {new Date(coverage.nextExpectedUpdate).toLocaleDateString('ko-KR')}</span>
+        )}
+        <span>· 공식 제공범위 밖 연도는 임의 생성하지 않음</span>
+        <a
+          href="https://www.data.go.kr/tcs/dss/selectFileDataDetailView.do?publicDataPk=15060386"
+          target="_blank"
+          rel="noreferrer"
+          className="font-bold text-primary hover:underline"
+        >
+          공식 원문
+        </a>
       </div>
 
       {/* Loading */}

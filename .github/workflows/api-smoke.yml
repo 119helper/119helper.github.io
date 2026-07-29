@@ -24,3 +24,6 @@ jobs:
           VITE_API_BASE: https://119-helper-api.teemozipsa.workers.dev
           VITE_APP_TOKEN: ${{ secrets.VITE_APP_TOKEN }}
           SMOKE_MODE: scheduled
+
+      - name: Detect newly published official datasets
+        run: npm run audit:data-freshness

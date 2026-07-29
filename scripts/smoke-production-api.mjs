@@ -63,6 +63,26 @@ function isSuccessfulSafetydata(data) {
   return isRecord(data) && isRecord(data.header) && /^0+$/.test(String(data.header.resultCode));
 }
 
+const emergencyRegionContracts = [
+  ['서울', '서울소방재난본부'],
+  ['부산', '부산소방본부'],
+  ['대구', '대구소방본부'],
+  ['인천', '인천소방본부'],
+  ['광주', '광주소방본부'],
+  ['대전', '대전소방본부'],
+  ['울산', '울산소방본부'],
+  ['세종', '세종소방본부'],
+  ['경기', '경기소방본부'],
+  ['강원', '강원소방본부'],
+  ['충북', '충북소방본부'],
+  ['충남', '충남소방본부'],
+  ['전북', '전북소방본부'],
+  ['전남', '전남소방본부'],
+  ['경북', '경북소방본부'],
+  ['경남', '경남소방본부'],
+  ['제주', '제주소방본부'],
+];
+
 const checks = [
   {
     name: 'health',
@@ -227,21 +247,39 @@ const checks = [
         .reduce((sum, [, value]) => sum + value, 0) === 3_873,
   },
   {
-    name: 'emergency-stats',
+    name: 'emergency-latest-month',
+    severity: 'standard',
+    url: endpoint('/api/emergency/stats/availability'),
+    validate: data => isRecord(data)
+      && /^\d{6}$/.test(String(data.latestYm))
+      && /^\d{6}$/.test(String(data.currentYm))
+      && typeof data.checkedAt === 'string'
+      && typeof data.sourceUrl === 'string',
+  },
+  ...emergencyRegionContracts.map(([region, headquarters]) => ({
+    name: `emergency-stats-${region}-contract`,
     severity: 'standard',
     url: endpoint('/api/emergency/stats/activity', {
-      sidoHqOgidNm: '서울소방재난본부',
+      sido: region,
       rcptYm: '202512',
-      numOfRows: 1,
+      numOfRows: 100,
       pageNo: 1,
     }),
-    validate: hasPaginatedItems,
-  },
+    validate: data => hasPaginatedItems(data)
+      && Number(data.totalCount) > 0
+      && data.items.some(item => isRecord(item)
+        && item.sidoHqOgidNm === headquarters
+        && Number(item.gutCo) > 0),
+  })),
   {
-    name: 'emergency-info',
+    name: 'emergency-info-current-vehicle-contract',
     severity: 'standard',
-    url: endpoint('/api/emergency/info/vehicles', { stmtYm: '202401', numOfRows: 1, pageNo: 1 }),
-    validate: hasPaginatedItems,
+    url: endpoint('/api/emergency/info/vehicles', { sido: '광주', numOfRows: 100, pageNo: 1 }),
+    validate: data => hasPaginatedItems(data)
+      && Number(data.totalCount) > 0
+      && data.items.some(item => isRecord(item)
+        && item.sidoHqOgidNm === '광주소방본부'
+        && typeof item.vhclNo === 'string'),
   },
   {
     name: 'equipment',

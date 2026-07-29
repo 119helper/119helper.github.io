@@ -15,6 +15,10 @@ import { encodeServiceKey, fetchWithRetry, parsePublicDataJson, isRecord, asArra
 import { sanitizeNumericParam, sanitizeStringParam } from '../middleware/cors';
 
 const BASE = 'https://apis.data.go.kr/1661000/FireDamageStatus';
+const SOURCE_NAME = '소방청_지역별 화재피해 현황';
+const SOURCE_URL = 'https://www.data.go.kr/data/15142972/openapi.do';
+const AVAILABLE_FROM = '2019-01';
+const AVAILABLE_TO = '2023-12';
 
 // 데이터 제공 종료 시점 (포털 명세: 2023년 12월까지)
 const DEFAULT_START = '20230101';
@@ -96,6 +100,10 @@ export async function handleFireDamage(
       data: {
         items: [],
         totalCount: 0,
+        availableFrom: AVAILABLE_FROM,
+        availableTo: AVAILABLE_TO,
+        sourceName: SOURCE_NAME,
+        sourceUrl: SOURCE_URL,
         error: header.resultMsg || 'API 오류',
         errorCode: header.resultCode,
       },
@@ -109,6 +117,10 @@ export async function handleFireDamage(
       totalCount,
       pageNo: Number(root.pageNo ?? body.pageNo) || Number(pageNo),
       numOfRows: Number(root.numOfRows ?? body.numOfRows) || Number(numOfRows),
+      availableFrom: AVAILABLE_FROM,
+      availableTo: AVAILABLE_TO,
+      sourceName: SOURCE_NAME,
+      sourceUrl: SOURCE_URL,
     },
     cacheTtl: 3600,
   };

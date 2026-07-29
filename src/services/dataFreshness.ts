@@ -84,8 +84,12 @@ export function formatFreshnessSourceDate(meta: DatasetFreshness): string {
 }
 
 export function isFreshnessExpired(meta: DatasetFreshness, now = Date.now()): boolean {
-  if (!meta.generatedAt || !meta.maxAgeDays) return false;
-  const generatedAt = new Date(meta.generatedAt).getTime();
-  if (Number.isNaN(generatedAt)) return false;
-  return now - generatedAt > meta.maxAgeDays * 24 * 60 * 60 * 1000;
+  if (!meta.maxAgeDays) return false;
+  // 재수집 시각이 최근이어도 공급기관 원본이 오래됐으면 최신 자료로 오인하면 안 된다.
+  // 원본 기준일을 우선하고, 기준일이 없는 데이터만 앱 생성 시각으로 폴백한다.
+  const referenceDate = meta.sourceDate || meta.generatedAt;
+  if (!referenceDate) return false;
+  const referenceTime = new Date(referenceDate).getTime();
+  if (Number.isNaN(referenceTime)) return false;
+  return now - referenceTime > meta.maxAgeDays * 24 * 60 * 60 * 1000;
 }

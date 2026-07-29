@@ -8,6 +8,7 @@ import {
   type TransferItem,
   type ViewMode,
 } from '../hooks/useEmergencyAnalysisData';
+import DataStatePanel from './DataStatePanel';
 
 /* ─── 색상 팔레트 ─── */
 const CHART_COLORS = [
@@ -140,155 +141,89 @@ function Skeleton() {
 }
 
 /* ═════════════════════════════════════════════
-   대응시간 분석 카드
+   출동거리·시간대 분석 (원 API가 실제 제공하는 필드만 사용)
    ═════════════════════════════════════════════ */
-function ResponseTimeSection({ data, loading }: { data: ActivityDetailItem[], loading?: boolean }) {
-  if (data.length === 0) return <EmptyState icon="timer" text="대응시간 데이터 없음" />;
-
-  // 대응시간 계산 (현장도착시:분)
-  const responseTimes = data
-    .filter(d => d.arriveHh && d.arriveMm)
-    .map(d => parseInt(d.arriveHh) * 60 + parseInt(d.arriveMm))
-    .filter(t => t > 0 && t < 120); // 2시간 이상은 이상치 제거
+function ActivityDistanceSection({ data }: { data: ActivityDetailItem[] }) {
+  if (data.length === 0) return <EmptyState icon="route" text="출동거리 데이터 없음" />;
 
   const distances = data
-    .map(d => parseFloat(d.distKm))
-    .filter(d => d > 0 && d < 100); // 100km 이상은 이상치 제거
-
-  // 귀소시간 계산
-  const returnTimes = data
-    .filter(d => d.returnHh && d.returnMm && d.arriveHh && d.arriveMm)
-    .map(d => {
-      const arrive = parseInt(d.arriveHh) * 60 + parseInt(d.arriveMm);
-      const ret = parseInt(d.returnHh) * 60 + parseInt(d.returnMm);
-      return ret > arrive ? ret - arrive : 0;
-    })
-    .filter(t => t > 0 && t < 480); // 8시간 이상은 이상치 제거
-
-  const avgResponse = responseTimes.length > 0
-    ? (responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length).toFixed(1)
-    : '-';
-  const avgDistance = distances.length > 0
-    ? (distances.reduce((a, b) => a + b, 0) / distances.length).toFixed(1)
-    : '-';
-  const avgTurnAround = returnTimes.length > 0
-    ? (returnTimes.reduce((a, b) => a + b, 0) / returnTimes.length).toFixed(0)
+    .map(item => Number.parseFloat(item.distanceKm))
+    .filter(distance => distance >= 0 && distance < 100);
+  const avgDistance = distances.length
+    ? (distances.reduce((sum, distance) => sum + distance, 0) / distances.length).toFixed(1)
     : '-';
 
-  // 대응시간 분포 (5분 단위 히스토그램)
-  const timeHistogram: { label: string; count: number }[] = [];
-  const bins = [5, 10, 15, 20, 30, 60, 120];
-  let prevBin = 0;
-  for (const bin of bins) {
-    const count = responseTimes.filter(t => t >= prevBin && t < bin).length;
-    timeHistogram.push({ label: `${prevBin}-${bin}분`, count });
-    prevBin = bin;
-  }
-
-  // 거리 분포
-  const distHistogram: { label: string; count: number }[] = [];
   const distBins = [1, 3, 5, 10, 20, 50, 100];
-  let prevDist = 0;
-  for (const bin of distBins) {
-    const count = distances.filter(d => d >= prevDist && d < bin).length;
-    distHistogram.push({ label: `${prevDist}-${bin}km`, count });
-    prevDist = bin;
-  }
-
-  // 소방서별 평균 대응시간
-  const stationTimes = new Map<string, { total: number; count: number }>();
-  data.forEach(d => {
-    const stn = d.fireStnNm || '미상';
-    const time = d.arriveHh && d.arriveMm ? parseInt(d.arriveHh) * 60 + parseInt(d.arriveMm) : 0;
-    if (time > 0 && time < 120) {
-      const prev = stationTimes.get(stn) || { total: 0, count: 0 };
-      stationTimes.set(stn, { total: prev.total + time, count: prev.count + 1 });
-    }
+  let previousDistance = 0;
+  const distHistogram = distBins.map(limit => {
+    const result = {
+      label: `${previousDistance}-${limit}km`,
+      count: distances.filter(distance => distance >= previousDistance && distance < limit).length,
+    };
+    previousDistance = limit;
+    return result;
   });
-  const stationAvg = Array.from(stationTimes.entries())
-    .map(([name, v]) => ({ name, avg: v.total / v.count, count: v.count }))
-    .sort((a, b) => a.avg - b.avg);
+
+  const hourGroups = [
+    { label: '00-05시', from: 0, to: 6 },
+    { label: '06-11시', from: 6, to: 12 },
+    { label: '12-17시', from: 12, to: 18 },
+    { label: '18-23시', from: 18, to: 24 },
+  ].map(group => ({
+    label: group.label,
+    count: data.filter(item => {
+      const hour = Number.parseInt(item.activityHour, 10);
+      return hour >= group.from && hour < group.to;
+    }).length,
+  }));
+
+  const placeCounts = new Map<string, number>();
+  data.forEach(item => {
+    const place = item.occurrencePlace || '미상';
+    placeCounts.set(place, (placeCounts.get(place) ?? 0) + 1);
+  });
+  const placeData = Array.from(placeCounts, ([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
 
   return (
     <div className="space-y-6">
-      {/* KPI 카드 3개 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-xl p-5 text-center">
-          <span className="material-symbols-outlined text-3xl text-blue-700 dark:text-blue-300 mb-2 block">timer</span>
-          <p className="text-3xl font-extrabold text-on-surface font-headline tabular-nums">{avgResponse}<span className="text-sm text-on-surface-variant ml-1">분</span></p>
-          <p className="text-xs text-on-surface-variant mt-1">평균 현장 대응시간</p>
-          <p className="text-[10px] text-on-surface-variant/60 mt-0.5">{responseTimes.length}건 기준</p>
+      <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-4 text-sm text-on-surface-variant">
+        원 API는 출동년월·출동시·현장 이동거리만 제공하며 현장 도착 소요시간과 귀소시간은 제공하지 않습니다.
+        따라서 제공되지 않는 시간을 계산하지 않고 실제 필드만 분석합니다.
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-5 text-center">
+          <span className="material-symbols-outlined mb-2 block text-3xl text-amber-700 dark:text-amber-300">straighten</span>
+          <p className="text-3xl font-extrabold text-on-surface">{avgDistance}<span className="ml-1 text-sm text-on-surface-variant">km</span></p>
+          <p className="mt-1 text-xs text-on-surface-variant">평균 현장 이동거리</p>
         </div>
-        <div className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 rounded-xl p-5 text-center">
-          <span className="material-symbols-outlined text-3xl text-amber-700 dark:text-amber-300 mb-2 block">straighten</span>
-          <p className="text-3xl font-extrabold text-on-surface font-headline tabular-nums">{avgDistance}<span className="text-sm text-on-surface-variant ml-1">km</span></p>
-          <p className="text-xs text-on-surface-variant mt-1">평균 현장 거리</p>
-          <p className="text-[10px] text-on-surface-variant/60 mt-0.5">{distances.length}건 기준</p>
-        </div>
-        <div className="bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 rounded-xl p-5 text-center">
-          <span className="material-symbols-outlined text-3xl text-green-700 dark:text-green-300 mb-2 block">update</span>
-          <p className="text-3xl font-extrabold text-on-surface font-headline tabular-nums">{avgTurnAround}<span className="text-sm text-on-surface-variant ml-1">분</span></p>
-          <p className="text-xs text-on-surface-variant mt-1">평균 출동→귀소</p>
-          <p className="text-[10px] text-on-surface-variant/60 mt-0.5">{returnTimes.length}건 기준</p>
+        <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-5 text-center">
+          <span className="material-symbols-outlined mb-2 block text-3xl text-blue-700 dark:text-blue-300">dataset</span>
+          <p className="text-3xl font-extrabold text-on-surface">{data.length.toLocaleString()}<span className="ml-1 text-sm text-on-surface-variant">건</span></p>
+          <p className="mt-1 text-xs text-on-surface-variant">선택 소방서 조회 건수</p>
         </div>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 대응시간 히스토그램 */}
-        <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
-          <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-blue-700 dark:text-blue-300">schedule</span>
-            대응시간 분포
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <section className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-6">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-on-surface-variant">
+            <span className="material-symbols-outlined text-base">route</span>현장 거리 분포
           </h3>
-          {loading ? <Skeleton /> : <HBarChart data={timeHistogram} labelKey="label" valueKey="count" />}
+          <HBarChart data={distHistogram} labelKey="label" valueKey="count" />
         </section>
-
-        {/* 거리 히스토그램 */}
-        <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
-          <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-amber-700 dark:text-amber-300">map</span>
-            현장 거리 분포
+        <section className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-6">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-on-surface-variant">
+            <span className="material-symbols-outlined text-base">schedule</span>출동 시간대
           </h3>
-          {loading ? <Skeleton /> : <HBarChart data={distHistogram} labelKey="label" valueKey="count" />}
+          <HBarChart data={hourGroups} labelKey="label" valueKey="count" />
+        </section>
+        <section className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-6">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-on-surface-variant">
+            <span className="material-symbols-outlined text-base">location_on</span>사고 발생장소
+          </h3>
+          <HBarChart data={placeData} labelKey="label" valueKey="count" />
         </section>
       </div>
-
-      {/* 소방서별 평균 대응시간 TOP 15 */}
-      {stationAvg.length > 0 && (
-        <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
-          <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-purple-700 dark:text-purple-300">leaderboard</span>
-            소방서별 평균 대응시간 (빠른 순)
-          </h3>
-          <div className="space-y-1.5">
-            {stationAvg.slice(0, 15).map((s) => {
-              const maxAvg = Math.max(...stationAvg.slice(0, 15).map(x => x.avg), 1);
-              const pct = (s.avg / maxAvg) * 100;
-              const isGood = s.avg <= 7;
-              const isOk = s.avg <= 12;
-              const barColor = isGood ? '#22c55e' : isOk ? '#eab308' : '#ef4444';
-              return (
-                <div key={s.name} className="flex items-center gap-2">
-                  <span className="text-[11px] text-on-surface-variant w-20 text-right truncate">{s.name}</span>
-                  <div className="flex-1 h-5 bg-surface-container rounded overflow-hidden relative">
-                    <div className="h-full rounded transition-all duration-700"
-                      style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${barColor}88, ${barColor})` }} />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-on-surface">
-                      {s.avg.toFixed(1)}분
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-on-surface-variant w-12 text-right tabular-nums">{s.count}건</span>
-                </div>
-              );
-            })}
-          </div>
-          <p className="text-[10px] text-on-surface-variant/60 mt-3 flex items-center gap-3">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> 7분 이내</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500 inline-block" /> 7~12분</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> 12분 초과</span>
-          </p>
-        </section>
-      )}
     </div>
   );
 }
@@ -464,8 +399,12 @@ function PatientSection({
 export default function EmergencyAnalysis() {
   const {
     months,
+    latestAvailableYm,
+    availabilityCheckedAt,
     selectedMonth,
     selectedSido,
+    fireStations,
+    selectedStation,
     viewMode,
     setViewMode,
     loading,
@@ -481,6 +420,7 @@ export default function EmergencyAnalysis() {
     firstAids,
     selectMonth,
     selectSido,
+    selectStation,
     refresh,
   } = useEmergencyAnalysisData();
 
@@ -492,7 +432,7 @@ export default function EmergencyAnalysis() {
 
   const VIEW_TABS: { id: ViewMode; label: string; icon: string }[] = [
     { id: 'stats', label: '출동 통계', icon: 'bar_chart' },
-    { id: 'response-time', label: '대응시간 분석', icon: 'timer' },
+    { id: 'response-time', label: '출동거리 분석', icon: 'route' },
     { id: 'patient', label: '환자 이송/처치', icon: 'medical_information' },
     { id: 'search', label: '상세 내역 검색', icon: 'search' },
   ];
@@ -529,6 +469,17 @@ export default function EmergencyAnalysis() {
               <option key={m} value={m}>{formatYm(m)}</option>
             ))}
           </select>
+          <select
+            aria-label="구급 상세 조회 소방서"
+            value={selectedStation}
+            onChange={event => selectStation(event.target.value)}
+            className="bg-surface-container border border-outline-variant/20 text-on-surface px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-primary"
+          >
+            <option value="">상세용 소방서 선택</option>
+            {fireStations.map(station => (
+              <option key={station} value={station}>{station}</option>
+            ))}
+          </select>
           <button
             onClick={() => refresh(true)}
             disabled={loading}
@@ -538,6 +489,25 @@ export default function EmergencyAnalysis() {
             새로고침
           </button>
         </div>
+      </div>
+
+      <div role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-on-surface-variant">
+        <span className="material-symbols-outlined text-lg text-primary">event_available</span>
+        <strong className="text-on-surface">공식 월간통계 최신 제공월 {formatYm(latestAvailableYm)}</strong>
+        {Number(latestAvailableYm.slice(0, 4)) < new Date().getFullYear() && (
+          <span>· {new Date().getFullYear()}년 월간통계는 원 API에서 아직 확인되지 않음</span>
+        )}
+        {availabilityCheckedAt && (
+          <span>· {new Date(availabilityCheckedAt).toLocaleDateString('ko-KR')} 자동 확인</span>
+        )}
+        <a
+          href="https://www.data.go.kr/data/15099428/openapi.do"
+          target="_blank"
+          rel="noreferrer"
+          className="font-bold text-primary hover:underline"
+        >
+          공식 원문
+        </a>
       </div>
 
       {/* 뷰 모드 탭 */}
@@ -618,8 +588,8 @@ export default function EmergencyAnalysis() {
             {formatYm(selectedMonth)} 데이터가 아직 없습니다
           </h3>
           <p className="text-sm text-on-surface-variant max-w-lg mx-auto">
-            소방청 구급통계 데이터는 통상 2~3개월 전 데이터까지만 제공됩니다.
-            월 선택 드롭다운에서 더 이전 달을 선택해 보세요.
+            원 API 최신 제공월은 {formatYm(latestAvailableYm)}입니다.
+            이 범위 안의 빈 결과는 지역 본부명과 응답 계약을 자동 검사하며, 실제 0건이면 그대로 표시합니다.
           </p>
         </div>
       )}
@@ -711,7 +681,7 @@ export default function EmergencyAnalysis() {
             <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
               <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
                 <span className="material-symbols-outlined text-base text-red-700 dark:text-red-300">fire_truck</span>
-                구급차량 현황
+                소방차량 기준정보
                 <span className="text-[10px] bg-surface-container px-2 py-0.5 rounded text-on-surface-variant font-normal normal-case">
                   {vehicles.length}대
                 </span>
@@ -737,19 +707,40 @@ export default function EmergencyAnalysis() {
         </>
       )}
 
-      {/* 2. 대응시간 분석 (새로 추가) */}
+      {/* 2. 출동거리 분석 */}
       {viewMode === 'response-time' && (
-        loading ? <LoadingSkeleton /> : <ResponseTimeSection data={activityDetails} />
+        !selectedStation ? (
+          <DataStatePanel
+            icon="domain"
+            tone="guidance"
+            title="상세 분석할 소방서를 선택하세요"
+            description="소방청 구급정보 원 API는 지역 전체가 아니라 출동소방서 조건을 필수로 요구합니다."
+          />
+        ) : loading ? <LoadingSkeleton /> : <ActivityDistanceSection data={activityDetails} />
       )}
 
       {/* 3. 환자 이송/처치 (새로 추가) */}
       {viewMode === 'patient' && (
-        loading ? <LoadingSkeleton /> : <PatientSection transfers={transfers} firstAids={firstAids} />
+        !selectedStation ? (
+          <DataStatePanel
+            icon="domain"
+            tone="guidance"
+            title="환자 상세를 조회할 소방서를 선택하세요"
+            description="개인 식별정보 없이 선택 소방서·월 기준의 공식 집계 필드만 조회합니다."
+          />
+        ) : loading ? <LoadingSkeleton /> : <PatientSection transfers={transfers} firstAids={firstAids} />
       )}
 
       {/* 4. 상세 내역 검색 (새로 추가) */}
       {viewMode === 'search' && (
-        loading ? <LoadingSkeleton /> : <SearchSection transfers={transfers} firstAids={firstAids} activityDetails={activityDetails} />
+        !selectedStation ? (
+          <DataStatePanel
+            icon="domain"
+            tone="guidance"
+            title="상세 내역을 조회할 소방서를 선택하세요"
+            description="상단의 소방서 선택 후 원 API가 제공하는 출동·이송·처치 항목을 검색할 수 있습니다."
+          />
+        ) : loading ? <LoadingSkeleton /> : <SearchSection transfers={transfers} firstAids={firstAids} activityDetails={activityDetails} />
       )}
     </div>
   );
@@ -816,9 +807,10 @@ function SearchSection({ transfers, firstAids, activityDetails }: { transfers: T
   const getActivityData = () => {
     return activityDetails.filter(a => 
       a.fireStnNm.includes(searchTerm) || 
-      a.safeCnterNm.includes(searchTerm) || 
       a.sidoNm.includes(searchTerm) || 
-      a.arriveYmd.includes(searchTerm)
+      a.activityYm.includes(searchTerm) ||
+      a.occurrencePlace.includes(searchTerm) ||
+      a.symptom.includes(searchTerm)
     );
   };
 
@@ -831,8 +823,7 @@ function SearchSection({ transfers, firstAids, activityDetails }: { transfers: T
   const currentData = dataMap[dataType];
 
   const getCommonLocation = (item: TransferItem | FirstAidItem | ActivityDetailItem) => {
-    const center = 'safeCnterNm' in item && item.safeCnterNm ? `(${item.safeCnterNm})` : '';
-    return `${item.sidoNm} ${item.fireStnNm} ${center}`;
+    return `${item.sidoNm} ${item.fireStnNm}`;
   };
 
   return (
@@ -899,7 +890,7 @@ function SearchSection({ transfers, firstAids, activityDetails }: { transfers: T
                 )}
                 {dataType === 'activity' && (
                   <>
-                    <th className="px-5 py-3 text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-widest whitespace-nowrap">현장 도착/귀소 시각</th>
+                    <th className="px-5 py-3 text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-widest whitespace-nowrap">출동년월/시간·발생장소</th>
                     <th className="px-5 py-3 text-right text-[10px] font-bold text-on-surface-variant uppercase tracking-widest whitespace-nowrap">출동 거리</th>
                   </>
                 )}
@@ -925,7 +916,7 @@ function SearchSection({ transfers, firstAids, activityDetails }: { transfers: T
                   {dataType === 'firstAid' && (
                     <>
                       <td className="px-5 py-3 text-on-surface-variant">
-                        {(item as FirstAidItem).ptntAge && (item as FirstAidItem).ptntAge !== '미상' ? `${(item as FirstAidItem).ptntAge}대` : '미상'} / {(item as FirstAidItem).ptntSex || '-'}
+                        {(item as FirstAidItem).ptntAge || '미상'} / {(item as FirstAidItem).ptntSex || '-'}
                       </td>
                       <td className="px-5 py-3">
                          <span className="bg-secondary/10 text-secondary px-2 py-1 rounded text-xs">{(item as FirstAidItem).emrgFirstaidCd || '-'}</span>
@@ -936,13 +927,13 @@ function SearchSection({ transfers, firstAids, activityDetails }: { transfers: T
                   {dataType === 'activity' && (
                     <>
                       <td className="px-5 py-3 text-on-surface-variant">
-                        <div className="flex gap-4">
-                          <span className="flex items-center gap-1 text-xs"><span className="material-symbols-outlined text-[14px]">login</span> {(item as ActivityDetailItem).arriveYmd} {(item as ActivityDetailItem).arriveHh}:{(item as ActivityDetailItem).arriveMm}</span>
-                          <span className="flex items-center gap-1 text-xs opacity-60"><span className="material-symbols-outlined text-[14px]">logout</span> {(item as ActivityDetailItem).returnYmd} {(item as ActivityDetailItem).returnHh}:{(item as ActivityDetailItem).returnMm}</span>
+                        <div className="flex flex-wrap gap-3">
+                          <span className="flex items-center gap-1 text-xs"><span className="material-symbols-outlined text-[14px]">schedule</span> {(item as ActivityDetailItem).activityYm} · {(item as ActivityDetailItem).activityHour}시</span>
+                          <span className="text-xs opacity-70">{(item as ActivityDetailItem).occurrencePlace} · {(item as ActivityDetailItem).symptom}</span>
                         </div>
                       </td>
                       <td className="px-5 py-3 text-right tabular-nums text-on-surface font-medium">
-                        {(item as ActivityDetailItem).distKm ? `${(item as ActivityDetailItem).distKm} km` : '-'}
+                        {(item as ActivityDetailItem).distanceKm ? `${(item as ActivityDetailItem).distanceKm} km` : '-'}
                       </td>
                     </>
                   )}

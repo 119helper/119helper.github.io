@@ -140,6 +140,9 @@ export default {
       if (path === '/api/er/list') {
         cacheUrl.searchParams.set('_cv', '1'); // 기관 목록 50건 제한 응답 무효화
       }
+      if (path.startsWith('/api/emergency/')) {
+        cacheUrl.searchParams.set('_cv', '1'); // 본부명·응답 필드·상세조회 파라미터 교정 전 캐시 무효화
+      }
 
       const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
       const cache = caches.default;

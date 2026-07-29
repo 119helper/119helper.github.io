@@ -134,6 +134,10 @@ const fireDamageResponseSchema = z.object({
   totalCount: z.coerce.number().catch(0),
   pageNo: z.coerce.number().catch(1),
   numOfRows: z.coerce.number().catch(0),
+  availableFrom: z.string().optional(),
+  availableTo: z.string().optional(),
+  sourceName: z.string().optional(),
+  sourceUrl: z.string().optional(),
   error: z.string().optional(),
   errorCode: z.union([z.string(), z.number()]).optional().transform(value => value === undefined ? undefined : String(value)),
 }).passthrough();
@@ -707,6 +711,33 @@ export async function fetchMultiUseFacilities(ctprvnNm: string, signguNm?: strin
 }
 
 // ═══════ 구급통계 (7일) ═══════
+export interface EmergencyAvailabilityResponse {
+  latestYm: string | null;
+  currentYm: string;
+  lagMonths: number | null;
+  checkedAt: string;
+  sourceName: string;
+  sourceUrl: string;
+}
+
+const emergencyAvailabilitySchema = z.object({
+  latestYm: z.string().nullable(),
+  currentYm: z.string(),
+  lagMonths: z.coerce.number().nullable(),
+  checkedAt: z.string(),
+  sourceName: z.string(),
+  sourceUrl: z.string(),
+}).passthrough() satisfies z.ZodType<EmergencyAvailabilityResponse>;
+
+export async function fetchEmergencyAvailability(forceRefresh?: boolean) {
+  return apiFetch<EmergencyAvailabilityResponse>('/api/emergency/stats/availability', undefined, {
+    cacheTtlMs: 6 * HOUR_MS,
+    maxStaleMs: 7 * DAY_MS,
+    forceRefresh,
+    schema: emergencyAvailabilitySchema,
+  });
+}
+
 export async function fetchEmergencyStats(op: string, params?: Record<string, string>, forceRefresh?: boolean) {
   return apiFetch<PaginatedItemsResponse>(`/api/emergency/stats/${op}`, params, { ...HOURLY_OPERATIONAL_OPTS, forceRefresh, schema: paginatedApiRecordSchema });
 }
@@ -731,7 +762,18 @@ export async function fetchFireObjectFireSys(ctpvNm: string, numOfRows = '100', 
 
 // ═══════ 지역별 화재피해 현황 (1일) ═══════
 export interface FireDamageItem { ocrnYmdhh: string; gutFsttOgidNm: string; deadPercnt: string; injrdprPercnt: string; prptDmgSbttAmt: string; lawAddrName: string; }
-export interface FireDamageResponse { items: FireDamageItem[]; totalCount: number; pageNo: number; numOfRows: number; error?: string; errorCode?: string; }
+export interface FireDamageResponse {
+  items: FireDamageItem[];
+  totalCount: number;
+  pageNo: number;
+  numOfRows: number;
+  availableFrom?: string;
+  availableTo?: string;
+  sourceName?: string;
+  sourceUrl?: string;
+  error?: string;
+  errorCode?: string;
+}
 export async function fetchFireDamage(params?: { pageNo?: string; numOfRows?: string; lawAddrName?: string; sidoNm?: string; startYmd?: string; endYmd?: string; }, forceRefresh?: boolean): Promise<FireDamageResponse> {
   return apiFetch<FireDamageResponse>('/api/fire-damage', params, { ...DAILY_REFERENCE_OPTS, forceRefresh, schema: fireDamageResponseSchema });
 }

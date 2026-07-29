@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  fetchEmergencyAvailability,
   fetchEmergencyInfo,
   fetchEmergencyStats,
   isStaleDataError,
@@ -41,16 +42,15 @@ export interface VehicleItem {
 }
 
 export interface ActivityDetailItem {
-  arriveYmd: string;
-  arriveHh: string;
-  arriveMm: string;
-  distKm: string;
-  returnYmd: string;
-  returnHh: string;
-  returnMm: string;
+  activityYm: string;
+  activityHour: string;
+  distanceKm: string;
+  occurrencePlace: string;
+  symptom: string;
+  patientAge: string;
+  patientSex: string;
   sidoNm: string;
   fireStnNm: string;
-  safeCnterNm: string;
 }
 
 export interface TransferItem {
@@ -119,11 +119,41 @@ function itemsFrom(result: EmergencySettledResult): ApiRecord[] {
     : [];
 }
 
+export function summarizeEmergencyActivity(items: ApiRecord[]): ActivityStats {
+  return items.reduce<ActivityStats>((totals, item) => ({
+    dispatchCnt: totals.dispatchCnt + countField(item, ['gutCo', 'dispatchCnt', '출동건수']),
+    transferCnt: totals.transferCnt + countField(item, ['trnfCo', 'transferCnt', '이송건수']),
+    transferPrsnCnt: totals.transferPrsnCnt + countField(item, ['trnfPcnt', 'transferPrsnCnt', '이송환자수']),
+  }), { ...EMPTY_ACTIVITY });
+}
+
+export function aggregateEmergencyMetricRows(
+  items: ApiRecord[],
+  labelKeys: string[],
+  fallback: string,
+): Array<{ label: string } & ActivityStats> {
+  const grouped = new Map<string, ActivityStats>();
+  for (const item of items) {
+    const label = field(item, labelKeys, fallback);
+    const current = grouped.get(label) ?? { ...EMPTY_ACTIVITY };
+    current.dispatchCnt += countField(item, ['gutCo', 'dispatchCnt', '출동건수']);
+    current.transferCnt += countField(item, ['trnfCo', 'transferCnt', '이송건수']);
+    current.transferPrsnCnt += countField(item, ['trnfPcnt', 'transferPrsnCnt', '이송환자수']);
+    grouped.set(label, current);
+  }
+  return Array.from(grouped, ([label, counts]) => ({ label, ...counts }))
+    .sort((a, b) => b.dispatchCnt - a.dispatchCnt);
+}
+
 export function useEmergencyAnalysisData() {
   const requestSeqRef = useRef(0);
-  const months = getRecentMonths(24);
-  const [selectedMonth, setSelectedMonth] = useState(months[0]);
+  const [latestAvailableYm, setLatestAvailableYm] = useState(LATEST_EMERGENCY_DATA_YM);
+  const [availabilityCheckedAt, setAvailabilityCheckedAt] = useState<string | null>(null);
+  const months = useMemo(() => getRecentMonths(24, latestAvailableYm), [latestAvailableYm]);
+  const [selectedMonth, setSelectedMonth] = useState(LATEST_EMERGENCY_DATA_YM);
   const [selectedSido, setSelectedSido] = useState('서울');
+  const [fireStations, setFireStations] = useState<string[]>([]);
+  const [selectedStation, setSelectedStation] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('stats');
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -139,10 +169,33 @@ export function useEmergencyAnalysisData() {
   const [transfers, setTransfers] = useState<TransferItem[]>([]);
   const [firstAids, setFirstAids] = useState<FirstAidItem[]>([]);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetchEmergencyAvailability()
+      .then(availability => {
+        if (cancelled || !availability.latestYm) return;
+        const latestYm = availability.latestYm;
+        setLatestAvailableYm(latestYm);
+        setAvailabilityCheckedAt(availability.checkedAt);
+        setSelectedMonth(current => (
+          getRecentMonths(24, latestYm).includes(current)
+            ? current
+            : latestYm
+        ));
+      })
+      .catch(error => console.warn('[EmergencyAnalysis] latest month discovery failed:', error));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const fetchAll = useCallback(async (forceRefresh = false) => {
     const seq = ++requestSeqRef.current;
     const statsParams: Record<string, string> = { reqYm: selectedMonth };
-    const infoParams: Record<string, string> = { reportYm: selectedMonth };
+    const infoParams: Record<string, string> = {
+      reportYm: selectedMonth,
+      fireStn: selectedStation,
+    };
     statsParams.sido = selectedSido;
     infoParams.sido = selectedSido;
 
@@ -154,9 +207,15 @@ export function useEmergencyAnalysisData() {
         fetchEmergencyStats('age', statsParams, forceRefresh),
         fetchEmergencyStats('location', statsParams, forceRefresh),
         fetchEmergencyInfo('vehicles', { sido: selectedSido }, forceRefresh),
-        fetchEmergencyInfo('activity', infoParams, forceRefresh),
-        fetchEmergencyInfo('transfer', infoParams, forceRefresh),
-        fetchEmergencyInfo('first-aid', infoParams, forceRefresh),
+        selectedStation
+          ? fetchEmergencyInfo('activity', infoParams, forceRefresh)
+          : Promise.resolve({ items: [], totalCount: 0 }),
+        selectedStation
+          ? fetchEmergencyInfo('transfer', infoParams, forceRefresh)
+          : Promise.resolve({ items: [], totalCount: 0 }),
+        selectedStation
+          ? fetchEmergencyInfo('first-aid', infoParams, forceRefresh)
+          : Promise.resolve({ items: [], totalCount: 0 }),
       ]);
 
       if (seq !== requestSeqRef.current) return;
@@ -175,7 +234,7 @@ export function useEmergencyAnalysisData() {
         return r;
       });
 
-      const allFailed = processedResults.every(r => r.status === 'rejected');
+      const allFailed = processedResults.slice(0, 5).every(r => r.status === 'rejected');
       if (allFailed) {
         const firstErr = (processedResults[0] as PromiseRejectedResult).reason;
         setApiError(firstErr?.message || '구급 API에 연결할 수 없습니다.');
@@ -188,77 +247,67 @@ export function useEmergencyAnalysisData() {
 
       if (processedResults[0].status === 'fulfilled') {
         const items = itemsFrom(processedResults[0]);
-        const totals: ActivityStats = { ...EMPTY_ACTIVITY };
-        items.forEach(it => {
-          totals.dispatchCnt += countField(it, ['dispatchCnt', '출동건수']);
-          totals.transferCnt += countField(it, ['transferCnt', '이송건수']);
-          totals.transferPrsnCnt += countField(it, ['transferPrsnCnt', '이송환자수']);
-        });
-        setActivity(totals);
+        setActivity(summarizeEmergencyActivity(items));
+        const stations = Array.from(new Set(
+          items.map(item => field(item, ['rsacGutFsttOgidNm', 'fireStnNm', '출동소방서']))
+            .filter(Boolean),
+        )).sort((a, b) => a.localeCompare(b, 'ko'));
+        setFireStations(stations);
+        setSelectedStation(current => stations.includes(current) ? current : '');
       }
 
       if (processedResults[1].status === 'fulfilled') {
         const items = itemsFrom(processedResults[1]);
-        setDispatchTypes(items.map(it => ({
-          dispatchType: field(it, ['dispatchType', '출동유형'], '기타'),
-          dispatchCnt: countField(it, ['dispatchCnt', '출동건수']),
-          transferCnt: countField(it, ['transferCnt', '이송건수']),
-          transferPrsnCnt: countField(it, ['transferPrsnCnt', '이송환자수']),
-        })).filter((it: DispatchTypeItem) => it.dispatchCnt > 0));
+        setDispatchTypes(aggregateEmergencyMetricRows(items, ['gutTyCdNm', 'dispatchType', '출동유형'], '기타')
+          .map(item => ({ dispatchType: item.label, ...item }))
+          .filter(item => item.dispatchCnt > 0));
       }
 
       if (processedResults[2].status === 'fulfilled') {
         const items = itemsFrom(processedResults[2]);
-        setAgeGroups(items.map(it => ({
-          ageGroup: field(it, ['ageGroup', '연령대'], '미상'),
-          dispatchCnt: countField(it, ['dispatchCnt', '출동건수']),
-          transferCnt: countField(it, ['transferCnt', '이송건수']),
-          transferPrsnCnt: countField(it, ['transferPrsnCnt', '이송환자수']),
-        })).filter((it: AgeGroupItem) => it.transferPrsnCnt > 0));
+        setAgeGroups(aggregateEmergencyMetricRows(items, ['ageScov', 'ageGroup', '연령대'], '미상')
+          .map(item => ({ ageGroup: item.label, ...item }))
+          .filter(item => item.transferPrsnCnt > 0));
       }
 
       if (processedResults[3].status === 'fulfilled') {
         const items = itemsFrom(processedResults[3]);
-        setLocations(items.map(it => ({
-          accidentPlace: field(it, ['accidentPlace', '사고장소'], '기타'),
-          dispatchCnt: countField(it, ['dispatchCnt', '출동건수']),
-          transferCnt: countField(it, ['transferCnt', '이송건수']),
-          transferPrsnCnt: countField(it, ['transferPrsnCnt', '이송환자수']),
-        })).filter((it: LocationItem) => it.dispatchCnt > 0));
+        setLocations(aggregateEmergencyMetricRows(items, ['ruptOccrPlcCdNm', 'accidentPlace', '사고장소'], '기타')
+          .map(item => ({ accidentPlace: item.label, ...item }))
+          .filter(item => item.dispatchCnt > 0));
       }
 
       if (processedResults[4].status === 'fulfilled') {
         const items = itemsFrom(processedResults[4]);
         setVehicles(items.map(it => ({
-          vhcleNo: field(it, ['vhcleNo', '차량호수'], '-'),
-          vhcleKnd: field(it, ['vhcleKnd', '차량구분'], '-'),
-          vhcleSttus: field(it, ['vhcleSttus', '차량상태'], '-'),
+          vhcleNo: field(it, ['vhclNo', 'vhcleNo', '차량호수'], '-'),
+          vhcleKnd: field(it, ['vctpCdNm', 'vhcleKnd', '차량구분'], '-'),
+          vhcleSttus: field(it, ['vhclStatCdNm', 'vhcleSttus', '차량상태'], '-'),
         })));
       }
 
       if (processedResults[5].status === 'fulfilled') {
         const items = itemsFrom(processedResults[5]);
         setActivityDetails(items.map(it => ({
-          arriveYmd: field(it, ['arriveYmd', '현장도착년월']),
-          arriveHh: field(it, ['arriveHh', '현장도착시']),
-          arriveMm: field(it, ['arriveMm', '현장도착분']),
-          distKm: field(it, ['distKm', '현장과의거리'], '0'),
-          returnYmd: field(it, ['returnYmd', '귀소년월']),
-          returnHh: field(it, ['returnHh', '귀소시']),
-          returnMm: field(it, ['returnMm', '귀소분']),
-          sidoNm: field(it, ['sidoNm', '시도본부']),
-          fireStnNm: field(it, ['fireStnNm', '출동소방서']),
-          safeCnterNm: field(it, ['safeCnterNm', '출동안전센터']),
+          activityYm: field(it, ['gutYm', '출동년월']),
+          activityHour: field(it, ['gutHh', '출동시']),
+          distanceKm: field(it, ['sptMvmnDtc', '현장과의거리'], '0'),
+          occurrencePlace: field(it, ['ruptOccrPlcCdNm', '구급사고발생장소'], '미상'),
+          symptom: field(it, ['ruptSptmCdNm', '환자증상'], '미상'),
+          patientAge: field(it, ['ptntAge', '환자연령'], '미상'),
+          patientSex: field(it, ['ptntSdtSeCdNm', '환자성별'], '미상'),
+          sidoNm: field(it, ['sidoHqOgidNm', 'sidoNm', '시도본부']),
+          fireStnNm: field(it, ['rsacGutFsttOgidNm', 'fireStnNm', '출동소방서']),
         })));
       }
 
       if (processedResults[6].status === 'fulfilled') {
         const items = itemsFrom(processedResults[6]);
         setTransfers(items.map(it => ({
-          occrrPlce: field(it, ['occrrPlce', '사고발생장소'], '미상'),
-          occrrType: field(it, ['occrrType', '발생유형'], '미상'),
-          sidoNm: field(it, ['sidoNm']),
-          fireStnNm: field(it, ['fireStnNm']),
+          occrrPlce: field(it, ['ruptOccrPlcCdNm', 'occrrPlce', '사고발생장소'], '미상'),
+          occrrType: field(it, ['rlifOccrTyCdNm', 'occrrType', '발생유형'], '미상'),
+          sidoNm: field(it, ['sidoHqOgidNm', 'sidoNm']),
+          fireStnNm: field(it, ['rsacGutFsttOgidNm', 'fireStnNm']),
         })));
       }
 
@@ -266,10 +315,10 @@ export function useEmergencyAnalysisData() {
         const items = itemsFrom(processedResults[7]);
         setFirstAids(items.map(it => ({
           ptntAge: field(it, ['ptntAge', '환자연령']),
-          ptntSex: field(it, ['ptntSex', '환자성별'], '미상'),
-          emrgFirstaidCd: field(it, ['emrgFirstaidCd', '응급처치코드'], '미상'),
-          sidoNm: field(it, ['sidoNm']),
-          fireStnNm: field(it, ['fireStnNm']),
+          ptntSex: field(it, ['ptntSdtSeCdNm', 'ptntSex', '환자성별'], '미상'),
+          emrgFirstaidCd: field(it, ['fstaCdNm', 'emrgFirstaidCd', '응급처치코드'], '미상'),
+          sidoNm: field(it, ['sidoHqOgidNm', 'sidoNm']),
+          fireStnNm: field(it, ['rsacGutFsttOgidNm', 'fireStnNm']),
         })));
       }
 
@@ -283,7 +332,7 @@ export function useEmergencyAnalysisData() {
         setLoading(false);
       }
     }
-  }, [selectedMonth, selectedSido]);
+  }, [selectedMonth, selectedSido, selectedStation]);
 
   useEffect(() => {
     void fetchAll();
@@ -306,7 +355,15 @@ export function useEmergencyAnalysisData() {
     requestSeqRef.current += 1;
     setLoading(true);
     setApiError(null);
+    setSelectedStation('');
     setSelectedSido(sido);
+  }, []);
+
+  const selectStation = useCallback((station: string) => {
+    requestSeqRef.current += 1;
+    setLoading(true);
+    setApiError(null);
+    setSelectedStation(station);
   }, []);
 
   const refresh = useCallback((forceRefresh = false) => {
@@ -319,8 +376,12 @@ export function useEmergencyAnalysisData() {
 
   return {
     months,
+    latestAvailableYm,
+    availabilityCheckedAt,
     selectedMonth,
     selectedSido,
+    fireStations,
+    selectedStation,
     viewMode,
     setViewMode,
     loading,
@@ -336,6 +397,7 @@ export function useEmergencyAnalysisData() {
     firstAids,
     selectMonth,
     selectSido,
+    selectStation,
     refresh,
   };
 }
