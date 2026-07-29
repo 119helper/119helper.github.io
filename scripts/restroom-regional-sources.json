@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "seoul-oa-22586-restrooms",
+      "enabled": true,
+      "downloadKind": "seoul-sheet-csv",
+      "datasetId": "OA-22586",
+      "label": "서울시 공중화장실 위치정보",
+      "cityKey": "seoul",
+      "city": "서울특별시",
+      "district": "",
+      "sourceUrl": "https://data.seoul.go.kr/dataList/OA-22586/S/1/datasetView.do",
+      "downloadUrl": "https://datafile.seoul.go.kr/bigfile/iot/sheet/csv/download.do",
+      "encoding": "euc-kr",
+      "minimumSourceDate": "2026-01-01",
+      "minimumRows": 4000,
+      "maximumRows": 5000,
+      "latitudeRange": [
+        37.4,
+        37.75
+      ],
+      "longitudeRange": [
+        126.7,
+        127.25
+      ],
+      "license": "공공누리 제1유형",
+      "fieldMap": {
+        "name": [
+          "건물명",
+          "CONTS_NAME"
+        ],
+        "roadAddress": [
+          "도로명주소",
+          "ADDR_NEW"
+        ],
+        "lotAddress": [
+          "지번주소",
+          "ADDR_OLD"
+        ],
+        "latitude": [
+          "y 좌표",
+          "COORD_Y"
+        ],
+        "longitude": [
+          "x 좌표",
+          "COORD_X"
+        ],
+        "sourceDate": []
+      }
+    },
+    {
+      "id": "jeju-city-public-restrooms",
+      "enabled": true,
+      "downloadKind": "data-go-file",
+      "publicDataPk": "15110521",
+      "publicDataDetailPk": "uddi:53e4caf3-7c1b-44a4-a39c-d203040442e9",
+      "label": "제주특별자치도 제주시 공중화장실",
+      "cityKey": "jeju",
+      "city": "제주특별자치도",
+      "district": "제주시",
+      "sourceUrl": "https://www.data.go.kr/data/15110521/fileData.do",
+      "encoding": "euc-kr",
+      "minimumSourceDate": "2025-01-01",
+      "minimumRows": 450,
+      "maximumRows": 600,
+      "latitudeRange": [
+        33.05,
+        34.1
+      ],
+      "longitudeRange": [
+        125.5,
+        127.3
+      ],
+      "license": "이용허락범위 제한 없음",
+      "fieldMap": {
+        "name": [
+          "화장실 명"
+        ],
+        "roadAddress": [
+          "도로명 주소"
+        ],
+        "lotAddress": [
+          "지번 주소"
+        ],
+        "latitude": [
+          "위도 좌표"
+        ],
+        "longitude": [
+          "경도 좌표"
+        ],
+        "sourceDate": [
+          "데이터 기준일"
+        ]
+      }
+    },
+    {
+      "id": "busan-dongnae-open-restrooms",
+      "enabled": true,
+      "downloadKind": "data-go-file",
+      "publicDataPk": "3079086",
+      "publicDataDetailPk": "uddi:47ee2529-b912-41e4-8e3a-c5a0b62a244a",
+      "label": "부산광역시 동래구 개방화장실 현황",
+      "cityKey": "busan",
+      "city": "부산광역시",
+      "district": "동래구",
+      "sourceUrl": "https://www.data.go.kr/data/3079086/fileData.do",
+      "encoding": "euc-kr",
+      "minimumSourceDate": "2026-01-01",
+      "minimumRows": 100,
+      "maximumRows": 200,
+      "latitudeRange": [
+        35.15,
+        35.3
+      ],
+      "longitudeRange": [
+        129.0,
+        129.16
+      ],
+      "license": "이용허락범위 제한 없음",
+      "fieldMap": {
+        "name": [
+          "화장실명"
+        ],
+        "roadAddress": [
+          "도로명주소",
+          "도로명 상세주소"
+        ],
+        "lotAddress": [
+          "지번주소",
+          "지번 상세주소"
+        ],
+        "latitude": [
+          "위도"
+        ],
+        "longitude": [
+          "경도"
+        ],
+        "sourceDate": [
+          "데이터기준일자"
+        ]
+      }
+    },
+    {
+      "id": "busan-galmaetgil-restrooms",
+      "enabled": true,
+      "downloadKind": "data-go-shapefile",
+      "publicDataPk": "15084238",
+      "publicDataDetailPk": "uddi:a2ee1a8d-b8bf-4fc6-a40e-e5adb31f6adf",
+      "shapefileName": "gmgRestroomInfo",
+      "label": "부산광역시 갈맷길 화장실정보(SHP)",
+      "displayLabel": "부산 갈맷길",
+      "cityKey": "busan",
+      "city": "부산광역시",
+      "district": "",
+      "sourceUrl": "https://www.data.go.kr/data/15084238/fileData.do",
+      "minimumSourceDate": "2025-01-01",
+      "minimumRows": 150,
+      "maximumRows": 250,
+      "latitudeRange": [
+        34.85,
+        35.4
+      ],
+      "longitudeRange": [
+        128.75,
+        129.35
+      ],
+      "license": "이용허락범위 제한 없음",
+      "shapefileFieldIndexes": {
+        "name": 0,
+        "roadAddress": 1,
+        "lotAddress": 3,
+        "latitude": 12,
+        "longitude": 13
+      },
+      "fieldMap": {
+        "name": [
+          "__name"
+        ],
+        "roadAddress": [
+          "__roadAddress"
+        ],
+        "lotAddress": [
+          "__lotAddress"
+        ],
+        "latitude": [
+          "__latitude"
+        ],
+        "longitude": [
+          "__longitude"
+        ],
+        "sourceDate": [
+          "__sourceDate"
+        ]
+      }
+    }
+  ]
+}

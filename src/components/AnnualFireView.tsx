@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { fetchAnnualFireStats, fetchAnnualFireYears, isStaleDataError } from '../services/apiClient';
 import type { AnnualFireStatsResponse, AnnualFireYearsResponse } from '../services/apiClient';
 
-const FALLBACK_YEARS = Array.from({ length: 10 }, (_, i) => String(2024 - i));
+const FALLBACK_YEARS = Array.from({ length: 12 }, (_, i) => String(new Date().getFullYear() - i));
 
 const csvEscape = (value: unknown) => {
   const text = String(value ?? '');
@@ -25,7 +25,7 @@ function formatNumber(n: number): string {
 }
 
 export default function AnnualFireView() {
-  const [year, setYear] = useState('2024');
+  const [year, setYear] = useState(FALLBACK_YEARS[0]);
   const [years, setYears] = useState<string[]>(FALLBACK_YEARS);
   const [coverage, setCoverage] = useState<AnnualFireYearsResponse | null>(null);
   const [data, setData] = useState<AnnualFireStatsResponse | null>(null);
@@ -42,7 +42,7 @@ export default function AnnualFireView() {
         if (cancelled || res.years.length === 0) return;
         setCoverage(res);
         setYears(res.years);
-        setYear(current => res.years.includes(current) ? current : res.latestYear ?? res.years[0]);
+        setYear(res.latestYear ?? res.years[0]);
       })
       .catch(err => console.warn('[AnnualFireView] supported years failed:', err));
     return () => {
@@ -99,7 +99,7 @@ export default function AnnualFireView() {
             연간 화재통계
           </h2>
           <p className="text-sm text-on-surface-variant mt-1">
-            소방청 연간화재통계 · <span className="text-primary font-semibold">{year}년</span>
+            소방청 화재통계 · <span className="text-primary font-semibold">{year}년</span>
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -109,9 +109,14 @@ export default function AnnualFireView() {
             onChange={e => setYear(e.target.value)}
             className="bg-surface-container text-on-surface text-sm rounded-xl px-3 py-2 border border-outline-variant/20 focus:outline-none focus:border-primary font-bold"
           >
-            {years.map(y => (
-              <option key={y} value={y}>{y}년</option>
-            ))}
+            {years.map(y => {
+              const period = coverage?.periods?.find(item => item.year === y);
+              return (
+                <option key={y} value={y}>
+                  {y}년{period?.coverageType === 'partial' ? ` 누계 (${period.dataThrough})` : ''}
+                </option>
+              );
+            })}
           </select>
           <button
             onClick={() => loadStats(true)}
@@ -125,10 +130,13 @@ export default function AnnualFireView() {
             <button
               onClick={() => {
                 const rows: string[][] = [['구분', '항목', '값']];
+                rows.push(['메타데이터', '자료구분', data.coverageType === 'partial' ? '연중 누계' : '연간 확정']);
+                rows.push(['메타데이터', '자료기준일', data.dataThrough ?? `${year}-12-31`]);
+                rows.push(['메타데이터', '출처', data.sourceName ?? '소방청 연간화재통계']);
                 rows.push(['요약', '총 화재', String(data.summary.totalFires)]);
                 rows.push(['요약', '사망', String(data.summary.totalDeaths)]);
                 rows.push(['요약', '부상', String(data.summary.totalInjuries)]);
-                rows.push(['요약', '재산피해', String(data.summary.totalPropertyDamage)]);
+                rows.push(['요약', '재산피해(원)', String(data.summary.totalPropertyDamage * (data.propertyDamageUnit === 'thousandWon' ? 1_000 : 1))]);
                 data.bySido.forEach(d => rows.push(['시도별', d.name, String(d.count)]));
                 data.byFireType.forEach(d => rows.push(['화재유형', d.name, String(d.count)]));
                 data.byPlace.forEach(d => rows.push(['장소별', d.name, String(d.count)]));
@@ -155,13 +163,17 @@ export default function AnnualFireView() {
 
       <div role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-on-surface-variant">
         <span className="material-symbols-outlined text-lg text-primary">database</span>
-        <strong className="text-on-surface">공식 최신 공개연도 {coverage?.latestYear ?? years[0]}년</strong>
-        {coverage?.nextExpectedUpdate && (
-          <span>· 차기 등록 예정 {new Date(coverage.nextExpectedUpdate).toLocaleDateString('ko-KR')}</span>
+        <strong className="text-on-surface">공식 완결연도 {coverage?.latestCompleteYear ?? coverage?.latestYear ?? years[0]}년</strong>
+        {coverage?.latestDataThrough && <span>· 최신 누계 {coverage.latestDataThrough} 기준</span>}
+        {data?.coverageType === 'partial' && data.dataThrough && (
+          <strong className="text-amber-700 dark:text-amber-300">· 현재 화면은 {data.dataThrough}까지 누계</strong>
+        )}
+        {data?.regionalClassification && data.regionalClassification.unclassifiedCount > 0 && (
+          <span>· 지역 미분류 {data.regionalClassification.unclassifiedCount.toLocaleString()}건 포함</span>
         )}
         <span>· 공식 제공범위 밖 연도는 임의 생성하지 않음</span>
         <a
-          href="https://www.data.go.kr/tcs/dss/selectFileDataDetailView.do?publicDataPk=15060386"
+          href={data?.sourceUrl ?? coverage?.sourceUrl ?? 'https://www.data.go.kr/data/15060386/fileData.do'}
           target="_blank"
           rel="noreferrer"
           className="font-bold text-primary hover:underline"
@@ -222,7 +234,12 @@ export default function AnnualFireView() {
               { label: '사망', value: `${data.summary.totalDeaths}명`, icon: 'person_off', color: 'text-error' },
               { label: '부상', value: `${data.summary.totalInjuries}명`, icon: 'personal_injury', color: 'text-tertiary' },
               { label: '인명피해 합계', value: `${data.summary.totalCasualties}명`, icon: 'group', color: 'text-on-surface' },
-              { label: '재산피해액(원)', value: `${formatNumber(data.summary.totalPropertyDamage)}원`, icon: 'payments', color: 'text-primary' },
+              {
+                label: '재산피해액',
+                value: `${formatNumber(data.summary.totalPropertyDamage * (data.propertyDamageUnit === 'thousandWon' ? 1_000 : 1))}원`,
+                icon: 'payments',
+                color: 'text-primary',
+              },
             ].map(card => (
               <div key={card.label} className="bg-surface-container rounded-2xl p-4 border border-outline-variant/10">
                 <div className="flex items-center gap-2 mb-2">
@@ -353,7 +370,7 @@ export default function AnnualFireView() {
                 </tr>
               </thead>
               <tbody>
-                {data.casualtiesBySido.slice(0, 17).map((row, i) => (
+                {data.casualtiesBySido.map((row, i) => (
                   <tr key={row.name} className={`border-b border-outline-variant/10 ${i % 2 ? 'bg-surface-container-high/30' : ''}`}>
                     <td className="py-2.5 px-3 font-medium text-on-surface">{row.name}</td>
                     <td className="py-2.5 px-3 text-right text-error font-bold">{row.deaths}</td>

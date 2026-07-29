@@ -1,4 +1,12 @@
-// ERG (Emergency Response Guidebook) 기반 유해화학물질 데이터베이스
+// ERG (Emergency Response Guidebook) 구조를 참고한 유해화학물질 데이터베이스.
+// 현재 수치 30종은 PHMSA ERG 2024 표와 항목별 전수 대조가 끝나지 않았으므로
+// 현장 통제선 확정값으로 사용하지 않는다.
+
+export const ERG_DATA_STATUS = {
+  referenceEdition: 'PHMSA ERG 2024',
+  verificationStatus: 'item-by-item-comparison-pending',
+  sourceUrl: 'https://www.phmsa.dot.gov/training/hazmat/erg/emergency-response-guidebook-erg',
+} as const;
 // 소방관이 현장에서 자주 접하는 30종 위험물질
 
 export interface ChemicalData {

@@ -13,7 +13,7 @@ const PALETTE = [
   '#ec4899', '#f43f5e', '#64748b', '#84cc16',
 ];
 
-const FALLBACK_YEARS = Array.from({ length: 10 }, (_, index) => String(2024 - index));
+const FALLBACK_YEARS = Array.from({ length: 12 }, (_, index) => String(new Date().getFullYear() - index));
 
 /* ─── 도넛 차트 ─── */
 interface ChartSlice {
@@ -152,6 +152,14 @@ export default function FireAnalysis() {
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
+  const [periodMeta, setPeriodMeta] = useState<{
+    coverageType?: 'complete' | 'partial';
+    dataThrough?: string;
+    propertyDamageUnit?: 'thousandWon';
+    sourceName?: string;
+    sourceUrl?: string;
+    unclassifiedRegionCount?: number;
+  }>({});
 
   // 데이터 상태
   const [summary, setSummary] = useState({ total: 0, death: 0, injury: 0, propertyDmg: 0, selfExtinguish: 0, falseReport: 0 });
@@ -168,9 +176,7 @@ export default function FireAnalysis() {
         if (cancelled || result.years.length === 0) return;
         setCoverage(result);
         setYears(result.years);
-        setSelectedYear(current => result.years.includes(current)
-          ? current
-          : result.latestYear ?? result.years[0]);
+        setSelectedYear(result.latestYear ?? result.years[0]);
       })
       .catch(error => console.warn('[FireAnalysis] supported years failed:', error));
     return () => {
@@ -206,7 +212,21 @@ export default function FireAnalysis() {
         selfExtinguish: 0,
         falseReport: 0,
       });
-      setSidoData(data.bySido.map(it => ({ name: it.name, fires: it.count, death: 0, injury: 0, property: 0 })));
+      setPeriodMeta({
+        coverageType: data.coverageType,
+        dataThrough: data.dataThrough,
+        propertyDamageUnit: data.propertyDamageUnit,
+        sourceName: data.sourceName,
+        sourceUrl: data.sourceUrl,
+        unclassifiedRegionCount: data.regionalClassification?.unclassifiedCount,
+      });
+      setSidoData(data.bySido.map(it => ({
+        name: it.name,
+        fires: it.count,
+        death: it.deaths ?? 0,
+        injury: it.injuries ?? 0,
+        property: it.propertyDamage ?? 0,
+      })));
       setCauseData(data.byCause.map(it => ({ cause: it.name || '기타', count: it.count })));
       setPlaceData(data.byPlace.map(it => ({ place: it.name || '기타', count: it.count })));
       setCasualtyData(data.casualtiesBySido
@@ -232,6 +252,7 @@ export default function FireAnalysis() {
   }, []);
 
   const hasAnyData = summary.total > 0 || causeData.length > 0 || placeData.length > 0;
+  const propertyDamageWon = summary.propertyDmg * (periodMeta.propertyDamageUnit === 'thousandWon' ? 1_000 : 1);
 
   return (
     <div className="space-y-6">
@@ -242,7 +263,10 @@ export default function FireAnalysis() {
             <span className="material-symbols-outlined ui-page-title-icon">local_fire_department</span>
             화재 분석
           </h2>
-          <p className="text-sm text-on-surface-variant mt-1">소방청 연간화재통계 · 전국 데이터</p>
+          <p className="text-sm text-on-surface-variant mt-1">
+            소방청 화재통계 · 전국 데이터
+            {periodMeta.coverageType === 'partial' && periodMeta.dataThrough ? ` · ${periodMeta.dataThrough}까지 누계` : ''}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <select
@@ -256,7 +280,14 @@ export default function FireAnalysis() {
             }}
             className="bg-surface-container border border-outline-variant/20 text-on-surface px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-primary"
           >
-            {years.map(y => <option key={y} value={y}>{y}년</option>)}
+            {years.map(y => {
+              const period = coverage?.periods?.find(item => item.year === y);
+              return (
+                <option key={y} value={y}>
+                  {y}년{period?.coverageType === 'partial' ? ` 누계 (${period.dataThrough})` : ''}
+                </option>
+              );
+            })}
           </select>
           <button onClick={() => fetchAll(true)} disabled={loading}
             className="bg-error/10 text-error px-4 py-2 rounded-lg text-sm font-bold hover:bg-error/20 transition-colors flex items-center gap-2 disabled:opacity-50">
@@ -269,14 +300,18 @@ export default function FireAnalysis() {
       <div role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-on-surface-variant">
         <span className="material-symbols-outlined text-lg text-primary">database</span>
         <strong className="text-on-surface">
-          공식 최신 공개연도 {coverage?.latestYear ?? years[0]}년
+          공식 완결연도 {coverage?.latestCompleteYear ?? coverage?.latestYear ?? years[0]}년
         </strong>
-        {coverage?.nextExpectedUpdate && (
-          <span>· 차기 등록 예정 {new Date(coverage.nextExpectedUpdate).toLocaleDateString('ko-KR')}</span>
+        {coverage?.latestDataThrough && <span>· 최신 누계 {coverage.latestDataThrough} 기준</span>}
+        {periodMeta.coverageType === 'partial' && periodMeta.dataThrough && (
+          <strong className="text-amber-700 dark:text-amber-300">· 현재 화면은 연간 확정값이 아님</strong>
+        )}
+        {(periodMeta.unclassifiedRegionCount ?? 0) > 0 && (
+          <span>· 지역 미분류 {periodMeta.unclassifiedRegionCount?.toLocaleString()}건 포함</span>
         )}
         <span>· 새로고침이나 API 키 추가로 미공개 연도를 만들 수 없음</span>
         <a
-          href="https://www.data.go.kr/tcs/dss/selectFileDataDetailView.do?publicDataPk=15060386"
+          href={periodMeta.sourceUrl ?? coverage?.sourceUrl ?? 'https://www.data.go.kr/data/15060386/fileData.do'}
           target="_blank"
           rel="noreferrer"
           className="font-bold text-primary hover:underline"
@@ -291,7 +326,7 @@ export default function FireAnalysis() {
         <StatCard icon="skull" iconColor="text-red-800 dark:text-red-200" label="사망자" value={summary.death} loading={loading} />
         <StatCard icon="personal_injury" iconColor="text-orange-700 dark:text-orange-300" label="부상자" value={summary.injury} loading={loading} />
         <StatCard icon="payments" iconColor="text-amber-700 dark:text-amber-300" label="재산 피해"
-          value={summary.propertyDmg > 100000000 ? `${(summary.propertyDmg / 100000000).toFixed(1)}억` : `${(summary.propertyDmg / 10000).toFixed(0)}만`}
+          value={propertyDamageWon > 100000000 ? `${(propertyDamageWon / 100000000).toFixed(1)}억` : `${(propertyDamageWon / 10000).toFixed(0)}만`}
           sub="원" loading={loading} />
         <StatCard icon="fire_extinguisher" iconColor="text-green-700 dark:text-green-300" label="자체 진화" value="-" loading={loading} />
         <StatCard icon="report" iconColor="text-gray-700 dark:text-gray-300" label="허위 신고" value="-" loading={loading} />
@@ -432,7 +467,9 @@ export default function FireAnalysis() {
                   <td className="px-3 py-3 text-right text-sm tabular-nums font-bold text-on-surface">{d.fires.toLocaleString()}</td>
                   <td className="px-3 py-3 text-right text-sm tabular-nums text-red-700 dark:text-red-300 font-medium">{d.death > 0 ? d.death : '-'}</td>
                   <td className="px-3 py-3 text-right text-sm tabular-nums text-orange-700 dark:text-orange-300">{d.injury > 0 ? d.injury : '-'}</td>
-                  <td className="px-5 py-3 text-right text-sm tabular-nums text-on-surface-variant">{Math.round(d.property / 10000).toLocaleString()}</td>
+                  <td className="px-5 py-3 text-right text-sm tabular-nums text-on-surface-variant">
+                    {Math.round(d.property / (periodMeta.propertyDamageUnit === 'thousandWon' ? 10 : 10_000)).toLocaleString()}
+                  </td>
                 </tr>
               ))}
             </tbody>

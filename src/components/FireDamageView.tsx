@@ -1,5 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchFireDamage, type FireDamageItem, type FireDamageResponse, isStaleDataError } from '../services/apiClient';
+import {
+  fetchAnnualFireStats,
+  fetchAnnualFireYears,
+  fetchFireDamage,
+  type AnnualFireStatsResponse,
+  type AnnualFireYearsResponse,
+  type FireDamageItem,
+  type FireDamageResponse,
+  isStaleDataError,
+} from '../services/apiClient';
 
 /* ─── 색상 팔레트 ─── */
 const PALETTE = [
@@ -103,8 +112,293 @@ function RegionBarChart({ data }: { data: { name: string; count: number; damage:
   );
 }
 
+function RegionalMonthlySummaryView() {
+  const [coverage, setCoverage] = useState<AnnualFireYearsResponse | null>(null);
+  const [year, setYear] = useState('');
+  const [selectedSido, setSelectedSido] = useState('전체');
+  const [data, setData] = useState<AnnualFireStatsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetchAnnualFireYears()
+      .then(result => {
+        if (!active) return;
+        setCoverage(result);
+        const years = result.regionalMonthlyYears
+          ?? result.periods?.filter(period => period.regionalMonthlyAvailable).map(period => period.year)
+          ?? [];
+        setYear(current => current || years[0] || '');
+        if (years.length === 0) {
+          setError('공개 시도·월 집계 스냅샷이 없습니다.');
+          setLoading(false);
+        }
+      })
+      .catch(reason => {
+        if (!active) return;
+        setError(reason instanceof Error ? reason.message : '집계 제공연도 조회 실패');
+        setLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
+
+  const loadStats = useCallback(async (forceRefresh = false) => {
+    if (!year) return;
+    setLoading(true);
+    setError(null);
+    setWarning(null);
+    let result: AnnualFireStatsResponse | undefined;
+    try {
+      result = await fetchAnnualFireStats(year, forceRefresh);
+    } catch (reason: unknown) {
+      if (isStaleDataError(reason)) {
+        result = reason.cachedData as AnnualFireStatsResponse;
+        setWarning(`${reason.message} 마지막으로 성공한 집계를 표시합니다.`);
+      } else {
+        setError(reason instanceof Error ? reason.message : 'NFDS 시도·월 집계 조회 실패');
+      }
+    }
+    if (result) {
+      setData(result);
+      setSelectedSido(current => (
+        current === '전체' || result.bySido.some(row => row.name === current) ? current : '전체'
+      ));
+    }
+    setLoading(false);
+  }, [year]);
+
+  useEffect(() => { void loadStats(); }, [loadStats]);
+
+  const regionalYears = coverage?.regionalMonthlyYears
+    ?? coverage?.periods?.filter(period => period.regionalMonthlyAvailable).map(period => period.year)
+    ?? [];
+  const monthlyRows = (data?.byMonth ?? []).map(month => {
+    const regional = selectedSido === '전체'
+      ? month
+      : month.bySido?.find(row => row.name === selectedSido);
+    return {
+      month: month.month,
+      count: regional?.count ?? 0,
+      deaths: regional?.deaths ?? 0,
+      injuries: regional?.injuries ?? 0,
+      propertyDamage: regional?.propertyDamage ?? 0,
+    };
+  });
+  const selectedSummary = selectedSido === '전체' && data
+    ? data.summary
+    : monthlyRows.reduce((summary, row) => ({
+      totalFires: summary.totalFires + row.count,
+      totalDeaths: summary.totalDeaths + row.deaths,
+      totalInjuries: summary.totalInjuries + row.injuries,
+      totalCasualties: summary.totalCasualties + row.deaths + row.injuries,
+      totalPropertyDamage: summary.totalPropertyDamage + row.propertyDamage,
+    }), {
+      totalFires: 0,
+      totalDeaths: 0,
+      totalInjuries: 0,
+      totalCasualties: 0,
+      totalPropertyDamage: 0,
+    });
+  const regionData = (data?.bySido ?? []).map(row => ({
+    name: row.name,
+    count: row.count,
+    damage: row.propertyDamage ?? 0,
+  }));
+  const maxMonth = Math.max(...monthlyRows.map(row => row.count), 1);
+  const period = coverage?.periods?.find(item => item.year === year);
+  const regionalRange = regionalYears.length > 0
+    ? `${regionalYears.at(-1)}~${regionalYears[0]} 시도·월 집계`
+    : '공개연도 확인 중';
+  const hasIntegratedCityTransition = data?.bySido.some(
+    row => row.name === '전남광주통합특별시',
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="ui-page-title">
+            <span className="material-symbols-outlined ui-page-title-icon">query_stats</span>
+            지역별 화재피해
+          </h2>
+          <p className="text-sm text-on-surface-variant mt-1">
+            소방청 NFDS 공개 조회 결과 · 시도×월 공식 집계
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <select
+            aria-label="최신 화재피해 연도"
+            value={year}
+            onChange={event => setYear(event.target.value)}
+            className="bg-surface-container border border-outline-variant/20 text-on-surface px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-primary"
+          >
+            {regionalYears.map(item => {
+              const itemPeriod = coverage?.periods?.find(periodItem => periodItem.year === item);
+              return (
+                <option key={item} value={item}>
+                  {item}년{itemPeriod?.coverageType === 'partial' ? ` 누계 (${itemPeriod.dataThrough})` : ''}
+                </option>
+              );
+            })}
+          </select>
+          <select
+            aria-label="최신 화재피해 지역"
+            value={selectedSido}
+            onChange={event => setSelectedSido(event.target.value)}
+            disabled={!data}
+            className="bg-surface-container border border-outline-variant/20 text-on-surface px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-primary disabled:opacity-50"
+          >
+            <option value="전체">전국</option>
+            {data?.bySido.map(row => <option key={row.name} value={row.name}>{row.name}</option>)}
+          </select>
+          <button
+            onClick={() => loadStats(true)}
+            disabled={loading || !year}
+            className="bg-error/10 text-error px-4 py-2 rounded-lg text-sm font-bold hover:bg-error/20 transition-colors flex items-center gap-2 disabled:opacity-50"
+          >
+            <span className={`material-symbols-outlined text-lg ${loading ? 'animate-spin' : ''}`}>refresh</span>
+            새로고침
+          </button>
+        </div>
+      </div>
+
+      <div role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm text-on-surface-variant">
+        <span className="material-symbols-outlined text-lg text-primary">public</span>
+        <strong className="text-on-surface">요청서 없이 공개 NFDS로 확보</strong>
+        <span>· {regionalRange}</span>
+        {period?.coverageType === 'partial' && (
+          <strong className="text-amber-700 dark:text-amber-300">· {period.dataThrough}까지 누계</strong>
+        )}
+        <span>· 개별 사고 주소·관할서는 포함하지 않음</span>
+        <a
+          href={data?.sourceUrl ?? coverage?.sourceUrl ?? 'https://www.nfds.go.kr/stat/general.do'}
+          target="_blank"
+          rel="noreferrer"
+          className="font-bold text-primary hover:underline"
+        >
+          공식 원문
+        </a>
+      </div>
+
+      {hasIntegratedCityTransition && (
+        <div className="rounded-xl border border-tertiary/25 bg-tertiary-container/20 px-4 py-3 text-sm text-on-surface-variant">
+          2026년 행정구역 전환 때문에 ‘광주광역시’, ‘전라남도’, ‘전남광주통합특별시’가 월별 원문에서
+          별도 항목으로 나타납니다. 합쳐 추정하지 않고 NFDS 분류를 그대로 보존했습니다.
+        </div>
+      )}
+
+      {warning && (
+        <div className="rounded-xl border border-yellow-500/30 bg-yellow-900/20 p-4 text-sm text-yellow-200">
+          {warning}
+        </div>
+      )}
+      {error && !loading && (
+        <div className="rounded-xl border border-error/30 bg-error-container/30 p-6 text-center">
+          <span className="material-symbols-outlined text-4xl text-error/60 mb-2 block">cloud_off</span>
+          <p className="font-bold text-on-surface">NFDS 집계를 불러오지 못했습니다</p>
+          <p className="text-sm text-error/80 mt-1">{error}</p>
+        </div>
+      )}
+      {loading && <TableSkeleton />}
+
+      {data && !loading && (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              icon="local_fire_department"
+              iconColor="text-red-400"
+              label={`${selectedSido === '전체' ? '전국' : selectedSido} 화재 건수`}
+              value={selectedSummary.totalFires}
+              sub={data.coverageType === 'partial' ? `${data.dataThrough}까지 누계` : `${year}년 완결`}
+            />
+            <StatCard icon="skull" iconColor="text-red-600" label="사망자" value={selectedSummary.totalDeaths} sub="시도·월 공식 집계" />
+            <StatCard icon="personal_injury" iconColor="text-orange-400" label="부상자" value={selectedSummary.totalInjuries} sub="시도·월 공식 집계" />
+            <StatCard
+              icon="payments"
+              iconColor="text-amber-400"
+              label="재산 피해"
+              value={formatAmount(selectedSummary.totalPropertyDamage)}
+              sub="NFDS 원자료 천원 단위"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
+              <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined text-base text-red-400">map</span>
+                {year}년 시도별 누적 현황
+              </h3>
+              <RegionBarChart data={regionData} />
+            </section>
+
+            <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
+              <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined text-base text-orange-400">calendar_month</span>
+                {selectedSido === '전체' ? '전국' : selectedSido} 월별 화재 추이
+              </h3>
+              <div className="flex items-end gap-1.5 h-44 overflow-x-auto pb-2">
+                {monthlyRows.map((row, index) => (
+                  <div key={row.month} className="flex-1 min-w-8 h-full flex flex-col justify-end items-center gap-1">
+                    <span className="text-[9px] font-bold text-on-surface-variant">
+                      {row.count > 0 ? row.count.toLocaleString() : ''}
+                    </span>
+                    <div
+                      className="w-full rounded-t transition-all duration-500"
+                      style={{
+                        height: `${Math.max((row.count / maxMonth) * 100, 2)}%`,
+                        backgroundColor: PALETTE[index % PALETTE.length],
+                        opacity: row.count > 0 ? 0.9 : 0.2,
+                      }}
+                    />
+                    <span className="text-[9px] text-on-surface-variant">{row.month}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden">
+            <div className="p-5 border-b border-outline-variant/10">
+              <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest flex items-center gap-2">
+                <span className="material-symbols-outlined text-base text-primary">table_chart</span>
+                시도·월 공식 집계
+              </h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-surface-container/50">
+                    <th className="px-5 py-3 text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">월</th>
+                    <th className="px-3 py-3 text-right text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">화재</th>
+                    <th className="px-3 py-3 text-right text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">사망</th>
+                    <th className="px-3 py-3 text-right text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">부상</th>
+                    <th className="px-5 py-3 text-right text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">재산피해</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/10">
+                  {monthlyRows.map(row => (
+                    <tr key={row.month}>
+                      <td className="px-5 py-3 font-bold text-on-surface">{row.month}</td>
+                      <td className="px-3 py-3 text-right tabular-nums">{row.count.toLocaleString()}</td>
+                      <td className="px-3 py-3 text-right tabular-nums text-red-400">{row.deaths.toLocaleString()}</td>
+                      <td className="px-3 py-3 text-right tabular-nums text-orange-400">{row.injuries.toLocaleString()}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-on-surface-variant">{formatAmount(row.propertyDamage)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ═══════ 메인 컴포넌트 ═══════ */
-export default function FireDamageView() {
+function IncidentDetailView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -209,7 +503,7 @@ export default function FireDamageView() {
             <span className="material-symbols-outlined ui-page-title-icon">map</span>
             지역별 화재피해
           </h2>
-          <p className="text-sm text-on-surface-variant mt-1">소방청 화재 조사 완료 건별 데이터 · 2019~2023</p>
+          <p className="text-sm text-on-surface-variant mt-1">소방청 화재 조사 완료 건별 데이터 · 공식 제공범위 2019~2023</p>
         </div>
         <div className="flex items-center gap-3">
           <select
@@ -231,7 +525,8 @@ export default function FireDamageView() {
       <div role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-tertiary/25 bg-tertiary-container/20 px-4 py-3 text-sm text-on-surface-variant">
         <span className="material-symbols-outlined text-lg text-tertiary">date_range</span>
         <strong className="text-on-surface">원 API 공식 제공범위 {coverage.availableFrom}~{coverage.availableTo}</strong>
-        <span>· 2024년 이후 값은 공급기관이 제공하지 않아 0건으로 대체하지 않음</span>
+        <span>· 2024년 이후 건별 자료는 공급기관이 제공하지 않아 0건으로 대체하지 않음</span>
+        <span>· 2024~2026 시도·월 집계는 위 ‘시도·월 집계’ 탭에서 제공</span>
         <a
           href={coverage.sourceUrl}
           target="_blank"
@@ -377,6 +672,47 @@ export default function FireDamageView() {
           )}
         </section>
       )}
+    </div>
+  );
+}
+
+export default function FireDamageView() {
+  const [mode, setMode] = useState<'regional-summary' | 'incident-detail'>('regional-summary');
+
+  return (
+    <div className="space-y-5">
+      <div
+        role="tablist"
+        aria-label="지역별 화재피해 자료 유형"
+        className="inline-flex rounded-xl border border-outline-variant/20 bg-surface-container p-1"
+      >
+        <button
+          role="tab"
+          aria-selected={mode === 'regional-summary'}
+          onClick={() => setMode('regional-summary')}
+          className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
+            mode === 'regional-summary'
+              ? 'bg-primary text-on-primary shadow-sm'
+              : 'text-on-surface-variant hover:text-on-surface'
+          }`}
+        >
+          2024~2026 시도·월 집계
+        </button>
+        <button
+          role="tab"
+          aria-selected={mode === 'incident-detail'}
+          onClick={() => setMode('incident-detail')}
+          className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
+            mode === 'incident-detail'
+              ? 'bg-primary text-on-primary shadow-sm'
+              : 'text-on-surface-variant hover:text-on-surface'
+          }`}
+        >
+          2019~2023 개별 건
+        </button>
+      </div>
+
+      {mode === 'regional-summary' ? <RegionalMonthlySummaryView /> : <IncidentDetailView />}
     </div>
   );
 }

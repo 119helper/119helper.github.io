@@ -144,13 +144,20 @@ function auditRestrooms() {
 function auditCoordinateMetadata() {
   const cachePath = path.join(DATA_DIR, 'restroom-geocoded-coordinates.json');
   const researchedPath = path.join(DATA_DIR, 'restroom-researched-coordinates.json');
+  const officialRegionalPath = path.join(DATA_DIR, 'restroom-official-regional-coordinates.json');
   const manifest = readJson(path.join(DATA_DIR, 'manifest.json'));
   const cache = readJson(cachePath);
   const researched = readJson(researchedPath);
+  const officialRegional = readJson(officialRegionalPath);
   const cacheItems = Array.isArray(cache.items) ? cache.items : [];
   const researchedItems = Array.isArray(researched.items) ? researched.items : [];
+  const officialRegionalItems = Array.isArray(officialRegional.items) ? officialRegional.items : [];
   check(cacheItems.length === Number(cache.total), '화장실 지오코딩 캐시 total이 실제 항목 수와 다릅니다.');
   check(researchedItems.length === Number(researched.total), '화장실 교차검증 좌표 total이 실제 항목 수와 다릅니다.');
+  check(
+    officialRegionalItems.length === Number(officialRegional.total),
+    '화장실 공식 지역 좌표 total이 실제 항목 수와 다릅니다.',
+  );
   check(
     Number(manifest.datasets?.restrooms?.geocodedCount) === cacheItems.length,
     '화장실 매니페스트의 지오코딩 건수가 캐시와 다릅니다.',
@@ -159,7 +166,66 @@ function auditCoordinateMetadata() {
     Number(manifest.datasets?.restrooms?.researchedCount) === researchedItems.length,
     '화장실 매니페스트의 교차검증 좌표 건수가 캐시와 다릅니다.',
   );
-  return { geocoded: cacheItems.length, researched: researchedItems.length };
+  check(
+    Number(manifest.datasets?.restrooms?.regionalCoordinateCount) === officialRegionalItems.length,
+    '화장실 매니페스트의 공식 지역 좌표 건수가 인덱스와 다릅니다.',
+  );
+
+  const sourceGainTotal = (officialRegional.sources || [])
+    .reduce((sum, source) => sum + Number(source.gainCount || 0), 0);
+  check(
+    sourceGainTotal === officialRegionalItems.length,
+    '화장실 공식 지역 좌표의 출처별 신규 합계가 전체와 다릅니다.',
+  );
+  const manifestOverlays = new Map(
+    (manifest.datasets?.restrooms?.coordinateOverlays || [])
+      .map(overlay => [String(overlay.id), overlay]),
+  );
+  for (const source of officialRegional.sources || []) {
+    const overlay = manifestOverlays.get(String(source.id));
+    check(Boolean(overlay), `화장실 공식 지역 좌표 출처가 매니페스트에 없습니다: ${source.id}`);
+    check(
+      Number(overlay?.coverageGainCount) === Number(source.gainCount),
+      `화장실 공식 지역 좌표 출처 ${source.id}의 신규 합계가 매니페스트와 다릅니다.`,
+    );
+  }
+
+  const finalCoordinatesById = new Map();
+  for (const city of fs.readdirSync(RESTROOM_DIR, { withFileTypes: true })) {
+    if (!city.isDirectory()) continue;
+    const cityDir = path.join(RESTROOM_DIR, city.name);
+    for (const filename of fs.readdirSync(cityDir)) {
+      if (!filename.endsWith('.json') || filename === 'index.json') continue;
+      const payload = readJson(path.join(cityDir, filename));
+      for (const item of payload.items || []) {
+        finalCoordinatesById.set(String(item.id), { lat: Number(item.lat), lng: Number(item.lng) });
+      }
+    }
+  }
+  const seenOfficialIds = new Set();
+  for (const item of officialRegionalItems) {
+    const id = String(item.id || '');
+    check(Boolean(id), '화장실 공식 지역 좌표에 빈 중앙 관리번호가 있습니다.');
+    check(!seenOfficialIds.has(id), `화장실 공식 지역 좌표 ID가 중복됐습니다: ${id}`);
+    seenOfficialIds.add(id);
+    check(Boolean(item.sourceId), `화장실 공식 지역 좌표에 출처 ID가 없습니다: ${id}`);
+    check(
+      item.matchMethod === 'normalized-name+exact-road-or-lot-address',
+      `화장실 공식 지역 좌표의 매칭 방식이 허용 범위 밖입니다: ${id}`,
+    );
+    const output = finalCoordinatesById.get(id);
+    check(Boolean(output), `화장실 공식 지역 좌표가 최종 조각에 없습니다: ${id}`);
+    check(
+      output?.lat === Number(item.lat) && output?.lng === Number(item.lng),
+      `화장실 공식 지역 좌표가 최종 조각 좌표와 다릅니다: ${id}`,
+    );
+  }
+
+  return {
+    geocoded: cacheItems.length,
+    researched: researchedItems.length,
+    officialRegional: officialRegionalItems.length,
+  };
 }
 
 function auditGwangjuFirewater() {
@@ -211,6 +277,7 @@ console.log(`광주 소방용수: ${firewaterTotal.toLocaleString()}건`);
 console.log(`인천 공중화장실: ${restrooms.incheon?.total.toLocaleString() || 0}건`);
 console.log(`주소 지오코딩 보충 좌표: ${coordinateCounts.geocoded.toLocaleString()}건`);
 console.log(`교차검증 보충 좌표: ${coordinateCounts.researched.toLocaleString()}건`);
+console.log(`공식 지역 보충 좌표: ${coordinateCounts.officialRegional.toLocaleString()}건`);
 
 if (failures.length > 0) {
   console.error(`행정구역 감사 실패 ${failures.length}건:`);

@@ -2,7 +2,7 @@ name: Update Restroom Data
 
 on:
   schedule:
-    - cron: '23 0 1 2,5,8,11 *'
+    - cron: '23 0 * * 1'
   workflow_dispatch:
     inputs:
       source_date:
@@ -12,6 +12,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: static-data-manifest-writer
+  cancel-in-progress: false
 
 jobs:
   update-restrooms:
@@ -24,28 +28,22 @@ jobs:
         with:
           node-version: 24
 
-      - name: Validate API secret
-        run: test -n "$RESTROOM_API_KEY" || { echo "RESTROOM_API_KEY, FIRE_WATER_API_KEY, or PUBLIC_DATA_API_KEY secret is required"; exit 1; }
-        env:
-          RESTROOM_API_KEY: ${{ secrets.RESTROOM_API_KEY || secrets.FIRE_WATER_API_KEY || secrets.PUBLIC_DATA_API_KEY }}
-
       - name: Sync restroom data
         run: node scripts/sync-restrooms.js
         env:
-          RESTROOM_API_KEY: ${{ secrets.RESTROOM_API_KEY || secrets.FIRE_WATER_API_KEY || secrets.PUBLIC_DATA_API_KEY }}
           RESTROOM_SOURCE_DATE: ${{ inputs.source_date }}
 
       - name: Check changes
         id: check
         run: |
-          git diff --name-only public/data/restrooms/ public/data/restroom-v1-coordinates.json public/data/manifest.json | head -20
-          echo "changed=$(git diff --quiet public/data/restrooms/ public/data/restroom-v1-coordinates.json public/data/manifest.json && echo 'false' || echo 'true')" >> "$GITHUB_OUTPUT"
+          git diff --name-only public/data/restrooms/ public/data/restroom-v1-coordinates.json public/data/restroom-official-regional-coordinates.json public/data/manifest.json | head -20
+          echo "changed=$(git diff --quiet public/data/restrooms/ public/data/restroom-v1-coordinates.json public/data/restroom-official-regional-coordinates.json public/data/manifest.json && echo 'false' || echo 'true')" >> "$GITHUB_OUTPUT"
 
       - name: Commit and push
         if: steps.check.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add public/data/restrooms/ public/data/restroom-v1-coordinates.json public/data/manifest.json
+          git add public/data/restrooms/ public/data/restroom-v1-coordinates.json public/data/restroom-official-regional-coordinates.json public/data/manifest.json
           git commit -m "chore: 공중화장실 데이터 업데이트 ($(date +%Y-%m-%d))"
           git push

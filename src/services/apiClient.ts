@@ -146,6 +146,9 @@ const fireDamageResponseSchema = z.object({
 const annualNamedCountSchema = z.object({
   name: z.coerce.string().catch(''),
   count: z.coerce.number().catch(0),
+  deaths: z.coerce.number().optional(),
+  injuries: z.coerce.number().optional(),
+  propertyDamage: z.coerce.number().optional(),
 }).passthrough();
 
 const annualCasualtiesBySidoSchema = z.object({
@@ -171,8 +174,25 @@ const annualFireStatsResponseSchema = z.object({
   byMonth: z.array(z.object({
     month: z.coerce.string().catch(''),
     count: z.coerce.number().catch(0),
+    periodStart: z.string().optional(),
+    dataThrough: z.string().optional(),
+    deaths: z.coerce.number().optional(),
+    injuries: z.coerce.number().optional(),
+    propertyDamage: z.coerce.number().optional(),
+    bySido: z.array(annualNamedCountSchema).optional(),
   }).passthrough()),
   casualtiesBySido: z.array(annualCasualtiesBySidoSchema),
+  coverageType: z.enum(['complete', 'partial']).optional(),
+  dataThrough: z.string().optional(),
+  collectedAt: z.string().optional(),
+  propertyDamageUnit: z.enum(['thousandWon']).optional(),
+  sourceName: z.string().optional(),
+  sourceUrl: z.string().optional(),
+  regionalMonthlyGranularity: z.literal('sido-month').optional(),
+  regionalClassification: z.object({
+    classifiedCount: z.coerce.number().catch(0),
+    unclassifiedCount: z.coerce.number().catch(0),
+  }).optional(),
 }).passthrough();
 
 function findResultCode(value: unknown, depth = 0): string | null {
@@ -786,13 +806,71 @@ export async function fetchFireDamage(params?: { pageNo?: string; numOfRows?: st
 }
 
 // ═══════ 연간화재통계 (30일) ═══════
-export interface AnnualFireStatsResponse { year: string; totalRecords: number; summary: { totalFires: number; totalDeaths: number; totalInjuries: number; totalCasualties: number; totalPropertyDamage: number; }; bySido: { name: string; count: number }[]; byFireType: { name: string; count: number }[]; byPlace: { name: string; count: number }[]; byCause: { name: string; count: number }[]; byMonth: { month: string; count: number }[]; casualtiesBySido: { name: string; deaths: number; injuries: number }[]; }
-export interface AnnualFireYearsResponse { years: string[]; latestYear: string | null; sourceName?: string; nextExpectedUpdate?: string; }
+export interface AnnualFireStatsResponse {
+  year: string;
+  totalRecords: number;
+  summary: {
+    totalFires: number;
+    totalDeaths: number;
+    totalInjuries: number;
+    totalCasualties: number;
+    totalPropertyDamage: number;
+  };
+  bySido: { name: string; count: number; deaths?: number; injuries?: number; propertyDamage?: number }[];
+  byFireType: { name: string; count: number }[];
+  byPlace: { name: string; count: number }[];
+  byCause: { name: string; count: number }[];
+  byMonth: {
+    month: string;
+    count: number;
+    periodStart?: string;
+    dataThrough?: string;
+    deaths?: number;
+    injuries?: number;
+    propertyDamage?: number;
+    bySido?: { name: string; count: number; deaths?: number; injuries?: number; propertyDamage?: number }[];
+  }[];
+  casualtiesBySido: { name: string; deaths: number; injuries: number }[];
+  coverageType?: 'complete' | 'partial';
+  dataThrough?: string;
+  collectedAt?: string;
+  propertyDamageUnit?: 'thousandWon';
+  sourceName?: string;
+  sourceUrl?: string;
+  regionalMonthlyGranularity?: 'sido-month';
+  regionalClassification?: { classifiedCount: number; unclassifiedCount: number };
+}
+export interface AnnualFireYearsResponse {
+  years: string[];
+  latestYear: string | null;
+  latestCompleteYear?: string;
+  latestDataThrough?: string;
+  periods?: Array<{
+    year: string;
+    coverageType: 'complete' | 'partial';
+    dataThrough: string;
+    regionalMonthlyAvailable?: boolean;
+  }>;
+  regionalMonthlyYears?: string[];
+  sourceName?: string;
+  sourceUrl?: string;
+  nextExpectedUpdate?: string;
+}
 
 const annualFireYearsSchema = z.object({
   years: z.array(z.string()),
   latestYear: z.string().nullable(),
+  latestCompleteYear: z.string().optional(),
+  latestDataThrough: z.string().optional(),
+  periods: z.array(z.object({
+    year: z.string(),
+    coverageType: z.enum(['complete', 'partial']),
+    dataThrough: z.string(),
+    regionalMonthlyAvailable: z.boolean().optional(),
+  })).optional(),
+  regionalMonthlyYears: z.array(z.string()).optional(),
   sourceName: z.string().optional(),
+  sourceUrl: z.string().optional(),
   nextExpectedUpdate: z.string().optional(),
 }).passthrough() satisfies z.ZodType<AnnualFireYearsResponse>;
 
@@ -805,10 +883,11 @@ export async function fetchAnnualFireYears(): Promise<AnnualFireYearsResponse> {
 }
 
 export async function fetchAnnualFireStats(year: string, forceRefresh?: boolean): Promise<AnnualFireStatsResponse> {
+  const isCurrentYear = Number(year) === new Date().getFullYear();
   return apiFetch<AnnualFireStatsResponse>(`/api/fire-annual/${year}`, undefined, {
     timeoutMs: 30_000,
-    cacheTtlMs: 30 * DAY_MS,
-    maxStaleMs: 90 * DAY_MS,
+    cacheTtlMs: isCurrentYear ? DAY_MS : 30 * DAY_MS,
+    maxStaleMs: isCurrentYear ? 7 * DAY_MS : 90 * DAY_MS,
     forceRefresh,
     schema: annualFireStatsResponseSchema,
   });

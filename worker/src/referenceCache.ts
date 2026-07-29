@@ -32,7 +32,15 @@ export function referenceCachePolicy(pathname: string): ReferenceCachePolicy | n
   if (pathname === '/api/fire-damage') return { maxAgeSeconds: 30 * DAY_SECONDS };
   if (pathname === '/api/ambulance') return { maxAgeSeconds: 30 * DAY_SECONDS };
   if (pathname.startsWith('/api/fire-object/')) return { maxAgeSeconds: 30 * DAY_SECONDS };
-  if (pathname.startsWith('/api/fire-annual/')) return { maxAgeSeconds: 365 * DAY_SECONDS };
+  if (pathname === '/api/fire-annual/years') return { maxAgeSeconds: 14 * DAY_SECONDS };
+  const annualFireYear = pathname.match(/^\/api\/fire-annual\/(20\d{2})$/)?.[1];
+  if (annualFireYear) {
+    return {
+      maxAgeSeconds: Number(annualFireYear) === new Date().getUTCFullYear()
+        ? 14 * DAY_SECONDS
+        : 365 * DAY_SECONDS,
+    };
+  }
   return null;
 }
 

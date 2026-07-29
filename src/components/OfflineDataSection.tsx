@@ -11,6 +11,7 @@ import {
   type DownloadProgress, type OfflineRegionStatus,
 } from '../services/offlineRegion';
 import { formatDatasetDate, formatFreshnessSourceDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
+import DatasetCompletenessNotice from './DatasetCompletenessNotice';
 
 export default function OfflineDataSection({ city, cityNames }: {
   city: string;
@@ -97,12 +98,15 @@ export default function OfflineDataSection({ city, cityNames }: {
           {freshnessItems.map(({ id, meta }) => {
             const expired = isFreshnessExpired(meta);
             return (
-              <div key={id} className="flex items-center justify-between gap-2">
-                <span className="font-medium text-on-surface">{meta.label}</span>
-                <span className={expired ? 'font-bold text-amber-400' : ''}>
-                  {formatFreshnessSourceDate(meta)} · 생성 {formatDatasetDate(meta.generatedAt)}
-                  {expired ? ' · 갱신 필요' : ''}
-                </span>
+              <div key={id}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-on-surface">{meta.label}</span>
+                  <span className={expired ? 'font-bold text-amber-400' : ''}>
+                    {formatFreshnessSourceDate(meta)} · 생성 {formatDatasetDate(meta.generatedAt)}
+                    {expired ? ' · 갱신 필요' : ''}
+                  </span>
+                </div>
+                <DatasetCompletenessNotice meta={meta} align="right" />
               </div>
             );
           })}

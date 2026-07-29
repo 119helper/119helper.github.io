@@ -294,19 +294,16 @@ function Wellness() {
   const [submitted, setSubmitted] = useState(false);
 
   const result = useMemo(() => evaluateStressCheck(answers), [answers]);
-  const resultColor =
-    result.level === 'good'
-      ? 'text-green-400 bg-green-500/10 border-green-500/30'
-      : result.level === 'mild'
-        ? 'text-amber-400 bg-amber-500/10 border-amber-500/30'
-        : 'text-red-400 bg-red-500/10 border-red-500/30';
+  const resultColor = 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/30';
 
   return (
     <div className="space-y-5">
       <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6 space-y-4">
         <div>
-          <h3 className="text-lg font-bold text-on-surface">스트레스 자가체크 (익명·기기 저장)</h3>
-          <p className="text-xs text-on-surface-variant mt-1">최근 2주 기준. 0(전혀 아니다)~3(매우 그렇다). 진단이 아닌 참고용입니다.</p>
+          <h3 className="text-lg font-bold text-on-surface">스트레스 상태 기록 (익명·기기 저장)</h3>
+          <p className="text-xs text-on-surface-variant mt-1">
+            최근 2주 기준. 0(전혀 아니다)~3(매우 그렇다). 검증된 선별도구나 진단·위험도 판정이 아닙니다.
+          </p>
         </div>
 
         <div className="space-y-3">

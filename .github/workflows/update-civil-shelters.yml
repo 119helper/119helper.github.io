@@ -13,6 +13,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: static-data-manifest-writer
+  cancel-in-progress: false
+
 jobs:
   update-civil-shelters:
     runs-on: ubuntu-latest

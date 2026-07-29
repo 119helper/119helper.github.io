@@ -7,7 +7,8 @@ const previewUrl = `http://${previewHost}:${previewPort}`;
 
 export default defineConfig({
   testDir: './tests',
-  testMatch: /core-flows\.spec\.ts/,
+  testMatch: /(core-flows|data-freshness-ui|reference-completeness-ui)\.spec\.ts/,
+  workers: 1,
   timeout: 90_000,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',

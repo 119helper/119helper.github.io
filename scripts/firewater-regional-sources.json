@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "gwangju-gwangsan-firewater",
+      "enabled": true,
+      "city": "광주광역시",
+      "district": "광산구",
+      "publicDataPk": "15054971",
+      "publicDataDetailPk": "uddi:ca0502a1-8d82-41b9-b1ff-80e4ce592287",
+      "sourceUrl": "https://www.data.go.kr/data/15054971/fileData.do",
+      "encoding": "euc-kr",
+      "minimumSourceDate": "2025-01-01",
+      "minimumRows": 1000,
+      "maximumRows": 2500,
+      "latitudeRange": [34.9, 35.4],
+      "longitudeRange": [126.6, 127.1],
+      "license": "이용허락범위 제한 없음"
+    }
+  ]
+}

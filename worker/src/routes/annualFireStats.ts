@@ -8,11 +8,19 @@
 
 import { z } from 'zod';
 import { encodeServiceKey, fetchWithRetry } from './publicData';
+import nfdsSnapshotDocument from '../data/nfdsAnnualFireSnapshots.json';
 
 const BASE = 'https://api.odcloud.kr/api/15060386/v1';
-const ANNUAL_FIRE_SOURCE_NAME = '소방청_연간화재통계_20241231';
-const NEXT_EXPECTED_UPDATE = '2026-11-18';
+const ODCLOUD_SOURCE_NAME = '소방청_연간화재통계_20241231';
+const ODCLOUD_SOURCE_URL = 'https://www.data.go.kr/data/15060386/fileData.do';
 const PAGE_FETCH_CONCURRENCY = 3;
+const NFDS_SNAPSHOTS = nfdsSnapshotDocument.snapshots as Record<string, Record<string, unknown>>;
+const NFDS_SOURCE_NAME = nfdsSnapshotDocument.source.name;
+const NFDS_SOURCE_URL = nfdsSnapshotDocument.source.url;
+
+function hasRegionalMonthlySummary(snapshot: Record<string, unknown> | undefined): boolean {
+  return snapshot?.regionalMonthlyGranularity === 'sido-month';
+}
 
 const odcloudAnnualFireSchema = z.object({
   totalCount: z.number().optional(),
@@ -64,7 +72,15 @@ const YEAR_UDDI: Record<string, string> = {
   '2024': 'uddi:fa73f7a3-dfa1-4b0a-ada8-dcd8333ba9e4',
 };
 
-const SUPPORTED_YEARS = Object.keys(YEAR_UDDI).sort((a, b) => Number(b) - Number(a));
+const ODCLOUD_SUPPORTED_YEARS = Object.keys(YEAR_UDDI).sort((a, b) => Number(b) - Number(a));
+const SUPPORTED_YEARS = [...new Set([
+  ...Object.keys(NFDS_SNAPSHOTS),
+  ...ODCLOUD_SUPPORTED_YEARS,
+])].sort((a, b) => Number(b) - Number(a));
+const REGIONAL_MONTHLY_YEARS = Object.entries(NFDS_SNAPSHOTS)
+  .filter(([, snapshot]) => hasRegionalMonthlySummary(snapshot))
+  .map(([year]) => year)
+  .sort((a, b) => Number(b) - Number(a));
 
 // 필드명이 연도별로 미묘하게 다름 → 정규화
 function normalizeRecord(raw: AnnualFireRawRecord): AnnualFireRecord {
@@ -187,15 +203,27 @@ export async function handleAnnualFireStats(
       data: {
         years: SUPPORTED_YEARS,
         latestYear: SUPPORTED_YEARS[0] ?? null,
-        sourceName: ANNUAL_FIRE_SOURCE_NAME,
-        nextExpectedUpdate: NEXT_EXPECTED_UPDATE,
+        latestCompleteYear: nfdsSnapshotDocument.latestCompleteYear,
+        latestDataThrough: nfdsSnapshotDocument.latestDataThrough,
+        regionalMonthlyYears: REGIONAL_MONTHLY_YEARS,
+        periods: SUPPORTED_YEARS.map(year => {
+          const snapshot = NFDS_SNAPSHOTS[year];
+          return {
+            year,
+            coverageType: snapshot?.coverageType === 'partial' ? 'partial' : 'complete',
+            dataThrough: typeof snapshot?.dataThrough === 'string' ? snapshot.dataThrough : `${year}-12-31`,
+            regionalMonthlyAvailable: hasRegionalMonthlySummary(snapshot),
+          };
+        }),
+        sourceName: `${NFDS_SOURCE_NAME} / ${ODCLOUD_SOURCE_NAME}`,
+        sourceUrl: NFDS_SOURCE_URL,
       },
       cacheTtl: 86400,
     };
   }
 
   if (path === '/api/fire-annual/probe') {
-    const year = SUPPORTED_YEARS[0];
+    const year = ODCLOUD_SUPPORTED_YEARS[0];
     const uddi = YEAR_UDDI[year];
     const serviceKey = encodeServiceKey(apiKey, 'ANNUAL_FIRE_API_KEY');
     const countUrl = `${BASE}/${uddi}?serviceKey=${serviceKey}&page=1&perPage=1`;
@@ -205,7 +233,7 @@ export async function handleAnnualFireStats(
         status: 'ok',
         year,
         totalCount: countData.totalCount || 0,
-        sourceName: ANNUAL_FIRE_SOURCE_NAME,
+        sourceName: ODCLOUD_SOURCE_NAME,
       },
       cacheTtl: 3600,
     };
@@ -214,6 +242,22 @@ export async function handleAnnualFireStats(
   // path: /api/fire-annual/2024
   const segments = path.split('/');
   const year = segments[segments.length - 1];
+  const nfdsSnapshot = NFDS_SNAPSHOTS[year];
+  if (nfdsSnapshot) {
+    return {
+      data: {
+        ...nfdsSnapshot,
+        supportedYears: SUPPORTED_YEARS,
+        latestCompleteYear: nfdsSnapshotDocument.latestCompleteYear,
+        latestDataThrough: nfdsSnapshotDocument.latestDataThrough,
+        sourceName: NFDS_SOURCE_NAME,
+        sourceUrl: NFDS_SOURCE_URL,
+        sourceMethod: nfdsSnapshotDocument.source.acquisitionMethod,
+      },
+      cacheTtl: 86400,
+    };
+  }
+
   const uddi = YEAR_UDDI[year];
 
   if (!uddi) {
@@ -228,7 +272,20 @@ export async function handleAnnualFireStats(
   const totalCount = countData.totalCount || 0;
 
   if (totalCount === 0) {
-    return { data: aggregate([]), cacheTtl: 86400 };
+    return {
+      data: {
+        year,
+        totalRecords: 0,
+        supportedYears: SUPPORTED_YEARS,
+        sourceName: ODCLOUD_SOURCE_NAME,
+        sourceUrl: ODCLOUD_SOURCE_URL,
+        coverageType: 'complete',
+        dataThrough: `${year}-12-31`,
+        propertyDamageUnit: 'thousandWon',
+        ...aggregate([]),
+      },
+      cacheTtl: 86400,
+    };
   }
 
   // 전체 데이터 페이징으로 가져오기 (5000건/페이지, 전체 가져옴)
@@ -257,8 +314,11 @@ export async function handleAnnualFireStats(
       year,
       totalRecords: totalCount,
       supportedYears: SUPPORTED_YEARS,
-      sourceName: ANNUAL_FIRE_SOURCE_NAME,
-      nextExpectedUpdate: NEXT_EXPECTED_UPDATE,
+      sourceName: ODCLOUD_SOURCE_NAME,
+      sourceUrl: ODCLOUD_SOURCE_URL,
+      coverageType: 'complete',
+      dataThrough: `${year}-12-31`,
+      propertyDamageUnit: 'thousandWon',
       ...aggregate(allRecords),
     },
     cacheTtl: 86400,

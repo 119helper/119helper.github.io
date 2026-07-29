@@ -14,6 +14,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: firewater-data-writer
+  cancel-in-progress: false
+
 jobs:
   update-firewater:
     runs-on: ubuntu-latest
@@ -35,6 +39,11 @@ jobs:
         env:
           FIRE_WATER_API_KEY: ${{ secrets.FIRE_WATER_API_KEY }}
           FIREWATER_SOURCE_DATE: ${{ inputs.source_date }}
+
+      - name: 검증된 지역 최신 원본 관할 오버레이
+        run: |
+          node --test scripts/sync-firewater-regional-overlays.test.mjs
+          node scripts/sync-firewater-regional-overlays.mjs
 
       - name: 변경 사항 확인
         id: check

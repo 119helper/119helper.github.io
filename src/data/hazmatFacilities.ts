@@ -1,8 +1,7 @@
-// 위험물제조소 설치현황 — 경상북도 (KOSIS 통계)
-// 자동 API 없음 → 정적 JSON (KOSIS에서 수동 갱신 필요)
-// 출처: 「경상북도기본통계」 경상북도 (예방안전과)
-// 최신 여부 확인: 2026-07-29 — KOSIS 공식 표의 최신 공표연도는 여전히 2023년
-// KOSIS URL: https://kosis.kr/statHtml/statHtml.do?orgId=216&tblId=DT_21603_P001027&conn_path=I3
+// 위험물제조소 설치현황 — 경상북도
+// 도 전체 합계: 소방청 2024·2025년 기준, 소방서별 상세: KOSIS 2023년 기준.
+// 2024 소방서별 행은 변경금지 자료에만 공개되어 앱에 전재하지 않고,
+// 서로 다른 기준연도의 값을 합산하거나 소방서별로 추정 배분하지 않는다.
 
 export interface HazmatFacilityStats {
   fireDept: string;       // 소방서명
@@ -28,6 +27,59 @@ export interface HazmatFacilityStats {
   };
 }
 
+// 소방청 「2026 위험물 통계자료」의 2025-12-31 기준 경상북도 합계.
+// 소방서별 행은 공개되지 않았으므로 KOSIS 2023 상세와 합산하거나 배분하지 않는다.
+export const HAZMAT_GYEONGBUK_SUMMARY_2025: HazmatFacilityStats = {
+  fireDept: '경상북도 합계',
+  total: 9344,
+  manufacturing: 176,
+  handling: {
+    subtotal: 2342,
+    gasStation: 1472,
+    sales: 11,
+    transfer: 1,
+    general: 858,
+  },
+  storage: {
+    subtotal: 6826,
+    indoor: 612,
+    outdoorTank: 1934,
+    indoorTank: 944,
+    underground: 473,
+    simple: 0,
+    mobile: 2490,
+    outdoor: 373,
+    rock: 0,
+  },
+};
+
+// 소방청 「2025 위험물 통계자료」 7쪽의 2024-12-31 기준 경상북도 합계.
+// 게시물은 공공누리 제1유형으로 공개되어 집계값의 재가공이 가능하다.
+export const HAZMAT_GYEONGBUK_SUMMARY_2024: HazmatFacilityStats = {
+  fireDept: '경상북도 합계',
+  total: 9433,
+  manufacturing: 172,
+  handling: {
+    subtotal: 2352,
+    gasStation: 1481,
+    sales: 11,
+    transfer: 1,
+    general: 859,
+  },
+  storage: {
+    subtotal: 6909,
+    indoor: 600,
+    outdoorTank: 1951,
+    indoorTank: 963,
+    underground: 491,
+    simple: 0,
+    mobile: 2530,
+    outdoor: 374,
+    rock: 0,
+  },
+};
+
+// KOSIS 공식 표에서 재가공 가능한 최신 소방서별 상세는 2023년 값이다.
 export const HAZMAT_FACILITY_DATA: HazmatFacilityStats[] = [
   { fireDept: '합계', total: 9546, manufacturing: 163, handling: { subtotal: 2381, gasStation: 1497, sales: 11, transfer: 1, general: 872 }, storage: { subtotal: 7002, indoor: 602, outdoorTank: 1942, indoorTank: 996, underground: 529, simple: 0, mobile: 2574, outdoor: 359, rock: 0 } },
   { fireDept: '포항북부소방서', total: 305, manufacturing: 0, handling: { subtotal: 127, gasStation: 89, sales: 2, transfer: 0, general: 36 }, storage: { subtotal: 178, indoor: 11, outdoorTank: 15, indoorTank: 27, underground: 13, simple: 0, mobile: 96, outdoor: 16, rock: 0 } },
@@ -53,11 +105,33 @@ export const HAZMAT_FACILITY_DATA: HazmatFacilityStats[] = [
   { fireDept: '울진소방서', total: 289, manufacturing: 0, handling: { subtotal: 83, gasStation: 42, sales: 0, transfer: 0, general: 41 }, storage: { subtotal: 206, indoor: 4, outdoorTank: 46, indoorTank: 60, underground: 14, simple: 0, mobile: 78, outdoor: 4, rock: 0 } },
 ];
 
+export const HAZMAT_FIRE_DEPT_SUMMARY_2023 = HAZMAT_FACILITY_DATA[0];
+export const HAZMAT_FIRE_DEPT_DATA_2023 = HAZMAT_FACILITY_DATA.filter(row => row.fireDept !== '합계');
+
 export const HAZMAT_DATA_INFO = {
-  source: 'KOSIS 경상북도기본통계 (예방안전과)',
-  dataYear: 2023,
-  lastDownloaded: '2026-04-02',
-  lastChecked: '2026-07-29',
-  kosisUrl: 'https://kosis.kr/statHtml/statHtml.do?orgId=216&tblId=DT_21603_P001027&conn_path=I3',
-  note: 'KOSIS 공식 표(2011~2023) 대조 결과 2023년이 최신 공표연도입니다. 새 연도가 공표되기 전까지 현재 값을 유지합니다.',
+  provinceSummary: {
+    source: '소방청 2026 위험물 통계자료',
+    referenceDate: '2025-12-31',
+    publicationDate: '2026-06-18',
+    sourceUrl: 'https://www.nfa.go.kr/nfa/releaseinformation/statisticalinformation/main/?boardId=bbs_0000000000000019&cntId=79&mode=view&pageIdx=1',
+    license: '공공누리 제1유형',
+    lastChecked: '2026-07-29',
+  },
+  provinceSummaryPrevious: {
+    source: '소방청 2025 위험물 통계자료',
+    referenceDate: '2024-12-31',
+    publicationDate: '2025-04-21',
+    sourceUrl: 'https://www.nfa.go.kr/nfa/releaseinformation/statisticalinformation/main/?boardId=bbs_0000000000000019&cntId=68&mode=view',
+    documentPage: 7,
+    license: '공공누리 제1유형',
+    lastChecked: '2026-07-29',
+  },
+  fireDepartmentDetail: {
+    source: 'KOSIS 경상북도기본통계 (예방안전과)',
+    referenceDate: '2023-12-31',
+    lastDownloaded: '2026-04-02',
+    lastChecked: '2026-07-29',
+    sourceUrl: 'https://kosis.kr/statHtml/statHtml.do?orgId=216&tblId=DT_21603_P001027&conn_path=I3',
+  },
+  note: '경상북도 전체 합계는 소방청의 2025년 말 공식값이고 전년 도 합계도 같은 계열로 비교합니다. 재가공 가능한 최신 소방서별 상세는 KOSIS 2023년 값입니다. 변경금지 자료에만 있는 2024 상세를 전재하지 않으며, 서로 다른 기준연도의 값을 합산하거나 배분하지 않습니다.',
 };

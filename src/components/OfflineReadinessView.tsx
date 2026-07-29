@@ -15,6 +15,7 @@ import {
   isFreshnessExpired,
   type DatasetFreshness,
 } from '../services/dataFreshness';
+import DatasetCompletenessNotice from './DatasetCompletenessNotice';
 
 interface OfflineReadinessViewProps {
   city: string;
@@ -164,13 +165,16 @@ export default function OfflineReadinessView({ city, cityLabel }: OfflineReadine
           {freshness.map(item => {
             const expired = item.meta ? isFreshnessExpired(item.meta) : false;
             return (
-              <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg bg-surface-container px-3 py-2">
-                <div className="font-bold text-sm text-on-surface">{item.meta?.label ?? item.label}</div>
-                <div className={`text-xs text-right ${expired ? 'text-amber-700 dark:text-amber-300 font-bold' : 'text-on-surface-variant'}`}>
-                  {item.meta
-                    ? `${formatFreshnessSourceDate(item.meta)} · 생성 ${formatDatasetDate(item.meta.generatedAt)}${expired ? ' · 갱신 필요' : ''}`
-                    : '기준일 정보 없음'}
+              <div key={item.id} className="rounded-lg bg-surface-container px-3 py-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="font-bold text-sm text-on-surface">{item.meta?.label ?? item.label}</div>
+                  <div className={`text-xs text-right ${expired ? 'text-amber-700 dark:text-amber-300 font-bold' : 'text-on-surface-variant'}`}>
+                    {item.meta
+                      ? `${formatFreshnessSourceDate(item.meta)} · 생성 ${formatDatasetDate(item.meta.generatedAt)}${expired ? ' · 갱신 필요' : ''}`
+                      : '기준일 정보 없음'}
+                  </div>
                 </div>
+                {item.meta && <DatasetCompletenessNotice meta={item.meta} align="right" />}
               </div>
             );
           })}

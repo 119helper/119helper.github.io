@@ -102,31 +102,54 @@ GitHub Actions 운영 배포에는 다음 secret도 필요합니다.
 
 - `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
 - `NEWS_CACHE_KV_ID`, `NEWS_CACHE_KV_PREVIEW_ID`
-- `FIRE_WATER_API_KEY` (분기별 소방용수시설 정적 데이터 동기화용)
-- `RESTROOM_API_KEY` 또는 기존 공공데이터 포털 키(`FIRE_WATER_API_KEY`/`PUBLIC_DATA_API_KEY`) (분기별 공중화장실 정적 데이터 동기화용)
+- `FIRE_WATER_API_KEY` (분기별 전국 소방용수시설 기준 원본 동기화용)
 
-소방용수시설과 공중화장실 정적 데이터는 공공데이터 API에서 직접 갱신합니다.
+소방용수시설은 공공데이터 API에서, 공중화장실은 키가 필요 없는 LOCALDATA 공식
+전국 CSV와 지자체 공식 CSV에서 직접 갱신합니다.
 
 ```bash
 FIRE_WATER_API_KEY=... node scripts/sync-firewater.js
-RESTROOM_API_KEY=... node scripts/sync-restrooms.js
+npm run sync:firewater-overlays
+node scripts/sync-restrooms.js
 # v2 최초 마이그레이션 때만: 마지막 v1 좌표를 Git 기준점에서 영구 인덱스로 보존
-RESTROOM_API_KEY=... RESTROOM_LEGACY_COORDINATE_GIT_REF=HEAD node scripts/sync-restrooms.js
+RESTROOM_LEGACY_COORDINATE_GIT_REF=HEAD node scripts/sync-restrooms.js
 CIVIL_SHELTER_SYNC_API_KEY=... node scripts/sync-civil-shelters.js
 TSUNAMI_SHELTER_API_KEY=... node scripts/sync-tsunami-shelters.js
+npm run sync:fire-stats -- --complete-years 2024,2025 --partial-through 2026-07-28
+npm run test:data-scripts
 ```
 
-민방위/지진해일 정적 데이터 manifest는 체크인된 JSON에서 기준일과 건수를 보강할 수 있습니다. 지진해일 원본 파일에는 행별 기준일 필드가 없어 공공데이터포털 API 상세의 수정일을 `API 수정일`로 기록합니다.
+NFDS 화재통계 동기화는 별도 서비스 키 없이 공개 통계 화면의 조회 결과를 저빈도로
+스냅샷화합니다. 2024·2025 완결과 2026 누계를 시도×월 단위로 보존하고, 전국·월·시도
+합계가 일치하지 않으면 파일을 갱신하지 않습니다.
+
+전국 소방용수 표준 원본 뒤에는 검증된 지역 최신 자료를 관할 단위로 오버레이합니다.
+현재 광산구 2026 원본을 적용하며, 잘못된 최신 좌표는 그대로 지도에 넣지 않고 정확한
+공식 주소가 하나의 이전 좌표로 수렴할 때만 출처를 남겨 보충합니다.
+
+공중화장실은 좌표가 제거된 전국 표준행을 기준 목록으로 유지하고 서울·제주시·부산
+동래구 공식 CSV와 부산 갈맷길 공식 SHP에서 이름과 도로명/지번주소가 모두 1:1로
+일치하며 관할 좌표 경계를 통과한 항목만 중앙 관리번호에 결합합니다. 이름만 또는 주소만
+맞는 후보는 자동 반영하지 않고, 출처별 반영 수는 별도 공식 지역 좌표 인덱스와 manifest에
+기록합니다. 2026-07-30 기준 신규 보충은 서울 601곳·제주시 326곳·동래구 39곳·부산
+갈맷길 24곳으로 총 990곳입니다.
+
+민방위/지진해일 정적 데이터 manifest는 체크인된 JSON에서 기준일·지역별 수량·대조 상태를
+다시 계산할 수 있습니다. 지진해일은 안전데이터 상세 메타데이터의 `updtymd`를 원본
+갱신일로 기록하며, 행정안전부 발표 관리대장 수와 공개 API 수가 다르면 그 차이를 함께 표시합니다.
 
 2026-07-29 API 승인 확인, 최신 공개자료 대조, 법령 교정 및 추가 API 우선순위는
 [`docs/data-source-audit-2026-07-29.md`](docs/data-source-audit-2026-07-29.md)에 정리되어 있습니다.
 
 ```bash
 node scripts/update-static-data-manifest.mjs
-TSUNAMI_SOURCE_DATE=2025-07-16 node scripts/update-static-data-manifest.mjs
+# 메타데이터를 자동으로 읽을 수 없는 비상 상황에서만 기준일을 강제 지정
+TSUNAMI_SHELTER_API_KEY=... TSUNAMI_SOURCE_DATE=YYYY-MM-DD node scripts/sync-tsunami-shelters.js
 ```
 
 운영 리스크와 후속 보완 과제는 [`docs/operational_risks.md`](docs/operational_risks.md)에 정리되어 있습니다.
+최신성·지역범위·좌표·중복·공식 발표 대조를 분리하고 공개 인터넷 원천을 우선하는 기준은
+[`docs/data-completeness-policy.md`](docs/data-completeness-policy.md)에 정리되어 있습니다.
 2026-07 행정구역 개편 대응 범위와 검증 결과는
 [`docs/administrative-region-audit-2026-07.md`](docs/administrative-region-audit-2026-07.md)에서 확인할 수 있습니다.
 데이터를 갱신한 뒤에는 `npm run audit:regions`로 광주·인천 행정구역과 좌표 정합성을 검사합니다.

@@ -142,7 +142,12 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
         </div>
       </div>
 
-      <MedicalDisclaimer source="START / JumpSTART Mass Casualty Triage" revisedYear="공개 알고리즘" />
+      <MedicalDisclaimer
+        source="미국 HHS 공개 START / JumpSTART 구조"
+        sourceUrl="https://remm.hhs.gov/startalgotext.htm"
+        revisedYear="국내 기관 SOP 대조 미완료"
+        note="교육용 참고입니다. 국내 현장의 성인·소아 연령 경계, 검정 태그 정의, 재분류 규칙은 소속 기관 SOP와 의료지도를 우선하십시오."
+      />
 
       {/* 집계 보드 */}
       <div className="grid grid-cols-4 gap-3">

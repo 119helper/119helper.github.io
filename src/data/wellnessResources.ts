@@ -58,7 +58,7 @@ export const STRESS_CHECK_QUESTIONS: StressCheckQuestion[] = [
 export interface StressCheckResult {
   score: number;
   max: number;
-  level: 'good' | 'mild' | 'high';
+  level: 'unvalidated';
   label: string;
   advice: string;
 }
@@ -66,24 +66,11 @@ export interface StressCheckResult {
 export function evaluateStressCheck(answers: number[]): StressCheckResult {
   const score = answers.reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0);
   const max = STRESS_CHECK_QUESTIONS.length * 3;
-  let level: StressCheckResult['level'];
-  let label: string;
-  let advice: string;
-
-  const ratio = max === 0 ? 0 : score / max;
-  if (ratio < 0.3) {
-    level = 'good';
-    label = '양호';
-    advice = '현재 스트레스 수준은 비교적 안정적입니다. 규칙적인 휴식을 유지하세요.';
-  } else if (ratio < 0.6) {
-    level = 'mild';
-    label = '주의';
-    advice = '누적 스트레스가 보입니다. 동료와 이야기하고 휴식을 늘려보세요.';
-  } else {
-    level = 'high';
-    label = '상담 권장';
-    advice = '지속되는 부담 신호가 있습니다. 마음건강센터·상담전화 등 전문 도움을 받아보세요.';
-  }
-
-  return { score, max, level, label, advice };
+  return {
+    score,
+    max,
+    level: 'unvalidated',
+    label: '비검증 참고 점수',
+    advice: '이 6문항과 점수에는 검증된 임상 절단점이 없습니다. 점수로 상태를 판단하지 말고, 불편감이 지속되거나 위기 상황이면 전문 상담과 소속 기관 지원 절차를 이용하세요.',
+  };
 }

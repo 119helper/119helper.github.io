@@ -1,0 +1,59 @@
+name: 🔄 NFDS 화재통계 업데이트
+
+on:
+  schedule:
+    - cron: '20 16 * * *'
+  workflow_dispatch:
+    inputs:
+      partial_through:
+        description: '누계 기준일(선택, YYYY-MM-DD)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nfds-fire-statistics-writer
+  cancel-in-progress: false
+
+jobs:
+  update-fire-statistics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: NFDS 공개 시도·월 집계 동기화
+        env:
+          PARTIAL_THROUGH: ${{ inputs.partial_through }}
+        run: |
+          if [ -n "$PARTIAL_THROUGH" ]; then
+            npm run sync:fire-stats -- --partial-through "$PARTIAL_THROUGH"
+          else
+            npm run sync:fire-stats
+          fi
+
+      - name: 스냅샷 합계 검증
+        run: npm run test:worker -- worker/src/data/nfdsAnnualFireSnapshots.test.ts
+
+      - name: 변경 사항 확인
+        id: check
+        run: echo "changed=$(git diff --quiet worker/src/data/nfdsAnnualFireSnapshots.json && echo 'false' || echo 'true')" >> "$GITHUB_OUTPUT"
+
+      - name: 커밋 & 푸시
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add worker/src/data/nfdsAnnualFireSnapshots.json
+          git commit -m "chore: NFDS 화재통계 업데이트 ($(date +%Y-%m-%d))"
+          git push

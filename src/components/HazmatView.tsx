@@ -1,5 +1,12 @@
 import { useState, useMemo } from 'react';
-import { HAZMAT_FACILITY_DATA, HAZMAT_DATA_INFO, type HazmatFacilityStats } from '../data/hazmatFacilities';
+import {
+  HAZMAT_DATA_INFO,
+  HAZMAT_FIRE_DEPT_DATA_2023,
+  HAZMAT_FIRE_DEPT_SUMMARY_2023,
+  HAZMAT_GYEONGBUK_SUMMARY_2024,
+  HAZMAT_GYEONGBUK_SUMMARY_2025,
+  type HazmatFacilityStats,
+} from '../data/hazmatFacilities';
 
 /* ─── 색상 팔레트 ─── */
 const PALETTE = [
@@ -55,14 +62,13 @@ function DonutChart({ slices, total }: { slices: { label: string; value: number;
 export default function HazmatView() {
   const [selectedDept, setSelectedDept] = useState<string>('합계');
 
-  const allDepts = useMemo(
-    () => HAZMAT_FACILITY_DATA.filter(d => d.fireDept !== '합계'),
-    []
-  );
-  const summary = HAZMAT_FACILITY_DATA.find(d => d.fireDept === '합계') ?? HAZMAT_FACILITY_DATA[0] ?? null;
-  const selected: HazmatFacilityStats | null = summary
-    ? HAZMAT_FACILITY_DATA.find(d => d.fireDept === selectedDept) || summary
-    : null;
+  const allDepts = HAZMAT_FIRE_DEPT_DATA_2023;
+  const summary = HAZMAT_GYEONGBUK_SUMMARY_2025;
+  const provinceYearDelta = summary.total - HAZMAT_GYEONGBUK_SUMMARY_2024.total;
+  const selected: HazmatFacilityStats | null = selectedDept === '합계'
+    ? summary
+    : allDepts.find(d => d.fireDept === selectedDept) ?? null;
+  const selectedIsProvinceSummary = selectedDept === '합계';
 
   // 대분류 도넛 데이터
   const categorySlices = useMemo(() => selected ? [
@@ -102,7 +108,7 @@ export default function HazmatView() {
             위험물시설 현황
           </h2>
           <p className="text-sm text-on-surface-variant mt-1">
-            경상북도 위험물제조소등 설치현황 · KOSIS 통계 ({HAZMAT_DATA_INFO.dataYear}년 기준)
+            경상북도 전체 2025-12-31 기준 · 소방서별 상세 2023-12-31 기준
           </p>
         </div>
         <select
@@ -111,11 +117,35 @@ export default function HazmatView() {
           onChange={e => setSelectedDept(e.target.value)}
           className="bg-surface-container border border-outline-variant/20 text-on-surface px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-primary"
         >
-          <option value="합계">전체 (합계)</option>
+          <option value="합계">경상북도 전체 (2025)</option>
           {allDepts.map(d => (
-            <option key={d.fireDept} value={d.fireDept}>{d.fireDept}</option>
+            <option key={d.fireDept} value={d.fireDept}>{d.fireDept} (2023)</option>
           ))}
         </select>
+      </div>
+
+      <div role="status" className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm leading-6 text-on-surface-variant">
+        <strong className="text-on-surface">
+          {selectedIsProvinceSummary ? '2025년 말 경상북도 공식 합계' : '2023년 말 소방서별 공식 상세'}
+        </strong>
+        {' '}· 서로 다른 기준연도의 값을 임의로 배분하지 않습니다.
+        {selectedIsProvinceSummary && (
+          <span>
+            {' '}2024년 도 합계 {HAZMAT_GYEONGBUK_SUMMARY_2024.total.toLocaleString()}개소 대비
+            {' '}{Math.abs(provinceYearDelta).toLocaleString()}개소 {provinceYearDelta >= 0 ? '증가' : '감소'}했습니다.
+          </span>
+        )}
+        <div className="flex flex-wrap gap-x-3 text-xs">
+          <a href={HAZMAT_DATA_INFO.provinceSummary.sourceUrl} target="_blank" rel="noreferrer" className="font-bold text-primary hover:underline">
+            소방청 2025 도 합계
+          </a>
+          <a href={HAZMAT_DATA_INFO.provinceSummaryPrevious.sourceUrl} target="_blank" rel="noreferrer" className="font-bold text-primary hover:underline">
+            소방청 2024 도 합계
+          </a>
+          <a href={HAZMAT_DATA_INFO.fireDepartmentDetail.sourceUrl} target="_blank" rel="noreferrer" className="font-bold text-primary hover:underline">
+            KOSIS 2023 소방서 상세
+          </a>
+        </div>
       </div>
 
       {/* 요약 카드 5장 */}
@@ -124,7 +154,13 @@ export default function HazmatView() {
         <SummaryCard icon="precision_manufacturing" iconColor="text-orange-700 dark:text-orange-300" label="제조소" value={selected.manufacturing} />
         <SummaryCard icon="local_gas_station" iconColor="text-amber-700 dark:text-amber-300" label="취급소" value={selected.handling.subtotal} sub={`주유 ${selected.handling.gasStation} · 일반 ${selected.handling.general}`} />
         <SummaryCard icon="warehouse" iconColor="text-blue-700 dark:text-blue-300" label="저장소" value={selected.storage.subtotal} sub={`옥외탱크 ${selected.storage.outdoorTank} · 이동 ${selected.storage.mobile}`} />
-        <SummaryCard icon="local_fire_department" iconColor="text-purple-700 dark:text-purple-300" label="관할 소방서" value={selectedDept === '합계' ? allDepts.length : 1} sub={selectedDept === '합계' ? '경상북도 전체' : selectedDept} />
+        <SummaryCard
+          icon="local_fire_department"
+          iconColor="text-purple-700 dark:text-purple-300"
+          label={selectedIsProvinceSummary ? '상세자료 소방서' : '선택 소방서'}
+          value={selectedIsProvinceSummary ? allDepts.length : 1}
+          sub={selectedIsProvinceSummary ? '2023년 상세자료 기준' : `${selectedDept} · 2023년`}
+        />
       </div>
 
       {/* 차트 + 테이블 */}
@@ -133,7 +169,7 @@ export default function HazmatView() {
         <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
             <span className="material-symbols-outlined text-base text-orange-700 dark:text-orange-300">donut_large</span>
-            시설유형별 분포 — {selected.fireDept}
+            시설유형별 분포 — {selected.fireDept} ({selectedIsProvinceSummary ? '2025' : '2023'})
           </h3>
           <DonutChart slices={categorySlices} total={selected.total} />
         </section>
@@ -142,7 +178,7 @@ export default function HazmatView() {
         <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-6">
           <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-4 flex items-center gap-2">
             <span className="material-symbols-outlined text-base text-blue-700 dark:text-blue-300">bar_chart</span>
-            소방서별 위험물시설 수
+            소방서별 위험물시설 수 (2023)
           </h3>
           <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-2">
             {sortedDepts.map((d, i) => {
@@ -175,18 +211,19 @@ export default function HazmatView() {
         <div className="p-4 border-b border-outline-variant/10 flex items-center justify-between">
           <h3 className="text-sm font-bold text-on-surface flex items-center gap-2">
             <span className="material-symbols-outlined text-orange-700 dark:text-orange-300 text-lg">table_chart</span>
-            소방서별 상세 현황
+            소방서별 상세 현황 (2023)
           </h3>
           <span className="text-[10px] text-on-surface-variant text-right">
             <a
-              href={HAZMAT_DATA_INFO.kosisUrl}
+              href={HAZMAT_DATA_INFO.fireDepartmentDetail.sourceUrl}
               target="_blank"
               rel="noreferrer"
               className="underline underline-offset-2 hover:text-primary"
             >
-              출처: {HAZMAT_DATA_INFO.source}
+              출처: {HAZMAT_DATA_INFO.fireDepartmentDetail.source}
             </a>
-            {' '}| 공식 최신 여부 확인: {HAZMAT_DATA_INFO.lastChecked}
+            {' '}| 합계 {HAZMAT_FIRE_DEPT_SUMMARY_2023.total.toLocaleString()}개소
+            {' '}| 확인 {HAZMAT_DATA_INFO.fireDepartmentDetail.lastChecked}
           </span>
         </div>
         <div className="overflow-x-auto custom-scrollbar">
@@ -204,7 +241,7 @@ export default function HazmatView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/5">
-              {HAZMAT_FACILITY_DATA.map(d => (
+              {allDepts.map(d => (
                 <tr
                   key={d.fireDept}
                   tabIndex={0}
@@ -217,7 +254,6 @@ export default function HazmatView() {
                     }
                   }}
                   className={`cursor-pointer transition-colors ${
-                    d.fireDept === '합계' ? 'bg-surface-container/50 font-bold' :
                     selectedDept === d.fireDept ? 'bg-primary/10' : 'hover:bg-surface-container/30'
                   }`}
                 >

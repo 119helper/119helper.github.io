@@ -29,6 +29,14 @@ describe('last-known-good reference cache', () => {
     expect(referenceCachePolicy('/api/disaster-msg')).toBeNull();
   });
 
+  it('keeps current-year fire snapshots shorter than completed years', () => {
+    const currentYear = new Date().getUTCFullYear();
+    expect(referenceCachePolicy(`/api/fire-annual/${currentYear}`)?.maxAgeSeconds).toBe(14 * 24 * 60 * 60);
+    expect(referenceCachePolicy('/api/fire-annual/2025')?.maxAgeSeconds).toBe(
+      currentYear === 2025 ? 14 * 24 * 60 * 60 : 365 * 24 * 60 * 60,
+    );
+  });
+
   it('stores and restores a normalized successful response', async () => {
     const { binding } = memoryKv();
     vi.spyOn(Date, 'now').mockReturnValue(1_000);

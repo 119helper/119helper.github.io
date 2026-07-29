@@ -72,6 +72,23 @@ const EquipmentChecklist: React.FC = () => {
         </div>
       </div>
 
+      <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200" role="alert">
+        <p className="font-bold">공통 점검 참고표 · 장비별 공식 점검표 대조 미완료</p>
+        <p className="mt-1 leading-relaxed">
+          단일 잔압 수치를 모든 공기호흡기에 적용하지 않습니다. 최신 소속 기관 점검표와
+          제조사 매뉴얼의 용기 사양·저압경보기 기준을 우선하십시오.
+          {' '}
+          <a
+            href="https://www.law.go.kr/LSW/flDownload.do?bylClsCd=200203&flNm=%5B%EB%B3%84%EC%A7%80+46%5D+%EA%B0%9C%EC%9D%B8%EB%B3%B4%ED%98%B8%EC%9E%A5%EB%B9%84+%EC%A0%90%EA%B2%80%EB%B6%80&flSeq=129560371"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-bold underline"
+          >
+            법령 서식 확인
+          </a>
+        </p>
+      </div>
+
       {progressPercent === 100 && (
         <div className="rounded-xl border border-success/30 bg-success-container p-4 text-on-success-container shadow-sm" role="status">
           <div className="flex items-center gap-3">

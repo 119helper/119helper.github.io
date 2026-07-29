@@ -3,7 +3,7 @@ export const CHECKLIST_SECTIONS = [
     id: 'scba',
     title: '공기호흡기 (SCBA)',
     items: [
-      { id: 'scba-1', label: '용기 잔압 확인 (250bar 이상)' },
+      { id: 'scba-1', label: '용기 잔압 및 제조사·소속 기관 기준 충족 여부' },
       { id: 'scba-2', label: '면체 기밀 상태 확인' },
       { id: 'scba-3', label: '경보음 정상 작동 여부' },
       { id: 'scba-4', label: '스트랩 및 버클 체결 상태' },

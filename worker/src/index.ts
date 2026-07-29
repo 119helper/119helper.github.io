@@ -129,7 +129,7 @@ export default {
       cacheUrl.searchParams.set('_ev', '2');
 
       if (path.startsWith('/api/fire-annual/')) {
-        cacheUrl.searchParams.set('_cv', '3'); // 기존 캐시 버전 관리용
+        cacheUrl.searchParams.set('_cv', '4'); // NFDS 2025 확정·2026 누계 및 피해액 단위 교정
       }
       if (path === '/api/dam-discharge') {
         cacheUrl.searchParams.set('_cv', '1'); // 승인 대기 응답 캐시 무효화

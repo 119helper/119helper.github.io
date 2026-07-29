@@ -180,6 +180,9 @@ function cityMetadata(city, items, district) {
     city,
     district,
     sourceDate: inferSourceDate(items),
+    sourceDateSource: SOURCE_DATE_OVERRIDE
+      ? 'workflow manual override'
+      : '원본 행 데이터기준일자 최신값',
     generatedAt: new Date().toISOString(),
     total: items.length,
     hydrants: items.filter(isHydrantType).length,
@@ -228,11 +231,15 @@ function writeSplitCity(city, items, cityMeta) {
 async function main() {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   const manifest = {
-    version: 1,
+    version: 2,
     generatedAt: new Date().toISOString(),
     dataset: '전국소방용수시설표준데이터',
     sourceUrl: 'https://www.data.go.kr/data/15034538/standard.do',
     maxAgeDays: 120,
+    supportedCityCount: CITIES.length,
+    coverageScope: 'supported-cities-national-standard',
+    completenessStatus: 'scoped',
+    coverageNote: '앱 지원 9개 시도의 전국 표준 원본입니다. 더 최신이며 좌표가 검증된 지역 원본은 별도 관할 오버레이 단계에서 적용합니다.',
     cities: {},
   };
 

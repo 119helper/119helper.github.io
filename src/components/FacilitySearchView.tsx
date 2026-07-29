@@ -13,6 +13,7 @@ import type { KakaoMapInstance, KakaoMarker } from '../types/kakao';
 import type { FacilityFilterState, FacilityViewState, ShelterCategory } from '../types/navigation';
 import type { BuildingWorkspaceState } from '../types/buildingWorkspace';
 import { formatDatasetDate, formatFreshnessSourceDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
+import DatasetCompletenessNotice from './DatasetCompletenessNotice';
 import {
   CITY_TO_STATIC_PROVINCE,
   districtFromAddress,
@@ -562,17 +563,20 @@ export default function FacilitySearchView({
                 {!isFireWater && !isBuilding && userPos && ' | GPS 거리순'}
               </p>
               {freshness && (
-                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-on-surface-variant">
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-bold ${
-                    freshnessExpired
-                      ? 'border-amber-500/40 bg-amber-500/15 text-amber-400'
-                      : 'border-outline-variant/30 bg-surface-container text-on-surface-variant'
-                  }`}>
-                    <span className="material-symbols-outlined text-[13px]">database</span>
-                    {formatFreshnessSourceDate(freshness)}
-                  </span>
-                  <span>생성 {formatDatasetDate(freshness.generatedAt)}</span>
-                  {freshnessExpired && <span className="font-bold text-amber-400">갱신 주기 초과</span>}
+                <div className="mt-2">
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-on-surface-variant">
+                    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-bold ${
+                      freshnessExpired
+                        ? 'border-amber-500/40 bg-amber-500/15 text-amber-400'
+                        : 'border-outline-variant/30 bg-surface-container text-on-surface-variant'
+                    }`}>
+                      <span className="material-symbols-outlined text-[13px]">database</span>
+                      {formatFreshnessSourceDate(freshness)}
+                    </span>
+                    <span>생성 {formatDatasetDate(freshness.generatedAt)}</span>
+                    {freshnessExpired && <span className="font-bold text-amber-400">갱신 주기 초과</span>}
+                  </div>
+                  <DatasetCompletenessNotice meta={freshness} />
                 </div>
               )}
             </div>

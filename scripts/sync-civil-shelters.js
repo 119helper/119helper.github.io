@@ -190,8 +190,14 @@ function updateManifest(metadata) {
     apiUrl: API_URL,
     sourceDate: metadata.sourceDate,
     sourceDateLabel: '원본 행 최신 갱신일',
+    sourceDateSource: SOURCE_DATE_OVERRIDE
+      ? 'workflow manual override'
+      : '원본 행 날짜 필드 최신값',
     generatedAt: metadata.generatedAt,
     maxAgeDays: 14,
+    coverageScope: 'supported-cities',
+    supportedCityCount: Object.keys(metadata.cities).length,
+    completenessStatus: 'scoped',
     total: metadata.total,
     upstreamTotal: metadata.upstreamTotal,
     uniqueUpstreamTotal: metadata.uniqueUpstreamTotal,

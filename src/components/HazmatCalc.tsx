@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ERG_CHEMICALS } from '../data/ergChemicals';
+import { ERG_CHEMICALS, ERG_DATA_STATUS } from '../data/ergChemicals';
 import {
   buildHazmatProtectiveZonePath,
   getHazmatDistances,
@@ -197,6 +197,23 @@ export default function HazmatCalc() {
           <h3 className="text-lg font-bold text-on-surface">유해화학물질(Hazmat) 대피 반경 계산기</h3>
           <p className="text-xs text-on-surface-variant">ERG 기반 초기이격 및 풍하향 방호구역 가시화</p>
         </div>
+      </div>
+
+      <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-800 dark:text-amber-200" role="alert">
+        <p className="font-bold">교육용 시각화 · 공식 수치 대조 미완료</p>
+        <p className="mt-1">
+          현재 30종 수치는 {ERG_DATA_STATUS.referenceEdition} 표와 항목별 전수 대조가 끝나지 않았습니다.
+          현장 통제선은 최신 ERG 원문·기관 SOP·기상과 현장 지휘를 우선하십시오.
+          {' '}
+          <a
+            href={ERG_DATA_STATUS.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-bold underline"
+          >
+            공식 ERG 확인
+          </a>
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">

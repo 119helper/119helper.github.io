@@ -1,0 +1,46 @@
+name: Update Regional Firewater Overlays
+
+on:
+  schedule:
+    - cron: '19 2 * * 4'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: firewater-data-writer
+  cancel-in-progress: false
+
+jobs:
+  update-regional-firewater:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Validate and apply regional overlays
+        run: |
+          node --test scripts/sync-firewater-regional-overlays.test.mjs
+          node scripts/sync-firewater-regional-overlays.mjs
+          node scripts/audit-administrative-regions.js
+
+      - name: Check changes
+        id: check
+        run: |
+          git diff --name-only public/firewater/ | head -20
+          echo "changed=$(git diff --quiet public/firewater/ && echo 'false' || echo 'true')" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/firewater/
+          git commit -m "chore: 지역 소방용수 오버레이 업데이트 ($(date +%Y-%m-%d))"
+          git push

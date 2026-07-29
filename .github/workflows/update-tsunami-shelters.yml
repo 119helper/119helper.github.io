@@ -2,17 +2,21 @@ name: Update Tsunami Shelter Data
 
 on:
   schedule:
-    - cron: '37 1 1 * *'
+    - cron: '37 1 * * 2'
   workflow_dispatch:
     inputs:
       source_date:
-        description: '공공데이터포털 API 수정일(선택)'
+        description: '안전데이터 원본 갱신일 강제 지정(선택, 기본은 메타데이터 자동 확인)'
         required: false
-        default: '2025-07-16'
+        default: ''
         type: string
 
 permissions:
   contents: write
+
+concurrency:
+  group: static-data-manifest-writer
+  cancel-in-progress: false
 
 jobs:
   update-tsunami-shelters:
