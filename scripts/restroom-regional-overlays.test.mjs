@@ -206,6 +206,36 @@ test('strict name plus exact road-or-lot matching returns only central IDs witho
   assert.equal(result.sources[0].gainCount, 1);
 });
 
+test('upgrades a strict official match from an address point without counting a coverage gain', () => {
+  const dataset = normalizedDataset([{
+    name: '광화문 공중화장실',
+    road: '서울특별시 종로구 세종대로 1',
+    lot: '',
+    lat: '37.566',
+    lng: '126.978',
+    date: '2026-07-29',
+  }]);
+  const national = [{
+    MNG_NO: 'N-1',
+    RSTRM_NM: '광화문 공중화장실',
+    LCTN_ROAD_NM_ADDR: '서울특별시 종로구 세종대로 1',
+    LCTN_LOTNO_ADDR: '',
+  }];
+  const existing = new Map([[
+    'N-1',
+    { lat: 37.56, lng: 126.97, coordinateKind: 'address_point' },
+  ]]);
+
+  const result = matchOfficialRegionalCoordinates(national, [dataset], existing);
+
+  assert.equal(result.total, 1);
+  assert.equal(result.gainCount, 0);
+  assert.equal(result.precisionUpgradeCount, 1);
+  assert.equal(result.items[0].coverageGain, false);
+  assert.equal(result.items[0].precisionUpgrade, true);
+  assert.equal(result.sources[0].precisionUpgradeCount, 1);
+});
+
 test('name-only and address-only similarities are rejected', () => {
   const dataset = normalizedDataset([
     {

@@ -213,10 +213,13 @@ test('오프라인 점검: 최신 날짜와 데이터 완전성을 별도로 표
 
   await expect(page.getByText('앱 지원 9개 도시 8,127곳 / 전국 사용중 17,229곳')).toBeVisible();
   await expect(page.getByText(
-    '지원 9개 도시 전체 원본 17,324곳 중 지도 좌표 확인 11,432곳 (66.0%) · 좌표 미확인 5,892곳',
+    '지원 9개 도시 전체 원본 17,323곳 중 지도 표시 11,654곳 (67.3%) · 시설 좌표 10,679곳 · 주소 대표점 975곳 · 좌표 미확인 5,669곳',
   )).toBeVisible();
   await expect(page.getByText(
-    '공식 지역 좌표 보충 990곳 · 서울특별시 601 · 제주시 326 · 동래구 39 · 부산 갈맷길 24',
+    '주소 대표점 975곳 · 기존 주소 지오코딩 698 · 동일 주소 이전 공식 좌표 42 · 부산 공식 도로명주소 235 (기존 오류 좌표 13곳 교정 포함) · 실제 화장실 위치나 출입구와 다를 수 있음',
+  )).toBeVisible();
+  await expect(page.getByText(
+    '공식 지역 시설 좌표 보충 990곳 · 주소 대표점에서 시설 좌표로 개선 3곳 · 서울특별시 601 · 제주시 326 · 동래구 39 · 부산 갈맷길 24',
   )).toBeVisible();
   await expect(page.getByText('공개 API 647곳 / 관리대장 발표 680곳 · 33곳 차이')).toBeVisible();
   await expect(page.getByText('공개 API 제공 범위: 강원·경북·부산·울산 4개 시도')).toBeVisible();

@@ -2,6 +2,21 @@ import { readFile } from 'node:fs/promises';
 
 const REQUEST_TIMEOUT_MS = 20_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const RESTROOM_ADDRESS_POINT_REGRESSION = Object.freeze({
+  total: 235,
+  coverageGainCount: 222,
+  repairCount: 13,
+  uniquePointCount: 206,
+  directBuildingMatchCount: 227,
+  reviewedNewMatchCount: 5,
+  reviewedAliasRepairCount: 3,
+});
+const ALLOWED_ADDRESS_POINT_MATCH_METHODS = new Set([
+  'unique-exact-road-address+building-name-corroboration',
+  'unique-exact-road-address+reviewed-building-name-variant',
+  'invalid-legacy-coordinate+unique-exact-road-address+building-name-corroboration',
+  'invalid-legacy-coordinate+unique-exact-road-address+reviewed-building-alias',
+]);
 
 async function fetchText(url) {
   const controller = new AbortController();
@@ -223,11 +238,15 @@ async function auditStaticCompleteness() {
     tsunamiText,
     firewaterManifestText,
     restroomRegionalCoordinateText,
+    restroomAddressPointText,
+    restroomAddressPointIndexText,
   ] = await Promise.all([
     readFile(new URL('../public/data/manifest.json', import.meta.url), 'utf8'),
     readFile(new URL('../public/data/tsunami.json', import.meta.url), 'utf8'),
     readFile(new URL('../public/firewater/manifest.json', import.meta.url), 'utf8'),
     readFile(new URL('../public/data/restroom-official-regional-coordinates.json', import.meta.url), 'utf8'),
+    readFile(new URL('../public/data/restroom-official-address-points.json', import.meta.url), 'utf8'),
+    readFile(new URL('../public/data/restroom-address-points/busan/index.json', import.meta.url), 'utf8'),
   ]);
   const datasets = JSON.parse(manifestText).datasets ?? {};
 
@@ -274,6 +293,47 @@ async function auditStaticCompleteness() {
       + `재계산값 ${coordinateCoverage}가 다릅니다.`,
     );
   }
+  const facilityCoordinateCount = numberField(
+    restrooms.facilityCoordinateCount,
+    '화장실 시설 좌표 합계',
+  );
+  const addressPointCount = numberField(
+    restrooms.addressPointCount,
+    '화장실 주소 대표점 합계',
+  );
+  if (facilityCoordinateCount + addressPointCount !== restroomTotal) {
+    throw new Error(
+      `공중화장실: 시설 좌표 ${facilityCoordinateCount}건 + 주소 대표점 ${addressPointCount}건이 `
+      + `지도 합계 ${restroomTotal}건과 다릅니다.`,
+    );
+  }
+  const baseAddressPointCount = numberField(
+    restrooms.baseAddressPointCount,
+    '화장실 기본 주소 대표점 합계',
+  );
+  const geocodedAddressPointCount = numberField(
+    restrooms.legacyGeocodedAddressPointCount,
+    '화장실 기존 주소 지오코딩 합계',
+  );
+  const legacySharedAddressPointCount = numberField(
+    restrooms.legacySharedAddressPointCount,
+    '화장실 동일 주소 이전 공식 좌표 합계',
+  );
+  if (
+    baseAddressPointCount !== geocodedAddressPointCount + legacySharedAddressPointCount
+    || addressPointCount !== baseAddressPointCount
+      + RESTROOM_ADDRESS_POINT_REGRESSION.total
+  ) {
+    throw new Error(
+      '공중화장실: 기본 주소점 출처별 합계 또는 공식 주소점 결합 합계가 다릅니다.',
+    );
+  }
+  if (numberField(restrooms.unknownCoordinateKindCount, '화장실 미분류 좌표 합계') !== 0) {
+    throw new Error('공중화장실: 좌표 출처 유형을 확인하지 못한 행이 있습니다.');
+  }
+  if (restroomTotal < 10_000 || restroomSupportedTotal < restroomTotal) {
+    throw new Error('공중화장실: 지도 또는 지원지역 합계가 안전 최소치 아래로 급감했습니다.');
+  }
   const restroomRegionalCoordinates = JSON.parse(restroomRegionalCoordinateText);
   const regionalCoordinateItems = Array.isArray(restroomRegionalCoordinates.items)
     ? restroomRegionalCoordinates.items
@@ -294,15 +354,157 @@ async function auditStaticCompleteness() {
   }
   const sourceGainTotal = (restroomRegionalCoordinates.sources ?? [])
     .reduce((sum, source) => sum + numberField(source.gainCount, `${source.id} 좌표 보충 합계`), 0);
-  if (sourceGainTotal !== regionalCoordinateTotal) {
-    throw new Error(
-      `공중화장실: 공식 지역 출처별 보충 ${sourceGainTotal}건과 인덱스 ${regionalCoordinateTotal}건이 다릅니다.`,
+  const sourceUpgradeTotal = (restroomRegionalCoordinates.sources ?? [])
+    .reduce(
+      (sum, source) => sum
+        + numberField(source.precisionUpgradeCount ?? 0, `${source.id} 좌표 개선 합계`),
+      0,
     );
+  if (sourceGainTotal + sourceUpgradeTotal !== regionalCoordinateTotal) {
+    throw new Error(
+      `공중화장실: 공식 지역 출처별 보충 ${sourceGainTotal}건 + 개선 ${sourceUpgradeTotal}건과 `
+      + `인덱스 ${regionalCoordinateTotal}건이 다릅니다.`,
+    );
+  }
+  if (
+    numberField(
+      restrooms.regionalCoordinateCoverageGainCount,
+      '화장실 공식 지역 좌표 신규 보충 manifest 합계',
+    ) !== sourceGainTotal
+    || numberField(
+      restrooms.regionalCoordinateUpgradeCount,
+      '화장실 공식 지역 좌표 정밀도 개선 manifest 합계',
+    ) !== sourceUpgradeTotal
+  ) {
+    throw new Error('공중화장실: 공식 지역 좌표 신규·정밀도 개선 manifest 합계가 다릅니다.');
+  }
+
+  const restroomAddressPoints = JSON.parse(restroomAddressPointText);
+  const officialAddressPointItems = Array.isArray(restroomAddressPoints.items)
+    ? restroomAddressPoints.items
+    : [];
+  for (const [field, expected] of Object.entries({
+    total: RESTROOM_ADDRESS_POINT_REGRESSION.total,
+    coverageGainCount: RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount,
+    repairCount: RESTROOM_ADDRESS_POINT_REGRESSION.repairCount,
+    uniquePointCount: RESTROOM_ADDRESS_POINT_REGRESSION.uniquePointCount,
+    directBuildingMatchCount: RESTROOM_ADDRESS_POINT_REGRESSION.directBuildingMatchCount,
+    reviewedNewMatchCount: RESTROOM_ADDRESS_POINT_REGRESSION.reviewedNewMatchCount,
+    reviewedAliasRepairCount: RESTROOM_ADDRESS_POINT_REGRESSION.reviewedAliasRepairCount,
+  })) {
+    if (numberField(restroomAddressPoints[field], `화장실 공식 주소 대표점 ${field}`) !== expected) {
+      throw new Error(`공중화장실: 공식 주소 대표점 ${field}가 검토 기준 ${expected}와 다릅니다.`);
+    }
+  }
+  if (officialAddressPointItems.length !== RESTROOM_ADDRESS_POINT_REGRESSION.total) {
+    throw new Error(
+      `공중화장실: 공식 주소 대표점 원장 ${officialAddressPointItems.length}건이 235건이 아닙니다.`,
+    );
+  }
+
+  const officialAddressPointIds = new Set();
+  const officialAddressPointCoordinates = new Set();
+  const officialAddressPointMatchMethods = new Map();
+  let itemCoverageGainCount = 0;
+  let itemRepairCount = 0;
+  for (const item of officialAddressPointItems) {
+    const id = String(item.id || '');
+    if (!id || officialAddressPointIds.has(id)) {
+      throw new Error(`공중화장실: 공식 주소 대표점 ID가 비었거나 중복됐습니다: ${id || '빈 ID'}`);
+    }
+    officialAddressPointIds.add(id);
+    if (item.coordinateKind !== 'address_point' || item.coordinateApproximate !== true) {
+      throw new Error(`공중화장실: 공식 주소 대표점 정밀도 계약이 잘못됐습니다: ${id}`);
+    }
+    if (!ALLOWED_ADDRESS_POINT_MATCH_METHODS.has(item.matchMethod)) {
+      throw new Error(`공중화장실: 공식 주소 대표점 매칭 방식이 허용 범위 밖입니다: ${id}`);
+    }
+    officialAddressPointMatchMethods.set(
+      item.matchMethod,
+      (officialAddressPointMatchMethods.get(item.matchMethod) || 0) + 1,
+    );
+    const latitude = Number(item.lat);
+    const longitude = Number(item.lng);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      throw new Error(`공중화장실: 공식 주소 대표점 좌표가 숫자가 아닙니다: ${id}`);
+    }
+    officialAddressPointCoordinates.add(`${latitude.toFixed(7)},${longitude.toFixed(7)}`);
+    if (item.coverageGain === true) itemCoverageGainCount += 1;
+    if (item.legacyCoordinateRepair === true) itemRepairCount += 1;
+    if (item.coverageGain !== !item.legacyCoordinateRepair) {
+      throw new Error(`공중화장실: 공식 주소 대표점 신규·교정 구분이 모순됩니다: ${id}`);
+    }
+  }
+  if (
+    itemCoverageGainCount !== RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount
+    || itemRepairCount !== RESTROOM_ADDRESS_POINT_REGRESSION.repairCount
+  ) {
+    throw new Error(
+      `공중화장실: 공식 주소 대표점 항목별 신규 ${itemCoverageGainCount}건/교정 ${itemRepairCount}건이 `
+      + '222/13 기준과 다릅니다.',
+    );
+  }
+  if (officialAddressPointCoordinates.size !== RESTROOM_ADDRESS_POINT_REGRESSION.uniquePointCount) {
+    throw new Error(
+      `공중화장실: 공식 주소 대표점 고유 좌표 ${officialAddressPointCoordinates.size}개가 206개가 아닙니다.`,
+    );
+  }
+  const directAddressPointMatches = [
+    'unique-exact-road-address+building-name-corroboration',
+    'invalid-legacy-coordinate+unique-exact-road-address+building-name-corroboration',
+  ].reduce((sum, method) => sum + (officialAddressPointMatchMethods.get(method) || 0), 0);
+  if (
+    directAddressPointMatches !== RESTROOM_ADDRESS_POINT_REGRESSION.directBuildingMatchCount
+    || (officialAddressPointMatchMethods.get(
+      'unique-exact-road-address+reviewed-building-name-variant',
+    ) || 0) !== RESTROOM_ADDRESS_POINT_REGRESSION.reviewedNewMatchCount
+    || (officialAddressPointMatchMethods.get(
+      'invalid-legacy-coordinate+unique-exact-road-address+reviewed-building-alias',
+    ) || 0) !== RESTROOM_ADDRESS_POINT_REGRESSION.reviewedAliasRepairCount
+  ) {
+    throw new Error('공중화장실: 주소 대표점 매칭 근거가 직접 227/검토 신규 5/검토 교정 3과 다릅니다.');
+  }
+
+  const restroomAddressPointIndex = JSON.parse(restroomAddressPointIndexText);
+  const addressPointDistrictTotal = Object.values(restroomAddressPointIndex.districts ?? {})
+    .reduce((sum, count) => sum + numberField(count, '부산 화장실 주소 대표점 구별 합계'), 0);
+  if (
+    numberField(restroomAddressPointIndex.total, '부산 화장실 주소 대표점 인덱스 합계')
+      !== officialAddressPointItems.length
+    || addressPointDistrictTotal !== officialAddressPointItems.length
+  ) {
+    throw new Error('공중화장실: 부산 주소 대표점 인덱스·구별 합계가 공식 원장과 다릅니다.');
+  }
+  if (
+    numberField(restrooms.officialAddressPointCount, '화장실 공식 주소 대표점 manifest 합계')
+      !== officialAddressPointItems.length
+    || numberField(
+      restrooms.officialAddressPointRepairCount,
+      '화장실 공식 주소 대표점 manifest 교정 합계',
+    ) !== RESTROOM_ADDRESS_POINT_REGRESSION.repairCount
+  ) {
+    throw new Error('공중화장실: 공식 주소 대표점 manifest 합계가 원장과 다릅니다.');
+  }
+  const addressPointOverlay = (restrooms.addressPointOverlays ?? [])
+    .find(overlay => String(overlay.id) === String(restroomAddressPoints.source?.id || ''));
+  if (!addressPointOverlay) {
+    throw new Error('공중화장실: 공식 주소 대표점 출처가 manifest에 없습니다.');
+  }
+  for (const [field, expected] of Object.entries({
+    matchedCount: RESTROOM_ADDRESS_POINT_REGRESSION.total,
+    coverageGainCount: RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount,
+    repairCount: RESTROOM_ADDRESS_POINT_REGRESSION.repairCount,
+    uniquePointCount: RESTROOM_ADDRESS_POINT_REGRESSION.uniquePointCount,
+  })) {
+    if (numberField(addressPointOverlay[field], `화장실 주소 대표점 overlay ${field}`) !== expected) {
+      throw new Error(`공중화장실: 주소 대표점 overlay ${field}가 ${expected}와 다릅니다.`);
+    }
   }
   console.log(
     `${restroomMissingCoordinates > 0 ? 'WARN' : 'PASS'} static-completeness restrooms `
     + `mapped=${restroomTotal} supported=${restroomSupportedTotal} missingCoordinates=${restroomMissingCoordinates} `
-    + `coverage=${coordinateCoverage.toFixed(1)}% officialRegional=${regionalCoordinateTotal}`,
+    + `coverage=${coordinateCoverage.toFixed(1)}% officialRegional=${regionalCoordinateTotal} `
+    + `officialAddressPoints=${officialAddressPointItems.length}`,
   );
 
   const tsunami = datasets.tsunami ?? {};

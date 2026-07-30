@@ -48,14 +48,23 @@ describe('getDatasetCompletenessNotices', () => {
       sourceDate: '2026-07-27',
       generatedAt: '2026-07-28T00:00:00.000Z',
       maxAgeDays: 30,
-      total: 11_432,
-      supportedCityTotal: 17_324,
-      missingCoordinateCount: 5_892,
+      total: 11_654,
+      supportedCityTotal: 17_323,
+      missingCoordinateCount: 5_669,
       supportedCityCount: 9,
-    })[0]).toEqual({
+      facilityCoordinateCount: 10_679,
+      addressPointCount: 975,
+      legacyGeocodedAddressPointCount: 698,
+      legacySharedAddressPointCount: 42,
+      officialAddressPointCount: 235,
+      officialAddressPointRepairCount: 13,
+    })).toEqual([{
       tone: 'warning',
-      text: '지원 9개 도시 전체 원본 17,324곳 중 지도 좌표 확인 11,432곳 (66.0%) · 좌표 미확인 5,892곳',
-    });
+      text: '지원 9개 도시 전체 원본 17,323곳 중 지도 표시 11,654곳 (67.3%) · 시설 좌표 10,679곳 · 주소 대표점 975곳 · 좌표 미확인 5,669곳',
+    }, {
+      tone: 'warning',
+      text: '주소 대표점 975곳 · 기존 주소 지오코딩 698 · 동일 주소 이전 공식 좌표 42 · 부산 공식 도로명주소 235 (기존 오류 좌표 13곳 교정 포함) · 실제 화장실 위치나 출입구와 다를 수 있음',
+    }]);
 
     expect(getDatasetCompletenessNotices({
       label: '지진해일 대피소',
@@ -115,7 +124,9 @@ describe('getDatasetCompletenessNotices', () => {
       sourceDate: '2026-07-27',
       generatedAt: '2026-07-30',
       maxAgeDays: 30,
-      regionalCoordinateCount: 990,
+      regionalCoordinateCount: 993,
+      regionalCoordinateCoverageGainCount: 990,
+      regionalCoordinateUpgradeCount: 3,
       coordinateOverlays: [
         {
           id: 'seoul-oa-22586-restrooms',
@@ -124,6 +135,7 @@ describe('getDatasetCompletenessNotices', () => {
           sourceTotal: 4_411,
           matchedCount: 1_329,
           coverageGainCount: 601,
+          precisionUpgradeCount: 3,
         },
         {
           id: 'jeju-city-public-restrooms',
@@ -154,7 +166,7 @@ describe('getDatasetCompletenessNotices', () => {
 
     expect(notices).toContainEqual({
       tone: 'info',
-      text: '공식 지역 좌표 보충 990곳 · 서울특별시 601 · 제주시 326 · 동래구 39 · 부산 갈맷길 24',
+      text: '공식 지역 시설 좌표 보충 990곳 · 주소 대표점에서 시설 좌표로 개선 3곳 · 서울특별시 601 · 제주시 326 · 동래구 39 · 부산 갈맷길 24',
     });
   });
 });

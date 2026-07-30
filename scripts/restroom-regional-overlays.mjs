@@ -90,18 +90,30 @@ function validateColumns(rows, source) {
   }
 }
 
-function existingCoordinate(existingCoordinateById, id) {
-  if (!existingCoordinateById) return false;
-  if (existingCoordinateById instanceof Set) return existingCoordinateById.has(id);
+function existingCoordinateStatus(existingCoordinateById, id) {
+  if (!existingCoordinateById) return { exists: false, kind: null };
+  if (existingCoordinateById instanceof Set) {
+    return {
+      exists: existingCoordinateById.has(id),
+      kind: existingCoordinateById.has(id) ? 'facility_point' : null,
+    };
+  }
 
   const value = existingCoordinateById instanceof Map
     ? existingCoordinateById.get(id)
     : existingCoordinateById[id];
-  if (!value) return false;
-  if (value === true) return true;
+  if (!value) return { exists: false, kind: null };
+  if (value === true) return { exists: true, kind: 'facility_point' };
   const latitude = Number(value.lat ?? value.latitude);
   const longitude = Number(value.lng ?? value.longitude);
-  return Number.isFinite(latitude) && Number.isFinite(longitude) && latitude !== 0 && longitude !== 0;
+  const exists = Number.isFinite(latitude)
+    && Number.isFinite(longitude)
+    && latitude !== 0
+    && longitude !== 0;
+  return {
+    exists,
+    kind: exists ? value.coordinateKind || 'facility_point' : null,
+  };
 }
 
 function nationalRecord(item) {
@@ -149,6 +161,7 @@ function sourceSummary(dataset) {
     exactMatchedCount: 0,
     existingCoordinateCount: 0,
     gainCount: 0,
+    precisionUpgradeCount: 0,
   };
 }
 
@@ -296,7 +309,7 @@ async function downloadDataGoCsv(source, fetchImpl) {
   });
   return {
     text: decodeCsv(await response.arrayBuffer(), source.encoding),
-    sourceDate: null,
+    sourceDate: extractDataGoFileDate(pageHtml),
   };
 }
 
@@ -594,12 +607,18 @@ export function matchOfficialRegionalCoordinates(
 
     const proposal = targetProposals[0];
     proposal.summary.exactMatchedCount += 1;
-    if (existingCoordinate(existingCoordinateById, proposal.targetId)) {
+    const existing = existingCoordinateStatus(existingCoordinateById, proposal.targetId);
+    if (existing.exists && existing.kind !== 'address_point') {
       proposal.summary.existingCoordinateCount += 1;
       continue;
     }
 
-    proposal.summary.gainCount += 1;
+    const precisionUpgrade = existing.exists && existing.kind === 'address_point';
+    if (precisionUpgrade) {
+      proposal.summary.precisionUpgradeCount += 1;
+    } else {
+      proposal.summary.gainCount += 1;
+    }
     items.push({
       id: proposal.targetId,
       nm: proposal.nationalItem.name,
@@ -613,6 +632,8 @@ export function matchOfficialRegionalCoordinates(
       sourceAddress: proposal.matchedAddress,
       matchMethod: 'normalized-name+exact-road-or-lot-address',
       matchKey: proposal.matchedKey,
+      coverageGain: !precisionUpgrade,
+      precisionUpgrade,
     });
   }
 
@@ -620,7 +641,8 @@ export function matchOfficialRegionalCoordinates(
   return {
     version: 1,
     total: items.length,
-    gainCount: items.length,
+    gainCount: items.filter(item => item.coverageGain).length,
+    precisionUpgradeCount: items.filter(item => item.precisionUpgrade).length,
     items,
     sources: regionalDatasets.map(dataset => summaries.get(dataset.source.id)),
   };

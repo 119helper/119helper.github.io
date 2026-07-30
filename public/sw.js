@@ -19,7 +19,7 @@
 const CACHE_VERSION = 'v5';
 const SHELL_CACHE = `119-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `119-assets-${CACHE_VERSION}`;
-const DATA_CACHE = '119-data-v1'; // 버전 독립 — 받아둔 관할 데이터 보존
+const DATA_CACHE = '119-data-v2'; // 좌표 정밀도 계약 v2 — 이전 무표시 JSON과 분리
 const KEEP_CACHES = [SHELL_CACHE, ASSET_CACHE, DATA_CACHE];
 const DATA_CACHE_MAX_ENTRIES = 800;
 const DATA_CACHE_PRUNE_COUNT = 80;

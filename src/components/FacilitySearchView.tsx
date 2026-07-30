@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchCivilShelters, fetchTsunamiShelters, getStaleAt, isStaleDataError } from '../services/apiClient';
-import { fetchRestrooms, fetchRestroomCityIndex } from '../services/restroomApi';
+import {
+  fetchRestrooms,
+  fetchRestroomCityIndex,
+  type RestroomCoordinateKind,
+} from '../services/restroomApi';
 import { getNearbyAeds } from '../services/aedApi';
 import type { FireFacility } from '../data/mockData';
 import type { CityIndex } from '../services/fireWaterApi';
@@ -79,6 +83,7 @@ interface FacilityItem {
   todayHours?: string;
   manufacturer?: string;
   model?: string;
+  coordinateKind?: RestroomCoordinateKind;
 }
 
 type FacilitySourceItem = Record<string, unknown>;
@@ -104,6 +109,9 @@ const formatDistance = (distanceKm?: number | null) => {
     ? `${Math.max(1, Math.round(distanceKm * 1000))}m`
     : `${distanceKm.toFixed(1)}km`;
 };
+
+const ADDRESS_POINT_WARNING = '도로명주소와 건물명이 일치하는 건물 대표 좌표입니다. 실제 화장실 위치·출입구와 다를 수 있습니다.';
+const UNKNOWN_COORDINATE_WARNING = '좌표 출처 유형을 확인하지 못했습니다. 현장에서 실제 위치를 다시 확인해 주세요.';
 
 // 통합 카테고리 정의
 const CATEGORIES = [
@@ -165,14 +173,25 @@ export default function FacilitySearchView({
 
   // 공중화장실 전용 도시 인덱스 (기존 cityIndex가 없거나 다를 경우 대비)
   useEffect(() => {
+    let cancelled = false;
     if (activeCategory === 'restrooms') {
       fetchRestroomCityIndex(city).then(idx => {
+        if (cancelled) return;
         setRestroomIndex(idx);
         if (idx && filterDistrict === '전체') {
           // 자동으로 첫 번째 구/군을 선택할지 여부: 에러 메시지로 유도하는 것도 나쁘지 않음.
         }
+      }).catch(error => {
+        if (cancelled) return;
+        setRestroomIndex(null);
+        setApiError(error instanceof Error
+          ? error.message
+          : '공중화장실 지역 인덱스를 불러오지 못했습니다.');
       });
     }
+    return () => {
+      cancelled = true;
+    };
   }, [city, activeCategory, filterDistrict]);
 
   // GPS
@@ -308,7 +327,9 @@ export default function FacilitySearchView({
             district: filterDistrict,
             hasBell: it.hasBell,
             maleToilet: it.male,
-            femaleToilet: it.female
+            femaleToilet: it.female,
+            distanceKm: it.distance,
+            coordinateKind: it.coordinateKind ?? 'unknown',
           }));
           
           // 위치 기반일 경우 가까운 50개만 잘라서 렉 방지
@@ -436,14 +457,23 @@ export default function FacilitySearchView({
 
     visible.forEach(fac => {
       const pos = new window.kakao.maps.LatLng(fac.lat, fac.lng);
+      const isAddressPoint = fac.category === 'restrooms' && fac.coordinateKind === 'address_point';
+      const hasUnknownCoordinateKind = fac.category === 'restrooms' && fac.coordinateKind === 'unknown';
       
       // 마커 아이콘 설정 (기본은 파란색, 타입에 따라 다르게)
       let imageSrc = "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png"; // 기본 별 마커 설정
-      const imageSize = new window.kakao.maps.Size(24, 35);
+      let imageSize = new window.kakao.maps.Size(24, 35);
       
       if (fac.category === 'restrooms') {
-        const markerSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#1e88e5"><path d="M12 2c-3.3 0-6 2.7-6 6v3h2V8c0-2.2 1.8-4 4-4s4 1.8 4 4v3h2V8c0-3.3-2.7-6-6-6zm-1 14h2v6h-2zM8 12c-1.1 0-2 .9-2 2v6h2v-6h4v6h2v-6c0-1.1-.9-2-2-2H8z"/></svg>`;
+        const markerSvg = isAddressPoint
+          ? `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36"><path fill="#f59e0b" d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.3 21.7 0 14 0z"/><path fill="#fff" d="M8 9h12v10H8z"/><path fill="#f59e0b" d="M10 11h3v3h-3zm5 0h3v3h-3zm-5 5h8v2h-8z"/></svg>`
+          : hasUnknownCoordinateKind
+            ? `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36"><path fill="#6b7280" d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.3 21.7 0 14 0z"/><text x="14" y="20" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="700" fill="#fff">?</text></svg>`
+            : `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#1e88e5"><path d="M12 2c-3.3 0-6 2.7-6 6v3h2V8c0-2.2 1.8-4 4-4s4 1.8 4 4v3h2V8c0-3.3-2.7-6-6-6zm-1 14h2v6h-2zM8 12c-1.1 0-2 .9-2 2v6h2v-6h4v6h2v-6c0-1.1-.9-2-2-2H8z"/></svg>`;
         imageSrc = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(markerSvg);
+        if (isAddressPoint || hasUnknownCoordinateKind) {
+          imageSize = new window.kakao.maps.Size(28, 36);
+        }
       } else if (fac.category === 'aed') {
         const markerSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36"><path fill="#d32f2f" d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.3 21.7 0 14 0z"/><path fill="#fff" d="M12.2 7.2h4.6l-2 5.2h3.7l-7.1 9.1 1.9-6.2H9.5z"/></svg>`;
         imageSrc = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(markerSvg);
@@ -453,7 +483,12 @@ export default function FacilitySearchView({
       }
       const markerImage = new window.kakao.maps.MarkerImage(imageSrc, imageSize);
 
-      const marker = new window.kakao.maps.Marker({ position: pos, map: kakaoMap, title: fac.name, image: markerImage });
+      const markerTitle = isAddressPoint
+        ? `${fac.name} · 주소 대표점`
+        : hasUnknownCoordinateKind
+          ? `${fac.name} · 좌표 유형 미확인`
+          : fac.name;
+      const marker = new window.kakao.maps.Marker({ position: pos, map: kakaoMap, title: markerTitle, image: markerImage });
       
       const safeName = escapeHtml(fac.name);
       const safeAddress = escapeHtml(fac.address);
@@ -464,6 +499,11 @@ export default function FacilitySearchView({
       const safeHours = escapeHtml(fac.todayHours);
       const capacityInfo = fac.capacity && fac.capacity > 0 ? `<br/><span style="color:#333;">👥 수용 ${safeCapacity}명</span>` : '';
       const restroomInfo = fac.category === 'restrooms' ? `<br/><span style="color:#333;">🚻 남 ${safeMaleToilet} / 여 ${safeFemaleToilet} ${fac.hasBell === 'Y' ? ' (비상벨🚨)' : ''}</span>` : '';
+      const coordinateInfo = isAddressPoint
+        ? `<div style="margin-top:6px;padding:6px 8px;border-radius:6px;background:#fff7ed;color:#9a3412;"><strong>주소 대표점(근사)</strong><br/>${ADDRESS_POINT_WARNING}</div>`
+        : hasUnknownCoordinateKind
+          ? `<div style="margin-top:6px;padding:6px 8px;border-radius:6px;background:#f3f4f6;color:#4b5563;"><strong>좌표 유형 미확인</strong><br/>${UNKNOWN_COORDINATE_WARNING}</div>`
+          : '';
       const aedInfo = fac.category === 'aed'
         ? `<br/><span style="color:#b71c1c;">⚡ ${safeDistance || '거리 미상'} · 오늘 ${safeHours || '운영시간 확인 필요'}</span>`
         : '';
@@ -472,7 +512,7 @@ export default function FacilitySearchView({
         content: `<div style="padding:6px 10px;font-size:12px;max-width:220px;line-height:1.4;">
           <strong style="color:#1a73e8;">${safeName}</strong><br/>
           <span style="color:#666;">${safeAddress}</span>
-          ${capacityInfo}${restroomInfo}${aedInfo}
+          ${capacityInfo}${restroomInfo}${coordinateInfo}${aedInfo}
         </div>`
       });
       window.kakao.maps.event.addListener(marker, 'click', () => {
@@ -496,6 +536,12 @@ export default function FacilitySearchView({
     (filterDistrict === '전체' || f.district === filterDistrict) &&
     (!filter || f.name.includes(filter) || f.address.includes(filter))
   );
+  const restroomAddressPointCount = activeCategory === 'restrooms'
+    ? filtered.filter(facility => facility.coordinateKind === 'address_point').length
+    : 0;
+  const restroomUnknownCoordinateCount = activeCategory === 'restrooms'
+    ? filtered.filter(facility => facility.coordinateKind === 'unknown').length
+    : 0;
   const selectedFacility = facilities.find(facility => facilityItemKey(facility) === viewState.selectedKey) ?? null;
   const hasQuery = filter.trim().length > 0;
   const hasDistrictFilter = filterDistrict !== '전체';
@@ -560,7 +606,9 @@ export default function FacilitySearchView({
                     ? ` | ${currentCat.desc}`
                     : !loading && !apiError ? ` | ${currentCat.label} ${filtered.length}개소` : ''
                 }
-                {!isFireWater && !isBuilding && userPos && ' | GPS 거리순'}
+                {!isFireWater && !isBuilding && userPos && (
+                  activeCategory === 'restrooms' ? ' | 표시 좌표 기준 거리순' : ' | GPS 거리순'
+                )}
               </p>
               {freshness && (
                 <div className="mt-2">
@@ -742,8 +790,28 @@ export default function FacilitySearchView({
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
               {/* 지도 */}
               <div className="lg:col-span-7">
-                <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden">
+                <div className="relative bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden">
                   <div ref={mapRef} className="w-full h-[400px] lg:h-[500px]" />
+                  {activeCategory === 'restrooms' && facilities.length > 0 && (
+                    <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-wrap gap-1.5 rounded-lg border border-outline-variant/20 bg-surface-container-lowest/95 px-2.5 py-2 text-[10px] font-bold shadow-sm backdrop-blur-sm">
+                      <span className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-300">
+                        <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-blue-600" />
+                        시설 좌표
+                      </span>
+                      {restroomAddressPointCount > 0 && (
+                        <span className="inline-flex items-center gap-1 text-amber-800 dark:text-amber-300">
+                          <span aria-hidden="true" className="h-2.5 w-2.5 rotate-45 bg-amber-500" />
+                          주소 대표점 {restroomAddressPointCount}
+                        </span>
+                      )}
+                      {restroomUnknownCoordinateCount > 0 && (
+                        <span className="inline-flex items-center gap-1 text-gray-700 dark:text-gray-300">
+                          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-sm bg-gray-500" />
+                          유형 미확인 {restroomUnknownCoordinateCount}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -777,7 +845,11 @@ export default function FacilitySearchView({
                     </div>
                     <div className="flex items-center justify-between mt-2">
                       <span role="status" aria-live="polite" className="text-[10px] text-on-surface-variant">{filtered.length}개 시설</span>
-                      {userPos && <span className="text-[10px] text-primary">📍 거리순 정렬</span>}
+                      {userPos && (
+                        <span className="text-[10px] text-primary">
+                          📍 {activeCategory === 'restrooms' ? '표시 좌표 기준 거리순' : '거리순 정렬'}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -813,10 +885,26 @@ export default function FacilitySearchView({
                             <div className="flex-1 min-w-0">
                                <p className="text-sm font-bold text-on-surface truncate">{fac.name}</p>
                               <p className="text-xs text-on-surface-variant truncate mt-0.5">{fac.address}</p>
-                              <div className="flex items-center gap-2 mt-1.5">
+                              <div className="flex flex-wrap items-center gap-2 mt-1.5">
                                 {fac.type && (
                                   <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
                                     {fac.type}
+                                  </span>
+                                )}
+                                {fac.category === 'restrooms' && fac.coordinateKind === 'address_point' && (
+                                  <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                                    주소 대표점
+                                  </span>
+                                )}
+                                {fac.category === 'restrooms' && fac.coordinateKind === 'unknown' && (
+                                  <span className="rounded bg-gray-500/15 px-1.5 py-0.5 text-[10px] font-bold text-gray-700 dark:text-gray-300">
+                                    좌표 유형 미확인
+                                  </span>
+                                )}
+                                {fac.category === 'restrooms' && fac.distanceKm !== undefined && fac.distanceKm !== null && (
+                                  <span className="rounded bg-surface-container px-1.5 py-0.5 text-[10px] text-on-surface-variant">
+                                    {fac.coordinateKind === 'address_point' ? '대표점 기준 약 ' : '좌표 기준 '}
+                                    {formatDistance(fac.distanceKm)}
                                   </span>
                                 )}
                                 {fac.capacity !== undefined && fac.capacity > 0 && (
@@ -857,6 +945,18 @@ export default function FacilitySearchView({
                     {selectedFacility.name}
                   </h3>
                   <p className="text-sm text-on-surface-variant mt-1">{selectedFacility.address}</p>
+                  {selectedFacility.category === 'restrooms' && selectedFacility.coordinateKind === 'address_point' && (
+                    <div role="note" className="mt-3 max-w-2xl rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+                      <p className="font-bold">주소 대표점(근사)</p>
+                      <p className="mt-0.5">{ADDRESS_POINT_WARNING}</p>
+                    </div>
+                  )}
+                  {selectedFacility.category === 'restrooms' && selectedFacility.coordinateKind === 'unknown' && (
+                    <div role="note" className="mt-3 max-w-2xl rounded-lg border border-gray-500/30 bg-gray-500/10 px-3 py-2 text-xs text-gray-800 dark:text-gray-200">
+                      <p className="font-bold">좌표 유형 미확인</p>
+                      <p className="mt-0.5">{UNKNOWN_COORDINATE_WARNING}</p>
+                    </div>
+                  )}
                   <div className="flex items-center gap-4 mt-3">
                     {selectedFacility.type && (
                       <div className="text-center">
@@ -875,6 +975,22 @@ export default function FacilitySearchView({
                         </div>
                       </>
                     )}
+                    {selectedFacility.category === 'restrooms'
+                      && selectedFacility.distanceKm !== undefined
+                      && selectedFacility.distanceKm !== null && (
+                        <>
+                          <div className="w-px h-10 bg-outline-variant/20" />
+                          <div className="text-center">
+                            <p className="text-sm font-bold text-primary">
+                              {selectedFacility.coordinateKind === 'address_point' ? '약 ' : ''}
+                              {formatDistance(selectedFacility.distanceKm)}
+                            </p>
+                            <p className="text-[10px] text-on-surface-variant">
+                              {selectedFacility.coordinateKind === 'address_point' ? '주소 대표점 기준' : '표시 좌표 기준'}
+                            </p>
+                          </div>
+                        </>
+                      )}
                   </div>
                   {selectedFacility.category === 'aed' && (
                     <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">

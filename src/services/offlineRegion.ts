@@ -12,7 +12,7 @@
 
 import { CITY_TO_STATIC_PROVINCE } from './administrativeRegions';
 
-const DATA_CACHE = '119-data-v1'; // sw.js와 동일해야 함
+const DATA_CACHE = '119-data-v2'; // sw.js와 동일해야 함
 const STATUS_KEY = '119helper-offline-region';
 
 // 소방용수 데이터가 구별로 분할된 도시
@@ -117,6 +117,14 @@ async function buildUrlList(city: string): Promise<string[]> {
   const restroomUrls = await listDistrictUrls(restroomIndexUrl, `/data/restrooms/${city}`);
   if (restroomUrls.length > 0) {
     urls.push(restroomIndexUrl, ...restroomUrls);
+  }
+  const restroomAddressPointIndexUrl = `/data/restroom-address-points/${city}/index.json`;
+  const restroomAddressPointUrls = await listDistrictUrls(
+    restroomAddressPointIndexUrl,
+    `/data/restroom-address-points/${city}`,
+  );
+  if (restroomAddressPointUrls.length > 0) {
+    urls.push(restroomAddressPointIndexUrl, ...restroomAddressPointUrls);
   }
 
   // 3. 대피소 (지진해일 전국 파일 + 민방위 지역 파일)

@@ -15,6 +15,13 @@ export interface DatasetFreshness {
   supportedCityCount?: number;
   missingCoordinateCount?: number;
   coordinateCoveragePercent?: number;
+  facilityCoordinateCount?: number;
+  facilityCoordinateCoveragePercent?: number;
+  addressPointCount?: number;
+  legacyGeocodedAddressPointCount?: number;
+  legacySharedAddressPointCount?: number;
+  officialAddressPointCount?: number;
+  officialAddressPointRepairCount?: number;
   cities?: Record<string, number>;
   regionCounts?: Record<string, number>;
   coverageScope?: string;
@@ -22,7 +29,10 @@ export interface DatasetFreshness {
   completenessStatus?: 'complete' | 'scoped' | 'partial' | 'upstream-mismatch';
   regionalOverlays?: RegionalDatasetOverlay[];
   regionalCoordinateCount?: number;
+  regionalCoordinateCoverageGainCount?: number;
+  regionalCoordinateUpgradeCount?: number;
   coordinateOverlays?: CoordinateDatasetOverlay[];
+  addressPointOverlays?: CoordinateDatasetOverlay[];
   announcedTotal?: number;
   countDelta?: number;
   reconciliationStatus?: 'matched' | 'upstream-mismatch';
@@ -52,6 +62,7 @@ export interface CoordinateDatasetOverlay {
   sourceTotal: number;
   matchedCount: number;
   coverageGainCount: number;
+  precisionUpgradeCount?: number;
   sourceUrl?: string;
 }
 
@@ -194,19 +205,53 @@ export function getDatasetCompletenessNotices(meta: DatasetFreshness): DatasetCo
   ) {
     const coveragePercent = meta.coordinateCoveragePercent
       ?? Math.round((meta.total / meta.supportedCityTotal) * 1_000) / 10;
+    const hasCoordinateKinds = typeof meta.facilityCoordinateCount === 'number'
+      && typeof meta.addressPointCount === 'number';
     notices.push({
       tone: meta.missingCoordinateCount > 0 ? 'warning' : 'info',
-      text: `지원 ${meta.supportedCityCount ?? '일부'}개 도시 전체 원본 ${meta.supportedCityTotal.toLocaleString()}곳 중 지도 좌표 확인 ${meta.total.toLocaleString()}곳 (${coveragePercent.toFixed(1)}%) · 좌표 미확인 ${meta.missingCoordinateCount.toLocaleString()}곳`,
+      text: hasCoordinateKinds
+        ? `지원 ${meta.supportedCityCount ?? '일부'}개 도시 전체 원본 ${meta.supportedCityTotal.toLocaleString()}곳 중 지도 표시 ${meta.total.toLocaleString()}곳 (${coveragePercent.toFixed(1)}%) · 시설 좌표 ${meta.facilityCoordinateCount?.toLocaleString()}곳 · 주소 대표점 ${meta.addressPointCount?.toLocaleString()}곳 · 좌표 미확인 ${meta.missingCoordinateCount.toLocaleString()}곳`
+        : `지원 ${meta.supportedCityCount ?? '일부'}개 도시 전체 원본 ${meta.supportedCityTotal.toLocaleString()}곳 중 지도 좌표 확인 ${meta.total.toLocaleString()}곳 (${coveragePercent.toFixed(1)}%) · 좌표 미확인 ${meta.missingCoordinateCount.toLocaleString()}곳`,
+    });
+  }
+
+  if (typeof meta.addressPointCount === 'number' && meta.addressPointCount > 0) {
+    const breakdown = [
+      typeof meta.legacyGeocodedAddressPointCount === 'number'
+        ? `기존 주소 지오코딩 ${meta.legacyGeocodedAddressPointCount.toLocaleString()}`
+        : null,
+      typeof meta.legacySharedAddressPointCount === 'number'
+        ? `동일 주소 이전 공식 좌표 ${meta.legacySharedAddressPointCount.toLocaleString()}`
+        : null,
+      typeof meta.officialAddressPointCount === 'number'
+        ? `부산 공식 도로명주소 ${meta.officialAddressPointCount.toLocaleString()}`
+        : null,
+    ].filter(Boolean);
+    notices.push({
+      tone: 'warning',
+      text: `주소 대표점 ${meta.addressPointCount.toLocaleString()}곳`
+        + (breakdown.length > 0 ? ` · ${breakdown.join(' · ')}` : '')
+        + (typeof meta.officialAddressPointRepairCount === 'number'
+          && meta.officialAddressPointRepairCount > 0
+          ? ` (기존 오류 좌표 ${meta.officialAddressPointRepairCount.toLocaleString()}곳 교정 포함)`
+          : '')
+        + ' · 실제 화장실 위치나 출입구와 다를 수 있음',
     });
   }
 
   if ((meta.coordinateOverlays?.length ?? 0) > 0) {
     const overlays = meta.coordinateOverlays ?? [];
-    const total = meta.regionalCoordinateCount
+    const total = meta.regionalCoordinateCoverageGainCount
       ?? overlays.reduce((sum, overlay) => sum + overlay.coverageGainCount, 0);
+    const upgradeCount = meta.regionalCoordinateUpgradeCount
+      ?? overlays.reduce((sum, overlay) => sum + (overlay.precisionUpgradeCount ?? 0), 0);
     notices.push({
       tone: 'info',
-      text: `공식 지역 좌표 보충 ${total.toLocaleString()}곳 · `
+      text: `공식 지역 시설 좌표 보충 ${total.toLocaleString()}곳`
+        + (upgradeCount > 0
+          ? ` · 주소 대표점에서 시설 좌표로 개선 ${upgradeCount.toLocaleString()}곳`
+          : '')
+        + ' · '
         + overlays
           .map(overlay => `${overlay.label} ${overlay.coverageGainCount.toLocaleString()}`)
           .join(' · '),

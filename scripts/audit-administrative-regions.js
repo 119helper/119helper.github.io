@@ -6,7 +6,28 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT, 'public', 'data');
 const RESTROOM_DIR = path.join(DATA_DIR, 'restrooms');
+const RESTROOM_ADDRESS_POINT_DIR = path.join(DATA_DIR, 'restroom-address-points');
 const FIREWATER_DIR = path.join(ROOT, 'public', 'firewater');
+const OFFICIAL_ADDRESS_POINT_PATH = path.join(
+  DATA_DIR,
+  'restroom-official-address-points.json',
+);
+
+const RESTROOM_ADDRESS_POINT_REGRESSION = Object.freeze({
+  total: 235,
+  coverageGainCount: 222,
+  repairCount: 13,
+  uniquePointCount: 206,
+  directBuildingMatchCount: 227,
+  reviewedNewMatchCount: 5,
+  reviewedAliasRepairCount: 3,
+});
+const ALLOWED_ADDRESS_POINT_MATCH_METHODS = new Set([
+  'unique-exact-road-address+building-name-corroboration',
+  'unique-exact-road-address+reviewed-building-name-variant',
+  'invalid-legacy-coordinate+unique-exact-road-address+building-name-corroboration',
+  'invalid-legacy-coordinate+unique-exact-road-address+reviewed-building-alias',
+]);
 
 const GWANGJU_NAMES = new Set(['광주광역시', '전남광주통합특별시']);
 const GWANGJU_DISTRICTS = new Set(['동구', '서구', '남구', '북구', '광산구']);
@@ -28,6 +49,17 @@ const INCHEON_ALLOWED_DISTRICTS = new Set([
   '기타',
 ]);
 const INCHEON_REQUIRED_CURRENT_DISTRICTS = ['검단구', '서해구', '영종구', '제물포구'];
+const RESTROOM_CITY_MINIMUMS = Object.freeze({
+  seoul: 2_200,
+  busan: 1_600,
+  daegu: 900,
+  incheon: 1_700,
+  gwangju: 900,
+  daejeon: 400,
+  ulsan: 300,
+  sejong: 70,
+  jeju: 500,
+});
 
 const failures = [];
 
@@ -138,7 +170,138 @@ function auditRestrooms() {
       districts: index.districts,
     };
   }
+  const actualCities = Object.keys(citySummaries).sort();
+  const expectedCities = Object.keys(RESTROOM_CITY_MINIMUMS).sort();
+  check(
+    JSON.stringify(actualCities) === JSON.stringify(expectedCities),
+    `화장실 도시 디렉터리가 지원 9개 도시와 다릅니다: ${actualCities.join(', ')}`,
+  );
+  for (const [city, minimum] of Object.entries(RESTROOM_CITY_MINIMUMS)) {
+    check(
+      Number(citySummaries[city]?.total || 0) >= minimum,
+      `${city} 화장실 기본 좌표가 안전 최소치 ${minimum.toLocaleString()}건 아래로 급감했습니다.`,
+    );
+  }
   return citySummaries;
+}
+
+function coordinateKey(item) {
+  return `${Number(item.lat).toFixed(7)},${Number(item.lng).toFixed(7)}`;
+}
+
+function auditRestroomAddressPointFragments(ledgerById) {
+  check(
+    fs.existsSync(RESTROOM_ADDRESS_POINT_DIR),
+    '화장실 공식 주소 대표점 조각 디렉터리가 없습니다.',
+  );
+  if (!fs.existsSync(RESTROOM_ADDRESS_POINT_DIR)) return new Map();
+
+  const cityEntries = fs.readdirSync(RESTROOM_ADDRESS_POINT_DIR, { withFileTypes: true })
+    .filter(entry => entry.isDirectory());
+  check(
+    cityEntries.length === 1 && cityEntries[0]?.name === 'busan',
+    `화장실 공식 주소 대표점 도시 범위가 부산 하나가 아닙니다: ${cityEntries.map(entry => entry.name).join(', ')}`,
+  );
+
+  const fragmentById = new Map();
+  for (const cityEntry of cityEntries) {
+    const city = cityEntry.name;
+    const cityDir = path.join(RESTROOM_ADDRESS_POINT_DIR, city);
+    const indexPath = path.join(cityDir, 'index.json');
+    check(fs.existsSync(indexPath), `${city} 화장실 주소 대표점 인덱스가 없습니다.`);
+    if (!fs.existsSync(indexPath)) continue;
+
+    const index = readJson(indexPath);
+    const districtEntries = Object.entries(index.districts || {});
+    const districtTotal = districtEntries.reduce((sum, [, count]) => sum + Number(count), 0);
+    check(
+      districtTotal === Number(index.total),
+      `${city} 화장실 주소 대표점 인덱스 합계가 total과 다릅니다.`,
+    );
+    check(
+      index.metadata?.coordinateKind === 'address_point'
+        && index.metadata?.coordinateApproximate === true,
+      `${city} 화장실 주소 대표점 인덱스의 정밀도 계약이 잘못됐습니다.`,
+    );
+    check(
+      Number(index.metadata?.coverageGainCount)
+        === RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount
+        && Number(index.metadata?.repairCount)
+          === RESTROOM_ADDRESS_POINT_REGRESSION.repairCount
+        && Number(index.metadata?.uniquePointCount)
+          === RESTROOM_ADDRESS_POINT_REGRESSION.uniquePointCount,
+      `${city} 화장실 주소 대표점 인덱스의 222/13/206 집계가 원장과 다릅니다.`,
+    );
+
+    for (const [district, expectedCount] of districtEntries) {
+      const fragmentPath = path.join(cityDir, `${district}.json`);
+      check(fs.existsSync(fragmentPath), `${city}/${district} 화장실 주소 대표점 조각이 없습니다.`);
+      if (!fs.existsSync(fragmentPath)) continue;
+      const payload = readJson(fragmentPath);
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      check(
+        items.length === Number(expectedCount),
+        `${city}/${district} 화장실 주소 대표점 조각 수가 인덱스와 다릅니다.`,
+      );
+
+      for (const item of items) {
+        const id = String(item.id || '');
+        check(Boolean(id), `${city}/${district} 화장실 주소 대표점에 빈 ID가 있습니다.`);
+        check(!fragmentById.has(id), `화장실 주소 대표점 조각 ID가 중복됐습니다: ${id}`);
+        check(
+          item.coordinateKind === 'address_point',
+          `화장실 주소 대표점 조각의 coordinateKind가 address_point가 아닙니다: ${id}`,
+        );
+        check(
+          item.coordinateApproximate === true,
+          `화장실 주소 대표점 조각의 근사 좌표 표시가 없습니다: ${id}`,
+        );
+        check(
+          item.coordinatePrecision === 'building-address-point',
+          `화장실 주소 대표점 조각의 정밀도 분류가 잘못됐습니다: ${id}`,
+        );
+        check(
+          ALLOWED_ADDRESS_POINT_MATCH_METHODS.has(item.matchMethod),
+          `화장실 주소 대표점 조각의 매칭 방식이 허용 범위 밖입니다: ${id}`,
+        );
+        const ledger = ledgerById.get(id);
+        check(Boolean(ledger), `화장실 주소 대표점 조각 ID가 공식 원장에 없습니다: ${id}`);
+        check(
+          Number(item.lat) === Number(ledger?.lat)
+            && Number(item.lng) === Number(ledger?.lng),
+          `화장실 주소 대표점 조각 좌표가 공식 원장과 다릅니다: ${id}`,
+        );
+        check(
+          String(item.coordinateSourceId || item.sourceId || '') === String(ledger?.sourceId || ''),
+          `화장실 주소 대표점 조각 출처가 공식 원장과 다릅니다: ${id}`,
+        );
+        check(
+          item.coverageGain === ledger?.coverageGain
+            && item.legacyCoordinateRepair === ledger?.legacyCoordinateRepair
+            && item.matchMethod === ledger?.matchMethod,
+          `화장실 주소 대표점 조각의 신규·교정 provenance가 원장과 다릅니다: ${id}`,
+        );
+        fragmentById.set(id, item);
+      }
+    }
+
+    const expectedFiles = new Set([
+      'index.json',
+      ...districtEntries.map(([district]) => `${district}.json`),
+    ]);
+    const orphanFiles = fs.readdirSync(cityDir)
+      .filter(filename => filename.endsWith('.json') && !expectedFiles.has(filename));
+    check(
+      orphanFiles.length === 0,
+      `${city} 화장실 주소 대표점에 인덱스 밖 조각이 있습니다: ${orphanFiles.join(', ')}`,
+    );
+    check(
+      fragmentById.size === Number(index.total),
+      `${city} 화장실 주소 대표점 조각 합계가 인덱스와 다릅니다.`,
+    );
+  }
+
+  return fragmentById;
 }
 
 function auditCoordinateMetadata() {
@@ -149,9 +312,14 @@ function auditCoordinateMetadata() {
   const cache = readJson(cachePath);
   const researched = readJson(researchedPath);
   const officialRegional = readJson(officialRegionalPath);
+  const officialAddressPoints = readJson(OFFICIAL_ADDRESS_POINT_PATH);
   const cacheItems = Array.isArray(cache.items) ? cache.items : [];
   const researchedItems = Array.isArray(researched.items) ? researched.items : [];
   const officialRegionalItems = Array.isArray(officialRegional.items) ? officialRegional.items : [];
+  const officialAddressPointItems = Array.isArray(officialAddressPoints.items)
+    ? officialAddressPoints.items
+    : [];
+  const restroomManifest = manifest.datasets?.restrooms || {};
   check(cacheItems.length === Number(cache.total), '화장실 지오코딩 캐시 total이 실제 항목 수와 다릅니다.');
   check(researchedItems.length === Number(researched.total), '화장실 교차검증 좌표 total이 실제 항목 수와 다릅니다.');
   check(
@@ -170,12 +338,46 @@ function auditCoordinateMetadata() {
     Number(manifest.datasets?.restrooms?.regionalCoordinateCount) === officialRegionalItems.length,
     '화장실 매니페스트의 공식 지역 좌표 건수가 인덱스와 다릅니다.',
   );
+  for (const [field, expected] of Object.entries(RESTROOM_ADDRESS_POINT_REGRESSION)) {
+    if (!Object.hasOwn(officialAddressPoints, field)) continue;
+    check(
+      Number(officialAddressPoints[field]) === expected,
+      `화장실 공식 주소 대표점 ${field}가 검토 기준 ${expected}와 다릅니다.`,
+    );
+  }
+  check(
+    officialAddressPointItems.length === RESTROOM_ADDRESS_POINT_REGRESSION.total
+      && Number(officialAddressPoints.total) === officialAddressPointItems.length,
+    '화장실 공식 주소 대표점 원장이 235건이 아닙니다.',
+  );
+  check(
+    Number(officialAddressPoints.coverageGainCount)
+      === RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount,
+    '화장실 공식 주소 대표점 신규 보완 건수가 222건이 아닙니다.',
+  );
+  check(
+    Number(officialAddressPoints.repairCount) === RESTROOM_ADDRESS_POINT_REGRESSION.repairCount,
+    '화장실 공식 주소 대표점 오류 교정 건수가 13건이 아닙니다.',
+  );
+  check(
+    Number(officialAddressPoints.coverageGainCount)
+      + Number(officialAddressPoints.repairCount)
+      === Number(officialAddressPoints.total),
+    '화장실 공식 주소 대표점 신규·교정 합계가 원장 total과 다릅니다.',
+  );
 
   const sourceGainTotal = (officialRegional.sources || [])
     .reduce((sum, source) => sum + Number(source.gainCount || 0), 0);
+  const sourceUpgradeTotal = (officialRegional.sources || [])
+    .reduce((sum, source) => sum + Number(source.precisionUpgradeCount || 0), 0);
   check(
-    sourceGainTotal === officialRegionalItems.length,
-    '화장실 공식 지역 좌표의 출처별 신규 합계가 전체와 다릅니다.',
+    sourceGainTotal + sourceUpgradeTotal === officialRegionalItems.length,
+    '화장실 공식 지역 좌표의 출처별 신규·정밀도 개선 합계가 전체와 다릅니다.',
+  );
+  check(
+    Number(restroomManifest.regionalCoordinateCoverageGainCount) === sourceGainTotal
+      && Number(restroomManifest.regionalCoordinateUpgradeCount) === sourceUpgradeTotal,
+    '화장실 공식 지역 좌표의 신규·정밀도 개선 합계가 매니페스트와 다릅니다.',
   );
   const manifestOverlays = new Map(
     (manifest.datasets?.restrooms?.coordinateOverlays || [])
@@ -188,9 +390,13 @@ function auditCoordinateMetadata() {
       Number(overlay?.coverageGainCount) === Number(source.gainCount),
       `화장실 공식 지역 좌표 출처 ${source.id}의 신규 합계가 매니페스트와 다릅니다.`,
     );
+    check(
+      Number(overlay?.precisionUpgradeCount || 0) === Number(source.precisionUpgradeCount || 0),
+      `화장실 공식 지역 좌표 출처 ${source.id}의 정밀도 개선 합계가 매니페스트와 다릅니다.`,
+    );
   }
 
-  const finalCoordinatesById = new Map();
+  const baseRestroomById = new Map();
   for (const city of fs.readdirSync(RESTROOM_DIR, { withFileTypes: true })) {
     if (!city.isDirectory()) continue;
     const cityDir = path.join(RESTROOM_DIR, city.name);
@@ -198,7 +404,9 @@ function auditCoordinateMetadata() {
       if (!filename.endsWith('.json') || filename === 'index.json') continue;
       const payload = readJson(path.join(cityDir, filename));
       for (const item of payload.items || []) {
-        finalCoordinatesById.set(String(item.id), { lat: Number(item.lat), lng: Number(item.lng) });
+        const id = String(item.id || '');
+        check(!baseRestroomById.has(id), `화장실 기본 조각 ID가 도시 간 중복됐습니다: ${id}`);
+        baseRestroomById.set(id, item);
       }
     }
   }
@@ -213,18 +421,217 @@ function auditCoordinateMetadata() {
       item.matchMethod === 'normalized-name+exact-road-or-lot-address',
       `화장실 공식 지역 좌표의 매칭 방식이 허용 범위 밖입니다: ${id}`,
     );
-    const output = finalCoordinatesById.get(id);
+    const output = baseRestroomById.get(id);
     check(Boolean(output), `화장실 공식 지역 좌표가 최종 조각에 없습니다: ${id}`);
     check(
-      output?.lat === Number(item.lat) && output?.lng === Number(item.lng),
+      Number(output?.lat) === Number(item.lat) && Number(output?.lng) === Number(item.lng),
       `화장실 공식 지역 좌표가 최종 조각 좌표와 다릅니다: ${id}`,
     );
   }
+
+  const addressPointById = new Map();
+  const addressPointCoordinateKeys = new Set();
+  const addressPointMatchMethodCounts = new Map();
+  let coverageGainCount = 0;
+  let repairCount = 0;
+  for (const item of officialAddressPointItems) {
+    const id = String(item.id || '');
+    check(Boolean(id), '화장실 공식 주소 대표점에 빈 중앙 관리번호가 있습니다.');
+    check(!addressPointById.has(id), `화장실 공식 주소 대표점 ID가 중복됐습니다: ${id}`);
+    addressPointById.set(id, item);
+    addressPointCoordinateKeys.add(coordinateKey(item));
+
+    check(
+      item.coordinateKind === 'address_point',
+      `화장실 공식 주소 대표점의 coordinateKind가 address_point가 아닙니다: ${id}`,
+    );
+    check(
+      item.coordinateApproximate === true,
+      `화장실 공식 주소 대표점의 근사 좌표 표시가 없습니다: ${id}`,
+    );
+    check(
+      item.precision === 'building-address-point',
+      `화장실 공식 주소 대표점 정밀도 분류가 잘못됐습니다: ${id}`,
+    );
+    check(
+      ALLOWED_ADDRESS_POINT_MATCH_METHODS.has(item.matchMethod),
+      `화장실 공식 주소 대표점 매칭 방식이 허용 범위 밖입니다: ${id}`,
+    );
+    addressPointMatchMethodCounts.set(
+      item.matchMethod,
+      (addressPointMatchMethodCounts.get(item.matchMethod) || 0) + 1,
+    );
+    check(Boolean(item.sourceId), `화장실 공식 주소 대표점에 출처 ID가 없습니다: ${id}`);
+    check(
+      String(item.sourceId) === String(officialAddressPoints.source?.id || ''),
+      `화장실 공식 주소 대표점 출처 ID가 원장 메타데이터와 다릅니다: ${id}`,
+    );
+    check(
+      Number.isFinite(Number(item.lat))
+        && Number.isFinite(Number(item.lng))
+        && Number(item.lat) >= 34.98
+        && Number(item.lat) <= 35.4
+        && Number(item.lng) >= 128.79
+        && Number(item.lng) <= 129.3,
+      `화장실 공식 주소 대표점 좌표가 부산 범위 밖입니다: ${id}`,
+    );
+    check(
+      !baseRestroomById.has(id),
+      `화장실 기본 조각과 공식 주소 대표점 ID가 겹칩니다: ${id}`,
+    );
+
+    if (item.coverageGain === true) coverageGainCount += 1;
+    if (item.legacyCoordinateRepair === true) repairCount += 1;
+    check(
+      item.coverageGain === !item.legacyCoordinateRepair,
+      `화장실 공식 주소 대표점의 신규·교정 구분이 모순됩니다: ${id}`,
+    );
+    if (item.legacyCoordinateRepair === true) {
+      check(
+        Boolean(item.replacedSourceId)
+          && Number.isFinite(Number(item.replacedLat))
+          && Number.isFinite(Number(item.replacedLng)),
+        `화장실 공식 주소 대표점 오류 교정 이력이 불완전합니다: ${id}`,
+      );
+    }
+  }
+  check(
+    addressPointCoordinateKeys.size === RESTROOM_ADDRESS_POINT_REGRESSION.uniquePointCount
+      && Number(officialAddressPoints.uniquePointCount) === addressPointCoordinateKeys.size,
+    '화장실 공식 주소 대표점 고유 좌표가 206개가 아닙니다.',
+  );
+  check(
+    coverageGainCount === RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount,
+    '화장실 공식 주소 대표점 항목별 신규 합계가 222건이 아닙니다.',
+  );
+  check(
+    repairCount === RESTROOM_ADDRESS_POINT_REGRESSION.repairCount,
+    '화장실 공식 주소 대표점 항목별 오류 교정 합계가 13건이 아닙니다.',
+  );
+  const directBuildingMatchCount = [
+    'unique-exact-road-address+building-name-corroboration',
+    'invalid-legacy-coordinate+unique-exact-road-address+building-name-corroboration',
+  ].reduce((sum, method) => sum + (addressPointMatchMethodCounts.get(method) || 0), 0);
+  check(
+    directBuildingMatchCount === RESTROOM_ADDRESS_POINT_REGRESSION.directBuildingMatchCount
+      && (addressPointMatchMethodCounts.get(
+        'unique-exact-road-address+reviewed-building-name-variant',
+      ) || 0) === RESTROOM_ADDRESS_POINT_REGRESSION.reviewedNewMatchCount
+      && (addressPointMatchMethodCounts.get(
+        'invalid-legacy-coordinate+unique-exact-road-address+reviewed-building-alias',
+      ) || 0) === RESTROOM_ADDRESS_POINT_REGRESSION.reviewedAliasRepairCount,
+    '화장실 공식 주소 대표점 매칭 근거가 직접 227/검토 신규 5/검토 교정 3과 다릅니다.',
+  );
+
+  const addressPointFragmentsById = auditRestroomAddressPointFragments(addressPointById);
+  check(
+    addressPointFragmentsById.size === addressPointById.size,
+    '화장실 공식 주소 대표점 조각과 원장 수량이 다릅니다.',
+  );
+  for (const id of addressPointById.keys()) {
+    check(
+      addressPointFragmentsById.has(id),
+      `화장실 공식 주소 대표점 원장 ID가 조각에 없습니다: ${id}`,
+    );
+  }
+
+  const baseItems = [...baseRestroomById.values()];
+  const addressFragmentItems = [...addressPointFragmentsById.values()];
+  const facilityCoordinateCount = baseItems
+    .filter(item => item.coordinateKind === 'facility_point').length;
+  const baseAddressPointCount = baseItems
+    .filter(item => item.coordinateKind === 'address_point').length;
+  const geocodedAddressPointCount = baseItems
+    .filter(item => item.coordinateSourceId === 'kakao-address-geocode-cache').length;
+  const legacySharedAddressPointCount = baseItems
+    .filter(item => item.coordinateSourceId === 'legacy-shared-address-coordinate').length;
+  const addressPointCount = baseAddressPointCount + addressFragmentItems.length;
+  const unknownCoordinateCount = baseItems
+    .filter(item => !['facility_point', 'address_point'].includes(item.coordinateKind)).length;
+  check(unknownCoordinateCount === 0, `화장실 기본 조각에 미분류 좌표 ${unknownCoordinateCount}건이 있습니다.`);
+  check(
+    facilityCoordinateCount === Number(restroomManifest.facilityCoordinateCount),
+    '화장실 매니페스트 시설 좌표 합계가 조각과 다릅니다.',
+  );
+  check(
+    baseAddressPointCount === Number(restroomManifest.baseAddressPointCount),
+    '화장실 매니페스트 기본 주소 대표점 합계가 조각과 다릅니다.',
+  );
+  check(
+    baseAddressPointCount === geocodedAddressPointCount + legacySharedAddressPointCount,
+    '화장실 기본 주소 대표점과 출처별 합계가 다릅니다.',
+  );
+  check(
+    geocodedAddressPointCount === Number(restroomManifest.legacyGeocodedAddressPointCount)
+      && legacySharedAddressPointCount === Number(restroomManifest.legacySharedAddressPointCount),
+    '화장실 지오코딩·동일 주소 이전 좌표 합계가 매니페스트와 다릅니다.',
+  );
+  check(
+    addressPointCount === Number(restroomManifest.addressPointCount),
+    '화장실 매니페스트 주소 대표점 합계가 조각과 다릅니다.',
+  );
+  check(
+    facilityCoordinateCount + addressPointCount === Number(restroomManifest.total),
+    '화장실 매니페스트 시설 좌표 + 주소 대표점이 지도 total과 다릅니다.',
+  );
+  check(
+    baseItems.length + addressFragmentItems.length === Number(restroomManifest.total),
+    '화장실 기본·주소 대표점 조각 합계가 지도 total과 다릅니다.',
+  );
+  check(
+    Number(restroomManifest.total) + Number(restroomManifest.missingCoordinateCount)
+      === Number(restroomManifest.supportedCityTotal),
+    '화장실 지도 total + 좌표 미확인 합계가 지원지역 원본과 다릅니다.',
+  );
+  check(
+    Number(restroomManifest.officialAddressPointCount) === officialAddressPointItems.length,
+    '화장실 매니페스트 공식 주소 대표점 합계가 원장과 다릅니다.',
+  );
+  check(
+    Number(restroomManifest.officialAddressPointRepairCount)
+      === RESTROOM_ADDRESS_POINT_REGRESSION.repairCount,
+    '화장실 매니페스트 공식 주소 대표점 교정 합계가 13건이 아닙니다.',
+  );
+  check(
+    Number(restroomManifest.officialAddressPointCoverageGainCount)
+      === RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount
+      && Number(restroomManifest.officialAddressUniquePointCount)
+        === RESTROOM_ADDRESS_POINT_REGRESSION.uniquePointCount,
+    '화장실 매니페스트 공식 주소 대표점 신규·고유점 합계가 222/206이 아닙니다.',
+  );
+  const addressPointOverlay = (restroomManifest.addressPointOverlays || [])
+    .find(overlay => String(overlay.id) === String(officialAddressPoints.source?.id || ''));
+  check(Boolean(addressPointOverlay), '화장실 공식 주소 대표점 출처가 매니페스트에 없습니다.');
+  check(
+    Number(addressPointOverlay?.matchedCount) === RESTROOM_ADDRESS_POINT_REGRESSION.total
+      && Number(addressPointOverlay?.coverageGainCount)
+        === RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount
+      && Number(addressPointOverlay?.repairCount)
+        === RESTROOM_ADDRESS_POINT_REGRESSION.repairCount
+      && Number(addressPointOverlay?.uniquePointCount)
+        === RESTROOM_ADDRESS_POINT_REGRESSION.uniquePointCount,
+    '화장실 공식 주소 대표점 매니페스트 overlay의 235/222/13/206 집계가 다릅니다.',
+  );
+  const recalculatedCoverage = Number(restroomManifest.supportedCityTotal) > 0
+    ? Math.round(
+      (Number(restroomManifest.total) / Number(restroomManifest.supportedCityTotal)) * 1_000,
+    ) / 10
+    : 0;
+  check(
+    Number(restroomManifest.coordinateCoveragePercent) === recalculatedCoverage,
+    '화장실 매니페스트 좌표 표시율이 지도/지원지역 합계와 다릅니다.',
+  );
+  check(
+    Number(restroomManifest.total) >= 10_000
+      && Number(restroomManifest.supportedCityTotal) >= Number(restroomManifest.total),
+    '화장실 지도 또는 지원지역 합계가 안전 최소치 아래로 급감했습니다.',
+  );
 
   return {
     geocoded: cacheItems.length,
     researched: researchedItems.length,
     officialRegional: officialRegionalItems.length,
+    officialAddressPoints: officialAddressPointItems.length,
   };
 }
 
@@ -278,6 +685,7 @@ console.log(`인천 공중화장실: ${restrooms.incheon?.total.toLocaleString()
 console.log(`주소 지오코딩 보충 좌표: ${coordinateCounts.geocoded.toLocaleString()}건`);
 console.log(`교차검증 보충 좌표: ${coordinateCounts.researched.toLocaleString()}건`);
 console.log(`공식 지역 보충 좌표: ${coordinateCounts.officialRegional.toLocaleString()}건`);
+console.log(`공식 주소 대표점: ${coordinateCounts.officialAddressPoints.toLocaleString()}건`);
 
 if (failures.length > 0) {
   console.error(`행정구역 감사 실패 ${failures.length}건:`);
