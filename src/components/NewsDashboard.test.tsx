@@ -19,6 +19,7 @@ import NewsDashboard from './NewsDashboard';
 describe('NewsDashboard', () => {
   beforeEach(() => {
     newsMocks.fetchLocalNews.mockReset();
+    newsMocks.fetchNewsThumbnail.mockReset();
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   });
 
@@ -37,5 +38,28 @@ describe('NewsDashboard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
     await waitFor(() => expect(newsMocks.fetchLocalNews).toHaveBeenCalledTimes(2));
+  });
+
+  it('gives article links a clean accessible name and announces the new window', async () => {
+    newsMocks.fetchLocalNews.mockResolvedValue([{
+      id: 'article-1',
+      title: '전공노 "징계자 특혜성 끼워넣기 인사" 규탄',
+      link: 'https://news.example/article-1',
+      pubDate: '7월 30일 오후 06:16',
+      source: 'Google 뉴스',
+      description: '광주소방본부의 후속 인사를 다룬 기사입니다.',
+      isOfficial: true,
+    }]);
+
+    render(<NewsDashboard city="gwangju" />);
+
+    const articleLink = await screen.findByRole('link', {
+      name: /전공노 "징계자 특혜성 끼워넣기 인사" 규탄.*새 창에서 열림/,
+    });
+    expect(articleLink).toHaveAttribute('target', '_blank');
+    expect(articleLink).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(articleLink).not.toHaveAccessibleName(
+      /verified|schedule|arrow_forward|local_fire_department/,
+    );
   });
 });

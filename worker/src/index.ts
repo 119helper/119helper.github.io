@@ -144,7 +144,7 @@ export default {
         cacheUrl.searchParams.set('_cv', '1'); // 본부명·응답 필드·상세조회 파라미터 교정 전 캐시 무효화
       }
       if (path.startsWith('/api/news')) {
-        cacheUrl.searchParams.set('_cv', '1'); // 썸네일 추출 및 안전한 이미지 프록시 도입
+        cacheUrl.searchParams.set('_cv', '2'); // 썸네일 추출 범위·대체 링크·기본 이미지 필터 교정
       }
 
       const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
@@ -217,7 +217,7 @@ export default {
         response = newsResponse;
         if (response.status === 200) {
           const cacheableResponse = response.clone();
-          cacheableResponse.headers.set('Cache-Control', 'public, max-age=3600');
+          cacheableResponse.headers.set('Cache-Control', 'public, max-age=600');
           ctx.waitUntil(cachePutBestEffort(cache, cacheKey, cacheableResponse));
         }
       } else if (result) {

@@ -5,8 +5,6 @@ import NewsThumbnail from './NewsThumbnail';
 
 type NewsCategory = 'fire' | 'rescue' | 'medical' | 'default';
 
-const stripHtml = (value?: string) => value ? value.replace(/<[^>]*>/g, '') : '';
-
 const getNewsCategory = (title: string = '', desc: string = ''): NewsCategory => {
   const text = (title + ' ' + desc).toLowerCase();
   
@@ -148,7 +146,7 @@ export default function NewsDashboard({ city }: NewsDashboardProps) {
                   relative bg-surface-container-lowest border border-outline-variant/40 rounded-[2rem] overflow-hidden group 
                   hover:border-primary/40 hover:ring-1 hover:ring-primary/40 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/5
                   transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] flex flex-col
-                  ${isHero ? 'md:col-span-4 lg:col-span-4 md:flex-row' : 'col-span-1 md:col-span-2 lg:col-span-2'}
+                  ${isHero ? 'md:col-span-4 lg:col-span-4 2xl:flex-row' : 'col-span-1 md:col-span-2 lg:col-span-2'}
                 `}
               >
                 {/* 하이테크 상단 글로우 바 */}
@@ -157,26 +155,24 @@ export default function NewsDashboard({ city }: NewsDashboardProps) {
                 <NewsThumbnail
                   src={item.imageUrl}
                   isHero={isHero}
-                  gradient={theme.gradient}
-                  icon={theme.icon}
                 />
 
                 {/* 콘텐츠 영역 */}
                 <div className="p-6 md:p-8 flex-1 flex flex-col relative z-20">
                   
                   {/* 거대 백그라운드 워터마크 마이크로 인터랙션 */}
-                  <span className={`material-symbols-outlined absolute pointer-events-none z-0 ${theme.iconColor} transform -rotate-12 group-hover:scale-110 group-hover:rotate-0 transition-all duration-700 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isHero ? '-bottom-10 -right-10 text-[200px]' : '-bottom-6 -right-6 text-[120px]'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                  <span aria-hidden="true" className={`material-symbols-outlined absolute pointer-events-none z-0 ${theme.iconColor} transform -rotate-12 group-hover:scale-110 group-hover:rotate-0 transition-all duration-700 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isHero ? '-bottom-10 -right-10 text-[200px]' : '-bottom-6 -right-6 text-[120px]'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
                     {theme.icon}
                   </span>
                   
                   {/* 메타데이터(뱃지, 시간) */}
                   <div className="flex flex-wrap items-center gap-3 mb-5 relative z-10">
                     <span className={`px-3 py-1 text-[11px] font-black rounded-full border border-solid ${theme.badge} uppercase tracking-wider shadow-sm`}>
-                      {item.isOfficial ? <span className="material-symbols-outlined text-[11px] align-text-bottom mr-1" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span> : null}
+                      {item.isOfficial ? <span aria-hidden="true" className="material-symbols-outlined text-[11px] align-text-bottom mr-1" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span> : null}
                       {item.source}
                     </span>
                     <span className="text-[12px] font-bold text-on-surface-variant flex items-center gap-1 opacity-70">
-                      <span className="material-symbols-outlined text-[14px]">schedule</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-[14px]">schedule</span>
                       {item.pubDate}
                     </span>
                   </div>
@@ -187,7 +183,7 @@ export default function NewsDashboard({ city }: NewsDashboardProps) {
                     ${isHero ? 'text-[22px] md:text-[28px]' : 'text-[18px] line-clamp-3'}
                     transition-all duration-300
                   `}>
-                    {stripHtml(item.title)}
+                    {item.title}
                   </h3>
                   
                   {/* 본문 설명 */}
@@ -195,16 +191,17 @@ export default function NewsDashboard({ city }: NewsDashboardProps) {
                     text-on-surface-variant font-medium leading-relaxed relative z-10 opacity-80
                     ${isHero ? 'text-[15px] line-clamp-4' : 'text-[14px] line-clamp-2'}
                   `}>
-                    {stripHtml(item.description)}
+                    {item.description}
                   </p>
 
                   {/* 하단 바로가기 (모던 버튼) */}
                   <div className="mt-auto pt-6 flex items-center justify-between relative z-10">
                     <span className="text-[13px] font-bold text-on-surface opacity-50 group-hover:opacity-100 transition-opacity duration-300">자세히 보기</span>
                     <div className="w-10 h-10 rounded-full border border-outline-variant/40 flex items-center justify-center bg-surface hover:bg-primary group-hover:border-primary group-hover:text-on-primary text-on-surface-variant transition-all duration-300 transform group-hover:translate-x-1 shadow-sm">
-                      <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-[18px]">arrow_forward</span>
                     </div>
                   </div>
+                  <span className="sr-only">새 창에서 열림</span>
                 </div>
               </a>
             );

@@ -121,6 +121,296 @@ describe('newsHandler', () => {
     );
   });
 
+  it('tries the distinct safe article mirror when the original article has no usable image', async () => {
+    const rssWithBothLinks = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title>소방 뉴스</title>
+      <originallink>https://publisher.example/articles/1</originallink>
+      <link>https://n.news.naver.com/article/001/0000000001</link>
+      <description>테스트</description>
+      <pubDate>Tue, 30 Jun 2026 05:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>`;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('bing.com')) {
+        return new Response(rssWithBothLinks, { headers: { 'Content-Type': 'application/rss+xml' } });
+      }
+      if (url === 'https://publisher.example/articles/1') {
+        return new Response('<html><head><title>이미지 없음</title></head></html>');
+      }
+      if (url === 'https://n.news.naver.com/article/001/0000000001') {
+        return new Response(
+          '<html><head><meta property="og:image" content="https://imgnews.example/incidents/fire-1.jpg"></head></html>',
+        );
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await newsHandler(
+      new Request('https://api.example.test/api/news?query=소방'),
+      {},
+    );
+    const body = await response.text();
+
+    expect(body).toContain(
+      '<imageUrl><![CDATA[https://imgnews.example/incidents/fire-1.jpg]]></imageUrl>',
+    );
+    expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
+      expect.stringContaining('https://www.bing.com/news/search'),
+      'https://publisher.example/articles/1',
+      'https://n.news.naver.com/article/001/0000000001',
+    ]);
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({ redirect: 'manual' });
+    expect(fetchMock.mock.calls[2][1]).toMatchObject({ redirect: 'manual' });
+  });
+
+  it('extracts og:image from the tenth item without scraping the eleventh', async () => {
+    const itemXml = Array.from({ length: 11 }, (_, index) => {
+      const itemNumber = index + 1;
+      return `
+    <item>
+      <title>소방 뉴스 ${itemNumber}</title>
+      <link>https://news.example/articles/${itemNumber}</link>
+      <description>테스트 ${itemNumber}</description>
+      <pubDate>Tue, 30 Jun 2026 05:00:00 GMT</pubDate>
+    </item>`;
+    }).join('');
+    const rssWithElevenItems = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>${itemXml}
+  </channel></rss>`;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('bing.com')) {
+        return new Response(rssWithElevenItems, { headers: { 'Content-Type': 'application/rss+xml' } });
+      }
+
+      const match = url.match(/https:\/\/news\.example\/articles\/(\d+)$/);
+      if (match) {
+        return new Response(
+          `<html><head><meta property="og:image" content="https://cdn.example/incidents/${match[1]}.jpg"></head></html>`,
+        );
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await newsHandler(
+      new Request('https://api.example.test/api/news?query=소방'),
+      {},
+    );
+    const body = await response.text();
+
+    expect(body).toContain(
+      '<imageUrl><![CDATA[https://cdn.example/incidents/10.jpg]]></imageUrl>',
+    );
+    expect(body).not.toContain(
+      '<imageUrl><![CDATA[https://cdn.example/incidents/11.jpg]]></imageUrl>',
+    );
+    expect(fetchMock.mock.calls.map(([input]) => String(input))).toContain(
+      'https://news.example/articles/10',
+    );
+    expect(fetchMock.mock.calls.map(([input]) => String(input))).not.toContain(
+      'https://news.example/articles/11',
+    );
+  });
+
+  it('filters generic feed and metadata thumbnails while retaining a real article image', async () => {
+    const rssWithGenericImage = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title>소방 뉴스</title>
+      <link>https://news.example/articles/1</link>
+      <News:Image>https://cdn.example/sns_thumbnail.jpg</News:Image>
+      <description>테스트</description>
+      <pubDate>Tue, 30 Jun 2026 05:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>`;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('bing.com')) {
+        return new Response(rssWithGenericImage, { headers: { 'Content-Type': 'application/rss+xml' } });
+      }
+      if (url === 'https://news.example/articles/1') {
+        return new Response(
+          '<html><head>'
+          + '<meta property="og:image" content="https://cdn.example/site-logo.png">'
+          + '<meta property="og:image" content="https://cdn.example/banner.png">'
+          + '<meta property="og:image" content="https://cdn.example/icon.png">'
+          + '<meta property="og:image" content="https://cdn.example/incidents/fire-banner-2026.jpg">'
+          + '</head></html>',
+        );
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await newsHandler(
+      new Request('https://api.example.test/api/news?query=소방'),
+      {},
+    );
+    const body = await response.text();
+
+    expect(body).not.toContain('<imageUrl><![CDATA[https://cdn.example/sns_thumbnail.jpg]]>');
+    expect(body).not.toContain('<imageUrl><![CDATA[https://cdn.example/site-logo.png]]>');
+    expect(body).not.toContain('<imageUrl><![CDATA[https://cdn.example/banner.png]]>');
+    expect(body).not.toContain('<imageUrl><![CDATA[https://cdn.example/icon.png]]>');
+    expect(body).toContain(
+      '<imageUrl><![CDATA[https://cdn.example/incidents/fire-banner-2026.jpg]]></imageUrl>',
+    );
+  });
+
+  it('preserves a cached successful image and its original timestamp when a refresh misses metadata', async () => {
+    const articleLink = 'https://news.example/articles/1';
+    const cachedImage = 'https://cdn.example/incidents/cached-fire.jpg';
+    const cachedAt = Date.now() - (16 * 60 * 1000);
+    const originalImageTimestamp = Date.now() - (2 * 60 * 60 * 1000);
+    const cachedRss = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title>이전 소방 뉴스</title>
+      <link>${articleLink}</link>
+      <imageUrl><![CDATA[${cachedImage}]]></imageUrl>
+      <description>이전 테스트</description>
+      <pubDate>Tue, 30 Jun 2026 04:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>`;
+    const refreshedRss = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title>새 소방 뉴스</title>
+      <link>${articleLink}</link>
+      <description>새 테스트</description>
+      <pubDate>Tue, 30 Jun 2026 05:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>`;
+    const kvGet = vi.fn(async () => ({
+      text: cachedRss,
+      ts: cachedAt,
+      imageTimestamps: {
+        [articleLink]: originalImageTimestamp,
+      },
+    }));
+    const kvPut = vi.fn(async (
+      _key: string,
+      _value: string | ArrayBuffer | ArrayBufferView | ReadableStream,
+      _options?: KVNamespacePutOptions,
+    ) => undefined);
+    const newsCache = {
+      get: kvGet,
+      put: kvPut,
+    } as unknown as KVNamespace;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('bing.com')) {
+        return new Response(refreshedRss, { headers: { 'Content-Type': 'application/rss+xml' } });
+      }
+      if (url === articleLink) {
+        return new Response('<html><head><title>일시적으로 OG 이미지 없음</title></head></html>');
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await newsHandler(
+      new Request('https://api.example.test/api/news?query=소방'),
+      { NEWS_CACHE: newsCache },
+    );
+    const body = await response.text();
+
+    expect(body).toContain(`<imageUrl><![CDATA[${cachedImage}]]></imageUrl>`);
+    expect(kvGet).toHaveBeenCalledWith(expect.stringContaining('news:v7:google:'), 'json');
+    expect(kvPut).toHaveBeenCalledOnce();
+    const storedEntry = JSON.parse(String(kvPut.mock.calls[0][1])) as {
+      text: string;
+      ts: number;
+      imageTimestamps: Record<string, number>;
+    };
+    expect(storedEntry.text).toContain(cachedImage);
+    expect(storedEntry.ts).toBeGreaterThan(cachedAt);
+    expect(storedEntry.imageTimestamps[articleLink]).toBe(originalImageTimestamp);
+  });
+
+  it('does not reinsert a cached image after its per-link timestamp exceeds the stale limit', async () => {
+    const articleLink = 'https://news.example/articles/expired';
+    const cachedImage = 'https://cdn.example/incidents/expired-fire.jpg';
+    const cachedRss = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title>이전 소방 뉴스</title>
+      <link>${articleLink}</link>
+      <imageUrl><![CDATA[${cachedImage}]]></imageUrl>
+      <description>이전 테스트</description>
+      <pubDate>Tue, 30 Jun 2026 04:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>`;
+    const refreshedRss = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title>새 소방 뉴스</title>
+      <link>${articleLink}</link>
+      <description>새 테스트</description>
+      <pubDate>Tue, 30 Jun 2026 05:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>`;
+    const kvGet = vi.fn(async () => ({
+      text: cachedRss,
+      ts: Date.now() - (16 * 60 * 1000),
+      imageTimestamps: {
+        [articleLink]: Date.now() - (7 * 60 * 60 * 1000),
+      },
+    }));
+    const kvPut = vi.fn(async (
+      _key: string,
+      _value: string | ArrayBuffer | ArrayBufferView | ReadableStream,
+      _options?: KVNamespacePutOptions,
+    ) => undefined);
+    const newsCache = {
+      get: kvGet,
+      put: kvPut,
+    } as unknown as KVNamespace;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('bing.com')) {
+        return new Response(refreshedRss, { headers: { 'Content-Type': 'application/rss+xml' } });
+      }
+      if (url === articleLink) {
+        return new Response('<html><head><title>OG 이미지 없음</title></head></html>');
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await newsHandler(
+      new Request('https://api.example.test/api/news?query=소방'),
+      { NEWS_CACHE: newsCache },
+    );
+    const body = await response.text();
+    const storedEntry = JSON.parse(String(kvPut.mock.calls[0][1])) as {
+      text: string;
+      imageTimestamps: Record<string, number>;
+    };
+
+    expect(body).not.toContain(cachedImage);
+    expect(body).not.toContain('<imageUrl>');
+    expect(storedEntry.text).not.toContain(cachedImage);
+    expect(storedEntry.imageTimestamps).not.toHaveProperty(articleLink);
+  });
+
   it('rejects oversized RSS responses before buffering all content', async () => {
     const oversized = '<rss><channel><item></item></channel></rss>'.padEnd(512 * 1024 + 10, 'x');
     const fetchMock = vi.fn(async () => new Response(oversized, {

@@ -11,11 +11,11 @@ import { z } from 'zod';
 import { errorMessage, isRecord } from './publicData';
 import { sanitizeStringParam } from '../middleware/cors';
 
-const CACHE_TTL = 60 * 60; // 1시간 (KV 만료 기본 단위 초)
+const CACHE_TTL = 15 * 60; // 썸네일 누락이 오래 고정되지 않도록 15분만 fresh 처리
 const STALE_TTL = 6 * 60 * 60; // 6시간 동안은 실패 시 과거 데이터라도 반환
 const ALLOWED_TYPES = new Set(['google', 'nfa']);
-const OG_IMAGE_FETCH_LIMIT = 8;
-const OG_IMAGE_CONCURRENCY = 4;
+const OG_IMAGE_FETCH_LIMIT = 10;
+const OG_IMAGE_CONCURRENCY = 5;
 const OG_IMAGE_TIMEOUT_MS = 2500;
 const OG_HTML_MAX_BYTES = 128 * 1024;
 const NEWS_IMAGE_TIMEOUT_MS = 6000;
@@ -43,6 +43,7 @@ interface NewsEnv {
 interface NewsCacheEntry {
   text: string;
   ts: number;
+  imageTimestamps?: Record<string, number>;
 }
 
 const naverNewsSchema = z.object({
@@ -59,7 +60,16 @@ const naverNewsSchema = z.object({
 type NaverNewsItem = z.infer<typeof naverNewsSchema>['items'][number];
 
 function isNewsCacheEntry(value: unknown): value is NewsCacheEntry {
-  return isRecord(value) && typeof value.text === 'string' && typeof value.ts === 'number';
+  if (!isRecord(value) || typeof value.text !== 'string' || typeof value.ts !== 'number') {
+    return false;
+  }
+
+  if (value.imageTimestamps === undefined) return true;
+  if (!isRecord(value.imageTimestamps)) return false;
+
+  return Object.values(value.imageTimestamps).every(
+    timestamp => typeof timestamp === 'number' && Number.isFinite(timestamp),
+  );
 }
 
 export async function newsHandler(request: Request, env: NewsEnv): Promise<Response> {
@@ -135,7 +145,7 @@ export async function prefetchNews(env: NewsEnv) {
   const defaultQuery = '"소방" (화재 OR 구조 OR 구급 OR 재난)';
   console.log('[news] Running cron prefetch for query:', defaultQuery);
   try {
-    // force fetch by skipping cache read
+    // force fetch로 fresh 캐시의 즉시 반환을 건너뛴다.
     await getNewsWithCache('google', defaultQuery, env, true);
     console.log('[news] Cron prefetch success');
   } catch (err) {
@@ -145,21 +155,27 @@ export async function prefetchNews(env: NewsEnv) {
 
 async function getNewsWithCache(type: string, query: string, env: NewsEnv, forceFetch: boolean): Promise<Response> {
   // 캐시 키 버전을 v4 등으로 올려서 이전 데이터(이미지 없는 데이터) 캐시를 즉시 무효화
-  const CACHE_PREFIX = 'news:v6:';
+  const CACHE_PREFIX = 'news:v7:';
   const cacheKey = `${CACHE_PREFIX}${type}:${encodeURIComponent(query)}`;
   const kv = env.NEWS_CACHE; // binding from wrangler.toml
+  let cachedEntry: NewsCacheEntry | undefined;
 
   // 1. KV 캐시 확인
-  if (!forceFetch && kv) {
-    const cachedData = await kv.get(cacheKey, 'json');
-    if (isNewsCacheEntry(cachedData)) {
-      const { text, ts } = cachedData;
-      const ageMs = Date.now() - ts;
-      
-      // 1시간 이내의 싱싱한 데이터면 즉시 반환
-      if (ageMs < CACHE_TTL * 1000) {
-        return xmlResponse(text);
+  if (kv) {
+    try {
+      const cachedData = await kv.get(cacheKey, 'json');
+      if (isNewsCacheEntry(cachedData)) {
+        cachedEntry = cachedData;
+        const { text, ts } = cachedData;
+        const ageMs = Date.now() - ts;
+
+        // 강제 갱신이 아니고 15분 이내의 싱싱한 데이터면 즉시 반환
+        if (!forceFetch && ageMs < CACHE_TTL * 1000) {
+          return xmlResponse(text);
+        }
       }
+    } catch (error) {
+      console.warn(`[news] KV cache read failed for ${cacheKey}:`, errorMessage(error));
     }
   }
 
@@ -204,10 +220,20 @@ async function getNewsWithCache(type: string, query: string, env: NewsEnv, force
       console.warn(`[news] Og:image extraction failed, proceeding with original XML:`, ogErr);
     }
 
+    const refreshedAt = Date.now();
+    // 일시적인 원문 응답 실패로 직전의 정상 썸네일이 사라지지 않게 같은 기사 링크끼리 보존한다.
+    // 단, 이미지가 처음 확보된 시각은 갱신하지 않아 STALE_TTL 이후에는 자연스럽게 만료시킨다.
+    const mergedImages = mergeCachedImages(xmlText, cachedEntry, refreshedAt);
+    xmlText = mergedImages.xml;
+
     // 성공 → KV 저장
     if (kv && xmlText) {
       // KV put with expirationTtl so it auto cleans up (e.g. 24h)
-      await kv.put(cacheKey, JSON.stringify({ text: xmlText, ts: Date.now() }), { expirationTtl: 86400 });
+      await kv.put(cacheKey, JSON.stringify({
+        text: xmlText,
+        ts: refreshedAt,
+        imageTimestamps: mergedImages.imageTimestamps,
+      }), { expirationTtl: 86400 });
     }
 
     return xmlResponse(xmlText);
@@ -216,14 +242,11 @@ async function getNewsWithCache(type: string, query: string, env: NewsEnv, force
     console.error(`[news] Fetch error for ${cacheKey}:`, errorMessage(error));
 
     // 3. 완전히 실패한 경우, KV에 오래된(stale) 데이터라도 있는지 확인
-    if (kv) {
-      const cachedData = await kv.get(cacheKey, 'json');
-      if (isNewsCacheEntry(cachedData)) {
-        const { text, ts } = cachedData;
-        if (Date.now() - ts < STALE_TTL * 1000) {
-          console.log(`[news] Serving stale KV cache for ${cacheKey}`);
-          return xmlResponse(text);
-        }
+    if (cachedEntry) {
+      const { text, ts } = cachedEntry;
+      if (Date.now() - ts < STALE_TTL * 1000) {
+        console.log(`[news] Serving stale KV cache for ${cacheKey}`);
+        return xmlResponse(text);
       }
     }
 
@@ -477,7 +500,7 @@ function extractMetaImageUrl(html: string, baseUrl: string): string {
     try {
       const resolved = new URL(content, baseUrl).toString();
       const safe = assertFetchableHttpUrl(resolved);
-      if (safe) return safe;
+      if (safe && !isLikelyGenericNewsImage(safe)) return safe;
     } catch {
       // 다음 메타 태그를 계속 확인한다.
     }
@@ -525,6 +548,18 @@ function safeHttpUrl(value: string): string {
   }
 }
 
+function isLikelyGenericNewsImage(value: string): boolean {
+  try {
+    const pathname = decodeURIComponent(new URL(value).pathname);
+    const fileName = pathname.split('/').pop()?.toLowerCase() || '';
+    const stem = fileName.replace(/\.(?:avif|gif|jpe?g|png|webp)$/i, '');
+
+    return /^(?:banner|icon|sns[_-]?thumbnail|favicon(?:[_-]\d+)?|(?:site[_-]?)?logo(?:[_-](?:og|sns|share|\d+x\d+))?|default(?:[_-](?:image|img|thumbnail|thumb))?|(?:no|not)[_-]?(?:image|img|photo)|placeholder(?:[_-](?:image|img|thumbnail|thumb))?)$/i.test(stem);
+  } catch {
+    return false;
+  }
+}
+
 function cdata(value: string): string {
   return value.replace(/]]>/g, ']]]]><![CDATA[>');
 }
@@ -542,6 +577,104 @@ function xmlTagText(xml: string, tagName: string): string {
   return match[1].replace(/^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/i, '$1').trim();
 }
 
+function removeImageUrl(itemXml: string): string {
+  return itemXml.replace(/\s*<imageUrl\b[^>]*>[\s\S]*?<\/imageUrl>\s*/gi, '\n');
+}
+
+function imageUrlFromItem(itemXml: string): string {
+  const imageUrl = safeHttpUrl(decodeHtmlAttribute(xmlTagText(itemXml, 'imageUrl')));
+  return imageUrl && !isLikelyGenericNewsImage(imageUrl) ? imageUrl : '';
+}
+
+function itemLinkKeys(itemXml: string): string[] {
+  const keys = new Set<string>();
+
+  for (const tagName of ['originallink', 'link']) {
+    const link = assertFetchableHttpUrl(decodeHtmlAttribute(xmlTagText(itemXml, tagName)));
+    if (link) keys.add(link);
+  }
+
+  return [...keys];
+}
+
+function appendImageUrl(itemXml: string, imageUrl: string): string {
+  return itemXml.replace(/<\/item>/i, `  <imageUrl><![CDATA[${cdata(imageUrl)}]]></imageUrl>\n    </item>`);
+}
+
+interface CachedImage {
+  imageUrl: string;
+  timestamp: number;
+}
+
+interface MergedImages {
+  xml: string;
+  imageTimestamps: Record<string, number>;
+}
+
+function cachedItemImageTimestamp(cachedEntry: NewsCacheEntry, linkKeys: string[]): number {
+  if (cachedEntry.imageTimestamps === undefined) {
+    // v7 초기 형식 등 링크별 메타데이터가 없는 레거시 캐시는 항목 저장 시각을 사용한다.
+    return cachedEntry.ts;
+  }
+
+  const timestamps = linkKeys
+    .map(key => cachedEntry.imageTimestamps?.[key])
+    .filter((timestamp): timestamp is number => typeof timestamp === 'number' && Number.isFinite(timestamp));
+
+  // 같은 기사의 링크마다 값이 다르면 더 오래된 시각을 보존해 수명이 늘어나지 않게 한다.
+  return timestamps.length > 0 ? Math.min(...timestamps) : 0;
+}
+
+function mergeCachedImages(
+  currentXml: string,
+  cachedEntry: NewsCacheEntry | undefined,
+  refreshedAt: number,
+): MergedImages {
+  const cachedImagesByLink = new Map<string, CachedImage>();
+  const imageTimestamps: Record<string, number> = {};
+
+  if (cachedEntry) {
+    for (const cachedItem of cachedEntry.text.match(/<item>[\s\S]*?<\/item>/g) || []) {
+      const imageUrl = imageUrlFromItem(cachedItem);
+      const linkKeys = itemLinkKeys(cachedItem);
+      if (!imageUrl || linkKeys.length === 0) continue;
+
+      const timestamp = cachedItemImageTimestamp(cachedEntry, linkKeys);
+      if (timestamp <= 0 || refreshedAt - timestamp >= STALE_TTL * 1000) continue;
+
+      for (const key of linkKeys) {
+        cachedImagesByLink.set(key, { imageUrl, timestamp });
+      }
+    }
+  }
+
+  const xml = currentXml.replace(/<item>[\s\S]*?<\/item>/g, (itemXml) => {
+    const currentImage = imageUrlFromItem(itemXml);
+    const linkKeys = itemLinkKeys(itemXml);
+
+    if (currentImage) {
+      // 현재 응답에서 다시 확보된 이미지만 수명을 새로 시작한다.
+      for (const key of linkKeys) imageTimestamps[key] = refreshedAt;
+      return itemXml;
+    }
+
+    const itemWithoutGenericImage = removeImageUrl(itemXml);
+    for (const key of linkKeys) {
+      const cachedImage = cachedImagesByLink.get(key);
+      if (!cachedImage) continue;
+
+      for (const currentKey of linkKeys) {
+        imageTimestamps[currentKey] = cachedImage.timestamp;
+      }
+      return appendImageUrl(itemWithoutGenericImage, cachedImage.imageUrl);
+    }
+
+    return itemWithoutGenericImage;
+  });
+
+  return { xml, imageTimestamps };
+}
+
 // 생성되거나 파싱된 XML의 <item> 속 <link>들을 추적해 <imageUrl> 태그를 박아넣는 함수 (병렬 처리)
 async function enhanceRssWithImages(xml: string): Promise<string> {
   const itemRegex = /<item>[\s\S]*?<\/item>/g;
@@ -552,38 +685,32 @@ async function enhanceRssWithImages(xml: string): Promise<string> {
   let cursor = 0;
 
   async function enhanceItem(itemXml: string, index: number): Promise<string> {
+    const existingImage = imageUrlFromItem(itemXml);
+    if (existingImage) return itemXml;
+
+    // 기존 RSS가 제공한 기본 로고/플레이스홀더는 그대로 노출하지 않는다.
+    const itemWithoutGenericImage = removeImageUrl(itemXml);
+
     // 1. Bing News의 <News:Image> 태그가 이미 존재하면 즉시 사용
-    const bingImageMatch = itemXml.match(/<News:Image>([^<]+)<\/News:Image>/i);
+    const bingImageMatch = itemWithoutGenericImage.match(/<News:Image>([^<]+)<\/News:Image>/i);
     const bingImage = bingImageMatch ? safeHttpUrl(decodeHtmlAttribute(bingImageMatch[1])) : '';
-    if (bingImage) {
-       return itemXml.replace(/<\/item>/i, `  <imageUrl><![CDATA[${cdata(bingImage)}]]></imageUrl>\n    </item>`);
+    if (bingImage && !isLikelyGenericNewsImage(bingImage)) {
+       return appendImageUrl(itemWithoutGenericImage, bingImage);
     }
 
     // RSS feeds can contain many links. Keep HTML scraping intentionally small so news
     // never dominates Worker subrequests or latency.
-    if (index >= OG_IMAGE_FETCH_LIMIT) return itemXml;
+    if (index >= OG_IMAGE_FETCH_LIMIT) return itemWithoutGenericImage;
 
-    let targetLink = '';
-    // 원 언론사 페이지가 Naver 중계 페이지보다 보도사진 메타데이터를 안정적으로 제공한다.
-    const linkUrl = xmlTagText(itemXml, 'link');
-    const originalLinkUrl = xmlTagText(itemXml, 'originallink');
-    
-    if (originalLinkUrl) {
-      targetLink = originalLinkUrl;
-    } else if (linkUrl) {
-      targetLink = linkUrl;
+    // 원 언론사 페이지를 우선 보되 실패하면 서로 다른 Naver 중계 링크도 안전하게 시도한다.
+    for (const targetLink of itemLinkKeys(itemWithoutGenericImage)) {
+      const imageUrl = await fetchOgImage(targetLink);
+      if (imageUrl) {
+        return appendImageUrl(itemWithoutGenericImage, imageUrl);
+      }
     }
-    
-    if (!targetLink) return itemXml;
-    targetLink = safeHttpUrl(decodeHtmlAttribute(targetLink));
-    
-    const imageUrl = await fetchOgImage(targetLink);
-    
-    if (imageUrl) {
-      // </item> 직전에 imageUrl 삽입
-      return itemXml.replace(/<\/item>/i, `  <imageUrl><![CDATA[${cdata(imageUrl)}]]></imageUrl>\n    </item>`);
-    }
-    return itemXml;
+
+    return itemWithoutGenericImage;
   }
 
   const workers = Array.from({ length: Math.min(OG_IMAGE_CONCURRENCY, items.length) }, async () => {

@@ -31,6 +31,24 @@ const NEWS_THUMBNAIL_CONTENT_TYPES = new Set([
   'image/webp',
   'image/x-png',
 ]);
+const NEWS_TEXT_ENTITIES: Record<string, string> = {
+  amp: '&',
+  apos: "'",
+  gt: '>',
+  hellip: '…',
+  ldquo: '“',
+  lsquo: '‘',
+  lt: '<',
+  mdash: '—',
+  middot: '·',
+  ndash: '–',
+  nbsp: ' ',
+  quot: '"',
+  rdquo: '”',
+  rsquo: '’',
+};
+const PLACEHOLDER_IMAGE_NAME = /(?:^|[._-])(?:sns[-_]?thumbnail|logo|favicon|placeholder|no[-_]?image|noimage|default(?:[-_]?image)?|blank)(?:[._-]|$)/i;
+const EXACT_PLACEHOLDER_IMAGE_STEM = /^(?:banner|icon)(?:[-_]?\d+x\d+)?$/i;
 
 const localNewsCache: Record<string, CacheEntry> = {};
 let policyNewsCache: CacheEntry | null = null;
@@ -43,6 +61,84 @@ function safeHttpUrl(value?: string): string {
   } catch {
     return '';
   }
+}
+
+function decodeNewsEntityPass(value: string): string {
+  return value.replace(
+    /&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]+);/gi,
+    (entity, token: string) => {
+      if (!token.startsWith('#')) {
+        return NEWS_TEXT_ENTITIES[token.toLowerCase()] ?? entity;
+      }
+
+      const isHex = token[1]?.toLowerCase() === 'x';
+      const codePoint = Number.parseInt(token.slice(isHex ? 2 : 1), isHex ? 16 : 10);
+      if (
+        !Number.isInteger(codePoint)
+        || codePoint <= 0
+        || codePoint > 0x10ffff
+        || (codePoint >= 0xd800 && codePoint <= 0xdfff)
+      ) {
+        return entity;
+      }
+
+      return String.fromCodePoint(codePoint);
+    },
+  );
+}
+
+export function normalizeNewsText(value?: string): string {
+  let normalized = value || '';
+
+  // 먼저 실제 태그를 없앤 뒤 두 번 디코딩해 &amp;quot; 같은 이중 인코딩도 처리한다.
+  normalized = normalized.replace(/<[^>]*>/g, ' ');
+  for (let pass = 0; pass < 2; pass++) {
+    const decoded = decodeNewsEntityPass(normalized);
+    if (decoded === normalized) break;
+    normalized = decoded;
+  }
+
+  // 인코딩된 태그가 디코딩된 경우에도 화면 텍스트에는 마크업을 남기지 않는다.
+  return normalized
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function isLikelyPlaceholderImageUrl(value?: string): boolean {
+  const safeUrl = safeHttpUrl(value);
+  if (!safeUrl) return true;
+
+  try {
+    const url = new URL(safeUrl);
+    let filename = url.pathname.split('/').pop() || '';
+    try {
+      filename = decodeURIComponent(filename);
+    } catch {
+      // 잘못 인코딩된 파일명도 URL 자체가 안전하면 원문으로 판별한다.
+    }
+
+    const stem = filename.replace(/\.(?:avif|gif|jpe?g|png|webp)$/i, '');
+    return filename.toLowerCase().endsWith('.svg')
+      || PLACEHOLDER_IMAGE_NAME.test(filename)
+      || EXACT_PLACEHOLDER_IMAGE_STEM.test(stem);
+  } catch {
+    return true;
+  }
+}
+
+export function formatNewsPubDate(pubDateStr: string, now = new Date()): string {
+  const publishedAt = new Date(pubDateStr);
+  if (Number.isNaN(publishedAt.getTime())) return '';
+
+  return publishedAt.toLocaleString('ko-KR', {
+    ...(publishedAt.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function extractImageUrl(item: Element): string {
@@ -101,7 +197,7 @@ export async function fetchNewsThumbnail(imageUrl: string, signal?: AbortSignal)
   return blob;
 }
 
-async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boolean, limit: number, retries = 2, options?: { filterBadImages?: boolean }): Promise<ParsedNewsItem[]> {
+async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boolean, limit: number, retries = 2): Promise<ParsedNewsItem[]> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       if (attempt > 0) {
@@ -125,27 +221,25 @@ async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boo
       if (items.length === 0 && attempt < retries) continue;
 
       return items.map(item => {
-        let desc = item.getElementsByTagName('description')[0]?.textContent || '';
-        desc = desc.replace(/<[^>]+>/g, '')
-                   .replace(/&nbsp;/gi, ' ')
-                   .replace(/&quot;/gi, '"')
-                   .replace(/&amp;/gi, '&')
-                   .replace(/&lt;/gi, '<')
-                   .replace(/&gt;/gi, '>')
-                   .replace(/&#39;|&apos;/gi, "'")
-                   .trim();
+        let desc = normalizeNewsText(
+          item.getElementsByTagName('description')[0]?.textContent || '',
+        );
         
         const pubDateStr = item.getElementsByTagName('pubDate')[0]?.textContent || 
                          item.getElementsByTagName('dc:date')[0]?.textContent || 
                          item.getElementsByTagName('date')[0]?.textContent || '';
         
-        const feedSource = item.getElementsByTagName('source')[0]?.textContent || '';
-        let actualSource = sourceName;
+        const feedSource = normalizeNewsText(
+          item.getElementsByTagName('source')[0]?.textContent || '',
+        );
+        let actualSource = normalizeNewsText(sourceName);
         if (!isOfficial) {
-          actualSource = feedSource || sourceName;
+          actualSource = feedSource || actualSource;
         }
 
-        let title = item.getElementsByTagName('title')[0]?.textContent || '';
+        let title = normalizeNewsText(
+          item.getElementsByTagName('title')[0]?.textContent || '',
+        );
         const sourceToRemove = feedSource || actualSource;
         
         if (sourceToRemove) {
@@ -183,25 +277,15 @@ async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boo
         // 언론사 뉴스 툴팁 등으로 남은 불필요 글자 정리
         if (desc.startsWith('뉴스')) desc = desc.replace(/^뉴스\s*-?\s*/, '');
         if (desc.length < 10) desc = ''; // 내용이 너무 짧으면 없앰
+        title = normalizeNewsText(title);
+        desc = normalizeNewsText(desc);
+        actualSource = normalizeNewsText(actualSource);
 
         let imageUrl = extractImageUrl(item);
         // CDATA 등 흔적 제거
         imageUrl = safeHttpUrl(imageUrl.replace(/<!\[CDATA\[(.*?)\]\]>/, '$1').trim());
 
-        const isBadPolicyImage = (url: string) => {
-          if (!url) return true;
-          const lower = url.toLowerCase();
-          return (
-            lower.includes('logo') ||
-            lower.includes('favicon') ||
-            lower.includes('icon') ||
-            lower.includes('banner') ||
-            lower.includes('common') ||
-            lower.endsWith('.svg')
-          );
-        };
-
-        if (options?.filterBadImages && isBadPolicyImage(imageUrl)) {
+        if (isLikelyPlaceholderImageUrl(imageUrl)) {
           imageUrl = '';
         }
 
@@ -241,9 +325,7 @@ function processAndSort(arrays: ParsedNewsItem[][]): NewsItem[] {
     id: item.id,
     title: item.title,
     link: item.link,
-    pubDate: new Date(item.pubDateStr).toLocaleString('ko-KR', {
-      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-    }),
+    pubDate: formatNewsPubDate(item.pubDateStr),
     source: item.source,
     description: item.description,
     isOfficial: item.isOfficial,
@@ -286,10 +368,10 @@ export async function fetchPolicyNews(forceRefresh = false): Promise<NewsItem[]>
   try {
     // 4개 데이터 소스 동시 패치 (전부 구글 뉴스 고급검색 + RSS 프록시 활용)
     const [nfa, mois, mohw, assembly] = await Promise.all([
-      fetchRssAndParse(`${API_BASE}/api/news?type=nfa`, '소방청(정책)', true, 8, 2, { filterBadImages: true }),
-      fetchRssAndParse(`${API_BASE}/api/news?type=google&query=${encodeURIComponent('행정안전부 재난 OR 행정안전부 소방 정책')}`, '행정안전부 관련', false, 4, 2, { filterBadImages: true }),
-      fetchRssAndParse(`${API_BASE}/api/news?type=google&query=${encodeURIComponent('보건복지부 구급 OR 보건복지부 응급')}`, '보건복지부 관련', false, 4, 2, { filterBadImages: true }),
-      fetchRssAndParse(`${API_BASE}/api/news?type=google&query=${encodeURIComponent('국회 소방 법안 OR 119 개정안')}`, '국회 입법 관련', false, 4, 2, { filterBadImages: true }),
+      fetchRssAndParse(`${API_BASE}/api/news?type=nfa`, '소방청(정책)', true, 8),
+      fetchRssAndParse(`${API_BASE}/api/news?type=google&query=${encodeURIComponent('행정안전부 재난 OR 행정안전부 소방 정책')}`, '행정안전부 관련', false, 4),
+      fetchRssAndParse(`${API_BASE}/api/news?type=google&query=${encodeURIComponent('보건복지부 구급 OR 보건복지부 응급')}`, '보건복지부 관련', false, 4),
+      fetchRssAndParse(`${API_BASE}/api/news?type=google&query=${encodeURIComponent('국회 소방 법안 OR 119 개정안')}`, '국회 입법 관련', false, 4),
     ]);
     const results = processAndSort([nfa, mois, mohw, assembly]);
     policyNewsCache = { data: results, timestamp: Date.now() };

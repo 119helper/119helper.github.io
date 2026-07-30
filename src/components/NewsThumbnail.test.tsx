@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const thumbnailMocks = vi.hoisted(() => ({
@@ -33,18 +33,27 @@ describe('NewsThumbnail', () => {
     vi.restoreAllMocks();
   });
 
-  it('keeps a fixed visual fallback when the feed has no image', () => {
+  it('does not reserve a media area when the feed has no image', () => {
     const { container } = render(
+      <NewsThumbnail isHero={false} />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+    expect(thumbnailMocks.fetchNewsThumbnail).not.toHaveBeenCalled();
+  });
+
+  it('shows a neutral skeleton only while an available image is loading', () => {
+    thumbnailMocks.fetchNewsThumbnail.mockImplementation(() => new Promise(() => undefined));
+
+    render(
       <NewsThumbnail
-        isHero={false}
-        gradient="from-red-500 to-orange-500"
-        icon="local_fire_department"
+        src="https://news.example/fire.jpg"
+        isHero
       />,
     );
 
-    expect(container).toHaveTextContent('local_fire_department');
-    expect(container.querySelector('img')).not.toBeInTheDocument();
-    expect(thumbnailMocks.fetchNewsThumbnail).not.toHaveBeenCalled();
+    expect(screen.getByTestId('news-thumbnail-loading')).toBeInTheDocument();
+    expect(screen.queryByText('local_fire_department')).not.toBeInTheDocument();
   });
 
   it('loads a remote thumbnail through the authenticated proxy and revokes its blob URL', async () => {
@@ -53,8 +62,6 @@ describe('NewsThumbnail', () => {
       <NewsThumbnail
         src="https://news.example/fire.jpg"
         isHero
-        gradient="from-red-500 to-orange-500"
-        icon="local_fire_department"
       />,
     );
 
@@ -71,30 +78,25 @@ describe('NewsThumbnail', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:https://119.teemozipsa.com/news-image');
   });
 
-  it('returns to the visual fallback when the proxied image fails', async () => {
+  it('removes the media area when the proxied image fails', async () => {
     thumbnailMocks.fetchNewsThumbnail.mockRejectedValue(new Error('proxy failed'));
     const { container } = render(
       <NewsThumbnail
         src="https://news.example/broken.jpg"
         isHero={false}
-        gradient="from-blue-500 to-sky-500"
-        icon="admin_panel_settings"
       />,
     );
 
     await waitFor(() => expect(console.warn).toHaveBeenCalled());
-    expect(container).toHaveTextContent('admin_panel_settings');
-    expect(container.querySelector('img')).not.toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it('keeps the same fallback after browser image decode failure', async () => {
+  it('removes the media area after browser image decode failure', async () => {
     thumbnailMocks.fetchNewsThumbnail.mockResolvedValue(new Blob(['broken'], { type: 'image/jpeg' }));
     const { container } = render(
       <NewsThumbnail
         src="https://news.example/broken.jpg"
         isHero={false}
-        gradient="from-blue-500 to-sky-500"
-        icon="admin_panel_settings"
       />,
     );
 
@@ -105,8 +107,31 @@ describe('NewsThumbnail', () => {
     });
     fireEvent.error(image);
 
-    await waitFor(() => expect(container.querySelector('img')).not.toBeInTheDocument());
-    expect(container).toHaveTextContent('admin_panel_settings');
+    await waitFor(() => expect(container).toBeEmptyDOMElement());
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:https://119.teemozipsa.com/news-image');
+  });
+
+  it('top-biases portrait photos so faces are less likely to be cropped', async () => {
+    thumbnailMocks.fetchNewsThumbnail.mockResolvedValue(new Blob(['portrait'], { type: 'image/jpeg' }));
+    const { container } = render(
+      <NewsThumbnail
+        src="https://news.example/portrait.jpg"
+        isHero={false}
+      />,
+    );
+
+    const image = await waitFor(() => {
+      const element = container.querySelector('img');
+      expect(element).toBeInTheDocument();
+      return element as HTMLImageElement;
+    });
+    Object.defineProperties(image, {
+      naturalWidth: { configurable: true, value: 500 },
+      naturalHeight: { configurable: true, value: 648 },
+    });
+    fireEvent.load(image);
+
+    await waitFor(() => expect(image).toHaveStyle({ objectPosition: 'center 20%' }));
   });
 
   it('revokes the previous object URL when the source changes', async () => {
@@ -119,8 +144,6 @@ describe('NewsThumbnail', () => {
       <NewsThumbnail
         src="https://news.example/first.jpg"
         isHero
-        gradient="from-red-500 to-orange-500"
-        icon="local_fire_department"
       />,
     );
     await waitFor(() => expect(container.querySelector('img')).toHaveAttribute(
@@ -132,8 +155,6 @@ describe('NewsThumbnail', () => {
       <NewsThumbnail
         src="https://news.example/second.jpg"
         isHero
-        gradient="from-red-500 to-orange-500"
-        icon="local_fire_department"
       />,
     );
 
