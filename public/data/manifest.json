@@ -141,7 +141,7 @@
             "sejong": 12
           },
           "expectedIdsHash": "3b659336899ee2c14b593c23a9f96b09e5adc998e232795e58bf7621911f8a67",
-          "reviewedTupleHash": "5d599ef66e1d85476a185f962ffe67273bfd2777a89d9e6d3a19ab8fd68f93a6"
+          "reviewedTupleHash": "8e33cacdb095690f4a1db3cc671e39f10d606f0dc1b0ceef22900cc1ab5b1019"
         },
         {
           "id": "yongsan-municipal-host",
@@ -155,10 +155,10 @@
             "seoul": 5
           },
           "expectedIdsHash": "195a6647d729713802c348776b5526e2a596fdf060e0b0381bb0d3921c16843b",
-          "reviewedTupleHash": "85ded22ef289bf869d0615b08857ca10a935bfe67764023d7e22a74c7544650b"
+          "reviewedTupleHash": "948d7e0c3a1b4f1da95b1d5ac99ffd74980c10256b7bc37adc54d69a4f73b341"
         }
       ],
-      "hostAddressPointReviewFingerprint": "cfbab17fef9d3e6341ecf644e08577702eb3cb208e8f1f8088bcfba8c52d95fc",
+      "hostAddressPointReviewFingerprint": "57d951743cc08a69d1bc0ccd88c8f710f7ed24128a5c153fb936fc131b353b3f",
       "nationalStandardHostAddressPointCount": 82,
       "municipalHostAddressPointCount": 5,
       "coordinateJoinPolicy": "facility points: normalized-name+exact-road-or-lot-address, or opt-in unique exact address+normalized-name containment with coordinate-consistent duplicates; address points: unique raw road-address+building-name corroboration, or typed exact road/lot address+one-way host-name containment/reviewed aliases+40m-consistent official host points; traditional markets require PBLIC_TOILET_YN=Y; jurisdiction-bounds and reviewed tuple fingerprint",
@@ -311,6 +311,17 @@
           "sourceTotal": 18499,
           "validCoordinateCount": 1351,
           "matchableRecordCount": 1351,
+          "validScopedRowsByCity": {
+            "daegu": 657,
+            "ulsan": 495,
+            "sejong": 199
+          },
+          "minimumValidScopedRowsByCity": {
+            "daegu": 591,
+            "sejong": 179,
+            "ulsan": 445
+          },
+          "minimumLatestSourceDate": "2026-06-01",
           "duplicateRecordKeyCount": 0,
           "externalRecordIdCollisionCount": 18,
           "ineligibleHostCount": 0,
@@ -320,8 +331,8 @@
           "ambiguousMatchCount": 21,
           "nameMismatchCount": 58,
           "sourceUrl": "https://www.data.go.kr/data/15012890/standard.do",
-          "license": "공공데이터포털 이용정책",
-          "licenseUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do"
+          "license": "개별 제공기관 이용허락범위 적용",
+          "termsUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do"
         },
         {
           "id": "national-parking-lot-host-points",
@@ -331,6 +342,17 @@
           "sourceTotal": 18530,
           "validCoordinateCount": 1571,
           "matchableRecordCount": 1571,
+          "validScopedRowsByCity": {
+            "ulsan": 383,
+            "sejong": 102,
+            "daegu": 1086
+          },
+          "minimumValidScopedRowsByCity": {
+            "daegu": 977,
+            "sejong": 91,
+            "ulsan": 344
+          },
+          "minimumLatestSourceDate": "2026-05-01",
           "duplicateRecordKeyCount": 0,
           "externalRecordIdCollisionCount": 64,
           "ineligibleHostCount": 0,
@@ -340,8 +362,8 @@
           "ambiguousMatchCount": 20,
           "nameMismatchCount": 21,
           "sourceUrl": "https://www.data.go.kr/data/15012896/standard.do",
-          "license": "공공데이터포털 이용정책",
-          "licenseUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do"
+          "license": "개별 제공기관 이용허락범위 적용",
+          "termsUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do"
         },
         {
           "id": "national-traditional-market-host-points",
@@ -351,6 +373,17 @@
           "sourceTotal": 1393,
           "validCoordinateCount": 145,
           "matchableRecordCount": 145,
+          "validScopedRowsByCity": {
+            "ulsan": 42,
+            "daegu": 99,
+            "sejong": 4
+          },
+          "minimumValidScopedRowsByCity": {
+            "daegu": 89,
+            "sejong": 3,
+            "ulsan": 37
+          },
+          "minimumLatestSourceDate": "2025-11-01",
           "duplicateRecordKeyCount": 0,
           "externalRecordIdCollisionCount": 0,
           "ineligibleHostCount": 7,
@@ -360,8 +393,8 @@
           "ambiguousMatchCount": 0,
           "nameMismatchCount": 4,
           "sourceUrl": "https://www.data.go.kr/data/15012894/standard.do",
-          "license": "공공데이터포털 이용정책",
-          "licenseUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do"
+          "license": "개별 제공기관 이용허락범위 적용",
+          "termsUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do"
         },
         {
           "id": "national-library-host-points",
@@ -371,6 +404,17 @@
           "sourceTotal": 3554,
           "validCoordinateCount": 392,
           "matchableRecordCount": 391,
+          "validScopedRowsByCity": {
+            "daegu": 240,
+            "ulsan": 127,
+            "sejong": 24
+          },
+          "minimumValidScopedRowsByCity": {
+            "daegu": 216,
+            "sejong": 21,
+            "ulsan": 114
+          },
+          "minimumLatestSourceDate": "2026-06-01",
           "duplicateRecordKeyCount": 1,
           "externalRecordIdCollisionCount": 0,
           "ineligibleHostCount": 0,
@@ -380,8 +424,8 @@
           "ambiguousMatchCount": 2,
           "nameMismatchCount": 21,
           "sourceUrl": "https://www.data.go.kr/data/15013109/standard.do",
-          "license": "공공데이터포털 이용정책",
-          "licenseUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do"
+          "license": "개별 제공기관 이용허락범위 적용",
+          "termsUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do"
         },
         {
           "id": "national-museum-art-gallery-host-points",
@@ -391,6 +435,17 @@
           "sourceTotal": 1074,
           "validCoordinateCount": 43,
           "matchableRecordCount": 43,
+          "validScopedRowsByCity": {
+            "ulsan": 4,
+            "daegu": 38,
+            "sejong": 1
+          },
+          "minimumValidScopedRowsByCity": {
+            "daegu": 34,
+            "sejong": 1,
+            "ulsan": 3
+          },
+          "minimumLatestSourceDate": "2026-06-01",
           "duplicateRecordKeyCount": 0,
           "externalRecordIdCollisionCount": 0,
           "ineligibleHostCount": 0,
@@ -400,8 +455,8 @@
           "ambiguousMatchCount": 6,
           "nameMismatchCount": 1,
           "sourceUrl": "https://www.data.go.kr/data/15017323/standard.do",
-          "license": "공공데이터포털 이용정책",
-          "licenseUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do"
+          "license": "개별 제공기관 이용허락범위 적용",
+          "termsUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do"
         },
         {
           "id": "national-public-facility-opening-host-points",
@@ -411,6 +466,17 @@
           "sourceTotal": 7330,
           "validCoordinateCount": 371,
           "matchableRecordCount": 369,
+          "validScopedRowsByCity": {
+            "daegu": 257,
+            "ulsan": 54,
+            "sejong": 58
+          },
+          "minimumValidScopedRowsByCity": {
+            "daegu": 231,
+            "sejong": 52,
+            "ulsan": 48
+          },
+          "minimumLatestSourceDate": "2026-06-01",
           "duplicateRecordKeyCount": 2,
           "externalRecordIdCollisionCount": 0,
           "ineligibleHostCount": 0,
@@ -420,8 +486,8 @@
           "ambiguousMatchCount": 15,
           "nameMismatchCount": 12,
           "sourceUrl": "https://www.data.go.kr/data/15013117/standard.do",
-          "license": "공공데이터포털 이용정책",
-          "licenseUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do"
+          "license": "개별 제공기관 이용허락범위 적용",
+          "termsUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do"
         },
         {
           "id": "yongsan-community-center-host-points",
@@ -431,6 +497,13 @@
           "sourceTotal": 16,
           "validCoordinateCount": 16,
           "matchableRecordCount": 16,
+          "validScopedRowsByCity": {
+            "seoul": 16
+          },
+          "minimumValidScopedRowsByCity": {
+            "seoul": 16
+          },
+          "minimumLatestSourceDate": "2025-08-01",
           "duplicateRecordKeyCount": 0,
           "externalRecordIdCollisionCount": 0,
           "ineligibleHostCount": 0,

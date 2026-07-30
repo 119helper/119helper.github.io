@@ -596,6 +596,11 @@ async function auditStaticCompleteness() {
         !== Number(source.validCoordinateCount)
       || numberField(overlay.matchableRecordCount, `${source.id} 매칭 레코드 합계`)
         !== Number(source.matchableRecordCount)
+      || JSON.stringify(Object.entries(overlay.validScopedRowsByCity ?? {}).sort())
+        !== JSON.stringify(Object.entries(source.validScopedRowsByCity ?? {}).sort())
+      || JSON.stringify(Object.entries(overlay.minimumValidScopedRowsByCity ?? {}).sort())
+        !== JSON.stringify(Object.entries(source.minimumValidScopedRowsByCity ?? {}).sort())
+      || overlay.minimumLatestSourceDate !== source.minimumLatestSourceDate
       || numberField(overlay.duplicateRecordKeyCount, `${source.id} 중복 레코드 합계`)
         !== Number(source.duplicateRecordKeyCount)
       || numberField(overlay.externalRecordIdCollisionCount, `${source.id} 원본 ID 충돌 합계`)

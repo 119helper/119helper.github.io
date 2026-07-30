@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
   assertHostAddressPointDrift,
   downloadStandardHostRows,
+  HOST_ADDRESS_SOURCES,
+  hostAddressPointReviewFingerprint,
+  hostRecordFingerprint,
   matchHostAddressPoints,
   normalizeHostAddress,
   normalizeHostName,
@@ -83,6 +87,74 @@ test('normalizes only recent, in-scope rows with valid coordinates', () => {
   assert.equal(dataset.staleOrMissingDateCount, 1);
   assert.equal(dataset.invalidCoordinateCount, 1);
   assert.equal(dataset.sourceDate, '2026-06-24');
+});
+
+test('requires a source-specific latest date while allowing older valid rows', () => {
+  const freshnessSource = source({
+    minimumLatestSourceDate: '2026-06-01',
+    minimumRows: 2,
+  });
+  assert.throws(
+    () => normalizeHostRows([
+      row({ DATE: '2025-12-31' }),
+      row({
+        NAME: '두번째공원',
+        ROAD: '대구광역시 중구 테스트로 2',
+        LOT: '대구광역시 중구 테스트동 2',
+        DATE: '2025-11-30',
+      }),
+    ], freshnessSource),
+    /최신 기준일이 2026-06-01보다 오래됐습니다/,
+  );
+
+  const dataset = normalizeHostRows([
+    row({ DATE: '2025-12-31' }),
+    row({
+      NAME: '두번째공원',
+      ROAD: '대구광역시 중구 테스트로 2',
+      LOT: '대구광역시 중구 테스트동 2',
+      DATE: '2026-06-01',
+    }),
+  ], freshnessSource);
+  assert.equal(dataset.validCoordinateCount, 2);
+  assert.equal(dataset.sourceDate, '2026-06-01');
+});
+
+test('official host sources keep their reviewed latest-date gates', () => {
+  const latestDates = Object.fromEntries(
+    HOST_ADDRESS_SOURCES.map(item => [item.id, item.minimumLatestSourceDate]),
+  );
+  assert.deepEqual(latestDates, {
+    'national-city-park-host-points': '2026-06-01',
+    'national-parking-lot-host-points': '2026-05-01',
+    'national-traditional-market-host-points': '2025-11-01',
+    'national-library-host-points': '2026-06-01',
+    'national-museum-art-gallery-host-points': '2026-06-01',
+    'national-public-facility-opening-host-points': '2026-06-01',
+    'yongsan-community-center-host-points': '2025-08-01',
+  });
+  const cityMinimums = Object.fromEntries(
+    HOST_ADDRESS_SOURCES.map(item => [item.id, item.minimumValidScopedRowsByCity]),
+  );
+  assert.deepEqual(cityMinimums, {
+    'national-city-park-host-points': { daegu: 591, sejong: 179, ulsan: 445 },
+    'national-parking-lot-host-points': { daegu: 977, sejong: 91, ulsan: 344 },
+    'national-traditional-market-host-points': { daegu: 89, sejong: 3, ulsan: 37 },
+    'national-library-host-points': { daegu: 216, sejong: 21, ulsan: 114 },
+    'national-museum-art-gallery-host-points': { daegu: 34, sejong: 1, ulsan: 3 },
+    'national-public-facility-opening-host-points': { daegu: 231, sejong: 52, ulsan: 48 },
+    'yongsan-community-center-host-points': { seoul: 16 },
+  });
+});
+
+test('requires every reviewed city to retain enough unique valid rows', () => {
+  assert.throws(
+    () => normalizeHostRows([row()], source({
+      allowedCityKeys: ['daegu', 'ulsan'],
+      minimumValidScopedRowsByCity: { daegu: 1, ulsan: 1 },
+    })),
+    /ulsan 관할 유효 고유행 0건/,
+  );
 });
 
 test('requires an affirmative public-toilet flag for traditional-market host rows', () => {
@@ -227,6 +299,98 @@ test('accepts coordinate-consistent corroborating sources without letting a newe
   assert.equal(result.sources[1].acceptedTargetCount, 0);
 });
 
+test('pins every corroborating record while allowing a source-date-only refresh', () => {
+  const first = normalizeHostRows([row()], source());
+  const second = normalizeHostRows([row({
+    LAT: '35.8702',
+    LNG: '128.6012',
+    DATE: '2026-07-01',
+  })], source({ id: 'second-host-source', name: '두 번째 원천' }));
+  const result = matchHostAddressPoints([{
+    MNG_NO: 'N-1',
+    RSTRM_NM: '테스트공원 화장실',
+    LCTN_ROAD_NM_ADDR: '대구광역시 중구 테스트로 1',
+    LCTN_LOTNO_ADDR: '',
+  }], [first, second]);
+  const reviewOptions = {
+    expectedIds: new Set(['N-1']),
+    expectedCities: { daegu: 1 },
+    expectedFingerprint: hostAddressPointReviewFingerprint(result.items),
+    validateProvenance: true,
+  };
+  assert.doesNotThrow(() => assertHostAddressPointDrift(result, reviewOptions));
+
+  const coordinateDrift = structuredClone(result);
+  const driftRecord = coordinateDrift.items[0].corroboratingRecords
+    .find(record => record.sourceId === 'second-host-source');
+  driftRecord.lat += 0.0001;
+  driftRecord.recordFingerprint = hostRecordFingerprint(driftRecord);
+  assert.throws(
+    () => assertHostAddressPointDrift(coordinateDrift, reviewOptions),
+    /검토 지문/,
+  );
+
+  const distanceDrift = structuredClone(result);
+  distanceDrift.items[0].corroboratingRecords[0].distanceFromPrimaryMeters = 5;
+  assert.throws(
+    () => assertHostAddressPointDrift(distanceDrift, {
+      ...reviewOptions,
+      expectedFingerprint: null,
+    }),
+    /원천 레코드 근거가 불완전합니다/,
+  );
+
+  const partialDateRefresh = structuredClone(result);
+  const partialRecord = partialDateRefresh.items[0].corroboratingRecords
+    .find(record => record.sourceId === 'second-host-source');
+  const partialSource = partialDateRefresh.items[0].corroboratingSources
+    .find(record => record.sourceId === 'second-host-source');
+  partialRecord.sourceDate = '2099-01-01';
+  partialRecord.recordFingerprint = hostRecordFingerprint(partialRecord);
+  partialSource.recordFingerprint = partialRecord.recordFingerprint;
+  assert.throws(
+    () => assertHostAddressPointDrift(partialDateRefresh, reviewOptions),
+    /원천 레코드 근거가 불완전합니다/,
+  );
+
+  const dateRefresh = structuredClone(result);
+  const refreshedRecord = dateRefresh.items[0].corroboratingRecords
+    .find(record => record.sourceId === 'second-host-source');
+  const refreshedSource = dateRefresh.items[0].corroboratingSources
+    .find(record => record.sourceId === 'second-host-source');
+  refreshedRecord.sourceDate = '2026-07-02';
+  refreshedRecord.recordFingerprint = hostRecordFingerprint(refreshedRecord);
+  refreshedSource.sourceDate = refreshedRecord.sourceDate;
+  refreshedSource.recordFingerprint = refreshedRecord.recordFingerprint;
+  assert.equal(
+    hostAddressPointReviewFingerprint(dateRefresh.items),
+    reviewOptions.expectedFingerprint,
+  );
+  assert.doesNotThrow(() => assertHostAddressPointDrift(dateRefresh, reviewOptions));
+});
+
+test('checked-in source completeness gates cannot be removed or weakened', () => {
+  const ledger = JSON.parse(readFileSync(
+    new URL('../public/data/restroom-official-host-address-points.json', import.meta.url),
+    'utf8',
+  ));
+  assert.doesNotThrow(() => assertHostAddressPointDrift(ledger));
+
+  const missingGate = structuredClone(ledger);
+  delete missingGate.sources[0].minimumValidScopedRowsByCity;
+  assert.throws(
+    () => assertHostAddressPointDrift(missingGate),
+    /저장 완전성 게이트가 코드 검토 기준과 다릅니다/,
+  );
+
+  const weakenedGate = structuredClone(ledger);
+  weakenedGate.sources[0].minimumLatestSourceDate = '1900-01-01';
+  assert.throws(
+    () => assertHostAddressPointDrift(weakenedGate),
+    /저장 완전성 게이트가 코드 검토 기준과 다릅니다/,
+  );
+});
+
 test('downloads every standard-data page with repeated colNmList parameters', async () => {
   const calls = [];
   const metadata = {
@@ -253,23 +417,116 @@ test('downloads every standard-data page with repeated colNmList parameters', as
       return new Response(JSON.stringify(metadata), { status: 200 });
     }
     assert.deepEqual(url.searchParams.getAll('colNmList'), metadata.tableVO.colNmList);
-    return new Response(JSON.stringify([row(), row(), row()]), { status: 200 });
+    const page = Number(url.searchParams.get('page'));
+    return new Response(JSON.stringify(page === 1
+      ? [row(), row({ ROAD: '대구광역시 중구 테스트로 2' })]
+      : [row({ ROAD: '대구광역시 중구 테스트로 3' })]), { status: 200 });
   };
 
   const result = await downloadStandardHostRows(source({
     minimumRows: 3,
     maximumRows: 3,
-  }), { fetchImpl });
+  }), { fetchImpl, pageSize: 2 });
 
   assert.equal(result.rows.length, 3);
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
+});
+
+test('rejects standard-data schema, short-page, and repeated-page drift', async () => {
+  const columns = [
+    'NAME',
+    'ROAD',
+    'LOT',
+    'LAT',
+    'LNG',
+    'DATE',
+    'PROVIDER_CODE',
+    'PROVIDER_NAME',
+  ];
+  const metadata = (overrides = {}) => ({
+    totalCount: 3,
+    tableVO: {
+      svcTableNm: 'test_table',
+      colNmList: ['NAME', 'ROAD', 'LOT', 'LAT', 'LNG', 'DATE'],
+    },
+    columList: columns.map(columCode => ({ columCode })),
+    ...overrides,
+  });
+  const responseFor = value => new Response(JSON.stringify(value), { status: 200 });
+
+  await assert.rejects(
+    downloadStandardHostRows(source({
+      minimumRows: 3,
+      maximumRows: 3,
+    }), {
+      pageSize: 2,
+      fetchImpl: async input => {
+        const url = new URL(input);
+        if (url.pathname.endsWith('/columList.json')) return responseFor(metadata());
+        return responseFor([row()]);
+      },
+    }),
+    /페이지 1행이 예상 2행과 다릅니다/,
+  );
+
+  await assert.rejects(
+    downloadStandardHostRows(source({
+      minimumRows: 3,
+      maximumRows: 3,
+    }), {
+      fetchImpl: async () => responseFor(metadata({
+        tableVO: {
+          svcTableNm: 'changed_table',
+          colNmList: ['NAME'],
+        },
+      })),
+    }),
+    /서비스 테이블이 변경됐습니다/,
+  );
+
+  await assert.rejects(
+    downloadStandardHostRows(source({
+      minimumRows: 3,
+      maximumRows: 3,
+    }), {
+      fetchImpl: async () => responseFor(metadata({
+        columList: columns
+          .filter(column => column !== 'LAT')
+          .map(columCode => ({ columCode })),
+      })),
+    }),
+    /필수 컬럼 LAT이 없습니다/,
+  );
+
+  const repeatedRows = [row(), row({ ROAD: '대구광역시 중구 테스트로 2' })];
+  await assert.rejects(
+    downloadStandardHostRows(source({
+      minimumRows: 4,
+      maximumRows: 4,
+    }), {
+      pageSize: 2,
+      fetchImpl: async input => {
+        const url = new URL(input);
+        if (url.pathname.endsWith('/columList.json')) {
+          return responseFor(metadata({ totalCount: 4 }));
+        }
+        return responseFor(repeatedRows);
+      },
+    }),
+    /서로 다른 페이지가 동일한 원본 행 묶음을 반환했습니다/,
+  );
 });
 
 test('reviewed host-point IDs and city totals remain fail-closed', () => {
+  const items = [{ id: 'N-1', coverageGain: true, lat: 35.1, lng: 128.1 }];
   const result = {
+    total: 1,
+    coverageGainCount: 1,
+    uniquePointCount: 1,
     coordinateConflictCount: 0,
     cities: { daegu: 1 },
-    items: [{ id: 'N-1' }],
+    items,
+    reviewFingerprint: hostAddressPointReviewFingerprint(items),
   };
   assert.doesNotThrow(() => assertHostAddressPointDrift(result, {
     expectedIds: new Set(['N-1']),

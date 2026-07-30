@@ -815,6 +815,11 @@ function auditCoordinateMetadata() {
       Number(overlay?.sourceTotal) === Number(source.rawCount)
         && Number(overlay?.validCoordinateCount) === Number(source.validCoordinateCount)
         && Number(overlay?.matchableRecordCount) === Number(source.matchableRecordCount)
+        && JSON.stringify(Object.entries(overlay?.validScopedRowsByCity || {}).sort())
+          === JSON.stringify(Object.entries(source.validScopedRowsByCity || {}).sort())
+        && JSON.stringify(Object.entries(overlay?.minimumValidScopedRowsByCity || {}).sort())
+          === JSON.stringify(Object.entries(source.minimumValidScopedRowsByCity || {}).sort())
+        && overlay?.minimumLatestSourceDate === source.minimumLatestSourceDate
         && Number(overlay?.duplicateRecordKeyCount) === Number(source.duplicateRecordKeyCount)
         && Number(overlay?.externalRecordIdCollisionCount)
           === Number(source.externalRecordIdCollisionCount)

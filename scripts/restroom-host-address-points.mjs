@@ -34,6 +34,8 @@ function standardSource({
   minimumRows,
   maximumRows,
   minimumValidScopedRows,
+  minimumValidScopedRowsByCity,
+  minimumLatestSourceDate,
   recordIdFields = [],
   recordKeyFields = [],
   eligibilityRules = [],
@@ -45,13 +47,15 @@ function standardSource({
     publicDataPk,
     name,
     sourceUrl: `${DATA_GO_BASE_URL}/data/${publicDataPk}/standard.do`,
-    license: '공공데이터포털 이용정책',
-    licenseUrl: PORTAL_POLICY_URL,
+    license: '개별 제공기관 이용허락범위 적용',
+    termsUrl: PORTAL_POLICY_URL,
     serviceTableName,
     minimumRows,
     maximumRows,
     minimumSourceDate: '2025-01-01',
+    minimumLatestSourceDate,
     minimumValidScopedRows,
+    minimumValidScopedRowsByCity: Object.freeze(minimumValidScopedRowsByCity),
     allowedCityKeys: ['daegu', 'sejong', 'ulsan'],
     recordIdFields,
     recordKeyFields,
@@ -79,7 +83,9 @@ export const HOST_ADDRESS_SOURCES = Object.freeze([
     nameField: 'PARK_NM',
     minimumRows: 17_500,
     maximumRows: 20_000,
-    minimumValidScopedRows: 1_300,
+    minimumValidScopedRows: 1_200,
+    minimumValidScopedRowsByCity: { daegu: 591, sejong: 179, ulsan: 445 },
+    minimumLatestSourceDate: '2026-06-01',
     recordIdFields: ['MANAGE_NO'],
   }),
   standardSource({
@@ -90,7 +96,9 @@ export const HOST_ADDRESS_SOURCES = Object.freeze([
     nameField: 'PRKPLCE_NM',
     minimumRows: 17_500,
     maximumRows: 20_000,
-    minimumValidScopedRows: 1_500,
+    minimumValidScopedRows: 1_360,
+    minimumValidScopedRowsByCity: { daegu: 977, sejong: 91, ulsan: 344 },
+    minimumLatestSourceDate: '2026-05-01',
     recordIdFields: ['PRKPLCE_NO'],
   }),
   standardSource({
@@ -101,7 +109,9 @@ export const HOST_ADDRESS_SOURCES = Object.freeze([
     nameField: 'MRKT_NM',
     minimumRows: 1_250,
     maximumRows: 1_550,
-    minimumValidScopedRows: 140,
+    minimumValidScopedRows: 135,
+    minimumValidScopedRowsByCity: { daegu: 89, sejong: 3, ulsan: 37 },
+    minimumLatestSourceDate: '2025-11-01',
     recordKeyFields: ['MRKT_NM'],
     eligibilityRules: [{
       field: 'PBLIC_TOILET_YN',
@@ -118,7 +128,9 @@ export const HOST_ADDRESS_SOURCES = Object.freeze([
     lotAddressField: '',
     minimumRows: 3_300,
     maximumRows: 3_900,
-    minimumValidScopedRows: 370,
+    minimumValidScopedRows: 350,
+    minimumValidScopedRowsByCity: { daegu: 216, sejong: 21, ulsan: 114 },
+    minimumLatestSourceDate: '2026-06-01',
     recordKeyFields: ['LBRRY_NM', 'CTPRVN_NM', 'SIGNGU_NM'],
   }),
   standardSource({
@@ -129,7 +141,9 @@ export const HOST_ADDRESS_SOURCES = Object.freeze([
     nameField: 'FCLTY_NM',
     minimumRows: 950,
     maximumRows: 1_250,
-    minimumValidScopedRows: 40,
+    minimumValidScopedRows: 36,
+    minimumValidScopedRowsByCity: { daegu: 34, sejong: 1, ulsan: 3 },
+    minimumLatestSourceDate: '2026-06-01',
     recordKeyFields: ['FCLTY_NM'],
   }),
   standardSource({
@@ -140,7 +154,9 @@ export const HOST_ADDRESS_SOURCES = Object.freeze([
     nameField: 'OPEN_LC_NM',
     minimumRows: 6_800,
     maximumRows: 8_000,
-    minimumValidScopedRows: 350,
+    minimumValidScopedRows: 330,
+    minimumValidScopedRowsByCity: { daegu: 231, sejong: 52, ulsan: 48 },
+    minimumLatestSourceDate: '2026-06-01',
     recordKeyFields: ['OPEN_LC_NM', 'OPEN_FCLTY_NM'],
   }),
   Object.freeze({
@@ -156,7 +172,9 @@ export const HOST_ADDRESS_SOURCES = Object.freeze([
     minimumRows: 16,
     maximumRows: 20,
     minimumSourceDate: '2025-01-01',
+    minimumLatestSourceDate: '2025-08-01',
     minimumValidScopedRows: 16,
+    minimumValidScopedRowsByCity: Object.freeze({ seoul: 16 }),
     allowedCityKeys: ['seoul'],
     district: '용산구',
     providerNameFixed: '서울특별시 용산구',
@@ -265,7 +283,7 @@ export const REVIEWED_HOST_ADDRESS_POINT_IDS = new Set([
 ]);
 
 export const REVIEWED_HOST_ADDRESS_POINT_FINGERPRINT =
-  'cfbab17fef9d3e6341ecf644e08577702eb3cb208e8f1f8088bcfba8c52d95fc';
+  '57d951743cc08a69d1bc0ccd88c8f710f7ed24128a5c153fb936fc131b353b3f';
 
 export const REVIEWED_HOST_ADDRESS_POINT_GROUPS = Object.freeze({
   'national-standard-host': Object.freeze({
@@ -282,7 +300,7 @@ export const REVIEWED_HOST_ADDRESS_POINT_GROUPS = Object.freeze({
     uniquePointCount: 82,
     cities: Object.freeze({ daegu: 35, sejong: 12, ulsan: 35 }),
     expectedIdsHash: '3b659336899ee2c14b593c23a9f96b09e5adc998e232795e58bf7621911f8a67',
-    reviewedTupleHash: '5d599ef66e1d85476a185f962ffe67273bfd2777a89d9e6d3a19ab8fd68f93a6',
+    reviewedTupleHash: '8e33cacdb095690f4a1db3cc671e39f10d606f0dc1b0ceef22900cc1ab5b1019',
   }),
   'yongsan-municipal-host': Object.freeze({
     sourceIds: Object.freeze(['yongsan-community-center-host-points']),
@@ -291,7 +309,7 @@ export const REVIEWED_HOST_ADDRESS_POINT_GROUPS = Object.freeze({
     uniquePointCount: 5,
     cities: Object.freeze({ seoul: 5 }),
     expectedIdsHash: '195a6647d729713802c348776b5526e2a596fdf060e0b0381bb0d3921c16843b',
-    reviewedTupleHash: '85ded22ef289bf869d0615b08857ca10a935bfe67764023d7e22a74c7544650b',
+    reviewedTupleHash: '948d7e0c3a1b4f1da95b1d5ac99ffd74980c10256b7bc37adc54d69a4f73b341',
   }),
 });
 
@@ -526,6 +544,10 @@ async function checkedJson(fetchImpl, url) {
 
 export async function downloadStandardHostRows(source, options = {}) {
   const fetchImpl = options.fetchImpl || fetch;
+  const pageSize = Number(options.pageSize || STANDARD_PAGE_SIZE);
+  if (!Number.isInteger(pageSize) || pageSize < 1) {
+    throw new Error(`${source.id}: 페이지 크기가 올바르지 않습니다.`);
+  }
   const metadataUrl = new URL('/download/columList.json', DATA_GO_BASE_URL);
   metadataUrl.searchParams.set('pk', source.publicDataPk);
   metadataUrl.searchParams.set('ext', 'JSON');
@@ -564,13 +586,13 @@ export async function downloadStandardHostRows(source, options = {}) {
     throw new Error(`${source.id}: 표준데이터 요청 컬럼을 확인할 수 없습니다.`);
   }
 
-  const pageCount = Math.ceil(totalCount / STANDARD_PAGE_SIZE);
+  const pageCount = Math.ceil(totalCount / pageSize);
   const pages = await Promise.all(Array.from({ length: pageCount }, async (_, index) => {
     const url = new URL('/download/standard.json', DATA_GO_BASE_URL);
     url.searchParams.set('publicDataPk', source.publicDataPk);
     url.searchParams.set('totalCount', String(totalCount));
     url.searchParams.set('svcTableNm', source.serviceTableName);
-    url.searchParams.set('perPage', String(STANDARD_PAGE_SIZE));
+    url.searchParams.set('perPage', String(pageSize));
     url.searchParams.set('page', String(index + 1));
     for (const column of requestColumns) url.searchParams.append('colNmList', column);
     const rows = await checkedJson(fetchImpl, url);
@@ -578,8 +600,8 @@ export async function downloadStandardHostRows(source, options = {}) {
       throw new Error(`${source.id}: ${index + 1}페이지 응답이 배열이 아닙니다.`);
     }
     const expectedPageCount = index + 1 < pageCount
-      ? STANDARD_PAGE_SIZE
-      : totalCount - (STANDARD_PAGE_SIZE * index);
+      ? pageSize
+      : totalCount - (pageSize * index);
     if (rows.length !== expectedPageCount) {
       throw new Error(
         `${source.id}: ${index + 1}페이지 ${rows.length}행이 예상 ${expectedPageCount}행과 다릅니다.`,
@@ -725,9 +747,12 @@ export function normalizeHostRows(rows, source, options = {}) {
           ...lotAddressKeys,
         ],
     ));
-    const recordFingerprint = stableHash(
-      `${sourceRecordKey}|${latitude.toFixed(7)}|${longitude.toFixed(7)}|${rowSourceDate}`,
-    );
+    const recordFingerprint = hostRecordFingerprint({
+      sourceRecordKey,
+      latitude,
+      longitude,
+      sourceDate: rowSourceDate,
+    });
 
     items.push({
       sourceRowNumber: index + 2,
@@ -760,8 +785,9 @@ export function normalizeHostRows(rows, source, options = {}) {
     );
   }
   const sourceDate = items.map(item => item.sourceDate).sort().at(-1) || fallbackSourceDate;
-  if (!sourceDate || sourceDate < source.minimumSourceDate) {
-    throw new Error(`${source.id}: 최신 기준일이 ${source.minimumSourceDate}보다 오래됐습니다.`);
+  const minimumLatestSourceDate = source.minimumLatestSourceDate || source.minimumSourceDate;
+  if (!sourceDate || sourceDate < minimumLatestSourceDate) {
+    throw new Error(`${source.id}: 최신 기준일이 ${minimumLatestSourceDate}보다 오래됐습니다.`);
   }
   const itemBySourceRecordKey = new Map();
   const sourceRecordKeysByExternalId = new Map();
@@ -787,6 +813,22 @@ export function normalizeHostRows(rows, source, options = {}) {
   }
   const externalRecordIdCollisionCount = [...sourceRecordKeysByExternalId.values()]
     .filter(keys => keys.size > 1).length;
+  const matchableItems = [...itemBySourceRecordKey.values()];
+  const validScopedRowsByCity = {};
+  for (const item of matchableItems) {
+    validScopedRowsByCity[item.cityKey] = (validScopedRowsByCity[item.cityKey] || 0) + 1;
+  }
+  for (const [cityKey, minimum] of Object.entries(
+    source.minimumValidScopedRowsByCity || {},
+  )) {
+    const actual = Number(validScopedRowsByCity[cityKey] || 0);
+    if (actual < Number(minimum)) {
+      throw new Error(
+        `${source.id}: ${cityKey} 관할 유효 고유행 ${actual}건이 `
+        + `검토 기준 최소 ${minimum}건보다 적습니다.`,
+      );
+    }
+  }
 
   return {
     source,
@@ -801,7 +843,8 @@ export function normalizeHostRows(rows, source, options = {}) {
     ineligibleHostCount,
     duplicateRecordKeyCount,
     externalRecordIdCollisionCount,
-    items: [...itemBySourceRecordKey.values()],
+    validScopedRowsByCity,
+    items: matchableItems,
   };
 }
 
@@ -840,6 +883,24 @@ function coordinateKey(item) {
   return `${Number(item.lat).toFixed(7)},${Number(item.lng).toFixed(7)}`;
 }
 
+export function hostRecordFingerprint(record) {
+  const sourceRecordKey = asText(record?.sourceRecordKey);
+  const latitude = Number(record?.latitude ?? record?.lat);
+  const longitude = Number(record?.longitude ?? record?.lng);
+  const sourceDate = asText(record?.sourceDate);
+  if (
+    !sourceRecordKey
+    || !Number.isFinite(latitude)
+    || !Number.isFinite(longitude)
+    || !sourceDate
+  ) {
+    throw new Error('호스트 원천 레코드 지문 필드가 불완전합니다.');
+  }
+  return stableHash(
+    `${sourceRecordKey}|${latitude.toFixed(7)}|${longitude.toFixed(7)}|${sourceDate}`,
+  );
+}
+
 function sourceSummary(dataset) {
   return {
     id: dataset.source.id,
@@ -848,10 +909,13 @@ function sourceSummary(dataset) {
     sourceUrl: dataset.source.sourceUrl,
     sourceDate: dataset.sourceDate,
     license: dataset.source.license,
-    licenseUrl: dataset.source.licenseUrl,
+    termsUrl: dataset.source.termsUrl,
     rawCount: dataset.rawCount,
     scopedRowCount: dataset.scopedRowCount,
     validCoordinateCount: dataset.validCoordinateCount,
+    validScopedRowsByCity: dataset.validScopedRowsByCity,
+    minimumValidScopedRowsByCity: dataset.source.minimumValidScopedRowsByCity,
+    minimumLatestSourceDate: dataset.source.minimumLatestSourceDate,
     staleOrMissingDateCount: dataset.staleOrMissingDateCount,
     invalidCoordinateCount: dataset.invalidCoordinateCount,
     missingIdentityCount: dataset.missingIdentityCount,
@@ -910,7 +974,7 @@ function proposalEvidence(proposal, primary) {
     sourceUrl: proposal.source.sourceUrl,
     sourceDate: proposal.host.sourceDate,
     sourceLicense: proposal.source.license,
-    sourceLicenseUrl: proposal.source.licenseUrl,
+    sourceTermsUrl: proposal.source.termsUrl,
     sourceRecordKey: proposal.host.sourceRecordKey,
     externalRecordId: proposal.host.externalRecordId,
     recordFingerprint: proposal.host.recordFingerprint,
@@ -945,7 +1009,21 @@ function reviewedTuple(item) {
     Number(item.lat).toFixed(7),
     Number(item.lng).toFixed(7),
     [...(item.corroboratingSourceIds || [])].sort().join(','),
+    corroboratingRecordsReviewFingerprint(item.corroboratingRecords),
   ].join('|');
+}
+
+function corroboratingRecordsReviewFingerprint(records) {
+  const tuples = (records || []).map(record => [
+    asText(record?.sourceId),
+    asText(record?.sourceRecordKey),
+    asText(record?.matchedAddressKey),
+    asText(record?.addressMatchMode),
+    asText(record?.matchMode),
+    Number(record?.lat).toFixed(7),
+    Number(record?.lng).toFixed(7),
+  ].join('|')).sort();
+  return stableHash(tuples.join('\n'));
 }
 
 export function hostAddressPointReviewFingerprint(items) {
@@ -1112,7 +1190,7 @@ export function matchHostAddressPoints(
       sourceUrl: chosen.source.sourceUrl,
       sourceDate: chosen.host.sourceDate,
       sourceLicense: chosen.source.license,
-      sourceLicenseUrl: chosen.source.licenseUrl,
+      sourceTermsUrl: chosen.source.termsUrl,
       sourceAddress: originalAddressForKey(chosen.host, chosen.matchedAddressKey)
         || chosen.host.roadAddresses[0]
         || chosen.host.lotAddresses[0],
@@ -1189,6 +1267,22 @@ export function assertHostAddressPointDrift(result, options = {}) {
   if (actualIds.size !== (result?.items || []).length) {
     throw new Error('공식 호스트 시설 주소점 중앙 관리번호가 중복됐습니다.');
   }
+  if (
+    Number(result?.total) !== (result?.items || []).length
+    || Number(result?.coverageGainCount)
+      !== (result?.items || []).filter(item => item.coverageGain).length
+    || Number(result?.uniquePointCount)
+      !== new Set((result?.items || []).map(coordinateKey)).size
+  ) {
+    throw new Error('공식 호스트 시설 주소점 저장 합계가 실제 결과와 다릅니다.');
+  }
+  const recalculatedReviewFingerprint = hostAddressPointReviewFingerprint(result?.items || []);
+  if (result?.reviewFingerprint !== recalculatedReviewFingerprint) {
+    throw new Error(
+      `공식 호스트 시설 주소점 저장 검토 지문 ${result?.reviewFingerprint || '없음'}이 `
+      + `실제 지문 ${recalculatedReviewFingerprint}과 다릅니다.`,
+    );
+  }
   const missing = [...expectedIds].filter(id => !actualIds.has(id));
   const unexpected = [...actualIds].filter(id => !expectedIds.has(id));
   if (missing.length > 0 || unexpected.length > 0) {
@@ -1223,9 +1317,9 @@ export function assertHostAddressPointDrift(result, options = {}) {
     : usesDefaultReview
       ? REVIEWED_HOST_ADDRESS_POINT_FINGERPRINT
       : null;
-  if (expectedFingerprint && result?.reviewFingerprint !== expectedFingerprint) {
+  if (expectedFingerprint && recalculatedReviewFingerprint !== expectedFingerprint) {
     throw new Error(
-      `공식 호스트 시설 주소점 검토 지문 ${result?.reviewFingerprint || '없음'}이 `
+      `공식 호스트 시설 주소점 검토 지문 ${recalculatedReviewFingerprint}이 `
       + `승인 지문 ${expectedFingerprint}과 다릅니다.`,
     );
   }
@@ -1244,6 +1338,44 @@ export function assertHostAddressPointDrift(result, options = {}) {
     }
     for (const [groupId, expected] of Object.entries(expectedGroups)) {
       const actual = actualGroups.get(groupId);
+      const groupItems = (result?.items || [])
+        .filter(item => item.sourceGroupId === groupId);
+      const recalculatedCities = {};
+      for (const item of groupItems) {
+        recalculatedCities[item.cityKey] = (recalculatedCities[item.cityKey] || 0) + 1;
+      }
+      const recalculatedSourceIds = (result?.sources || [])
+        .filter(source => source.sourceGroupId === groupId)
+        .map(source => source.id)
+        .sort();
+      const recalculated = {
+        total: groupItems.length,
+        coverageGainCount: groupItems.filter(item => item.coverageGain).length,
+        uniquePointCount: new Set(groupItems.map(coordinateKey)).size,
+        expectedIdsHash: stableHash(groupItems.map(item => item.id).sort().join('\n')),
+        reviewedTupleHash: hostAddressPointReviewFingerprint(groupItems),
+        cities: recalculatedCities,
+        sourceIds: recalculatedSourceIds,
+      };
+      for (const field of [
+        'total',
+        'coverageGainCount',
+        'uniquePointCount',
+        'expectedIdsHash',
+        'reviewedTupleHash',
+      ]) {
+        if (String(actual?.[field]) !== String(recalculated[field])) {
+          throw new Error(`공식 호스트 시설 주소점 ${groupId} 저장 ${field}가 실제 결과와 다릅니다.`);
+        }
+      }
+      if (
+        JSON.stringify([...(actual?.sourceIds || [])].sort())
+          !== JSON.stringify(recalculated.sourceIds)
+        || JSON.stringify(Object.entries(actual?.cities || {}).sort())
+          !== JSON.stringify(Object.entries(recalculated.cities).sort())
+      ) {
+        throw new Error(`공식 호스트 시설 주소점 ${groupId} 저장 출처 또는 도시 집합이 다릅니다.`);
+      }
       for (const field of [
         'total',
         'coverageGainCount',
@@ -1269,6 +1401,58 @@ export function assertHostAddressPointDrift(result, options = {}) {
   if (!usesDefaultReview && options.validateProvenance !== true) return;
 
   const sourceById = new Map((result?.sources || []).map(source => [String(source.id), source]));
+  if (usesDefaultReview) {
+    const expectedSourceIds = HOST_ADDRESS_SOURCES.map(source => source.id).sort();
+    const actualSourceIds = [...sourceById.keys()].sort();
+    if (
+      sourceById.size !== (result?.sources || []).length
+      || JSON.stringify(actualSourceIds) !== JSON.stringify(expectedSourceIds)
+    ) {
+      throw new Error('공식 호스트 시설 주소점 저장 출처 집합이 코드 검토 기준과 다릅니다.');
+    }
+    for (const expectedSource of HOST_ADDRESS_SOURCES) {
+      const actualSource = sourceById.get(expectedSource.id);
+      if (
+        !actualSource
+        || asText(actualSource.minimumLatestSourceDate)
+          !== asText(expectedSource.minimumLatestSourceDate)
+        || JSON.stringify(Object.entries(
+          actualSource.minimumValidScopedRowsByCity || {},
+        ).sort())
+          !== JSON.stringify(Object.entries(
+            expectedSource.minimumValidScopedRowsByCity || {},
+          ).sort())
+      ) {
+        throw new Error(
+          `공식 호스트 시설 주소점 ${expectedSource.id} 저장 완전성 게이트가 `
+          + '코드 검토 기준과 다릅니다.',
+        );
+      }
+    }
+  }
+  for (const source of sourceById.values()) {
+    const validRowsByCity = source.validScopedRowsByCity || {};
+    const validRowsByCityTotal = Object.values(validRowsByCity)
+      .reduce((sum, value) => sum + Number(value || 0), 0);
+    if (validRowsByCityTotal !== Number(source.matchableRecordCount)) {
+      throw new Error(`공식 호스트 시설 주소점 ${source.id} 도시별 유효행 합계가 다릅니다.`);
+    }
+    for (const [cityKey, minimum] of Object.entries(
+      source.minimumValidScopedRowsByCity || {},
+    )) {
+      if (Number(validRowsByCity[cityKey] || 0) < Number(minimum)) {
+        throw new Error(
+          `공식 호스트 시설 주소점 ${source.id} ${cityKey} 유효행이 최소치보다 적습니다.`,
+        );
+      }
+    }
+    if (
+      asText(source.minimumLatestSourceDate)
+      && asText(source.sourceDate) < asText(source.minimumLatestSourceDate)
+    ) {
+      throw new Error(`공식 호스트 시설 주소점 ${source.id} 최신 기준일이 최소치보다 오래됐습니다.`);
+    }
+  }
   if (usesDefaultReview) {
     const actualPrimaryCounts = Object.fromEntries(
       [...sourceById].map(([id, source]) => [id, Number(source.acceptedTargetCount || 0)]),
@@ -1308,6 +1492,8 @@ export function assertHostAddressPointDrift(result, options = {}) {
     if (
       chosenEvidence.length !== 1
       || chosenEvidence[0].sourceRecordKey !== item.sourceRecordKey
+      || chosenEvidence[0].recordFingerprint !== item.recordFingerprint
+      || chosenEvidence[0].sourceDate !== item.sourceDate
       || chosenEvidence[0].matchedAddressKey !== item.matchedAddressKey
       || Number(chosenEvidence[0].lat) !== Number(item.lat)
       || Number(chosenEvidence[0].lng) !== Number(item.lng)
@@ -1317,14 +1503,62 @@ export function assertHostAddressPointDrift(result, options = {}) {
     const records = Array.isArray(item.corroboratingRecords)
       ? item.corroboratingRecords
       : [];
-    const recordKeys = records.map(record => record.sourceRecordKey);
+    const recordKeys = records.map(record =>
+      `${asText(record.sourceId)}|${asText(record.sourceRecordKey)}`
+    );
+    const invalidRecord = records.find(record => {
+      const latitude = Number(record.lat);
+      const longitude = Number(record.lng);
+      const recordedDistance = Number(record.distanceFromPrimaryMeters);
+      const actualDistance = Math.round(Math.hypot(
+        (latitude - Number(item.lat)) * 111_000,
+        (longitude - Number(item.lng)) * 90_000,
+      ) * 10) / 10;
+      let expectedFingerprint = '';
+      try {
+        expectedFingerprint = hostRecordFingerprint(record);
+      } catch {
+        return true;
+      }
+      return (
+        !sourceById.has(asText(record.sourceId))
+        || !asText(record.sourceRecordKey)
+        || !asText(record.recordFingerprint)
+        || !asText(record.matchedAddressKey)
+        || !Number.isFinite(latitude)
+        || !Number.isFinite(longitude)
+        || !Number.isFinite(recordedDistance)
+        || recordedDistance > MATCH_DISTANCE_METERS
+        || Math.abs(recordedDistance - actualDistance) > 0.05
+        || record.recordFingerprint !== expectedFingerprint
+      );
+    });
+    const primaryRecords = records.filter(record =>
+      asText(record.sourceId) === asText(item.sourceId)
+      && record.sourceRecordKey === item.sourceRecordKey
+      && record.recordFingerprint === item.recordFingerprint
+      && record.sourceDate === item.sourceDate
+      && record.matchedAddressKey === item.matchedAddressKey
+      && Number(record.lat) === Number(item.lat)
+      && Number(record.lng) === Number(item.lng)
+    );
+    const sourceEvidenceMissingFromRecords = sourceEvidence.some(evidence =>
+      !records.some(record =>
+        asText(record.sourceId) === asText(evidence.sourceId)
+        && record.sourceRecordKey === evidence.sourceRecordKey
+        && record.recordFingerprint === evidence.recordFingerprint
+        && record.sourceDate === evidence.sourceDate
+        && record.matchedAddressKey === evidence.matchedAddressKey
+        && Number(record.lat) === Number(evidence.lat)
+        && Number(record.lng) === Number(evidence.lng)
+      )
+    );
     if (
       records.length === 0
       || new Set(recordKeys).size !== recordKeys.length
-      || records.some(record =>
-        !sourceById.has(String(record.sourceId))
-        || Number(record.distanceFromPrimaryMeters) > MATCH_DISTANCE_METERS
-      )
+      || invalidRecord
+      || primaryRecords.length !== 1
+      || sourceEvidenceMissingFromRecords
     ) {
       throw new Error(`공식 호스트 시설 주소점 원천 레코드 근거가 불완전합니다: ${item.id}`);
     }
