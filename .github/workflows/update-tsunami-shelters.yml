@@ -2,7 +2,7 @@ name: Update Tsunami Shelter Data
 
 on:
   schedule:
-    - cron: '37 1 * * 2'
+    - cron: '37 1 * * *'
   workflow_dispatch:
     inputs:
       source_date:
@@ -34,6 +34,9 @@ jobs:
         run: test -n "$TSUNAMI_SHELTER_API_KEY" || { echo "TSUNAMI_SHELTER_API_KEY secret is required"; exit 1; }
         env:
           TSUNAMI_SHELTER_API_KEY: ${{ secrets.TSUNAMI_SHELTER_API_KEY }}
+
+      - name: Test tsunami data integrity
+        run: node --test scripts/tsunami-data-integrity.test.mjs
 
       - name: Sync tsunami shelter data
         run: node scripts/sync-tsunami-shelters.js

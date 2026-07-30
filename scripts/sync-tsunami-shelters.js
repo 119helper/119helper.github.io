@@ -1,6 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  fingerprintTsunamiShelters,
+  TSUNAMI_CONTENT_HASH_ALGORITHM,
+} from './tsunami-data-integrity.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_PATH = path.join(__dirname, '..', 'public', 'data', 'tsunami.json');
@@ -90,10 +94,12 @@ async function fetchSourceMetadata() {
   });
   if (!response.ok) throw new Error(`지진해일 메타데이터 HTTP ${response.status}`);
   const metadata = await response.json();
-  const sourceDate = SOURCE_DATE_OVERRIDE || kstDateFromMilliseconds(metadata.updtymd);
+  const officialSourceDate = kstDateFromMilliseconds(metadata.updtymd);
+  const sourceDate = SOURCE_DATE_OVERRIDE || officialSourceDate;
   if (!sourceDate) throw new Error('안전데이터 상세에서 데이터 갱신일(updtymd)을 읽지 못했습니다.');
   return {
     sourceDate,
+    officialSourceDate,
     sourceDateSource: SOURCE_DATE_OVERRIDE
       ? 'workflow manual override'
       : '재난안전데이터공유플랫폼 상세 메타데이터 updtymd',
@@ -125,6 +131,10 @@ function updateManifest(stats, generatedAt, metadata) {
     sourceContact: metadata.contact,
     interfaceId: metadata.interfaceId,
     generatedAt,
+    verifiedAt: generatedAt,
+    verificationMethod: 'official-api-full-row-scan',
+    contentHashAlgorithm: TSUNAMI_CONTENT_HASH_ALGORITHM,
+    contentSha256: stats.contentSha256,
     maxAgeDays: 90,
     coverageScope: 'covered-regions-official-api',
     completenessStatus: stats.uniqueTotal === ANNOUNCED_TOTAL ? 'complete' : 'upstream-mismatch',
@@ -150,7 +160,7 @@ async function main() {
   const allItems = [];
   const seen = new Set();
   let rawTotal = 0;
-  const metadata = await fetchSourceMetadata();
+  const metadataBeforeFetch = await fetchSourceMetadata();
 
   for (let pageNo = 1; ; pageNo += 1) {
     const items = await fetchPage(pageNo);
@@ -164,6 +174,14 @@ async function main() {
     console.log(`지진해일 대피소 ${pageNo}페이지: 누적 ${allItems.length.toLocaleString()}건`);
     if (items.length < NUM_OF_ROWS) break;
     await delay(150);
+  }
+
+  const metadata = await fetchSourceMetadata();
+  if (metadata.officialSourceDate !== metadataBeforeFetch.officialSourceDate) {
+    throw new Error(
+      `지진해일 원본 갱신일이 전수 조회 중 ${metadataBeforeFetch.officialSourceDate}에서 `
+      + `${metadata.officialSourceDate}로 바뀌어 파일을 보존합니다.`,
+    );
   }
 
   const previousItems = fs.existsSync(OUTPUT_PATH)
@@ -198,6 +216,7 @@ async function main() {
     activeTotal: allItems.filter(item => item.USE_AT === 'Y').length,
     duplicateCount: rawTotal - allItems.length,
     regionCounts,
+    contentSha256: fingerprintTsunamiShelters(allItems),
   };
   fs.writeFileSync(OUTPUT_PATH, JSON.stringify(allItems), 'utf8');
   updateManifest(stats, generatedAt, metadata);

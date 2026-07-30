@@ -3,6 +3,10 @@ import {
   assertHostAddressPointDrift,
   REVIEWED_HOST_ADDRESS_POINT_FINGERPRINT,
 } from './restroom-host-address-points.mjs';
+import {
+  fingerprintTsunamiShelters,
+  TSUNAMI_CONTENT_HASH_ALGORITHM,
+} from './tsunami-data-integrity.mjs';
 
 const REQUEST_TIMEOUT_MS = 20_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -625,6 +629,18 @@ async function auditStaticCompleteness() {
     throw new Error(
       `지진해일: 파일 ${Array.isArray(tsunamiItems) ? tsunamiItems.length : '배열 아님'}건과 `
       + `manifest ${tsunamiTotal}건이 다릅니다.`,
+    );
+  }
+  if (tsunami.contentHashAlgorithm !== TSUNAMI_CONTENT_HASH_ALGORITHM) {
+    throw new Error(
+      `지진해일: contentHashAlgorithm이 ${TSUNAMI_CONTENT_HASH_ALGORITHM}이 아닙니다.`,
+    );
+  }
+  const tsunamiContentSha256 = fingerprintTsunamiShelters(tsunamiItems);
+  if (tsunami.contentSha256 !== tsunamiContentSha256) {
+    throw new Error(
+      `지진해일: 파일 지문 ${tsunamiContentSha256}과 manifest 지문 `
+      + `${tsunami.contentSha256 || '없음'}이 다릅니다.`,
     );
   }
   for (const field of ['rawTotal', 'uniqueTotal', 'activeTotal']) {

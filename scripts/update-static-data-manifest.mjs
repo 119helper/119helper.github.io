@@ -1,6 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  fingerprintTsunamiShelters,
+  TSUNAMI_CONTENT_HASH_ALGORITHM,
+} from './tsunami-data-integrity.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -138,6 +142,8 @@ manifest.datasets.tsunami = {
   activeTotal: tsunamiActiveTotal,
   duplicateCount: tsunamiRawTotal - tsunamiItems.length,
   regionCounts: tsunamiRegionCounts,
+  contentHashAlgorithm: TSUNAMI_CONTENT_HASH_ALGORITHM,
+  contentSha256: fingerprintTsunamiShelters(tsunamiItems),
   countDelta,
   reconciliationStatus: countDelta === 0 ? 'matched' : 'upstream-mismatch',
 };
