@@ -1,4 +1,8 @@
 import { readFile } from 'node:fs/promises';
+import {
+  assertHostAddressPointDrift,
+  REVIEWED_HOST_ADDRESS_POINT_FINGERPRINT,
+} from './restroom-host-address-points.mjs';
 
 const REQUEST_TIMEOUT_MS = 20_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -11,11 +15,18 @@ const RESTROOM_ADDRESS_POINT_REGRESSION = Object.freeze({
   reviewedNewMatchCount: 5,
   reviewedAliasRepairCount: 3,
 });
+const RESTROOM_HOST_ADDRESS_POINT_REGRESSION = Object.freeze({
+  total: 87,
+  coverageGainCount: 87,
+  repairCount: 0,
+  uniquePointCount: 87,
+});
 const ALLOWED_ADDRESS_POINT_MATCH_METHODS = new Set([
   'unique-exact-road-address+building-name-corroboration',
   'unique-exact-road-address+reviewed-building-name-variant',
   'invalid-legacy-coordinate+unique-exact-road-address+building-name-corroboration',
   'invalid-legacy-coordinate+unique-exact-road-address+reviewed-building-alias',
+  'unique-exact-road-or-lot-address+host-name-containment+coordinate-consistent-proposals',
 ]);
 
 async function fetchText(url) {
@@ -240,6 +251,7 @@ async function auditStaticCompleteness() {
     restroomRegionalCoordinateText,
     restroomAddressPointText,
     restroomAddressPointIndexText,
+    restroomHostAddressPointText,
   ] = await Promise.all([
     readFile(new URL('../public/data/manifest.json', import.meta.url), 'utf8'),
     readFile(new URL('../public/data/tsunami.json', import.meta.url), 'utf8'),
@@ -247,6 +259,7 @@ async function auditStaticCompleteness() {
     readFile(new URL('../public/data/restroom-official-regional-coordinates.json', import.meta.url), 'utf8'),
     readFile(new URL('../public/data/restroom-official-address-points.json', import.meta.url), 'utf8'),
     readFile(new URL('../public/data/restroom-address-points/busan/index.json', import.meta.url), 'utf8'),
+    readFile(new URL('../public/data/restroom-official-host-address-points.json', import.meta.url), 'utf8'),
   ]);
   const datasets = JSON.parse(manifestText).datasets ?? {};
 
@@ -323,6 +336,7 @@ async function auditStaticCompleteness() {
     baseAddressPointCount !== geocodedAddressPointCount + legacySharedAddressPointCount
     || addressPointCount !== baseAddressPointCount
       + RESTROOM_ADDRESS_POINT_REGRESSION.total
+      + RESTROOM_HOST_ADDRESS_POINT_REGRESSION.total
   ) {
     throw new Error(
       '공중화장실: 기본 주소점 출처별 합계 또는 공식 주소점 결합 합계가 다릅니다.',
@@ -500,11 +514,108 @@ async function auditStaticCompleteness() {
       throw new Error(`공중화장실: 주소 대표점 overlay ${field}가 ${expected}와 다릅니다.`);
     }
   }
+
+  const restroomHostAddressPoints = JSON.parse(restroomHostAddressPointText);
+  const officialHostAddressPointItems = Array.isArray(restroomHostAddressPoints.items)
+    ? restroomHostAddressPoints.items
+    : [];
+  for (const [field, expected] of Object.entries(RESTROOM_HOST_ADDRESS_POINT_REGRESSION)) {
+    if (numberField(
+      restroomHostAddressPoints[field],
+      `화장실 공식 호스트 주소 대표점 ${field}`,
+    ) !== expected) {
+      throw new Error(
+        `공중화장실: 공식 호스트 주소 대표점 ${field}가 검토 기준 ${expected}와 다릅니다.`,
+      );
+    }
+  }
+  if (officialHostAddressPointItems.length !== RESTROOM_HOST_ADDRESS_POINT_REGRESSION.total) {
+    throw new Error('공중화장실: 공식 호스트 주소 대표점 원장이 87건이 아닙니다.');
+  }
+  assertHostAddressPointDrift(restroomHostAddressPoints);
+  if (
+    officialHostAddressPointItems.some(item => officialAddressPointIds.has(String(item.id)))
+  ) {
+    throw new Error('공중화장실: 부산 주소 대표점과 호스트 주소 대표점 ID가 겹칩니다.');
+  }
+  if (
+    numberField(restrooms.hostAddressPointCount, '화장실 호스트 주소 대표점 manifest 합계')
+      !== RESTROOM_HOST_ADDRESS_POINT_REGRESSION.total
+    || numberField(
+      restrooms.hostAddressPointCoverageGainCount,
+      '화장실 호스트 주소 대표점 manifest 신규 합계',
+    ) !== RESTROOM_HOST_ADDRESS_POINT_REGRESSION.coverageGainCount
+    || numberField(
+      restrooms.hostAddressUniquePointCount,
+      '화장실 호스트 주소 대표점 manifest 고유 좌표 합계',
+    ) !== RESTROOM_HOST_ADDRESS_POINT_REGRESSION.uniquePointCount
+    || numberField(
+      restrooms.nationalStandardHostAddressPointCount,
+      '전국 표준 호스트 주소 대표점 manifest 합계',
+    ) !== 82
+    || numberField(
+      restrooms.municipalHostAddressPointCount,
+      '용산 지자체 호스트 주소 대표점 manifest 합계',
+    ) !== 5
+    || restrooms.hostAddressPointReviewFingerprint
+      !== REVIEWED_HOST_ADDRESS_POINT_FINGERPRINT
+    || JSON.stringify(restrooms.hostAddressPointGroups)
+      !== JSON.stringify(restroomHostAddressPoints.groups)
+  ) {
+    throw new Error('공중화장실: 공식 호스트 주소 대표점 manifest 그룹·지문 합계가 다릅니다.');
+  }
+  const hostOverlays = new Map(
+    (restrooms.addressPointOverlays ?? []).map(overlay => [String(overlay.id), overlay]),
+  );
+  let hostOverlayGainTotal = 0;
+  for (const source of restroomHostAddressPoints.sources ?? []) {
+    const overlay = hostOverlays.get(String(source.id));
+    const scopedRowAccounting = Number(source.validCoordinateCount || 0)
+      + Number(source.staleOrMissingDateCount || 0)
+      + Number(source.invalidCoordinateCount || 0)
+      + Number(source.missingIdentityCount || 0)
+      + Number(source.outOfDistrictCount || 0)
+      + Number(source.ineligibleHostCount || 0);
+    const matchAccounting = Number(source.unmatchedCount || 0)
+      + Number(source.ambiguousAddressCount || 0)
+      + Number(source.nameMismatchCount || 0)
+      + Number(source.proposalCount || 0);
+    if (
+      !overlay
+      || scopedRowAccounting !== Number(source.scopedRowCount)
+      || Number(source.validCoordinateCount) - Number(source.duplicateRecordKeyCount)
+        !== Number(source.matchableRecordCount)
+      || matchAccounting !== Number(source.matchableRecordCount)
+      || overlay.sourceGroupId !== source.sourceGroupId
+      || numberField(overlay.sourceTotal, `${source.id} 원본 합계`) !== Number(source.rawCount)
+      || numberField(overlay.validCoordinateCount, `${source.id} 유효 좌표 합계`)
+        !== Number(source.validCoordinateCount)
+      || numberField(overlay.matchableRecordCount, `${source.id} 매칭 레코드 합계`)
+        !== Number(source.matchableRecordCount)
+      || numberField(overlay.duplicateRecordKeyCount, `${source.id} 중복 레코드 합계`)
+        !== Number(source.duplicateRecordKeyCount)
+      || numberField(overlay.externalRecordIdCollisionCount, `${source.id} 원본 ID 충돌 합계`)
+        !== Number(source.externalRecordIdCollisionCount)
+      || numberField(overlay.ineligibleHostCount, `${source.id} 부적격 호스트 합계`)
+        !== Number(source.ineligibleHostCount)
+      || numberField(overlay.matchedCount, `${source.id} 제안 합계`)
+        !== Number(source.proposalCount)
+      || numberField(overlay.coverageGainCount, `${source.id} 채택 합계`)
+        !== Number(source.acceptedTargetCount)
+    ) {
+      throw new Error(`공중화장실: 호스트 주소 대표점 ${source.id} manifest 집계가 다릅니다.`);
+    }
+    hostOverlayGainTotal += Number(overlay.coverageGainCount);
+  }
+  if (hostOverlayGainTotal !== RESTROOM_HOST_ADDRESS_POINT_REGRESSION.coverageGainCount) {
+    throw new Error('공중화장실: 호스트 주소 대표점 원천별 신규 합계가 87건이 아닙니다.');
+  }
   console.log(
     `${restroomMissingCoordinates > 0 ? 'WARN' : 'PASS'} static-completeness restrooms `
     + `mapped=${restroomTotal} supported=${restroomSupportedTotal} missingCoordinates=${restroomMissingCoordinates} `
     + `coverage=${coordinateCoverage.toFixed(1)}% officialRegional=${regionalCoordinateTotal} `
-    + `officialAddressPoints=${officialAddressPointItems.length}`,
+    + `officialAddressPoints=${officialAddressPointItems.length} `
+    + `hostAddressPoints=${officialHostAddressPointItems.length}`,
   );
 
   const tsunami = datasets.tsunami ?? {};
@@ -611,6 +722,7 @@ async function auditStaticCompleteness() {
   console.log(`PASS static-completeness firewater supportedCities=${firewaterCities.length}`);
 }
 
+await auditStaticCompleteness();
 await Promise.all([
   auditAnnualFire(),
   auditNfaFireYearbook(),
@@ -621,5 +733,4 @@ await Promise.all([
   auditFireDamageCoverage(),
 ]);
 await reportStaticSourceAge();
-await auditStaticCompleteness();
 console.log('Official data freshness audit completed.');

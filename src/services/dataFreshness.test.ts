@@ -48,22 +48,25 @@ describe('getDatasetCompletenessNotices', () => {
       sourceDate: '2026-07-27',
       generatedAt: '2026-07-28T00:00:00.000Z',
       maxAgeDays: 30,
-      total: 11_654,
-      supportedCityTotal: 17_323,
-      missingCoordinateCount: 5_669,
+      total: 11_845,
+      supportedCityTotal: 17_341,
+      missingCoordinateCount: 5_496,
       supportedCityCount: 9,
-      facilityCoordinateCount: 10_679,
-      addressPointCount: 975,
+      facilityCoordinateCount: 10_783,
+      addressPointCount: 1_062,
       legacyGeocodedAddressPointCount: 698,
       legacySharedAddressPointCount: 42,
       officialAddressPointCount: 235,
       officialAddressPointRepairCount: 13,
+      hostAddressPointCount: 87,
+      nationalStandardHostAddressPointCount: 82,
+      municipalHostAddressPointCount: 5,
     })).toEqual([{
       tone: 'warning',
-      text: '지원 9개 도시 전체 원본 17,323곳 중 지도 표시 11,654곳 (67.3%) · 시설 좌표 10,679곳 · 주소 대표점 975곳 · 좌표 미확인 5,669곳',
+      text: '지원 9개 도시 전체 원본 17,341곳 중 지도 표시 11,845곳 (68.3%) · 시설 좌표 10,783곳 · 주소 대표점 1,062곳 · 좌표 미확인 5,496곳',
     }, {
       tone: 'warning',
-      text: '주소 대표점 975곳 · 기존 주소 지오코딩 698 · 동일 주소 이전 공식 좌표 42 · 부산 공식 도로명주소 235 (기존 오류 좌표 13곳 교정 포함) · 실제 화장실 위치나 출입구와 다를 수 있음',
+      text: '주소 대표점 1,062곳 · 기존 주소 지오코딩 698 · 동일 주소 이전 공식 좌표 42 · 부산 공식 도로명주소 235 · 전국 표준 호스트 시설 82 · 용산 지자체 호스트 시설 5 (기존 오류 좌표 13곳 교정 포함) · 실제 화장실 위치나 출입구와 다를 수 있음',
     }]);
 
     expect(getDatasetCompletenessNotices({
@@ -124,18 +127,40 @@ describe('getDatasetCompletenessNotices', () => {
       sourceDate: '2026-07-27',
       generatedAt: '2026-07-30',
       maxAgeDays: 30,
-      regionalCoordinateCount: 993,
-      regionalCoordinateCoverageGainCount: 990,
+      regionalCoordinateCount: 1_097,
+      regionalCoordinateCoverageGainCount: 1_094,
       regionalCoordinateUpgradeCount: 3,
       coordinateOverlays: [
         {
           id: 'seoul-oa-22586-restrooms',
           label: '서울특별시',
-          sourceDate: '2026-07-29',
+          sourceDate: '2026-07-30',
           sourceTotal: 4_411,
-          matchedCount: 1_329,
-          coverageGainCount: 601,
+          matchedCount: 1_601,
+          exactMatchedCount: 1_329,
+          addressNameContainedMatchedCount: 272,
+          coverageGainCount: 664,
           precisionUpgradeCount: 3,
+        },
+        {
+          id: 'seoul-metro-station-restrooms',
+          label: '서울 지하철 1~8호선',
+          sourceDate: '2026-02-12',
+          sourceTotal: 304,
+          matchedCount: 15,
+          exactMatchedCount: 0,
+          addressNameContainedMatchedCount: 15,
+          coverageGainCount: 15,
+        },
+        {
+          id: 'daejeon-seogu-open-restrooms',
+          label: '대전 서구',
+          sourceDate: '2026-05-18',
+          sourceTotal: 129,
+          matchedCount: 26,
+          exactMatchedCount: 26,
+          addressNameContainedMatchedCount: 0,
+          coverageGainCount: 26,
         },
         {
           id: 'jeju-city-public-restrooms',
@@ -166,7 +191,7 @@ describe('getDatasetCompletenessNotices', () => {
 
     expect(notices).toContainEqual({
       tone: 'info',
-      text: '공식 지역 시설 좌표 보충 990곳 · 주소 대표점에서 시설 좌표로 개선 3곳 · 서울특별시 601 · 제주시 326 · 동래구 39 · 부산 갈맷길 24',
+      text: '공식 지역 시설 좌표 보충 1,094곳 · 주소 대표점에서 시설 좌표로 개선 3곳 · 서울특별시 664 · 서울 지하철 1~8호선 15 · 대전 서구 26 · 제주시 326 · 동래구 39 · 부산 갈맷길 24',
     });
   });
 });

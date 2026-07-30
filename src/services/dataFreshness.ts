@@ -22,6 +22,9 @@ export interface DatasetFreshness {
   legacySharedAddressPointCount?: number;
   officialAddressPointCount?: number;
   officialAddressPointRepairCount?: number;
+  hostAddressPointCount?: number;
+  nationalStandardHostAddressPointCount?: number;
+  municipalHostAddressPointCount?: number;
   cities?: Record<string, number>;
   regionCounts?: Record<string, number>;
   coverageScope?: string;
@@ -61,8 +64,13 @@ export interface CoordinateDatasetOverlay {
   sourceDate: string;
   sourceTotal: number;
   matchedCount: number;
+  exactMatchedCount?: number;
+  addressNameContainedMatchedCount?: number;
   coverageGainCount: number;
   precisionUpgradeCount?: number;
+  addressNameMismatchCount?: number;
+  consistentDuplicateRegionalRowCount?: number;
+  consistentDuplicateRegionalTargetCount?: number;
   sourceUrl?: string;
 }
 
@@ -225,6 +233,14 @@ export function getDatasetCompletenessNotices(meta: DatasetFreshness): DatasetCo
         : null,
       typeof meta.officialAddressPointCount === 'number'
         ? `부산 공식 도로명주소 ${meta.officialAddressPointCount.toLocaleString()}`
+        : null,
+      typeof meta.nationalStandardHostAddressPointCount === 'number'
+        ? `전국 표준 호스트 시설 ${meta.nationalStandardHostAddressPointCount.toLocaleString()}`
+        : null,
+      typeof meta.municipalHostAddressPointCount === 'number'
+        ? `용산 지자체 호스트 시설 ${meta.municipalHostAddressPointCount.toLocaleString()}`
+        : typeof meta.hostAddressPointCount === 'number'
+          ? `공식 호스트 시설 ${meta.hostAddressPointCount.toLocaleString()}`
         : null,
     ].filter(Boolean);
     notices.push({

@@ -16,6 +16,9 @@
       "minimumSourceDate": "2026-01-01",
       "minimumRows": 4000,
       "maximumRows": 5000,
+      "allowUniqueAddressNameContainment": true,
+      "uniqueAddressNameMinimumLength": 4,
+      "consistentCoordinateTolerance": 1e-7,
       "latitudeRange": [
         37.4,
         37.75
@@ -25,6 +28,22 @@
         127.25
       ],
       "license": "공공누리 제1유형",
+      "summaryGates": {
+        "minimum": {
+          "validCoordinateCount": 4300,
+          "exactMatchedCount": 1200,
+          "addressNameContainedMatchedCount": 200
+        },
+        "maximum": {
+          "invalidCoordinateCount": 10,
+          "outOfScopeCount": 10,
+          "missingIdentityCount": 10,
+          "ambiguousNationalMatchCount": 300,
+          "ambiguousAddressMatchCount": 300,
+          "addressNameMismatchCount": 450,
+          "duplicateRegionalMatchCount": 30
+        }
+      },
       "fieldMap": {
         "name": [
           "건물명",
@@ -47,6 +66,137 @@
           "COORD_X"
         ],
         "sourceDate": []
+      }
+    },
+    {
+      "id": "seoul-metro-station-restrooms",
+      "enabled": true,
+      "downloadKind": "data-go-file",
+      "publicDataPk": "15044453",
+      "publicDataDetailPk": "uddi:4189de50-12db-4ae2-a9ca-dfb4d2e25101",
+      "label": "서울교통공사 역사공중화장실정보",
+      "displayLabel": "서울 지하철 1~8호선",
+      "cityKey": "seoul",
+      "city": "서울특별시",
+      "district": "",
+      "sourceUrl": "https://www.data.go.kr/data/15044453/fileData.do",
+      "encoding": "euc-kr",
+      "minimumSourceDate": "2026-01-01",
+      "minimumRowSourceDate": "2026-01-01",
+      "requireSourceDateForEveryValidRow": true,
+      "minimumRows": 300,
+      "maximumRows": 320,
+      "nameSuffix": "역",
+      "allowUniqueAddressNameContainment": true,
+      "uniqueAddressNameMinimumLength": 3,
+      "consistentCoordinateTolerance": 1e-7,
+      "latitudeRange": [
+        37.4,
+        37.75
+      ],
+      "longitudeRange": [
+        126.7,
+        127.25
+      ],
+      "license": "이용허락범위 제한 없음",
+      "summaryGates": {
+        "minimum": {
+          "validCoordinateCount": 280,
+          "addressNameContainedMatchedCount": 12
+        },
+        "maximum": {
+          "invalidCoordinateCount": 5,
+          "outOfScopeCount": 20,
+          "missingIdentityCount": 5,
+          "unmatchedCount": 260,
+          "ambiguousNationalMatchCount": 2,
+          "ambiguousAddressMatchCount": 20,
+          "addressNameMismatchCount": 5,
+          "duplicateRegionalMatchCount": 15
+        }
+      },
+      "fieldMap": {
+        "name": [
+          "역명"
+        ],
+        "roadAddress": [
+          "소재지도로명주소"
+        ],
+        "lotAddress": [
+          "소재지지번주소"
+        ],
+        "latitude": [
+          "위도"
+        ],
+        "longitude": [
+          "경도"
+        ],
+        "sourceDate": [
+          "데이터기준일자"
+        ]
+      }
+    },
+    {
+      "id": "daejeon-seogu-open-restrooms",
+      "enabled": true,
+      "downloadKind": "public-json-api",
+      "label": "대전광역시 서구 개방화장실현황",
+      "displayLabel": "대전 서구",
+      "cityKey": "daejeon",
+      "city": "대전광역시",
+      "district": "서구",
+      "sourceUrl": "https://www.data.go.kr/data/15108145/openapi.do",
+      "downloadUrl": "https://www.seogu.go.kr/seoguAPI/3660000/getOpnTilt",
+      "apiPageSize": 1000,
+      "successResultCodes": [
+        "C00"
+      ],
+      "minimumSourceDate": "2026-01-01",
+      "minimumRowSourceDate": "2026-01-01",
+      "requireSourceDateForEveryRow": true,
+      "minimumRows": 100,
+      "maximumRows": 180,
+      "latitudeRange": [
+        36.15,
+        36.5
+      ],
+      "longitudeRange": [
+        127.2,
+        127.55
+      ],
+      "license": "이용허락범위 제한 없음",
+      "summaryGates": {
+        "minimum": {
+          "validCoordinateCount": 120,
+          "exactMatchedCount": 20
+        },
+        "maximum": {
+          "invalidCoordinateCount": 10,
+          "outOfScopeCount": 2,
+          "missingIdentityCount": 2,
+          "ambiguousNationalMatchCount": 2,
+          "duplicateRegionalMatchCount": 2
+        }
+      },
+      "fieldMap": {
+        "name": [
+          "buld_nm"
+        ],
+        "roadAddress": [
+          "rn_adrs"
+        ],
+        "lotAddress": [
+          "lnm_adrs"
+        ],
+        "latitude": [
+          "la"
+        ],
+        "longitude": [
+          "lo"
+        ],
+        "sourceDate": [
+          "data_stdr_de"
+        ]
       }
     },
     {
@@ -73,6 +223,19 @@
         127.3
       ],
       "license": "이용허락범위 제한 없음",
+      "summaryGates": {
+        "minimum": {
+          "validCoordinateCount": 450,
+          "exactMatchedCount": 300
+        },
+        "maximum": {
+          "invalidCoordinateCount": 30,
+          "outOfScopeCount": 5,
+          "missingIdentityCount": 5,
+          "ambiguousNationalMatchCount": 5,
+          "duplicateRegionalMatchCount": 5
+        }
+      },
       "fieldMap": {
         "name": [
           "화장실 명"
@@ -118,6 +281,19 @@
         129.16
       ],
       "license": "이용허락범위 제한 없음",
+      "summaryGates": {
+        "minimum": {
+          "validCoordinateCount": 90,
+          "exactMatchedCount": 30
+        },
+        "maximum": {
+          "invalidCoordinateCount": 50,
+          "outOfScopeCount": 10,
+          "missingIdentityCount": 5,
+          "ambiguousNationalMatchCount": 5,
+          "duplicateRegionalMatchCount": 5
+        }
+      },
       "fieldMap": {
         "name": [
           "화장실명"
@@ -166,6 +342,19 @@
         129.35
       ],
       "license": "이용허락범위 제한 없음",
+      "summaryGates": {
+        "minimum": {
+          "validCoordinateCount": 180,
+          "exactMatchedCount": 50
+        },
+        "maximum": {
+          "invalidCoordinateCount": 5,
+          "outOfScopeCount": 5,
+          "missingIdentityCount": 5,
+          "ambiguousNationalMatchCount": 5,
+          "duplicateRegionalMatchCount": 5
+        }
+      },
       "shapefileFieldIndexes": {
         "name": 0,
         "roadAddress": 1,

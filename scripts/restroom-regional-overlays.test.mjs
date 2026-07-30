@@ -4,8 +4,10 @@ import test from 'node:test';
 import {
   decodeCsv,
   downloadSourceCsv,
+  downloadSourceRows,
   loadRestroomRegionalSourceRegistry,
   matchOfficialRegionalCoordinates,
+  normalizeAddress,
   normalizeRegionalRows,
   parseCsv,
   rowsFromShapefileGeoJson,
@@ -47,6 +49,10 @@ test('CP949 bytes and quoted CSV fields are decoded and parsed', () => {
     parseCsv('\uFEFF"name","note"\r\n"시설, 1","첫 줄\n둘째 줄"\r\n'),
     [{ name: '시설, 1', note: '첫 줄\n둘째 줄' }],
   );
+  assert.equal(
+    normalizeAddress('서울 영등포구 도림로 264'),
+    normalizeAddress('서울특별시 영등포구 도림로 264'),
+  );
 });
 
 test('the registered official source field maps normalize names, addresses, dates, and coordinates', () => {
@@ -67,6 +73,36 @@ test('the registered official source field maps normalize names, addresses, date
   assert.equal(seoul.items[0].name, '서울 시설');
   assert.equal(seoul.items[0].longitude, 126.978);
   assert.equal(seoul.sourceDate, '2026-07-29');
+
+  const metro = normalizeRegionalRows([{
+    역명: '시청',
+    소재지도로명주소: '서울특별시 중구 세종대로 지하101(정동)',
+    소재지지번주소: '서울특별시 중구 정동 5-5 시청역(1호선)',
+    위도: '37.565682',
+    경도: '126.976849',
+    데이터기준일자: '2026-02-12',
+  }, {
+    역명: '종각역',
+    소재지도로명주소: '서울특별시 종로구 종로 지하55(종로1가)',
+    소재지지번주소: '서울특별시 종로구 종로1가 54 종각역(1호선)',
+    위도: '37.570161',
+    경도: '126.982923',
+    데이터기준일자: '2026-02-12',
+  }], byId.get('seoul-metro-station-restrooms'));
+  assert.deepEqual(metro.items.map(item => item.name), ['시청역', '종각역']);
+  assert.equal(metro.sourceDate, '2026-02-12');
+
+  const daejeon = normalizeRegionalRows([{
+    buld_nm: '대전 시설',
+    rn_adrs: '대전광역시 서구 둔산로 1',
+    lnm_adrs: '대전광역시 서구 둔산동 1',
+    la: '36.35',
+    lo: '127.38',
+    data_stdr_de: '2026-05-18',
+  }], byId.get('daejeon-seogu-open-restrooms'));
+  assert.equal(daejeon.items[0].name, '대전 시설');
+  assert.equal(daejeon.items[0].longitude, 127.38);
+  assert.equal(daejeon.sourceDate, '2026-05-18');
 
   const jeju = normalizeRegionalRows([{
     '화장실 명': '제주 시설',
@@ -125,6 +161,56 @@ test('the registered official source field maps normalize names, addresses, date
   assert.equal(galmaetgil.items[0].name, '광안리해수욕장 생활문화센터(지하) 공중화장실');
   assert.equal(galmaetgil.items[0].latitude, 35.15377436);
   assert.equal(galmaetgil.sourceDate, '2025-10-30');
+});
+
+test('row-level source dates reject a mostly stale dataset with one recent row', () => {
+  const source = testSource({
+    minimumRows: 2,
+    minimumRowSourceDate: '2026-01-01',
+    requireSourceDateForEveryRow: true,
+  });
+  const row = {
+    name: '시설',
+    road: '서울특별시 종로구 세종대로 1',
+    lot: '',
+    lat: '37.566',
+    lng: '126.978',
+    date: '2026-07-29',
+  };
+
+  assert.throws(
+    () => normalizedDataset([row, { ...row, date: '2025-12-31' }], source),
+    /가장 오래된 행 기준일 2025-12-31이 최소 2026-01-01보다 오래됐습니다/,
+  );
+});
+
+test('valid-row source date checks ignore rejected artifacts but reject usable undated rows', () => {
+  const source = testSource({
+    minimumRows: 2,
+    requireSourceDateForEveryValidRow: true,
+  });
+  const dated = {
+    name: '시설',
+    road: '서울특별시 종로구 세종대로 1',
+    lot: '',
+    lat: '37.566',
+    lng: '126.978',
+    date: '2026-07-29',
+  };
+  const emptyArtifact = {
+    name: '',
+    road: '',
+    lot: '',
+    lat: '',
+    lng: '',
+    date: '',
+  };
+
+  assert.doesNotThrow(() => normalizedDataset([dated, emptyArtifact], source));
+  assert.throws(
+    () => normalizedDataset([dated, { ...dated, name: '다른 시설', date: '' }], source),
+    /유효한 원본 행 중 기준일을 확인할 수 없는 행이 있습니다/,
+  );
 });
 
 test('SHP field order drift is rejected when property and geometry coordinates disagree', () => {
@@ -314,6 +400,184 @@ test('many regional rows for one central ID are all rejected', () => {
   assert.equal(result.sources[0].duplicateRegionalTargetCount, 1);
 });
 
+test('reviewed source summary gates reject silent matching regressions', () => {
+  const source = testSource({
+    summaryGates: {
+      minimum: { exactMatchedCount: 2 },
+    },
+  });
+  const dataset = normalizedDataset([{
+    name: '검증 시설',
+    road: '서울특별시 종로구 검증로 1',
+    lot: '',
+    lat: '37.56',
+    lng: '126.98',
+    date: '2026-07-29',
+  }], source);
+  const national = [{
+    MNG_NO: 'N-1',
+    RSTRM_NM: '검증 시설',
+    LCTN_ROAD_NM_ADDR: '서울특별시 종로구 검증로 1',
+    LCTN_LOTNO_ADDR: '',
+  }];
+
+  assert.throws(
+    () => matchOfficialRegionalCoordinates(national, [dataset]),
+    /exactMatchedCount 1건이 검토 기준 최소 2건보다 적습니다/,
+  );
+});
+
+test('unique exact address plus contained names is opt-in and accepts coordinate-consistent duplicates', () => {
+  const source = testSource({
+    allowUniqueAddressNameContainment: true,
+    uniqueAddressNameMinimumLength: 4,
+  });
+  const row = {
+    name: '광화문 공중화장실 화장실',
+    road: '서울특별시 종로구 세종대로 1',
+    lot: '',
+    lat: '37.566',
+    lng: '126.978',
+    date: '2026-07-29',
+  };
+  const national = [{
+    MNG_NO: 'N-1',
+    RSTRM_NM: '광화문 공중화장실',
+    LCTN_ROAD_NM_ADDR: '서울특별시 종로구 세종대로 1',
+    LCTN_LOTNO_ADDR: '',
+  }];
+
+  const disabled = matchOfficialRegionalCoordinates(
+    national,
+    [normalizedDataset([row])],
+  );
+  assert.equal(disabled.total, 0);
+  assert.equal(disabled.sources[0].unmatchedCount, 1);
+
+  const enabled = matchOfficialRegionalCoordinates(
+    national,
+    [normalizedDataset([row, { ...row }], source)],
+  );
+  assert.equal(enabled.total, 1);
+  assert.equal(enabled.items[0].matchMethod, 'unique-exact-address+normalized-name-containment');
+  assert.equal(enabled.sources[0].addressNameContainedMatchedCount, 1);
+  assert.equal(enabled.sources[0].consistentDuplicateRegionalRowCount, 1);
+  assert.equal(enabled.sources[0].consistentDuplicateRegionalTargetCount, 1);
+});
+
+test('source name suffix enables short station names without lowering the containment gate', () => {
+  const source = testSource({
+    nameSuffix: '역',
+    allowUniqueAddressNameContainment: true,
+    uniqueAddressNameMinimumLength: 3,
+  });
+  const dataset = normalizedDataset([{
+    name: '시청',
+    road: '서울특별시 중구 세종대로 지하101(정동)',
+    lot: '',
+    lat: '37.565682',
+    lng: '126.976849',
+    date: '2026-02-12',
+  }], source);
+  const national = [{
+    MNG_NO: 'N-1',
+    RSTRM_NM: '시청역(1)',
+    LCTN_ROAD_NM_ADDR: '서울특별시 중구 세종대로 지하101(정동)',
+    LCTN_LOTNO_ADDR: '',
+  }];
+
+  const result = matchOfficialRegionalCoordinates(national, [dataset]);
+
+  assert.equal(dataset.items[0].name, '시청역');
+  assert.equal(result.total, 1);
+  assert.equal(result.items[0].sourceName, '시청역');
+  assert.equal(result.items[0].matchMethod, 'unique-exact-address+normalized-name-containment');
+});
+
+test('unique-address fallback rejects name mismatches and addresses spanning central IDs', () => {
+  const source = testSource({ allowUniqueAddressNameContainment: true });
+  const national = [
+    {
+      MNG_NO: 'N-1',
+      RSTRM_NM: '광화문 공중화장실',
+      LCTN_ROAD_NM_ADDR: '서울특별시 종로구 세종대로 1',
+      LCTN_LOTNO_ADDR: '',
+    },
+    {
+      MNG_NO: 'N-2',
+      RSTRM_NM: '을지로 공중화장실',
+      LCTN_ROAD_NM_ADDR: '',
+      LCTN_LOTNO_ADDR: '서울특별시 중구 을지로동 10',
+    },
+  ];
+  const dataset = normalizedDataset([
+    {
+      name: '전혀 다른 시설',
+      road: '서울특별시 종로구 세종대로 1',
+      lot: '',
+      lat: '37.566',
+      lng: '126.978',
+      date: '2026-07-29',
+    },
+    {
+      name: '공중화장실 안내시설',
+      road: '서울특별시 종로구 세종대로 1',
+      lot: '서울특별시 중구 을지로동 10',
+      lat: '37.566',
+      lng: '126.978',
+      date: '2026-07-29',
+    },
+    {
+      name: '광장 화장실',
+      road: '서울특별시 종로구 광장로 1',
+      lot: '',
+      lat: '37.566',
+      lng: '126.978',
+      date: '2026-07-29',
+    },
+  ], source);
+  national.push({
+    MNG_NO: 'N-3',
+    RSTRM_NM: '광장',
+    LCTN_ROAD_NM_ADDR: '서울특별시 종로구 광장로 1',
+    LCTN_LOTNO_ADDR: '',
+  });
+
+  const result = matchOfficialRegionalCoordinates(national, [dataset]);
+
+  assert.equal(result.total, 0);
+  assert.equal(result.sources[0].addressNameMismatchCount, 2);
+  assert.equal(result.sources[0].ambiguousAddressMatchCount, 1);
+});
+
+test('unique-address fallback rejects duplicate regional coordinates that disagree', () => {
+  const source = testSource({ allowUniqueAddressNameContainment: true });
+  const row = {
+    name: '광화문 공중화장실 화장실',
+    road: '서울특별시 종로구 세종대로 1',
+    lot: '',
+    lat: '37.566',
+    lng: '126.978',
+    date: '2026-07-29',
+  };
+  const dataset = normalizedDataset([
+    row,
+    { ...row, lat: '37.5662' },
+  ], source);
+  const national = [{
+    MNG_NO: 'N-1',
+    RSTRM_NM: '광화문 공중화장실',
+    LCTN_ROAD_NM_ADDR: '서울특별시 종로구 세종대로 1',
+    LCTN_LOTNO_ADDR: '',
+  }];
+
+  const result = matchOfficialRegionalCoordinates(national, [dataset]);
+
+  assert.equal(result.total, 0);
+  assert.equal(result.sources[0].duplicateRegionalMatchCount, 2);
+  assert.equal(result.sources[0].duplicateRegionalTargetCount, 1);
+});
+
 test('coordinates outside the declared jurisdiction and addresses outside scope are rejected', () => {
   const source = testSource({
     cityKey: 'busan',
@@ -395,4 +659,68 @@ test('Seoul CSV uses the official POST form and data.go follows the current cont
 
   assert.match(dataGo.text, /^name,road/);
   assert.equal(dataGoCalls[1].url, currentFile);
+});
+
+test('public JSON API download is keyless, complete, and fail-closed on row counts', async () => {
+  const calls = [];
+  const source = {
+    ...testSource(),
+    id: 'public-json-download',
+    downloadKind: 'public-json-api',
+    downloadUrl: 'https://example.test/open-api',
+    apiPageSize: 1000,
+    successResultCodes: ['C00'],
+  };
+  const row = {
+    name: '시설',
+    road: '서울특별시 종로구 세종대로 1',
+    lot: '',
+    lat: 37.566,
+    lng: 126.978,
+    date: '2026-07-29',
+  };
+  const fetchImpl = async (url, init = {}) => {
+    calls.push({ url: String(url), init });
+    return Response.json({
+      response: {
+        header: { resultCode: 'C00', resultMsg: 'NORMAL SERVICE' },
+        body: { totalCnt: 1, items: [row] },
+      },
+    });
+  };
+
+  const result = await downloadSourceRows(source, { fetchImpl });
+
+  assert.deepEqual(result.rows, [row]);
+  assert.match(calls[0].url, /pageNo=1/);
+  assert.match(calls[0].url, /numOfRows=1000/);
+
+  await assert.rejects(
+    () => downloadSourceRows(source, {
+      fetchImpl: async () => Response.json({
+        response: {
+          header: { resultCode: 'C00', resultMsg: 'NORMAL SERVICE' },
+          body: { totalCnt: 2, items: [row] },
+        },
+      }),
+    }),
+    /전체 2행을 충족하지 못했습니다/,
+  );
+  await assert.rejects(
+    () => downloadSourceRows(source, {
+      fetchImpl: async () => Response.json({
+        response: {
+          header: { resultCode: 'E01', resultMsg: 'INVALID REQUEST' },
+          body: { totalCnt: 0, items: [] },
+        },
+      }),
+    }),
+    /공개 JSON API 오류 E01 INVALID REQUEST/,
+  );
+  await assert.rejects(
+    () => downloadSourceRows(source, {
+      fetchImpl: async () => new Response('not-json'),
+    }),
+    /공개 JSON API 응답을 해석하지 못했습니다/,
+  );
 });

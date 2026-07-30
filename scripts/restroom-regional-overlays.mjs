@@ -45,6 +45,7 @@ function sourceScopeAddress(value, source) {
   if (!text) return '';
 
   text = text
+    .replace(/^서울(?=\s|$)/, '서울특별시')
     .replace(/^서울시(?=\s|$)/, '서울특별시')
     .replace(/^부산시(?=\s|$)/, '부산광역시')
     .replace(/^제주도(?=\s|$)/, '제주특별자치도');
@@ -156,13 +157,40 @@ function sourceSummary(dataset) {
     missingIdentityCount: counts('missing-identity'),
     unmatchedCount: 0,
     ambiguousNationalMatchCount: 0,
+    ambiguousAddressMatchCount: 0,
+    addressNameMismatchCount: 0,
     duplicateRegionalMatchCount: 0,
     duplicateRegionalTargetCount: 0,
+    consistentDuplicateRegionalRowCount: 0,
+    consistentDuplicateRegionalTargetCount: 0,
     exactMatchedCount: 0,
+    addressNameContainedMatchedCount: 0,
     existingCoordinateCount: 0,
     gainCount: 0,
     precisionUpgradeCount: 0,
   };
+}
+
+function assertSourceSummaryGates(source, summary) {
+  const gates = source.summaryGates || {};
+  for (const [field, minimum] of Object.entries(gates.minimum || {})) {
+    const actual = Number(summary[field]);
+    if (!Number.isFinite(actual) || actual < Number(minimum)) {
+      throw new Error(
+        `${source.id}: ${field} ${Number.isFinite(actual) ? actual : '미확인'}건이 `
+        + `검토 기준 최소 ${minimum}건보다 적습니다.`,
+      );
+    }
+  }
+  for (const [field, maximum] of Object.entries(gates.maximum || {})) {
+    const actual = Number(summary[field]);
+    if (!Number.isFinite(actual) || actual > Number(maximum)) {
+      throw new Error(
+        `${source.id}: ${field} ${Number.isFinite(actual) ? actual : '미확인'}건이 `
+        + `검토 기준 최대 ${maximum}건보다 많습니다.`,
+      );
+    }
+  }
 }
 
 function extractSeoulSourceDate(html) {
@@ -219,6 +247,51 @@ async function checkedFetch(fetchImpl, url, init = {}) {
     throw new Error(`${url}: HTTP ${response.status} ${detail}`.trim());
   }
   return response;
+}
+
+async function downloadPublicJsonApi(source, fetchImpl) {
+  const url = new URL(source.downloadUrl);
+  url.searchParams.set('pageNo', '1');
+  url.searchParams.set('numOfRows', String(source.apiPageSize || 1_000));
+  const response = await checkedFetch(fetchImpl, url, {
+    headers: {
+      Accept: 'application/json',
+      Referer: source.sourceUrl,
+      'User-Agent': '119-helper-restroom-regional-sync/1.0',
+    },
+  });
+
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error(`${source.id}: 공개 JSON API 응답을 해석하지 못했습니다.`);
+  }
+
+  const header = payload?.response?.header;
+  const body = payload?.response?.body;
+  const successCodes = source.successResultCodes || ['C00'];
+  if (!header || !successCodes.includes(String(header.resultCode ?? ''))) {
+    throw new Error(
+      `${source.id}: 공개 JSON API 오류 ${header?.resultCode ?? '미확인'} `
+      + `${header?.resultMsg ?? '응답 헤더 없음'}`,
+    );
+  }
+
+  const rows = Array.isArray(body?.items)
+    ? body.items
+    : body?.items && typeof body.items === 'object' ? [body.items] : [];
+  const totalCount = Number(body?.totalCnt);
+  if (!Number.isInteger(totalCount) || totalCount < 0) {
+    throw new Error(`${source.id}: 공개 JSON API 전체 건수가 올바르지 않습니다.`);
+  }
+  if (rows.length !== totalCount) {
+    throw new Error(
+      `${source.id}: 공개 JSON API ${rows.length}행만 받아 전체 ${totalCount}행을 충족하지 못했습니다.`,
+    );
+  }
+
+  return { rows, sourceDate: null };
 }
 
 async function dataGoDownloadUrl(source, pageHtml, cookies, fetchImpl) {
@@ -462,7 +535,11 @@ export function normalizeRegionalRows(rows, source, options = {}) {
   const rejected = [];
   const items = [];
   for (const [index, row] of rows.entries()) {
-    const name = firstField(row, source.fieldMap.name);
+    const rawName = firstField(row, source.fieldMap.name);
+    const nameSuffix = asText(source.nameSuffix);
+    const name = rawName && nameSuffix && !rawName.endsWith(nameSuffix)
+      ? `${rawName}${nameSuffix}`
+      : rawName;
     const roadAddresses = allFields(row, source.fieldMap.roadAddress)
       .map(value => sourceScopeAddress(value, source));
     const lotAddresses = allFields(row, source.fieldMap.lotAddress)
@@ -506,6 +583,31 @@ export function normalizeRegionalRows(rows, source, options = {}) {
       `${source.id}: 최신 기준일 ${sourceDate ?? '미확인'}이 최소 ${source.minimumSourceDate}보다 오래됐습니다.`,
     );
   }
+  const rowSourceDates = rows.map(row =>
+    isoDate(firstField(row, source.fieldMap.sourceDate))
+  );
+  if (
+    source.requireSourceDateForEveryRow === true
+    && rowSourceDates.some(date => !date)
+  ) {
+    throw new Error(`${source.id}: 기준일을 확인할 수 없는 원본 행이 있습니다.`);
+  }
+  if (
+    source.requireSourceDateForEveryValidRow === true
+    && items.some(item => !isoDate(item.sourceDate))
+  ) {
+    throw new Error(`${source.id}: 유효한 원본 행 중 기준일을 확인할 수 없는 행이 있습니다.`);
+  }
+  const oldestRowSourceDate = rowSourceDates.filter(Boolean).sort()[0] || null;
+  if (
+    source.minimumRowSourceDate
+    && (!oldestRowSourceDate || oldestRowSourceDate < source.minimumRowSourceDate)
+  ) {
+    throw new Error(
+      `${source.id}: 가장 오래된 행 기준일 ${oldestRowSourceDate ?? '미확인'}이 `
+      + `최소 ${source.minimumRowSourceDate}보다 오래됐습니다.`,
+    );
+  }
   return {
     source,
     sourceDate,
@@ -533,6 +635,7 @@ export function matchOfficialRegionalCoordinates(
     const source = dataset.source;
     const summary = summaries.get(source.id);
     const nationalByKey = new Map();
+    const nationalByAddress = new Map();
     const nationalById = new Map();
 
     for (const rawItem of nationalItems) {
@@ -548,6 +651,10 @@ export function matchOfficialRegionalCoordinates(
         if (!key) continue;
         if (!nationalByKey.has(key)) nationalByKey.set(key, new Set());
         nationalByKey.get(key).add(item.id);
+
+        const addressKey = normalizeAddress(address, source);
+        if (!nationalByAddress.has(addressKey)) nationalByAddress.set(addressKey, new Set());
+        nationalByAddress.get(addressKey).add(item.id);
       }
     }
 
@@ -561,7 +668,55 @@ export function matchOfficialRegionalCoordinates(
         for (const id of nationalByKey.get(key) || []) candidateIds.add(id);
       }
       if (candidateIds.size === 0) {
-        summary.unmatchedCount += 1;
+        if (source.allowUniqueAddressNameContainment !== true) {
+          summary.unmatchedCount += 1;
+          continue;
+        }
+
+        const addressCandidateIds = new Set();
+        for (const address of regionalItem.addresses) {
+          const addressKey = normalizeAddress(address, source);
+          if (!addressKey) continue;
+          for (const id of nationalByAddress.get(addressKey) || []) {
+            addressCandidateIds.add(id);
+          }
+        }
+        if (addressCandidateIds.size === 0) {
+          summary.unmatchedCount += 1;
+          continue;
+        }
+        if (addressCandidateIds.size !== 1) {
+          summary.ambiguousAddressMatchCount += 1;
+          continue;
+        }
+
+        const targetId = [...addressCandidateIds][0];
+        const nationalItem = nationalById.get(targetId);
+        const nationalName = normalizeName(nationalItem.name);
+        const regionalName = normalizeName(regionalItem.name);
+        const minimumNameLength = source.uniqueAddressNameMinimumLength ?? 4;
+        if (
+          Math.min(nationalName.length, regionalName.length) < minimumNameLength
+          || (!nationalName.includes(regionalName) && !regionalName.includes(nationalName))
+        ) {
+          summary.addressNameMismatchCount += 1;
+          continue;
+        }
+
+        const matchedAddress = regionalItem.addresses.find(address =>
+          nationalByAddress.get(normalizeAddress(address, source))?.has(targetId)
+        ) || regionalItem.addresses[0];
+        const matchedAddressKey = normalizeAddress(matchedAddress, source);
+        proposals.push({
+          source,
+          summary,
+          regionalItem,
+          nationalItem,
+          targetId,
+          matchedAddress,
+          matchedKey: `${nationalName}~${regionalName}|${matchedAddressKey}`,
+          matchMethod: 'unique-exact-address+normalized-name-containment',
+        });
         continue;
       }
       if (candidateIds.size !== 1) {
@@ -583,6 +738,7 @@ export function matchOfficialRegionalCoordinates(
         targetId,
         matchedKey,
         matchedAddress,
+        matchMethod: 'normalized-name+exact-road-or-lot-address',
       });
     }
   }
@@ -595,18 +751,43 @@ export function matchOfficialRegionalCoordinates(
 
   const items = [];
   for (const targetProposals of proposalsByTarget.values()) {
+    let proposal;
     if (targetProposals.length !== 1) {
-      for (const proposal of targetProposals) {
-        proposal.summary.duplicateRegionalMatchCount += 1;
+      const firstProposal = targetProposals[0];
+      const sameSource = targetProposals.every(
+        item => item.source.id === firstProposal.source.id,
+      );
+      const fallbackOnly = targetProposals.every(
+        item => item.matchMethod === 'unique-exact-address+normalized-name-containment',
+      );
+      const tolerance = Number(firstProposal.source.consistentCoordinateTolerance ?? 1e-7);
+      const consistentCoordinates = targetProposals.every(item =>
+        Math.abs(item.regionalItem.latitude - firstProposal.regionalItem.latitude) <= tolerance
+        && Math.abs(item.regionalItem.longitude - firstProposal.regionalItem.longitude) <= tolerance
+      );
+
+      if (sameSource && fallbackOnly && consistentCoordinates) {
+        proposal = firstProposal;
+        proposal.summary.consistentDuplicateRegionalRowCount += targetProposals.length - 1;
+        proposal.summary.consistentDuplicateRegionalTargetCount += 1;
+      } else {
+        for (const duplicateProposal of targetProposals) {
+          duplicateProposal.summary.duplicateRegionalMatchCount += 1;
+        }
+        for (const summary of new Set(targetProposals.map(item => item.summary))) {
+          summary.duplicateRegionalTargetCount += 1;
+        }
+        continue;
       }
-      for (const summary of new Set(targetProposals.map(proposal => proposal.summary))) {
-        summary.duplicateRegionalTargetCount += 1;
-      }
-      continue;
+    } else {
+      [proposal] = targetProposals;
     }
 
-    const proposal = targetProposals[0];
-    proposal.summary.exactMatchedCount += 1;
+    if (proposal.matchMethod === 'normalized-name+exact-road-or-lot-address') {
+      proposal.summary.exactMatchedCount += 1;
+    } else {
+      proposal.summary.addressNameContainedMatchedCount += 1;
+    }
     const existing = existingCoordinateStatus(existingCoordinateById, proposal.targetId);
     if (existing.exists && existing.kind !== 'address_point') {
       proposal.summary.existingCoordinateCount += 1;
@@ -630,7 +811,7 @@ export function matchOfficialRegionalCoordinates(
       sourceDate: proposal.summary.sourceDate,
       sourceName: proposal.regionalItem.name,
       sourceAddress: proposal.matchedAddress,
-      matchMethod: 'normalized-name+exact-road-or-lot-address',
+      matchMethod: proposal.matchMethod,
       matchKey: proposal.matchedKey,
       coverageGain: !precisionUpgrade,
       precisionUpgrade,
@@ -638,6 +819,9 @@ export function matchOfficialRegionalCoordinates(
   }
 
   items.sort((a, b) => a.id.localeCompare(b.id));
+  for (const dataset of regionalDatasets) {
+    assertSourceSummaryGates(dataset.source, summaries.get(dataset.source.id));
+  }
   return {
     version: 1,
     total: items.length,
@@ -661,6 +845,9 @@ export async function downloadSourceCsv(source, options = {}) {
 
 export async function downloadSourceRows(source, options = {}) {
   const fetchImpl = options.fetchImpl || fetch;
+  if (source.downloadKind === 'public-json-api') {
+    return downloadPublicJsonApi(source, fetchImpl);
+  }
   if (source.downloadKind === 'data-go-shapefile') {
     return downloadDataGoShapefile(source, fetchImpl);
   }

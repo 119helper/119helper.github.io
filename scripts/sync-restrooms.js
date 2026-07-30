@@ -10,6 +10,9 @@ import {
   fetchBusanAddressPoints,
   REVIEWED_LEGACY_REPAIR_IDS,
 } from './restroom-address-points.mjs';
+import {
+  fetchOfficialHostAddressPoints,
+} from './restroom-host-address-points.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = path.join(__dirname, '..', 'public', 'data', 'restrooms');
@@ -36,6 +39,13 @@ const OFFICIAL_ADDRESS_POINT_PATH = path.join(
   'public',
   'data',
   'restroom-official-address-points.json',
+);
+const OFFICIAL_HOST_ADDRESS_POINT_PATH = path.join(
+  __dirname,
+  '..',
+  'public',
+  'data',
+  'restroom-official-host-address-points.json',
 );
 const DATA_MANIFEST_PATH = path.join(__dirname, '..', 'public', 'data', 'manifest.json');
 const BUSAN_COORDINATE_BOUNDS = {
@@ -188,6 +198,7 @@ function cleanTransitionAddress(value) {
     .normalize('NFKC')
     .trim()
     .replace(/\s+/g, ' ')
+    .replace(/^서울(?=\s|$)/, '서울특별시')
     .replace(
       new RegExp(`^광주광역시\\s+(${GWANGJU_DISTRICT_PATTERN})\\s+전남광주통합특별시\\s+\\1\\s+`),
       '전남광주통합특별시 $1 ',
@@ -496,10 +507,13 @@ function loadPreviousCoordinates() {
 }
 
 function findCity(address) {
+  const normalizedAddress = cleanTransitionAddress(address);
   for (const [cityKey, prefixes] of Object.entries(SUPPORTED_CITIES)) {
-    if (!prefixes.some(prefix => address === prefix || address.startsWith(`${prefix} `))) continue;
+    if (!prefixes.some(
+      prefix => normalizedAddress === prefix || normalizedAddress.startsWith(`${prefix} `),
+    )) continue;
     if (cityKey === 'gwangju') {
-      const district = cleanTransitionAddress(address).split(/\s+/)[1] || '';
+      const district = normalizedAddress.split(/\s+/)[1] || '';
       if (!FORMER_GWANGJU_DISTRICTS.has(district)) return null;
     }
     return cityKey;
@@ -652,11 +666,27 @@ function restroomFacilityFromAddressPoint(item, point) {
     coordinateSourceName: point.sourceName,
     coordinateSourceUrl: point.sourceUrl,
     coordinateSourceDate: point.sourceDate,
+    coordinateSourceLicense: point.sourceLicense,
+    coordinateSourceLicenseUrl: point.sourceLicenseUrl,
     coordinatePrecision: point.precision,
+    sourceGroupId: point.sourceGroupId,
     sourceAddress: point.sourceAddress,
     sourceBuildingName: point.sourceBuildingName,
     sourceBuildingUse: point.sourceBuildingUse,
+    sourceFacilityName: point.sourceFacilityName,
+    sourceProviderCode: point.sourceProviderCode,
+    sourceProviderName: point.sourceProviderName,
     sourceRowNumber: point.sourceRowNumber,
+    sourceRecordKey: point.sourceRecordKey,
+    sourceExternalRecordId: point.sourceExternalRecordId,
+    recordFingerprint: point.recordFingerprint,
+    matchedAddressKey: point.matchedAddressKey,
+    addressMatchMode: point.addressMatchMode,
+    matchMode: point.matchMode,
+    eligibilityEvidence: point.eligibilityEvidence,
+    corroboratingSources: point.corroboratingSources,
+    corroboratingSourceIds: point.corroboratingSourceIds,
+    corroboratingRecords: point.corroboratingRecords,
     matchMethod: point.matchMethod,
     matchKey: point.matchKey,
     coverageGain: point.coverageGain,
@@ -679,10 +709,12 @@ function resetAddressPointOutputDirectory() {
   fs.mkdirSync(resolvedTarget, { recursive: true });
 }
 
-function writeAddressPointOverlay(addressPointIndex, facilitiesById, generatedAt) {
+function writeAddressPointOverlay(addressPointIndexes, facilitiesById, generatedAt) {
   resetAddressPointOutputDirectory();
+  const points = addressPointIndexes.flatMap(index => index.items || []);
   const byCity = new Map();
-  for (const point of addressPointIndex.items) {
+  const pointsByCity = new Map();
+  for (const point of points) {
     const facility = facilitiesById.get(String(point.id));
     if (!facility) {
       throw new Error(`주소 대표점 ${point.id}의 중앙 공중화장실 행이 없습니다.`);
@@ -694,6 +726,8 @@ function writeAddressPointOverlay(addressPointIndex, facilitiesById, generatedAt
     const districts = byCity.get(cityKey);
     if (!districts.has(district)) districts.set(district, []);
     districts.get(district).push(facility);
+    if (!pointsByCity.has(cityKey)) pointsByCity.set(cityKey, []);
+    pointsByCity.get(cityKey).push(point);
   }
 
   for (const [cityKey, districtMap] of byCity) {
@@ -707,19 +741,33 @@ function writeAddressPointOverlay(addressPointIndex, facilitiesById, generatedAt
       total += items.length;
       fs.writeFileSync(path.join(cityDir, `${district}.json`), JSON.stringify({ items }), 'utf8');
     }
+    const cityPoints = pointsByCity.get(cityKey) || [];
+    const sourceMetadata = [...new Map(cityPoints.map(point => [point.sourceId, {
+      id: point.sourceId,
+      sourceGroupId: point.sourceGroupId,
+      name: point.sourceName,
+      sourceUrl: point.sourceUrl,
+      sourceDate: point.sourceDate,
+      license: point.sourceLicense,
+      licenseUrl: point.sourceLicenseUrl,
+    }])).values()].map(source => ({
+      ...source,
+      total: cityPoints.filter(point => point.sourceId === source.id).length,
+    }));
     fs.writeFileSync(path.join(cityDir, 'index.json'), JSON.stringify({
       total,
       districts,
       metadata: {
-        dataset: addressPointIndex.source.name,
-        sourceUrl: addressPointIndex.source.sourceUrl,
-        sourceDate: addressPointIndex.source.sourceDate,
+        dataset: '공식 주소·호스트 시설 대표점',
         generatedAt,
         coordinateKind: 'address_point',
         coordinateApproximate: true,
-        coverageGainCount: addressPointIndex.coverageGainCount,
-        repairCount: addressPointIndex.repairCount,
-        uniquePointCount: addressPointIndex.uniquePointCount,
+        coverageGainCount: cityPoints.filter(point => point.coverageGain).length,
+        repairCount: cityPoints.filter(point => point.legacyCoordinateRepair).length,
+        uniquePointCount: new Set(
+          cityPoints.map(point => `${Number(point.lat).toFixed(7)},${Number(point.lng).toFixed(7)}`),
+        ).size,
+        sources: sourceMetadata,
       },
     }), 'utf8');
   }
@@ -772,7 +820,7 @@ function updateDataManifest(metadata) {
     addressPointCount: metadata.addressPointCount,
     baseAddressPointCount: metadata.baseAddressPointCount,
     unknownCoordinateKindCount: metadata.unknownCoordinateKindCount,
-    coordinateSource: '정책 변경 전 마지막 공식 v1 WGS84 스냅샷 + 교차검증 + 공식 지자체 1:1 시설 좌표 + 별도 주소 대표점',
+    coordinateSource: '정책 변경 전 마지막 공식 v1 WGS84 스냅샷 + 교차검증 + 공식 지자체 검증 시설 좌표 + 별도 주소·호스트 시설 대표점',
     coordinateIndex: '/data/restroom-v1-coordinates.json',
     geocodeIndex: '/data/restroom-geocoded-coordinates.json',
     geocodedCount: metadata.geocodedCount,
@@ -789,7 +837,19 @@ function updateDataManifest(metadata) {
     officialAddressPointCoverageGainCount: metadata.officialAddressPointIndex.coverageGainCount,
     officialAddressPointRepairCount: metadata.officialAddressPointIndex.repairCount,
     officialAddressUniquePointCount: metadata.officialAddressPointIndex.uniquePointCount,
-    coordinateJoinPolicy: 'facility points: normalized-name+exact-road-or-lot-address; address points: unique raw road-address+building-name corroboration; jurisdiction-bounds',
+    hostAddressPointIndex: '/data/restroom-official-host-address-points.json',
+    hostAddressPointCount: metadata.hostAddressPointIndex.total,
+    hostAddressPointCoverageGainCount: metadata.hostAddressPointIndex.coverageGainCount,
+    hostAddressUniquePointCount: metadata.hostAddressPointIndex.uniquePointCount,
+    hostAddressPointGroups: metadata.hostAddressPointIndex.groups,
+    hostAddressPointReviewFingerprint: metadata.hostAddressPointIndex.reviewFingerprint,
+    nationalStandardHostAddressPointCount:
+      metadata.hostAddressPointIndex.groups
+        .find(group => group.id === 'national-standard-host')?.total || 0,
+    municipalHostAddressPointCount:
+      metadata.hostAddressPointIndex.groups
+        .find(group => group.id === 'yongsan-municipal-host')?.total || 0,
+    coordinateJoinPolicy: 'facility points: normalized-name+exact-road-or-lot-address, or opt-in unique exact address+normalized-name containment with coordinate-consistent duplicates; address points: unique raw road-address+building-name corroboration, or typed exact road/lot address+one-way host-name containment/reviewed aliases+40m-consistent official host points; traditional markets require PBLIC_TOILET_YN=Y; jurisdiction-bounds and reviewed tuple fingerprint',
     coordinateOverlays: metadata.officialRegionalIndex.sources.map(source => ({
       id: source.id,
       label: source.displayLabel
@@ -797,29 +857,57 @@ function updateDataManifest(metadata) {
       sourceDate: source.sourceDate,
       sourceTotal: source.sourceTotal,
       validCoordinateCount: source.validCoordinateCount,
-      matchedCount: source.exactMatchedCount,
+      matchedCount: source.exactMatchedCount + source.addressNameContainedMatchedCount,
+      exactMatchedCount: source.exactMatchedCount,
+      addressNameContainedMatchedCount: source.addressNameContainedMatchedCount,
       coverageGainCount: source.gainCount,
       precisionUpgradeCount: source.precisionUpgradeCount,
       existingCoordinateCount: source.existingCoordinateCount,
       invalidCoordinateCount: source.invalidCoordinateCount,
       outOfScopeCount: source.outOfScopeCount,
       ambiguousMatchCount: source.ambiguousNationalMatchCount
+        + source.ambiguousAddressMatchCount
         + source.duplicateRegionalMatchCount,
+      addressNameMismatchCount: source.addressNameMismatchCount,
+      consistentDuplicateRegionalRowCount: source.consistentDuplicateRegionalRowCount,
+      consistentDuplicateRegionalTargetCount: source.consistentDuplicateRegionalTargetCount,
       sourceUrl: source.sourceUrl,
       license: source.license,
     })),
-    addressPointOverlays: [{
-      id: metadata.officialAddressPointIndex.source.id,
-      label: metadata.officialAddressPointIndex.source.name,
-      sourceDate: metadata.officialAddressPointIndex.source.sourceDate,
-      sourceTotal: metadata.officialAddressPointIndex.source.rawCount,
-      matchedCount: metadata.officialAddressPointIndex.total,
-      coverageGainCount: metadata.officialAddressPointIndex.coverageGainCount,
-      repairCount: metadata.officialAddressPointIndex.repairCount,
-      uniquePointCount: metadata.officialAddressPointIndex.uniquePointCount,
-      sourceUrl: metadata.officialAddressPointIndex.source.sourceUrl,
-      license: metadata.officialAddressPointIndex.source.license,
-    }],
+    addressPointOverlays: [
+      {
+        id: metadata.officialAddressPointIndex.source.id,
+        label: metadata.officialAddressPointIndex.source.name,
+        sourceDate: metadata.officialAddressPointIndex.source.sourceDate,
+        sourceTotal: metadata.officialAddressPointIndex.source.rawCount,
+        matchedCount: metadata.officialAddressPointIndex.total,
+        coverageGainCount: metadata.officialAddressPointIndex.coverageGainCount,
+        repairCount: metadata.officialAddressPointIndex.repairCount,
+        uniquePointCount: metadata.officialAddressPointIndex.uniquePointCount,
+        sourceUrl: metadata.officialAddressPointIndex.source.sourceUrl,
+        license: metadata.officialAddressPointIndex.source.license,
+      },
+      ...metadata.hostAddressPointIndex.sources.map(source => ({
+        id: source.id,
+        sourceGroupId: source.sourceGroupId,
+        label: source.name,
+        sourceDate: source.sourceDate,
+        sourceTotal: source.rawCount,
+        validCoordinateCount: source.validCoordinateCount,
+        matchableRecordCount: source.matchableRecordCount,
+        duplicateRecordKeyCount: source.duplicateRecordKeyCount,
+        externalRecordIdCollisionCount: source.externalRecordIdCollisionCount,
+        ineligibleHostCount: source.ineligibleHostCount,
+        matchedCount: source.proposalCount,
+        coverageGainCount: source.acceptedTargetCount,
+        corroboratingMatchedCount: source.corroboratingAcceptedTargetCount,
+        ambiguousMatchCount: source.ambiguousAddressCount + source.coordinateConflictCount,
+        nameMismatchCount: source.nameMismatchCount,
+        sourceUrl: source.sourceUrl,
+        license: source.license,
+        licenseUrl: source.licenseUrl,
+      })),
+    ],
   };
 
   fs.writeFileSync(DATA_MANIFEST_PATH, JSON.stringify(manifest, null, 2), 'utf8');
@@ -890,6 +978,7 @@ async function main() {
     console.log(
       `${source.label}: 원본 ${source.sourceTotal.toLocaleString()}건, `
       + `엄격 일치 ${source.exactMatchedCount.toLocaleString()}건, `
+      + `유일 주소·시설명 포함 일치 ${source.addressNameContainedMatchedCount.toLocaleString()}건, `
       + `기존 좌표 ${source.existingCoordinateCount.toLocaleString()}건, `
       + `신규 ${source.gainCount.toLocaleString()}건, `
       + `주소점 개선 ${source.precisionUpgradeCount.toLocaleString()}건`,
@@ -910,14 +999,41 @@ async function main() {
     JSON.stringify(officialAddressPointIndex, null, 2),
     'utf8',
   );
-  const officialAddressPointById = new Map(
-    officialAddressPointIndex.items.map(item => [String(item.id), item]),
-  );
   console.log(
     `부산 공식 주소 대표점 ${officialAddressPointIndex.total.toLocaleString()}건 `
     + `(신규 ${officialAddressPointIndex.coverageGainCount.toLocaleString()}, `
     + `기존 오류 교정 ${officialAddressPointIndex.repairCount.toLocaleString()})을 별도 결합합니다.`,
   );
+  const hostAddressPointIndex = await fetchOfficialHostAddressPoints(
+    allItems,
+    new Set([
+      ...addressPointExistingIds,
+      ...officialAddressPointIndex.items.map(item => String(item.id)),
+    ]),
+  );
+  fs.writeFileSync(
+    OFFICIAL_HOST_ADDRESS_POINT_PATH,
+    JSON.stringify(hostAddressPointIndex, null, 2),
+    'utf8',
+  );
+  console.log(
+    `공식 호스트 시설 주소 대표점 ${hostAddressPointIndex.total.toLocaleString()}건을 `
+    + `근사 좌표로 별도 결합합니다 `
+    + `(${Object.entries(hostAddressPointIndex.cities)
+      .map(([city, count]) => `${city} ${count.toLocaleString()}`)
+      .join(', ')}).`,
+  );
+  const addressPointById = new Map();
+  for (const point of [
+    ...officialAddressPointIndex.items,
+    ...hostAddressPointIndex.items,
+  ]) {
+    const id = String(point.id);
+    if (addressPointById.has(id)) {
+      throw new Error(`주소 대표점 원장 사이에 중앙 관리번호가 중복됐습니다: ${id}`);
+    }
+    addressPointById.set(id, point);
+  }
 
   const byCity = Object.fromEntries(Object.keys(SUPPORTED_CITIES).map(key => [key, new Map()]));
   const addressPointFacilitiesById = new Map();
@@ -948,7 +1064,7 @@ async function main() {
     if (!cityKey) continue;
     supportedCityTotal += 1;
 
-    const addressPoint = officialAddressPointById.get(String(item.MNG_NO || ''));
+    const addressPoint = addressPointById.get(String(item.MNG_NO || ''));
     if (addressPoint) {
       const facility = restroomFacilityFromAddressPoint(item, addressPoint);
       addressPointFacilitiesById.set(facility.id, facility);
@@ -1017,7 +1133,7 @@ async function main() {
   const sourceDate = inferSourceDate(allItems);
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   writeAddressPointOverlay(
-    officialAddressPointIndex,
+    [officialAddressPointIndex, hostAddressPointIndex],
     addressPointFacilitiesById,
     generatedAt,
   );
@@ -1044,7 +1160,7 @@ async function main() {
         city: cityKey,
         sourceDate,
         generatedAt,
-        coordinateSource: '정책 변경 전 마지막 공식 v1 WGS84 스냅샷 + 주소 지오코딩·교차검증 + 공식 지자체 1:1 시설 좌표 보충',
+        coordinateSource: '정책 변경 전 마지막 공식 v1 WGS84 스냅샷 + 주소 지오코딩·교차검증 + 공식 지자체 검증 시설 좌표 보충',
         coordinateOverlays: officialRegionalIndex.sources
           .filter(source =>
             source.cityKey === cityKey
@@ -1083,6 +1199,7 @@ async function main() {
     researchedCount: previousCoordinates.researchedCount,
     officialRegionalIndex,
     officialAddressPointIndex,
+    hostAddressPointIndex,
   });
 
   if (GEOCODE_GAPS_PATH) {
