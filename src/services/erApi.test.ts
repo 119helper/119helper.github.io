@@ -24,9 +24,14 @@ import {
   type ERRealTimeData,
 } from './erApi';
 
+const successfulXml = (body = '<body><items /></body>') => (
+  `<response><header><resultCode>00</resultCode><resultMsg>NORMAL SERVICE.</resultMsg></header>${body}</response>`
+);
+
 describe('erApi', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    apiMocks.fetchERList.mockResolvedValue(successfulXml());
   });
 
   it('uses the post-merger official region name for Gwangju', () => {
@@ -45,14 +50,14 @@ describe('erApi', () => {
   });
 
   it('joins facility addresses before filtering merged Gwangju beds', async () => {
-    apiMocks.fetchERBeds.mockResolvedValueOnce(`<response><body><items>
+    apiMocks.fetchERBeds.mockResolvedValueOnce(successfulXml(`<body><items>
       <item><dutyName>광주병원</dutyName><hpid>GW-1</hpid><phpid>GW-1</phpid><hvec>5</hvec></item>
       <item><dutyName>목포병원</dutyName><hpid>JN-1</hpid><phpid>JN-1</phpid><hvec>7</hvec></item>
-    </items></body></response>`);
-    apiMocks.fetchERList.mockResolvedValueOnce(`<response><body><items>
+    </items></body>`));
+    apiMocks.fetchERList.mockResolvedValueOnce(successfulXml(`<body><items>
       <item><dutyName>광주병원</dutyName><hpid>GW-1</hpid><phpid>GW-1</phpid><dutyAddr>전남광주통합특별시 서구 상무대로 1</dutyAddr><wgs84Lat>35.1</wgs84Lat><wgs84Lon>126.8</wgs84Lon></item>
       <item><dutyName>목포병원</dutyName><hpid>JN-1</hpid><phpid>JN-1</phpid><dutyAddr>전남광주통합특별시 목포시 영산로 3</dutyAddr></item>
-    </items></body></response>`);
+    </items></body>`));
 
     const beds = await getERRealTimeBeds('전남광주통합특별시', '', true);
 
@@ -75,6 +80,51 @@ describe('erApi', () => {
     expect(attachFacilityInfoAndFilterBeds('전남광주통합특별시', beds, facilities)).toEqual([]);
   });
 
+  it('keeps the full merged region when the query is anchored to an incident', async () => {
+    apiMocks.fetchERBeds.mockResolvedValueOnce(successfulXml(`<body><items>
+      <item><dutyName>광주병원</dutyName><hpid>GW-1</hpid><phpid>GW-1</phpid><hvec>5</hvec></item>
+      <item><dutyName>목포병원</dutyName><hpid>JN-1</hpid><phpid>JN-1</phpid><hvec>7</hvec></item>
+    </items></body>`));
+    apiMocks.fetchERList.mockResolvedValueOnce(successfulXml(`<body><items>
+      <item><dutyName>광주병원</dutyName><hpid>GW-1</hpid><phpid>GW-1</phpid><dutyAddr>전남광주통합특별시 서구 상무대로 1</dutyAddr></item>
+      <item><dutyName>목포병원</dutyName><hpid>JN-1</hpid><phpid>JN-1</phpid><dutyAddr>전남광주통합특별시 목포시 영산로 3</dutyAddr></item>
+    </items></body>`));
+
+    const beds = await getERRealTimeBeds(
+      '전남광주통합특별시',
+      '',
+      true,
+      'incident-region',
+    );
+
+    expect(beds.map(item => item.dutyName)).toEqual(['광주병원', '목포병원']);
+  });
+
+  it('joins coordinates and phone data for ordinary regions too', async () => {
+    apiMocks.fetchERBeds.mockResolvedValueOnce(successfulXml(`<body><items>
+      <item><dutyName>서울병원</dutyName><hpid>SE-1</hpid><phpid>SE-1</phpid><hvec>4</hvec></item>
+    </items></body>`));
+    apiMocks.fetchERList.mockResolvedValueOnce(successfulXml(`<body><items>
+      <item><dutyName>서울병원</dutyName><hpid>SE-1</hpid><phpid>SE-1</phpid><dutyAddr>서울특별시 중구 테스트로 1</dutyAddr><dutyTel3>02-123-4567</dutyTel3><wgs84Lat>37.56</wgs84Lat><wgs84Lon>126.98</wgs84Lon></item>
+    </items></body>`));
+
+    await expect(getERRealTimeBeds('서울특별시')).resolves.toEqual([
+      expect.objectContaining({
+        dutyName: '서울병원',
+        dutyAddr: '서울특별시 중구 테스트로 1',
+        dutyTel3: '02-123-4567',
+        wgs84Lat: '37.56',
+        wgs84Lon: '126.98',
+      }),
+    ]);
+  });
+
+  it('rejects a status-less XML response instead of treating it as no hospitals', async () => {
+    apiMocks.fetchERBeds.mockResolvedValueOnce('<response><body><items /></body></response>');
+
+    await expect(getERRealTimeBeds('서울특별시')).rejects.toThrow('성공 상태를 확인할 수 없습니다');
+  });
+
   it('propagates a beds request failure so the UI can distinguish it from an empty result', async () => {
     apiMocks.fetchERBeds.mockRejectedValueOnce(new Error('upstream unavailable'));
 
@@ -82,7 +132,7 @@ describe('erApi', () => {
   });
 
   it('passes force refresh through to the API client', async () => {
-    apiMocks.fetchERBeds.mockResolvedValueOnce('<response><body><items /></body></response>');
+    apiMocks.fetchERBeds.mockResolvedValueOnce(successfulXml());
 
     await getERRealTimeBeds('서울특별시', '', true);
 

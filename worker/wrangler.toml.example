@@ -8,10 +8,43 @@ compatibility_flags = ["nodejs_compat"]
 
 # account_id = "YOUR_CF_ACCOUNT_ID"  # ← 본인 CF 계정 ID
 
+# 운영에 필요한 Worker secret 이름입니다. 값은 이 파일에 넣지 마세요.
+# 이 설정으로 로컬 실행할 때는 아래 이름만 .dev.vars/.env에서 로드되므로,
+# 필수 secret 전체를 선언한 상태를 유지해야 합니다.
+[secrets]
+required = [
+  "KMA_API_KEY",
+  "ER_API_KEY",
+  "AIR_API_KEY",
+  "BUILDING_API_KEY",
+  "FIRE_WATER_API_KEY",
+  "HOLIDAY_API_KEY",
+  "MULTI_USE_API_KEY",
+  "SHELTER_API_KEY",
+  "EMERGENCY_API_KEY",
+  "FIRE_INFO_API_KEY",
+  "ANNUAL_FIRE_API_KEY",
+  "FIRE_OBJECT_API_KEY",
+  "FIRE_DAMAGE_API_KEY",
+  "WILDFIRE_API_KEY",
+  "CIVIL_SHELTER_API_KEY",
+  "FOREST_FIRE_API_KEY",
+  "TSUNAMI_SHELTER_API_KEY",
+  "DISASTER_API_KEY",
+  "EQUIPMENT_API_KEY",
+  "CONSUMER_HAZARD_API_KEY",
+  "AMBULANCE_API_KEY",
+  "ITS_API_KEY",
+  "APP_ACCESS_TOKEN",
+]
+
 [vars]
 ENVIRONMENT = "production"
 # 공공데이터포털 댐 방류정보 활용신청 승인 후에만 true로 변경
 DAM_DISCHARGE_ENABLED = "false"
+
+[version_metadata]
+binding = "CF_VERSION_METADATA"
 
 [observability]
 enabled = true
@@ -48,7 +81,6 @@ crons = ["*/30 * * * *"]
 # wrangler secret put BUILDING_API_KEY
 # wrangler secret put FIRE_WATER_API_KEY
 # wrangler secret put HOLIDAY_API_KEY
-# wrangler secret put KAKAO_MAP_KEY
 # wrangler secret put MULTI_USE_API_KEY
 # wrangler secret put SHELTER_API_KEY
 # wrangler secret put EMERGENCY_API_KEY
@@ -64,6 +96,8 @@ crons = ["*/30 * * * *"]
 # wrangler secret put EQUIPMENT_API_KEY
 # wrangler secret put CONSUMER_HAZARD_API_KEY
 # wrangler secret put AMBULANCE_API_KEY
+# 국가교통정보센터 재난상황정보(도로 침수·범람·땅꺼짐·화재)
+# wrangler secret put ITS_API_KEY
 #
 # 심층 방어용 공유 앱 토큰 (운영 필수). 프론트엔드 VITE_APP_TOKEN과 동일하게 맞춰야 함:
 # wrangler secret put APP_ACCESS_TOKEN

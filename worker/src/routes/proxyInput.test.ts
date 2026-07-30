@@ -132,7 +132,12 @@ describe('proxy input sanitization', () => {
   });
 
   it('sanitizes ER location coordinates before upstream fetch', async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => new Response('<response><body><items></items></body></response>'));
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL) =>
+        new Response(
+          '<response><header><resultCode>00</resultCode><resultMsg>NORMAL SERVICE.</resultMsg></header><body><items></items></body></response>',
+        ),
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     await handleER(
@@ -148,7 +153,12 @@ describe('proxy input sanitization', () => {
   });
 
   it('requests the complete merged-region ER facility catalog', async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => new Response('<response><body><items></items></body></response>'));
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL) =>
+        new Response(
+          '<response><header><resultCode>00</resultCode><resultMsg>NORMAL SERVICE.</resultMsg></header><body><items></items></body></response>',
+        ),
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     await handleER(

@@ -35,6 +35,7 @@ import { handleConsumerHazard } from './routes/consumerHazard';
 import { handleAmbulance } from './routes/ambulance';
 import { handleAed } from './routes/aed';
 import { handleDamDischarge } from './routes/damDischarge';
+import { handleRoadDisasters } from './routes/roadDisasters';
 import { readLastKnownGood, saveLastKnownGood } from './referenceCache';
 
 export interface Env {
@@ -62,7 +63,9 @@ export interface Env {
   EQUIPMENT_API_KEY: string;
   CONSUMER_HAZARD_API_KEY: string;
   AMBULANCE_API_KEY: string;
+  ITS_API_KEY: string;
   ENVIRONMENT: string;
+  CF_VERSION_METADATA?: WorkerVersionMetadata;
   NAVER_CLIENT_ID?: string;
   NAVER_CLIENT_SECRET?: string;
   NEWS_CACHE: KVNamespace;
@@ -134,6 +137,9 @@ export default {
       if (path === '/api/dam-discharge') {
         cacheUrl.searchParams.set('_cv', '1'); // 승인 대기 응답 캐시 무효화
       }
+      if (path === '/api/road-disasters') {
+        cacheUrl.searchParams.set('_cv', '1'); // 출동지 주변 ITS 재난 정규화 계약
+      }
       if (path === '/api/multiuse') {
         cacheUrl.searchParams.set('_cv', '1'); // 정적 전용 응답에서 승인 API 우선 조회로 전환
       }
@@ -161,7 +167,15 @@ export default {
       let isNews = false;
       let newsResponse: Response | null = null;
 
-      if (path === '/api/health') result = { data: { status: 'ok', version: '1.0.0', timestamp: new Date().toISOString() }, cacheTtl: 0 };
+      if (path === '/api/health') result = {
+        data: {
+          status: 'ok',
+          version: '1.0.0',
+          workerVersion: env.CF_VERSION_METADATA?.id ?? null,
+          timestamp: new Date().toISOString(),
+        },
+        cacheTtl: 0,
+      };
       else if (path === '/api/weather-alerts') result = await handleWeatherAlerts(url, env.KMA_API_KEY);
       else if (path.startsWith('/api/weather/')) result = await handleWeather(path, url, env.KMA_API_KEY);
       else if (path === '/api/air') result = await handleAir(url, env.AIR_API_KEY);
@@ -172,6 +186,7 @@ export default {
         env.PUBLIC_DATA_API_KEY || env.ER_API_KEY,
         env.DAM_DISCHARGE_ENABLED === 'true',
       );
+      else if (path === '/api/road-disasters') result = await handleRoadDisasters(url, env.ITS_API_KEY);
       else if (path === '/api/building') result = await handleBuilding(url, env.BUILDING_API_KEY);
       else if (path.startsWith('/api/fire-object/')) result = await handleFireObject(path, url, env.FIRE_OBJECT_API_KEY);
       else if (path === '/api/firewater') result = await handleFireWater(url, env.FIRE_WATER_API_KEY);
@@ -254,7 +269,8 @@ export default {
       const safeMessage = message.includes('authKey') || message.includes('serviceKey')
         ? 'API 인증 오류. 관리자에게 문의하세요'
         : message;
-      return errorResponse(safeMessage, request, 502, env.ENVIRONMENT);
+      const status = message.startsWith('INVALID_PARAMETER:') ? 400 : 502;
+      return errorResponse(safeMessage, request, status, env.ENVIRONMENT);
     }
   },
   

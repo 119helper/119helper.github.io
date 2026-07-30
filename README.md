@@ -81,19 +81,39 @@ npm run dev -- --host
 # → http://localhost:5173
 ```
 
-공공데이터 API 키는 브라우저 번들에 넣지 않습니다. Worker secret으로 등록하세요.
+공공데이터 API 키는 브라우저 번들에 넣지 않습니다. 로컬 개발 키는 Git에서
+제외되는 `worker/.dev.vars`에 둡니다.
 
 ```bash
 cd worker
 npm install
-wrangler secret put KMA_API_KEY
-wrangler secret put ER_API_KEY
-# AED와 댐 방류는 같은 data.go.kr 계정 키를 재사용합니다.
-# 별도 키를 분리하려면: wrangler secret put PUBLIC_DATA_API_KEY
+# worker/.dev.vars 파일을 만든 뒤 아래 예시처럼 발급받은 값을 입력
 npm run dev
 # worker/wrangler.dev.toml이 ENVIRONMENT=development와 포트 8787을 고정하므로
 # 로컬에서는 APP_ACCESS_TOKEN 없이 실행 가능
 ```
+
+```dotenv
+# worker/.dev.vars
+KMA_API_KEY="발급받은 기상청 키"
+ER_API_KEY="발급받은 data.go.kr 키"
+ITS_API_KEY="발급받은 국가교통정보센터 키"
+# 선택: AED와 댐 방류용 data.go.kr 키를 분리할 때만 설정
+# PUBLIC_DATA_API_KEY="발급받은 별도 키"
+```
+
+`.dev.vars`는 로컬 전용입니다. 운영 Worker에는 `worker/wrangler.toml.example`의
+필수 목록을 `wrangler secret put <이름>`으로 각각 등록하며, 실제 값은 TOML이나
+GitHub 저장소에 기록하지 않습니다. `wrangler secret put`은 값만 보관하는 명령이
+아니라 해당 secret을 포함한 새 Worker 버전을 만들고 즉시 트래픽 100%에 배포합니다.
+운영값을 바꿀 때는 일반 배포와 같은 영향 범위로 보고 직후 상태와 스모크를 확인하세요.
+
+`ITS_API_KEY`는 국가교통정보센터에서 발급받은 인증키입니다. Worker의
+`GET /api/road-disasters?lat=...&lng=...&radiusKm=5`가 출동지 주변의 침수,
+하천 범람, 땅꺼짐, 화재와 도로 통제를 정규화해 반환하며 기본 캐시는 60초입니다.
+공식 문서의 공개키 `test`는 조회 조건과 무관한 고정 샘플을 반환하므로 운영에서는
+명시적으로 거부합니다. 실제 발급 키와 Worker에서 원 API `:9443`으로 연결 가능한
+경로가 모두 확인되기 전에는 앱이 0건으로 오인하지 않고 조회 불가 상태를 표시합니다.
 
 운영 참고: `VITE_APP_TOKEN`은 브라우저 번들에 포함되는 공개값이므로 완전한 비밀 인증 수단이 아닙니다.
 현재 무료/무도메인 운영에서는 Worker의 Origin/토큰 검증과 rate limit binding을 기본 방어선으로 사용합니다. 대량 스크래핑이 실제 문제가 되면 도메인/Cloudflare zone 기반 WAF, Turnstile, 봇 차단 정책을 재검토하세요.

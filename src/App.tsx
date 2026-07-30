@@ -5,9 +5,15 @@ import SettingsModal from './components/SettingsModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import AppLockGate from './components/AppLockGate';
 import IncidentStatusStrip from './components/IncidentStatusStrip';
+import IncidentChangeGlobalBanner from './components/IncidentChangeGlobalBanner';
 import SidebarQuickAccess from './components/SidebarQuickAccess';
 import DataStatusSummary from './components/DataStatusSummary';
-import { fetchFireWaterFacilities, fetchCityIndex, isSplitCity } from './services/fireWaterApi';
+import {
+  fetchFireWaterFacilities,
+  fetchCityIndex,
+  isSplitCity,
+  parseFireWaterFacilities,
+} from './services/fireWaterApi';
 import type { CityIndex } from './services/fireWaterApi';
 import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS } from './services/weatherApi';
 import { getRealtimeAirQuality } from './services/airQualityApi';
@@ -31,6 +37,7 @@ import { useIncidentSession } from './hooks/useIncidentSession';
 import { useDialogAccessibility } from './hooks/useDialogAccessibility';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { useAppFeedback } from './contexts/FeedbackContext';
+import { IncidentChangeMonitorProvider } from './contexts/IncidentChangeMonitorContext';
 import { applyPrivacyRetention } from './services/privacySettings';
 import { disasterLocationMatchesCity } from './services/administrativeRegions';
 import { loadDisplaySettings, saveDisplaySettings } from './services/displaySettings';
@@ -60,6 +67,7 @@ export default function App() {
   const [city, setCity] = useState<string>(() => localStorage.getItem('119helper-city') || 'seoul');
   const [fireFacilities, setFireFacilities] = useState<FireFacility[]>([]);
   const [isLoadingFacilities, setIsLoadingFacilities] = useState(false);
+  const [facilityLoadError, setFacilityLoadError] = useState('');
   const [cityIndex, setCityIndex] = useState<CityIndex | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
   const [shelterCategory, setShelterCategory] = useState<ShelterCategory>(initialRoute.shelterCategory ?? 'building');
@@ -330,44 +338,8 @@ export default function App() {
     setSelectedDistrict(null);
     setCityIndex(null);
     setFireFacilities([]);
+    setFacilityLoadError('');
   };
-
-  // 소방용수 원시 데이터 → FireFacility 파싱 헬퍼
-  const parseItems = useCallback((items: Awaited<ReturnType<typeof fetchFireWaterFacilities>>) => {
-    return items.map((item, idx) => {
-      let status: '정상' | '점검필요' | '고장' = '정상';
-      if (item.insptnSttusNm?.includes('고장')) status = '고장';
-      else if (item.insptnSttusNm?.includes('점검')) status = '점검필요';
-
-      const facilityTypeByCode: Record<string, string> = {
-        '1': '소화전', '01': '소화전',
-        '2': '소화전', '02': '소화전',
-        '3': '급수탑', '03': '급수탑',
-        '4': '저수조', '04': '저수조',
-        '5': '소화전', '05': '소화전',
-        '6': '비상소화장치', '06': '비상소화장치',
-      };
-      const kindRaw = item.fcltyKndNm
-        || item.fcltySeNm
-        || item.fcltyTyNm
-        || facilityTypeByCode[item.fcltySeCode?.trim() || '']
-        || '';
-      let type: '소화전' | '급수탑' | '저수조' | '비상소화장치' = '소화전';
-      if (kindRaw.includes('급수탑')) type = '급수탑';
-      else if (kindRaw.includes('저수조')) type = '저수조';
-      else if (kindRaw.includes('비상소화장치')) type = '비상소화장치';
-
-      return {
-        id: item.fcltyNo || item.fcltyNm || `FW-${idx}`,
-        type,
-        address: item.rdnmadr || item.lnmadr || '주소 미상',
-        lat: parseFloat(item.latitude || '0'),
-        lng: parseFloat(item.longitude || '0'),
-        district: item.signguNm || '알수없음',
-        status
-      } as FireFacility;
-    }).filter(i => i.lat > 0 && i.lng > 0);
-  }, []);
 
   // 구별 데이터 로드 (분할 도시 전용)
   const loadDistrict = useCallback((district: string) => {
@@ -380,6 +352,7 @@ export default function App() {
 
     // 소방용수 — 분할 도시는 메타(index)만, 비분할 도시는 전체 로드
     setIsLoadingFacilities(true);
+    setFacilityLoadError('');
     try {
       if (isSplitCity(city)) {
         const idx = await fetchCityIndex(city);
@@ -388,7 +361,7 @@ export default function App() {
         if (selectedDistrict) {
           const items = await fetchFireWaterFacilities(city, selectedDistrict);
           if (seq !== refreshSeqRef.current) return;
-          setFireFacilities(parseItems(items));
+          setFireFacilities(parseFireWaterFacilities(items));
         } else {
           setFireFacilities([]);
         }
@@ -397,10 +370,13 @@ export default function App() {
         setSelectedDistrict(null);
         const items = await fetchFireWaterFacilities(city);
         if (seq !== refreshSeqRef.current) return;
-        setFireFacilities(parseItems(items));
+        setFireFacilities(parseFireWaterFacilities(items));
       }
     } catch (e) {
       console.warn('[refreshData facilities] failed:', e);
+      setFacilityLoadError(
+        e instanceof Error ? e.message : '소방용수 등록 데이터를 불러오지 못했습니다.',
+      );
       addNotification('system-data-refresh-failed', 'warning', 'text-amber-700 dark:text-amber-300', '데이터 갱신 실패', '일부 현장 데이터가 최신 상태가 아닐 수 있습니다.');
     } finally {
       if (seq === refreshSeqRef.current) {
@@ -500,7 +476,7 @@ export default function App() {
     if (seq === refreshSeqRef.current) {
       lastRefreshRef.current = new Date();
     }
-  }, [city, selectedDistrict, parseItems, addNotification]);
+  }, [city, selectedDistrict, addNotification]);
 
   // 최초/도시변경 즉시 갱신 + 주기 갱신 + 설정 변경 감지 (훅이 캡슐화)
   useAutoRefresh(refreshData);
@@ -602,6 +578,7 @@ export default function App() {
     cityLabel: cityNames[city],
     fireFacilities,
     isLoadingFacilities,
+    facilityLoadError,
     cityIndex,
     selectedDistrict,
     shelterCategory,
@@ -622,6 +599,11 @@ export default function App() {
 
   return (
     <AppLockGate>
+    <IncidentChangeMonitorProvider
+      session={incidentSession}
+      city={city}
+      enabledWhenIdle={activeTab === 'incident'}
+    >
     <div className="flex h-[100dvh] overflow-hidden bg-background text-on-background">
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -1012,6 +994,11 @@ export default function App() {
           fieldModeActive={fieldReadabilityMode}
           onFieldModeChange={handleFieldModeChange}
         />
+        <IncidentChangeGlobalBanner
+          incidentActive={incidentSession.active}
+          activeTab={activeTab}
+          onNavigate={handleNavigate}
+        />
 
         {/* Content */}
         <div 
@@ -1101,6 +1088,7 @@ export default function App() {
         </nav>
       </main>
     </div>
+    </IncidentChangeMonitorProvider>
     </AppLockGate>
   );
 }

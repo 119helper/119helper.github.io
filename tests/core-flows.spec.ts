@@ -1,11 +1,54 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+async function installIncidentGeocoder(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    class TestGeocoder {
+      addressSearch(
+        query: string,
+        callback: (results: Array<{
+          x: string;
+          y: string;
+          address: {
+            address_name: string;
+            region_1depth_name: string;
+            region_2depth_name: string;
+            b_code: string;
+          };
+        }>, status: string) => void,
+      ) {
+        const isGwangju = query.includes('광주');
+        callback([{
+          x: isGwangju ? '126.8526' : '126.9780',
+          y: isGwangju ? '35.1595' : '37.5665',
+          address: {
+            address_name: isGwangju ? '광주광역시 서구' : query,
+            region_1depth_name: isGwangju ? '광주광역시' : '서울특별시',
+            region_2depth_name: isGwangju ? '서구' : '종로구',
+            b_code: isGwangju ? '2914010000' : '1111011900',
+          },
+        }], 'OK');
+      }
+    }
+
+    Reflect.set(window, 'kakao', {
+      maps: {
+        services: {
+          Status: { OK: 'OK' },
+          Geocoder: TestGeocoder,
+        },
+      },
+    });
+  });
+}
 
 function erXml(hospitalName?: string, includeAddress = true): string {
-  if (!hospitalName) return '<response><body><items /></body></response>';
+  if (!hospitalName) {
+    return '<response><header><resultCode>00</resultCode><resultMsg>NORMAL SERVICE.</resultMsg></header><body><items /></body></response>';
+  }
   const address = hospitalName.startsWith('광주')
     ? '전남광주통합특별시 서구 상무대로 1'
     : '서울특별시 중구 테스트로 1';
-  return `<response><body><items><item>
+  return `<response><header><resultCode>00</resultCode><resultMsg>NORMAL SERVICE.</resultMsg></header><body><items><item>
     <dutyName>${hospitalName}</dutyName>
     ${includeAddress ? `<dutyAddr>${address}</dutyAddr>` : ''}
     <dutyTel3>062-000-0000</dutyTel3>
@@ -105,16 +148,17 @@ test('모바일: 즐겨찾기를 보존하고 데이터 상태를 화면 안에 
 
 test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 자동 기록된다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await installIncidentGeocoder(page);
   await page.goto('/?tab=incident');
 
   await page.getByRole('button', { name: 'ambulance 구급', exact: true }).click();
   await page.getByLabel('출동 제목').fill('광주 환자 이송');
-  await page.getByLabel(/주소 또는 집결 위치/).fill('광주 서구');
+  await page.getByLabel(/현장 주소/).fill('광주 서구');
   await page.getByLabel('초기 상황 및 위험요소').fill('의식 저하');
-  await page.getByRole('button', { name: /출동 상황판 시작/ }).click();
+  await page.getByRole('button', { name: /위치 기준 브리핑 시작/ }).click();
 
   await expect(page.getByRole('heading', { name: '광주 환자 이송' })).toBeVisible();
-  await expect(page.getByText('출동 시작 기준 스냅샷')).toBeVisible();
+  await expect(page.getByText(/변화 감시 중/)).toBeVisible();
   await expect(page.getByRole('region', { name: '진행 중인 출동' })).toBeVisible();
   const incidentNav = page.getByRole('navigation', { name: '주요 기능' });
   await expect(incidentNav.getByRole('button', { name: '상황판' })).toBeVisible();
@@ -150,7 +194,10 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
   expect(started.activity.stamps[0].label).toBe('출동');
   expect(started.activity.stamps.filter((stamp: { stageId?: string }) => stamp.stageId === 'arrival')).toHaveLength(1);
   expect(started.activity.stamps.some((stamp: { stageId?: string }) => stamp.stageId === 'transport')).toBe(true);
-  expect(started.incident.snapshot).toBeTruthy();
+  expect(started.incident.location).toMatchObject({
+    regionName: '광주광역시',
+    districtName: '서구',
+  });
 
   await quickActivity.getByRole('button', { name: /이송개시 기록됨.*수정/ }).click();
   const transportEditor = page.getByRole('dialog', { name: '이송개시' });
@@ -194,11 +241,12 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
 
 test('활성 출동: 현장 모드와 사건 주소를 다른 도구로 이어간다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await installIncidentGeocoder(page);
   await page.goto('/?tab=incident');
 
   await page.getByLabel('출동 제목').fill('세종대로 현장');
-  await page.getByLabel(/주소 또는 집결 위치/).fill('서울특별시 종로구 세종대로 209');
-  await page.getByRole('button', { name: /출동 상황판 시작/ }).click();
+  await page.getByLabel(/현장 주소/).fill('서울특별시 종로구 세종대로 209');
+  await page.getByRole('button', { name: /위치 기준 브리핑 시작/ }).click();
   await page.getByRole('button', { name: '현장 모드 켜기' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-readability', 'field');
   await expect(page.getByRole('button', { name: '현장 모드 끄기' })).toHaveAttribute('aria-pressed', 'true');
@@ -221,7 +269,8 @@ test('활동 기록: 뒤바뀐 단계 시각을 경고하고 수정 후 해제�
 
   await page.getByRole('button', { name: 'ambulance 구급', exact: true }).click();
   await page.getByLabel('출동 제목').fill('순서 확인 테스트');
-  await page.getByRole('button', { name: /출동 상황판 시작/ }).click();
+  await page.getByRole('button', { name: /위치 기준 브리핑 시작/ }).click();
+  await page.getByRole('button', { name: /위치 없이 .* 지역 기준으로 시작/ }).click();
 
   const quickActivity = page.getByLabel('구급 출동 활동 빠른 기록');
   await quickActivity.getByRole('button', { name: '병원도착 기록' }).click();

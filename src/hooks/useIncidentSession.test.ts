@@ -13,6 +13,7 @@ describe('useIncidentSession', () => {
 
     act(() => {
       first.result.current[1]({
+        incidentId: 'incident-test',
         active: true,
         type: 'fire',
         title: '창고 화재',

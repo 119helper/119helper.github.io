@@ -86,6 +86,18 @@ describe('matchHospitals', () => {
     expect(h.wardBeds).toBeNull();
   });
 
+  it('preserves stable hospital identifiers for change monitoring', () => {
+    const [hospital] = matchHospitals([
+      er({ dutyName: '식별 병원', hpid: 'HPID-1', phpid: 'PHPID-1' }),
+    ]);
+
+    expect(hospital).toMatchObject({
+      id: 'HPID-1',
+      hpid: 'HPID-1',
+      phpid: 'PHPID-1',
+    });
+  });
+
   it('handles an empty input list', () => {
     expect(matchHospitals([])).toEqual([]);
   });

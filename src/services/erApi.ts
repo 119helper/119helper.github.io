@@ -89,6 +89,8 @@ export interface ERListItem {
   wgs84Lon: string;
 }
 
+export type ERRegionScope = 'app-city' | 'incident-region';
+
 /**
  * 실시간 병상 API에는 주소가 없으므로 기관 목록의 주소를 기관 ID로 결합한다.
  * 통합 특별시 전체 병상 중 종전 광주 5개 구만 안전하게 남기기 위한 필수 단계다.
@@ -97,9 +99,8 @@ export function attachFacilityInfoAndFilterBeds(
   sido: string,
   beds: ERRealTimeData[],
   facilities: ERListItem[],
+  regionScope: ERRegionScope = 'app-city',
 ): ERRealTimeData[] {
-  if (sido !== GWANGJU_CURRENT_NAME) return beds;
-
   const facilitiesById = new Map<string, ERListItem>();
   for (const facility of facilities) {
     const id = facility.hpid || facility.phpid;
@@ -110,12 +111,20 @@ export function attachFacilityInfoAndFilterBeds(
     const id = bed.hpid || bed.phpid;
     const facility = id ? facilitiesById.get(id) : undefined;
     const rawDutyAddr = bed.dutyAddr || facility?.dutyAddr || '';
-    if (!isFormerGwangjuAddress(rawDutyAddr)) return [];
+    if (
+      regionScope === 'app-city'
+      && sido === GWANGJU_CURRENT_NAME
+      && !isFormerGwangjuAddress(rawDutyAddr)
+    ) return [];
 
     return [{
       ...bed,
-      dutyName: normalizeGwangjuDisplayText(bed.dutyName, true),
-      dutyAddr: normalizeLiveGwangjuAddress(rawDutyAddr),
+      dutyName: regionScope === 'app-city' && sido === GWANGJU_CURRENT_NAME
+        ? normalizeGwangjuDisplayText(bed.dutyName, true)
+        : bed.dutyName,
+      dutyAddr: regionScope === 'app-city' && sido === GWANGJU_CURRENT_NAME
+        ? normalizeLiveGwangjuAddress(rawDutyAddr)
+        : rawDutyAddr,
       dutyTel3: bed.dutyTel3 || facility?.dutyTel3 || '',
       wgs84Lat: bed.wgs84Lat || facility?.wgs84Lat || '',
       wgs84Lon: bed.wgs84Lon || facility?.wgs84Lon || '',
@@ -145,6 +154,18 @@ export interface ERSevereIllness {
 function parseXmlItems<T>(xmlText: string): T[] {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlText, 'text/xml');
+  if (doc.querySelector('parsererror')) {
+    throw new Error('응급실 응답 XML 형식이 올바르지 않습니다.');
+  }
+  const resultCode = doc.querySelector('resultCode')?.textContent?.trim();
+  if (!resultCode || !/^0+$/.test(resultCode)) {
+    const resultMessage = doc.querySelector('resultMsg, returnAuthMsg')?.textContent?.trim() || '';
+    throw new Error(
+      resultCode
+        ? `응급실 API 오류 (${resultCode})${resultMessage ? `: ${resultMessage}` : ''}`
+        : '응급실 응답의 성공 상태를 확인할 수 없습니다.',
+    );
+  }
   const items = doc.querySelectorAll('item');
   const result: T[] = [];
 
@@ -163,37 +184,30 @@ function parseXmlItems<T>(xmlText: string): T[] {
 }
 
 // 1. 응급실 실시간 가용병상 조회
-export async function getERRealTimeBeds(sido: string = '서울특별시', gugun: string = '', forceRefresh = false): Promise<ERRealTimeData[]> {
-  if (sido === GWANGJU_CURRENT_NAME) {
-    try {
-      const [bedsSource, facilitiesSource] = await Promise.all([
-        loadXmlWithStaleFallback(() => fetchERBeds(sido, gugun, forceRefresh)),
-        loadXmlWithStaleFallback(() => fetchERList(sido, gugun, forceRefresh)),
-      ]);
-      const beds = attachFacilityInfoAndFilterBeds(
-        sido,
-        parseXmlItems<ERRealTimeData>(bedsSource.xml),
-        parseXmlItems<ERListItem>(facilitiesSource.xml),
-      );
-      const staleTimes = [bedsSource.cachedAt, facilitiesSource.cachedAt]
-        .filter((value): value is number => typeof value === 'number');
-      return staleTimes.length > 0 ? tagStale(beds, Math.min(...staleTimes)) : beds;
-    } catch (error) {
-      // 통합 시도 병상을 주소 없이 노출하면 종전 전남 기관까지 섞이므로,
-      // 기관 목록 결합에 실패한 경우에는 빈 결과로 위장하지 않고 오류를 표면화한다.
-      console.error('광주 응급실 관할 판별 실패:', error);
-      throw error;
-    }
-  }
-
-  const parseBeds = (xml: string) => parseXmlItems<ERRealTimeData>(xml);
+export async function getERRealTimeBeds(
+  sido: string = '서울특별시',
+  gugun: string = '',
+  forceRefresh = false,
+  regionScope: ERRegionScope = 'app-city',
+): Promise<ERRealTimeData[]> {
   try {
-    const xmlText = await fetchERBeds(sido, gugun, forceRefresh);
-    return parseBeds(xmlText);
+    const [bedsSource, facilitiesSource] = await Promise.all([
+      loadXmlWithStaleFallback(() => fetchERBeds(sido, gugun, forceRefresh)),
+      loadXmlWithStaleFallback(() => fetchERList(sido, gugun, forceRefresh)),
+    ]);
+    const beds = attachFacilityInfoAndFilterBeds(
+      sido,
+      parseXmlItems<ERRealTimeData>(bedsSource.xml),
+      parseXmlItems<ERListItem>(facilitiesSource.xml),
+      regionScope,
+    );
+    const staleTimes = [bedsSource.cachedAt, facilitiesSource.cachedAt]
+      .filter((value): value is number => typeof value === 'number');
+    return staleTimes.length > 0 ? tagStale(beds, Math.min(...staleTimes)) : beds;
   } catch (error) {
-    const stale = recoverStaleXml(error, parseBeds);
-    if (stale) return stale;
-    console.error('응급실 실시간 데이터 조회 실패:', error);
+    // 병상과 기관 목록을 함께 받아야 주소·전화·좌표로 현장 거리 후보를 계산할 수 있다.
+    // 통합 광주는 이 결합이 관할 필터에도 필수다. 실패를 빈 목록으로 위장하지 않는다.
+    console.error('응급실 병상·기관 결합 조회 실패:', error);
     throw error;
   }
 }

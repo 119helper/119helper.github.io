@@ -84,4 +84,27 @@ describe('ERDashboard', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('응급실 현황을 불러오지 못했습니다.');
     expect(screen.getByRole('button', { name: '다시 시도' })).toBeInTheDocument();
   });
+
+  it('keeps ER detail on the active incident region instead of the selected app city', async () => {
+    erMocks.getERRealTimeBeds.mockResolvedValue([bed('부산현장병원', 'BS-1')]);
+    erMocks.getERMessages.mockResolvedValue([]);
+    erMocks.getERSevereIllness.mockResolvedValue([]);
+
+    render(
+      <ERDashboard
+        city="seoul"
+        incidentRegionName="부산광역시"
+        incidentDistrictName="중구"
+      />,
+    );
+
+    expect(await screen.findByText('부산현장병원')).toBeInTheDocument();
+    expect(erMocks.getERRealTimeBeds).toHaveBeenCalledWith(
+      '부산광역시',
+      '',
+      false,
+      'incident-region',
+    );
+    expect(screen.getByText('부산광역시')).toBeInTheDocument();
+  });
 });

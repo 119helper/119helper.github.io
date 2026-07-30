@@ -19,17 +19,26 @@ describe('activitySession', () => {
 
   it('starts the matching activity preset and records dispatch automatically', () => {
     startActivityFromIncident({
+      incidentId: 'incident-1234',
       type: 'ems',
       title: '광주 환자 이송',
       note: '의식 저하',
       startedAt: 1234,
+      location: { lat: 35.1595, lng: 126.8526 },
     });
 
     const session = loadActivitySession();
     expect(session.presetId).toBe('ems');
+    expect(session.incidentId).toBe('incident-1234');
     expect(session.title).toBe('광주 환자 이송');
     expect(session.stamps).toEqual([
-      expect.objectContaining({ stageId: 'dispatch', label: '출동', time: 1234 }),
+      expect.objectContaining({
+        stageId: 'dispatch',
+        label: '출동',
+        time: 1234,
+        lat: 35.1595,
+        lon: 126.8526,
+      }),
     ]);
   });
 
@@ -40,6 +49,18 @@ describe('activitySession', () => {
     const stored = JSON.parse(localStorage.getItem(ACTIVITY_SESSION_KEY) || '{}');
     expect(stored.stamps).toHaveLength(2);
     expect(stored.stamps[1]).toEqual(expect.objectContaining({ label: '소방용수 열람', time: 2000 }));
+  });
+
+  it('does not append a delayed event to a different incident', () => {
+    const current = startActivityFromIncident({
+      incidentId: 'incident-current',
+      type: 'fire',
+      title: '상가 화재',
+      startedAt: 1000,
+    });
+
+    expect(appendActivityEvent('이전 출동 변화', 2000, 'incident-old')).toEqual(current);
+    expect(loadActivitySession().stamps).toHaveLength(1);
   });
 
   it('records a named activity stage only once', () => {

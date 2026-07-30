@@ -47,6 +47,8 @@ export interface KakaoGeocoderResult {
     main_address_no?: string;
     mountain_yn?: string;
     region_1depth_name?: string;
+    region_2depth_name?: string;
+    region_3depth_name?: string;
     san_yn?: string;
     sub_address_no?: string;
   };
@@ -56,6 +58,7 @@ export interface KakaoGeocoderResult {
 
 export interface KakaoRegionResult {
   region_type?: string;
+  code?: string;
   region_1depth_name: string;
   region_2depth_name?: string;
   region_3depth_name?: string;

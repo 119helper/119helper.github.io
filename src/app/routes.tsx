@@ -43,6 +43,7 @@ export interface RouteContext {
   cityLabel: string;
   fireFacilities: FireFacility[];
   isLoadingFacilities: boolean;
+  facilityLoadError: string;
   cityIndex: CityIndex | null;
   selectedDistrict: string | null;
   shelterCategory: ShelterCategory;
@@ -84,6 +85,7 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
         city={ctx.city}
         fireFacilities={ctx.fireFacilities}
         isLoadingFacilities={ctx.isLoadingFacilities}
+        facilityLoadError={ctx.facilityLoadError}
         cityIndex={ctx.cityIndex}
         selectedDistrict={ctx.selectedDistrict}
         onDistrictChange={ctx.onDistrictChange}
@@ -94,12 +96,21 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
         onFilterStateChange={ctx.onFacilityFilterChange}
         onViewStateChange={ctx.onFacilityViewStateChange}
         incidentAddress={ctx.incidentSession.active ? ctx.incidentSession.address : ''}
+        incidentLocation={ctx.incidentSession.active ? ctx.incidentSession.location : undefined}
         buildingWorkspace={ctx.buildingWorkspace}
         onBuildingWorkspaceChange={ctx.onBuildingWorkspaceChange}
       />
     ),
   },
-  er: { render: ctx => <ERDashboard city={ctx.city} /> },
+  er: {
+    render: ctx => (
+      <ERDashboard
+        city={ctx.city}
+        incidentRegionName={ctx.incidentSession.active ? ctx.incidentSession.location?.regionName : undefined}
+        incidentDistrictName={ctx.incidentSession.active ? ctx.incidentSession.location?.districtName : undefined}
+      />
+    ),
+  },
   emergency: { render: () => <EmergencyAnalysis /> },
   'fire-analysis': { render: () => <FireAnalysis /> },
   'fire-damage': { render: () => <FireDamageView /> },
@@ -140,6 +151,7 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
         cityLabel={ctx.cityLabel}
         fireFacilities={ctx.fireFacilities}
         isLoadingFacilities={ctx.isLoadingFacilities}
+        facilityLoadError={ctx.facilityLoadError}
         cityIndex={ctx.cityIndex}
         onNavigate={ctx.onNavigate}
       />

@@ -4,6 +4,7 @@ import type { CityIndex } from '../services/fireWaterApi';
 import type { FacilityFilterState, FacilityViewState } from '../types/navigation';
 import KakaoMap from './KakaoMap';
 import DataStatePanel from './DataStatePanel';
+import { formatDistanceLabel, haversineDistanceKm } from '../services/incidentBriefing';
 
 interface Props {
   data: FireFacility[];
@@ -20,6 +21,7 @@ interface Props {
   onFilterStateChange: (patch: Partial<FacilityFilterState>) => void;
   viewState: FacilityViewState;
   onViewStateChange: (patch: Partial<FacilityViewState>) => void;
+  origin?: { lat: number; lng: number } | null;
 }
 
 const PAGE_SIZE = 50;
@@ -27,7 +29,7 @@ const PAGE_SIZE = 50;
 export default function FacilityList({
   data, title, icon, typeLabel, city, isLoading = false,
   cityIndex, selectedDistrict, onDistrictChange, filterState, onFilterStateChange,
-  viewState, onViewStateChange,
+  viewState, onViewStateChange, origin = null,
 }: Props) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const search = filterState.query;
@@ -43,14 +45,30 @@ export default function FacilityList({
     ? Object.keys(cityIndex.districts).sort()
     : Array.from(new Set(data.map(d => d.district))).sort();
 
+  const distanceById = useMemo(() => {
+    const distances = new Map<string, number>();
+    if (!origin) return distances;
+    for (const item of data) {
+      distances.set(item.id, haversineDistanceKm(origin, { lat: item.lat, lng: item.lng }));
+    }
+    return distances;
+  }, [data, origin]);
+
   const filtered = useMemo(() => {
-    return data.filter(item => {
+    const matches = data.filter(item => {
       const matchSearch = !search || item.address.includes(search) || item.id.includes(search);
       // 분할 도시에서는 이미 구별로 로드했으므로 filterDistrict는 비분할 도시용
       const matchDistrict = isSplit || filterDistrict === '전체' || item.district === filterDistrict;
       return matchSearch && matchDistrict;
     });
-  }, [data, search, filterDistrict, isSplit]);
+    if (origin) {
+      matches.sort((left, right) => (
+        (distanceById.get(left.id) ?? Number.POSITIVE_INFINITY)
+        - (distanceById.get(right.id) ?? Number.POSITIVE_INFINITY)
+      ));
+    }
+    return matches;
+  }, [data, distanceById, search, filterDistrict, isSplit, origin]);
 
   // 페이지네이션
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -116,12 +134,15 @@ export default function FacilityList({
           {isLoading ? (
             <span className="text-sm text-on-surface-variant font-bold animate-pulse">데이터 로딩 중...</span>
           ) : (
-            <span className="text-sm text-on-surface-variant">
-              {isSplit && !selectedDistrict
-                ? <>구/군을 선택해주세요</>
-                : <>총 <span className="font-bold text-primary">{filtered.length.toLocaleString()}</span>건</>
-              }
-            </span>
+            <div className="text-right text-sm text-on-surface-variant">
+              <span>
+                {isSplit && !selectedDistrict
+                  ? <>구/군을 선택해주세요</>
+                  : <>총 <span className="font-bold text-primary">{filtered.length.toLocaleString()}</span>건</>
+                }
+              </span>
+              {origin && <p className="mt-0.5 text-[10px] font-bold text-primary">출동 현장 거리순</p>}
+            </div>
           )}
         </div>
       </div>
@@ -338,7 +359,7 @@ export default function FacilityList({
                       <th className="px-6 py-4 text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">주소</th>
                       <th className="px-6 py-4 text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">관할구</th>
                       <th className="px-6 py-4 text-left text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">상태</th>
-                      <th className="px-6 py-4 text-right text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">좌표</th>
+                      <th className="px-6 py-4 text-right text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">거리 / 좌표</th>
                       <th className="px-2 py-4 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">길찾기</th>
                     </tr>
                   </thead>
@@ -372,6 +393,11 @@ export default function FacilityList({
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right text-xs text-on-surface-variant font-mono">
+                          {origin && (
+                            <span className="mb-0.5 block font-extrabold text-primary">
+                              {formatDistanceLabel(distanceById.get(item.id))}
+                            </span>
+                          )}
                           {item.lat.toFixed(4)}, {item.lng.toFixed(4)}
                         </td>
                         <td className="px-2 py-4 text-center">
@@ -416,7 +442,10 @@ export default function FacilityList({
                         </span>
                       </span>
                       <span className="block text-sm text-on-surface">{item.address}</span>
-                      <p className="text-xs text-on-surface-variant">{item.type} · {item.district}</p>
+                      <p className="text-xs text-on-surface-variant">
+                        {item.type} · {item.district}
+                        {origin ? ` · ${formatDistanceLabel(distanceById.get(item.id))}` : ''}
+                      </p>
                     </button>
                     <a
                       href={`https://map.naver.com/v5/directions/-/-/-/drive?c=${item.lng},${item.lat},15,0,0,0,dh&destination=${encodeURIComponent(item.address)},${item.lng},${item.lat}`}

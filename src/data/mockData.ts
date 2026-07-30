@@ -6,5 +6,5 @@ export interface FireFacility {
   lat: number;
   lng: number;
   district: string;
-  status: '정상' | '점검필요' | '고장';
+  status: '정상' | '점검필요' | '고장' | '미확인';
 }

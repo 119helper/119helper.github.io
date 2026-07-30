@@ -1,17 +1,28 @@
 import { appendFile } from 'node:fs/promises';
+import {
+  isRoadDisasterResponse,
+  isWorkerHealthResponse,
+} from './production-deploy-contracts.mjs';
 
 const DEFAULT_API_BASE = 'https://119-helper-api.teemozipsa.workers.dev';
 const DEFAULT_ORIGIN = 'https://119.teemozipsa.com';
 const CONCURRENCY = 4;
 const REQUEST_TIMEOUT_MS = 25_000;
+const DEPLOY_READINESS_ATTEMPTS = 18;
+const DEPLOY_READINESS_DELAY_MS = 5_000;
 
 const apiBase = process.env.VITE_API_BASE || process.env.API_BASE || DEFAULT_API_BASE;
 const appToken = process.env.VITE_APP_TOKEN || process.env.APP_ACCESS_TOKEN || '';
 const origin = process.env.SMOKE_ORIGIN || DEFAULT_ORIGIN;
 const mode = process.env.SMOKE_MODE === 'deploy' ? 'deploy' : 'scheduled';
+const expectedWorkerVersion = process.env.EXPECTED_WORKER_VERSION?.trim() || '';
 
 if (!appToken) {
   console.error('VITE_APP_TOKEN or APP_ACCESS_TOKEN is required for production API smoke tests.');
+  process.exit(1);
+}
+if (mode === 'deploy' && !expectedWorkerVersion) {
+  console.error('EXPECTED_WORKER_VERSION is required for deploy smoke tests.');
   process.exit(1);
 }
 
@@ -88,7 +99,10 @@ const checks = [
     name: 'health',
     severity: 'critical',
     url: endpoint('/api/health'),
-    validate: data => isRecord(data) && data.status === 'ok',
+    validate: data => isWorkerHealthResponse(
+      data,
+      mode === 'deploy' ? expectedWorkerVersion : undefined,
+    ),
   },
   {
     name: 'weather-now',
@@ -146,6 +160,18 @@ const checks = [
       && data.format === 'xml'
       && typeof data.payload === 'string'
       && data.payload.trimStart().startsWith('<'),
+  },
+  {
+    name: 'road-disasters-gwangju',
+    severity: 'standard',
+    url: endpoint('/api/road-disasters', {
+      lat: 35.1595,
+      lng: 126.8526,
+      radiusKm: 5,
+      eventType: 'all',
+      days: 7,
+    }),
+    validate: isRoadDisasterResponse,
   },
   {
     name: 'air-quality',
@@ -398,6 +424,43 @@ async function runWithConcurrency(items, concurrency, task) {
 
   await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
   return results;
+}
+
+async function waitForExpectedWorker() {
+  if (mode !== 'deploy') return;
+
+  const healthCheck = checks.find(check => check.name === 'health');
+  if (!healthCheck) throw new Error('Health check is missing.');
+
+  let lastError;
+  for (let attempt = 1; attempt <= DEPLOY_READINESS_ATTEMPTS; attempt += 1) {
+    try {
+      await requestOnce(healthCheck);
+      console.log(`Worker version ready: ${expectedWorkerVersion}`);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < DEPLOY_READINESS_ATTEMPTS) {
+        console.log(
+          `Waiting for Worker version ${expectedWorkerVersion} `
+            + `(${attempt}/${DEPLOY_READINESS_ATTEMPTS})`,
+        );
+        await delay(DEPLOY_READINESS_DELAY_MS);
+      }
+    }
+  }
+
+  const message = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(
+    `Worker version ${expectedWorkerVersion} did not become observable: ${message}`,
+  );
+}
+
+try {
+  await waitForExpectedWorker();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
 }
 
 const results = await runWithConcurrency(checks, CONCURRENCY, runCheck);

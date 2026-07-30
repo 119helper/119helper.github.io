@@ -7,7 +7,7 @@
  *   GET /api/er/location?lat=37.5&lng=127.0  → 위치 기반 검색
  */
 
-import { encodeServiceKey, fetchWithRetry } from './publicData';
+import { encodeServiceKey, fetchWithRetry, findPublicDataError } from './publicData';
 import { sanitizeStringParam } from '../middleware/cors';
 
 const ER_BASE = 'https://apis.data.go.kr/B552657/ErmctInfoInqireService';
@@ -30,8 +30,14 @@ async function fetchErXml(erUrl: string): Promise<string> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const res = await fetchWithRetry(erUrl, { headers: { 'User-Agent': '119-helper-worker/1.0' } });
     const text = await res.text();
-    if (res.ok && text.trimStart().startsWith('<')) return text;
-    lastErr = `ER upstream ${res.status}: ${text.replace(/\s+/g, ' ').slice(0, 100)}`;
+    const compact = text.replace(/\s+/g, ' ').slice(0, 140);
+    const apiError = findPublicDataError(text);
+    const hasSuccessCode = /<resultCode>\s*0+\s*<\/resultCode>/i.test(text);
+    const looksLikeCompleteXml = text.trimStart().startsWith('<') && /<\/(?:response|OpenAPI_ServiceResponse)>\s*$/i.test(text.trim());
+    if (res.ok && !apiError && hasSuccessCode && looksLikeCompleteXml) return text;
+    lastErr = apiError
+      ? `ER ${apiError}`
+      : `ER upstream ${res.status}: ${looksLikeCompleteXml ? 'MISSING_SUCCESS_CODE' : 'INVALID_XML'} ${compact}`;
   }
   throw new Error(lastErr || 'ER upstream error');
 }

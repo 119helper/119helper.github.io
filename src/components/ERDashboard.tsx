@@ -6,6 +6,7 @@ import StaleBadge from './StaleBadge';
 
 import PrivateAmbulanceView from './PrivateAmbulanceView';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
+import { kakaoRegionToCity } from '../utils/locationResolver';
 
 /* ─── 중증질환 필드 한글 매핑 ─── */
 const SEVERE_LABELS: Record<string, string> = {
@@ -48,9 +49,15 @@ function isMsgKey(key: string): boolean {
 
 interface ERViewProps {
   city: string;
+  incidentRegionName?: string;
+  incidentDistrictName?: string;
 }
 
-export default function ERDashboard({ city }: ERViewProps) {
+export default function ERDashboard({
+  city,
+  incidentRegionName,
+  incidentDistrictName,
+}: ERViewProps) {
   const [activeTab, setActiveTab] = useState<'er' | 'ambulance'>('er');
   
   const [erData, setErData] = useState<ERRealTimeData[]>([]);
@@ -67,6 +74,12 @@ export default function ERDashboard({ city }: ERViewProps) {
   const noticeDialogTitleId = useId();
   const noticeReturnFocusRef = useRef<HTMLElement | null>(null);
   const noticeDialogRef = useDialogAccessibility<HTMLDivElement>(Boolean(noticePopupId), () => setNoticePopupId(null), noticeReturnFocusRef);
+  const incidentCity = incidentRegionName
+    ? kakaoRegionToCity(incidentRegionName, incidentDistrictName)
+    : undefined;
+  const effectiveAmbulanceCity = incidentCity || city;
+  const incidentAmbulanceUnavailable = Boolean(incidentRegionName && !incidentCity);
+  const effectiveSido = incidentRegionName || CITY_TO_SIDO[city] || '서울특별시';
 
   const fetchER = useCallback(async (forceRefresh = false) => {
     const seq = ++requestSeqRef.current;
@@ -75,11 +88,15 @@ export default function ERDashboard({ city }: ERViewProps) {
     setSupplementalWarning('');
     setExpandedRow(null);
     try {
-      const sido = CITY_TO_SIDO[city] || '서울특별시';
       const [bedsResult, messagesResult, severeResult] = await Promise.allSettled([
-        getERRealTimeBeds(sido, '', forceRefresh),
-        getERMessages(sido, '', forceRefresh),
-        getERSevereIllness(sido, '', forceRefresh),
+        getERRealTimeBeds(
+          effectiveSido,
+          '',
+          forceRefresh,
+          incidentRegionName ? 'incident-region' : 'app-city',
+        ),
+        getERMessages(effectiveSido, '', forceRefresh),
+        getERSevereIllness(effectiveSido, '', forceRefresh),
       ]);
       if (seq !== requestSeqRef.current) return;
 
@@ -121,7 +138,7 @@ export default function ERDashboard({ city }: ERViewProps) {
     } finally {
       if (seq === requestSeqRef.current) setLoading(false);
     }
-  }, [city]);
+  }, [effectiveSido, incidentRegionName]);
 
   useEffect(() => { void fetchER(false); }, [fetchER]);
   useEffect(() => {
@@ -153,7 +170,7 @@ export default function ERDashboard({ city }: ERViewProps) {
             구급/응급 안내
           </h2>
           <p className="text-sm text-on-surface-variant mt-1">
-            실시간 응급실 가용 현황 및 비응급 사설 구급차 안내 · <span className="text-primary font-bold">{CITY_TO_DISPLAY_PROVINCE[city] || '서울특별시'}</span>
+            실시간 응급실 가용 현황 및 비응급 사설 구급차 안내 · <span className="text-primary font-bold">{incidentRegionName || CITY_TO_DISPLAY_PROVINCE[city] || '서울특별시'}</span>
           </p>
         </div>
       </div>
@@ -457,8 +474,15 @@ export default function ERDashboard({ city }: ERViewProps) {
         </div>
       )}
         </div>
+      ) : incidentAmbulanceUnavailable ? (
+        <div role="alert" className="rounded-xl border border-error/30 bg-error/5 px-4 py-5">
+          <p className="font-extrabold text-error">현장 지역 사설 구급차 데이터 미지원</p>
+          <p className="mt-1 text-sm leading-6 text-on-surface-variant">
+            관심 지역 목록을 현장 지역 정보처럼 표시하지 않습니다. 119상황실 또는 관할 기관에 확인하세요.
+          </p>
+        </div>
       ) : (
-        <PrivateAmbulanceView city={city} />
+        <PrivateAmbulanceView city={effectiveAmbulanceCity} />
       )}
     </div>
   );

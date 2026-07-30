@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { fetchCivilShelters, fetchTsunamiShelters, getStaleAt, isStaleDataError } from '../services/apiClient';
 import {
   fetchRestrooms,
@@ -7,15 +7,23 @@ import {
 } from '../services/restroomApi';
 import { getNearbyAeds } from '../services/aedApi';
 import type { FireFacility } from '../data/mockData';
-import type { CityIndex } from '../services/fireWaterApi';
+import {
+  fetchCityIndex,
+  fetchFireWaterFacilities,
+  isSplitCity,
+  parseFireWaterFacilities,
+  type CityIndex,
+} from '../services/fireWaterApi';
 import FacilityList from './FacilityList';
 import { loadKakaoMapSDK } from '../utils/kakaoLoader';
+import { kakaoRegionToCity } from '../utils/locationResolver';
 import proj4 from 'proj4';
 import BuildingView from './BuildingView';
 import DataStatePanel from './DataStatePanel';
 import type { KakaoMapInstance, KakaoMarker } from '../types/kakao';
 import type { FacilityFilterState, FacilityViewState, ShelterCategory } from '../types/navigation';
 import type { BuildingWorkspaceState } from '../types/buildingWorkspace';
+import type { IncidentLocation } from '../services/incidentSession';
 import { formatDatasetDate, formatFreshnessSourceDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
 import DatasetCompletenessNotice from './DatasetCompletenessNotice';
 import {
@@ -33,6 +41,7 @@ interface FacilitySearchProps {
   // 소방용수 데이터 (App에서 전달)
   fireFacilities?: FireFacility[];
   isLoadingFacilities?: boolean;
+  facilityLoadError?: string;
   cityIndex?: CityIndex | null;
   selectedDistrict?: string | null;
   onDistrictChange?: (district: string) => void;
@@ -43,6 +52,7 @@ interface FacilitySearchProps {
   onFilterStateChange: (patch: Partial<FacilityFilterState>) => void;
   onViewStateChange: (patch: Partial<FacilityViewState>) => void;
   incidentAddress?: string;
+  incidentLocation?: IncidentLocation;
   buildingWorkspace: BuildingWorkspaceState;
   onBuildingWorkspaceChange: (patch: Partial<BuildingWorkspaceState>) => void;
 }
@@ -113,6 +123,12 @@ const formatDistance = (distanceKm?: number | null) => {
 const ADDRESS_POINT_WARNING = '도로명주소와 건물명이 일치하는 건물 대표 좌표입니다. 실제 화장실 위치·출입구와 다를 수 있습니다.';
 const UNKNOWN_COORDINATE_WARNING = '좌표 출처 유형을 확인하지 못했습니다. 현장에서 실제 위치를 다시 확인해 주세요.';
 
+const cityIndexHasDistrict = (index: CityIndex | null, district: string) => Boolean(
+  district
+  && index
+  && Object.prototype.hasOwnProperty.call(index.districts, district),
+);
+
 // 통합 카테고리 정의
 const CATEGORIES = [
   { id: 'building', label: '건축물대장', icon: 'apartment', desc: '건축물대장 및 소방시설 현황 조회', isFireWater: false, isBuilding: true },
@@ -128,6 +144,7 @@ export default function FacilitySearchView({
   city,
   fireFacilities = [],
   isLoadingFacilities = false,
+  facilityLoadError = '',
   cityIndex,
   selectedDistrict,
   onDistrictChange,
@@ -138,6 +155,7 @@ export default function FacilitySearchView({
   onFilterStateChange,
   onViewStateChange,
   incidentAddress,
+  incidentLocation,
   buildingWorkspace,
   onBuildingWorkspaceChange,
 }: FacilitySearchProps) {
@@ -154,6 +172,19 @@ export default function FacilitySearchView({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const facilityListRef = useRef<HTMLDivElement>(null);
   const listScrollFrameRef = useRef<number | null>(null);
+  const facilityRequestSeqRef = useRef(0);
+  const facilityContextRef = useRef('');
+  const fireWaterRequestSeqRef = useRef(0);
+  const fireWaterContextRef = useRef('');
+  const hasRetainedFacilityData = Boolean(apiError && facilities.length > 0);
+  const hasBlockingApiError = Boolean(apiError && !hasRetainedFacilityData);
+  const isGuidanceApiError = Boolean(
+    apiError
+    && (
+      apiError.includes('방대하여')
+      || apiError.startsWith('관할 공개 데이터 없음:')
+    ),
+  );
   const pendingListScrollTopRef = useRef(viewState.listScrollTop);
   const persistedListScrollTopRef = useRef(viewState.listScrollTop);
   const filter = filterState.query;
@@ -163,36 +194,131 @@ export default function FacilitySearchView({
     onViewStateChange({ selectedKey: null, listScrollTop: 0 });
     facilityListRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   };
+
+  const [restroomIndex, setRestroomIndex] = useState<CityIndex | null>(null);
+  const [restroomIndexCity, setRestroomIndexCity] = useState('');
+  const [restroomIndexLoading, setRestroomIndexLoading] = useState(false);
+  const [restroomIndexError, setRestroomIndexError] = useState('');
+  const [restroomIndexRefreshKey, setRestroomIndexRefreshKey] = useState(0);
+  const [incidentFireFacilities, setIncidentFireFacilities] = useState<FireFacility[]>([]);
+  const [incidentFireWaterLoading, setIncidentFireWaterLoading] = useState(false);
+  const [incidentFireWaterError, setIncidentFireWaterError] = useState('');
+  const operationalPos = useMemo(
+    () => incidentLocation
+      ? { lat: incidentLocation.lat, lng: incidentLocation.lng }
+      : userPos,
+    [incidentLocation, userPos],
+  );
+  const incidentCity = incidentLocation?.regionName
+    ? kakaoRegionToCity(incidentLocation.regionName, incidentLocation.districtName)
+    : undefined;
+  const incidentDistrict = incidentCity ? incidentLocation?.districtName?.trim() || '' : '';
+  const dataCity = incidentCity || city;
+  const dataCityLabel = cityShort[dataCity] || dataCity;
+  const incidentJurisdictionOverride = Boolean(incidentCity && incidentCity !== city);
+  const incidentRegionUnsupported = Boolean(incidentLocation?.regionName && !incidentCity);
+  const incidentRegionUnavailable = Boolean(incidentLocation && !incidentLocation.regionName);
+  const usesRegionalDataPool = activeCategory !== 'aed' && activeCategory !== 'building';
+  const incidentFilterContextKey = incidentCity
+    ? `${incidentCity}:${incidentDistrict}:${city}:${activeCategory}`
+    : '';
+  const [incidentDistrictSelection, setIncidentDistrictSelection] = useState<{
+    contextKey: string;
+    district: string;
+  } | null>(null);
+  const incidentDefaultDistrict = activeCategory === 'restrooms' && incidentDistrict
+    ? incidentDistrict
+    : '전체';
+  const effectiveFilterDistrict = incidentFilterContextKey
+    ? incidentDistrictSelection?.contextKey === incidentFilterContextKey
+      ? incidentDistrictSelection.district
+      : incidentDefaultDistrict
+    : filterDistrict;
+  const restroomRequestDistrict = activeCategory === 'restrooms'
+    ? effectiveFilterDistrict
+    : '전체';
   const setFilterDistrict = (district: string) => {
-    onFilterStateChange({ district });
+    if (incidentFilterContextKey) {
+      setIncidentDistrictSelection({ contextKey: incidentFilterContextKey, district });
+    } else {
+      onFilterStateChange({ district });
+    }
     onViewStateChange({ selectedKey: null, listScrollTop: 0 });
     facilityListRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   };
-
-  const [restroomIndex, setRestroomIndex] = useState<CityIndex | null>(null);
+  const handleContextFilterStateChange = (patch: Partial<FacilityFilterState>) => {
+    if (!incidentFilterContextKey || patch.district === undefined) {
+      onFilterStateChange(patch);
+      return;
+    }
+    setIncidentDistrictSelection({
+      contextKey: incidentFilterContextKey,
+      district: patch.district,
+    });
+    const parentPatch = { ...patch };
+    delete parentPatch.district;
+    if (Object.keys(parentPatch).length > 0) {
+      onFilterStateChange(parentPatch);
+    }
+  };
+  const scopedIncidentDistrict = activeCategory === 'restrooms'
+    ? effectiveFilterDistrict
+    : incidentDistrict;
+  const isDistrictScopedIncidentPool = Boolean(
+    scopedIncidentDistrict
+    && scopedIncidentDistrict !== '전체'
+    && (
+      activeCategory === 'restrooms'
+      || (
+        (activeCategory === 'hydrants' || activeCategory === 'waterTowers')
+        && isSplitCity(dataCity)
+      )
+    ),
+  );
+  const dataPoolLabel = `${dataCityLabel}${
+    isDistrictScopedIncidentPool ? ` ${scopedIncidentDistrict}` : ''
+  }`;
 
   // 공중화장실 전용 도시 인덱스 (기존 cityIndex가 없거나 다를 경우 대비)
   useEffect(() => {
     let cancelled = false;
-    if (activeCategory === 'restrooms') {
-      fetchRestroomCityIndex(city).then(idx => {
-        if (cancelled) return;
-        setRestroomIndex(idx);
-        if (idx && filterDistrict === '전체') {
-          // 자동으로 첫 번째 구/군을 선택할지 여부: 에러 메시지로 유도하는 것도 나쁘지 않음.
-        }
-      }).catch(error => {
-        if (cancelled) return;
-        setRestroomIndex(null);
-        setApiError(error instanceof Error
-          ? error.message
-          : '공중화장실 지역 인덱스를 불러오지 못했습니다.');
-      });
+    if (activeCategory !== 'restrooms') {
+      setRestroomIndex(null);
+      setRestroomIndexCity('');
+      setRestroomIndexLoading(false);
+      setRestroomIndexError('');
+      return () => {
+        cancelled = true;
+      };
     }
+
+    setRestroomIndex(null);
+    setRestroomIndexCity('');
+    setRestroomIndexLoading(true);
+    setRestroomIndexError('');
+    fetchRestroomCityIndex(dataCity).then(idx => {
+      if (cancelled) return;
+      if (!idx) {
+        setRestroomIndexError('공중화장실 지역 인덱스가 없습니다.');
+      }
+      setRestroomIndex(idx);
+      setRestroomIndexCity(dataCity);
+    }).catch(error => {
+      if (cancelled) return;
+      setRestroomIndex(null);
+      setRestroomIndexCity(dataCity);
+      setRestroomIndexError(error instanceof Error
+        ? error.message
+        : '공중화장실 지역 인덱스를 불러오지 못했습니다.');
+    }).finally(() => {
+      if (!cancelled) setRestroomIndexLoading(false);
+    });
+
     return () => {
       cancelled = true;
     };
-  }, [city, activeCategory, filterDistrict]);
+  }, [activeCategory, dataCity, restroomIndexRefreshKey]);
+  const activeRestroomIndex = restroomIndexCity === dataCity ? restroomIndex : null;
 
   // GPS
   useEffect(() => {
@@ -211,39 +337,137 @@ export default function FacilitySearchView({
   useEffect(() => {
     let alive = true;
     setFreshness(null);
-    getDatasetFreshness(activeCategory, city).then(meta => {
+    getDatasetFreshness(activeCategory, dataCity).then(meta => {
       if (alive) setFreshness(meta);
     });
     return () => { alive = false; };
-  }, [activeCategory, city]);
+  }, [activeCategory, dataCity]);
 
   // 소방용수 카테고리인지 판단
   const isFireWater = currentCat.isFireWater;
   const isBuilding = currentCat.isBuilding;
+  const useIncidentFireWater = Boolean(isFireWater && incidentCity);
+
+  useEffect(() => {
+    const seq = ++fireWaterRequestSeqRef.current;
+    if (!useIncidentFireWater) {
+      setIncidentFireWaterLoading(false);
+      return;
+    }
+
+    const contextKey = `${dataCity}:${incidentDistrict}`;
+    const contextChanged = fireWaterContextRef.current !== contextKey;
+    fireWaterContextRef.current = contextKey;
+    const isCurrent = () => seq === fireWaterRequestSeqRef.current;
+    if (contextChanged) setIncidentFireFacilities([]);
+    setIncidentFireWaterLoading(true);
+    setIncidentFireWaterError('');
+
+    const splitCity = isSplitCity(dataCity);
+    if (splitCity && !incidentDistrict) {
+      setIncidentFireWaterLoading(false);
+      setIncidentFireWaterError('현장 구·군을 확인하지 못해 분할 소방용수 데이터를 불러오지 않았습니다.');
+      return;
+    }
+
+    void (async () => {
+      try {
+        if (splitCity) {
+          const index = await fetchCityIndex(dataCity);
+          if (!isCurrent()) return;
+          if (!cityIndexHasDistrict(index, incidentDistrict)) {
+            setIncidentFireWaterError(
+              `현장 관할 ${dataPoolLabel}와 정확히 일치하는 소방용수 분할 파일이 없습니다. `
+              + '과거 행정구역 파일을 임의로 대체하지 않았습니다.',
+            );
+            return;
+          }
+        }
+
+        const items = await fetchFireWaterFacilities(
+          dataCity,
+          splitCity ? incidentDistrict : undefined,
+        );
+        if (!isCurrent()) return;
+        setIncidentFireFacilities(parseFireWaterFacilities(items));
+      } catch (error) {
+        if (!isCurrent()) return;
+        setIncidentFireWaterError(
+          error instanceof Error
+            ? error.message
+            : '출동 현장 소방용수 등록 데이터를 불러오지 못했습니다.',
+        );
+      } finally {
+        if (isCurrent()) setIncidentFireWaterLoading(false);
+      }
+    })();
+
+    return () => {
+      fireWaterRequestSeqRef.current += 1;
+    };
+  }, [
+    dataCity,
+    dataPoolLabel,
+    incidentDistrict,
+    useIncidentFireWater,
+  ]);
+
+  const activeFireFacilities = useIncidentFireWater
+    ? incidentFireFacilities
+    : fireFacilities;
+  const activeFireWaterLoading = useIncidentFireWater
+    ? incidentFireWaterLoading
+    : isLoadingFacilities;
+  const activeFireWaterError = useIncidentFireWater
+    ? incidentFireWaterError
+    : facilityLoadError;
 
   // 소방용수: 타입별 필터링된 데이터
   const filteredFireWater = isFireWater
     ? activeCategory === 'hydrants'
-      ? fireFacilities.filter(f => f.type === '소화전' || f.type === '비상소화장치')
-      : fireFacilities.filter(f => f.type === '급수탑' || f.type === '저수조')
+      ? activeFireFacilities.filter(f => f.type === '소화전' || f.type === '비상소화장치')
+      : activeFireFacilities.filter(f => f.type === '급수탑' || f.type === '저수조')
     : [];
 
   // 대피소/화장실 데이터 로드
   const loadShelterData = useCallback(async () => {
-    if (isFireWater || isBuilding) return; // 소방용수/건축물대장은 자체 관리
+    const seq = ++facilityRequestSeqRef.current;
+    if (isFireWater || isBuilding) {
+      setLoading(false);
+      return; // 소방용수/건축물대장은 자체 관리
+    }
+    const contextKey = [
+      dataCity,
+      incidentDistrict,
+      activeCategory,
+      restroomRequestDistrict,
+      operationalPos?.lat ?? '',
+      operationalPos?.lng ?? '',
+    ].join(':');
+    const contextChanged = facilityContextRef.current !== contextKey;
+    facilityContextRef.current = contextKey;
+    const isCurrent = () => seq === facilityRequestSeqRef.current;
 
     setLoading(true);
     setApiError(null);
     setWarning(null);
-    setFacilities([]);
+    if (contextChanged) setFacilities([]);
+
+    if (
+      activeCategory === 'restrooms'
+      && (restroomIndexLoading || restroomIndexCity !== dataCity)
+    ) {
+      return;
+    }
 
     try {
       let items: FacilitySourceItem[] = [];
-      const ctprvnNm = CITY_TO_STATIC_PROVINCE[city] || '서울특별시';
+      const ctprvnNm = CITY_TO_STATIC_PROVINCE[dataCity] || '서울특별시';
 
       if (activeCategory === 'aed') {
-        const origin = userPos || cityCenters[city] || cityCenters.seoul;
+        const origin = operationalPos || cityCenters[dataCity] || cityCenters.seoul;
         const aeds = await getNearbyAeds(origin.lat, origin.lng);
+        if (!isCurrent()) return;
         const staleAt = getStaleAt(aeds);
         if (staleAt) {
           setWarning(`AED 최신 조회에 실패했습니다. (${new Date(staleAt).toLocaleTimeString()} 성공)`);
@@ -270,7 +494,9 @@ export default function FacilitySearchView({
         let rawItems: FacilitySourceItem[];
         try {
           rawItems = await fetchTsunamiShelters() as FacilitySourceItem[];
+          if (!isCurrent()) return;
         } catch (e: unknown) {
+          if (!isCurrent()) return;
           if (isStaleDataError(e)) {
             rawItems = e.cachedData as FacilitySourceItem[];
             const t = e.cachedAt ? new Date(e.cachedAt).toLocaleTimeString() : '';
@@ -285,13 +511,15 @@ export default function FacilitySearchView({
           const addr4 = fieldText(it, 'RDNMADR');
           const ctprvn = fieldText(it, 'CTPRVN_NM') || fieldText(it, 'ctprvnNm');
           
-          return recordMatchesAppCity(city, ctprvn, addr1, addr2, addr3, addr4);
+          return recordMatchesAppCity(dataCity, ctprvn, addr1, addr2, addr3, addr4);
         });
       } else if (activeCategory === 'civil') {
         let rawItems: FacilitySourceItem[];
         try {
           rawItems = await fetchCivilShelters(ctprvnNm) as FacilitySourceItem[];
+          if (!isCurrent()) return;
         } catch (e: unknown) {
+          if (!isCurrent()) return;
           if (isStaleDataError(e)) {
             rawItems = e.cachedData as FacilitySourceItem[];
             const t = e.cachedAt ? new Date(e.cachedAt).toLocaleTimeString() : '';
@@ -304,18 +532,28 @@ export default function FacilitySearchView({
           const addr2 = fieldText(it, 'RDNMADR');
           const addr3 = fieldText(it, 'rdnmadr');
           const ctprvn = fieldText(it, 'CTPRVN_NM') || fieldText(it, 'ctprvnNm');
-          return recordMatchesAppCity(city, ctprvn, addr1, addr2, addr3);
+          return recordMatchesAppCity(dataCity, ctprvn, addr1, addr2, addr3);
         });
-
-        if (items.length === 0) {
-          throw new Error('선택된 지역의 대피시설 데이터가 현재 로드된 페이지 내에 존재하지 않습니다.');
-        }
       } else if (activeCategory === 'restrooms') {
-        if (!filterDistrict || filterDistrict === '전체') {
+        if (restroomIndexError) {
+          throw new Error(restroomIndexError);
+        }
+        if (!restroomRequestDistrict || restroomRequestDistrict === '전체') {
           // 공중화장실의 경우 데이터가 방대하므로 구별 선택을 강제 또는 안내
           throw new Error('화장실 정보는 데이터가 방대하여 특정 구/군을 먼저 선택해야 합니다.');
+        } else if (!cityIndexHasDistrict(activeRestroomIndex, restroomRequestDistrict)) {
+          throw new Error(
+            `관할 공개 데이터 없음: ${dataCityLabel} ${restroomRequestDistrict} 공중화장실 파일이 `
+            + '현재 공개 데이터 인덱스에 포함되지 않아 임의 지역 파일을 대신 불러오지 않았습니다.',
+          );
         } else {
-          const rawItems = await fetchRestrooms(city, filterDistrict, userPos?.lat, userPos?.lng);
+          const rawItems = await fetchRestrooms(
+            dataCity,
+            restroomRequestDistrict,
+            operationalPos?.lat,
+            operationalPos?.lng,
+          );
+          if (!isCurrent()) return;
           const parsed: FacilityItem[] = rawItems.map(it => ({
             id: it.id,
             name: it.nm,
@@ -324,7 +562,7 @@ export default function FacilitySearchView({
             lat: it.lat,
             lng: it.lng,
             category: activeCategory,
-            district: filterDistrict,
+            district: restroomRequestDistrict,
             hasBell: it.hasBell,
             maleToilet: it.male,
             femaleToilet: it.female,
@@ -333,7 +571,7 @@ export default function FacilitySearchView({
           }));
           
           // 위치 기반일 경우 가까운 50개만 잘라서 렉 방지
-          const finalFacilities = userPos ? parsed.slice(0, 50) : parsed;
+          const finalFacilities = operationalPos ? parsed.slice(0, 50) : parsed;
           
           setFacilities(finalFacilities);
           setLoading(false);
@@ -365,11 +603,11 @@ export default function FacilitySearchView({
             if (!lat || !lng) return null;
 
             const rawAddress = fieldText(it, 'LCTN_WHOL_ADDR') || fieldText(it, 'rdnmadr') || fieldText(it, 'SHNT_PLACE_DTL_POSITION') || fieldText(it, 'RN_DTL_ADRES') || fieldText(it, 'RDNMADR') || fieldText(it, 'lnmadr') || fieldText(it, 'LNMADR') || fieldText(it, 'dtlAdres') || fieldText(it, 'ronAdres') || fieldText(it, 'adres') || '주소 미상';
-            const addressStr = city === 'gwangju'
+            const addressStr = dataCity === 'gwangju'
               ? normalizeGwangjuDisplayText(rawAddress, true)
               : rawAddress;
             
-            const district = districtFromAddress(addressStr, city);
+            const district = districtFromAddress(addressStr, dataCity);
 
             return {
               name: fieldText(it, 'FCLT_NM') || fieldText(it, 'fcltNm') || fieldText(it, 'SHNT_PLACE_NM') || fieldText(it, 'shltNm') || fieldText(it, 'SHLT_NM') || fieldText(it, 'fclt_nm') || fieldText(it, 'shelter_nm') || '무명 시설',
@@ -384,27 +622,55 @@ export default function FacilitySearchView({
           })
           .filter((f): f is FacilityItem => f !== null);
 
-        if (userPos) {
+        if (operationalPos) {
           parsed.sort((a, b) => {
-            const dA = Math.sqrt((a.lat - userPos.lat) ** 2 + (a.lng - userPos.lng) ** 2);
-            const dB = Math.sqrt((b.lat - userPos.lat) ** 2 + (b.lng - userPos.lng) ** 2);
+            const dA = Math.sqrt((a.lat - operationalPos.lat) ** 2 + (a.lng - operationalPos.lng) ** 2);
+            const dB = Math.sqrt((b.lat - operationalPos.lat) ** 2 + (b.lng - operationalPos.lng) ** 2);
             return dA - dB;
           });
         }
 
         setFacilities(parsed);
+      } else {
+        setFacilities([]);
       }
     } catch (e: unknown) {
+      if (!isCurrent()) return;
       setApiError(e instanceof Error ? e.message : '시설 데이터를 불러올 수 없습니다.');
     }
-    setLoading(false);
-  }, [city, activeCategory, userPos, isFireWater, isBuilding, filterDistrict]);
+    if (isCurrent()) setLoading(false);
+  }, [
+    activeCategory,
+    activeRestroomIndex,
+    dataCity,
+    dataCityLabel,
+    incidentDistrict,
+    isBuilding,
+    isFireWater,
+    operationalPos,
+    restroomIndexCity,
+    restroomIndexError,
+    restroomIndexLoading,
+    restroomRequestDistrict,
+  ]);
 
-  useEffect(() => { loadShelterData(); }, [loadShelterData]);
+  useEffect(() => {
+    void loadShelterData();
+    return () => {
+      facilityRequestSeqRef.current += 1;
+    };
+  }, [loadShelterData]);
+  const refreshFacilityData = () => {
+    if (activeCategory === 'restrooms') {
+      setRestroomIndexRefreshKey(value => value + 1);
+      return;
+    }
+    void loadShelterData();
+  };
 
   // 카카오맵 초기화 — 대피소 카테고리에서만 사용
   useEffect(() => {
-    if (isFireWater || isBuilding || loading || apiError) return;
+    if (isFireWater || isBuilding || loading || hasBlockingApiError) return;
     
     // SDK가 아직 준비되지 않았다면 로드
     if (!window.kakao || !window.kakao.maps) {
@@ -416,8 +682,9 @@ export default function FacilitySearchView({
     if (!mapContainer) return;
     
     window.kakao.maps.load(() => {
-      const cityCenter = cityCenters[city] || cityCenters.seoul;
-      const center = new window.kakao.maps.LatLng(cityCenter.lat, cityCenter.lng);
+      const fallbackCenter = cityCenters[dataCity] || cityCenters.seoul;
+      const centerPosition = operationalPos || fallbackCenter;
+      const center = new window.kakao.maps.LatLng(centerPosition.lat, centerPosition.lng);
 
       if (kakaoMap && mapContainer.hasChildNodes()) {
         kakaoMap.panTo(center);
@@ -429,15 +696,25 @@ export default function FacilitySearchView({
       const map = new window.kakao.maps.Map(mapContainer, { center, level: 8 });
       setKakaoMap(map);
 
-      if (userPos) {
+      if (operationalPos) {
         new window.kakao.maps.Marker({
-          position: new window.kakao.maps.LatLng(userPos.lat, userPos.lng),
+          position: new window.kakao.maps.LatLng(operationalPos.lat, operationalPos.lng),
           map,
-          title: '현재 위치',
+          title: incidentLocation ? '출동 현장' : '현재 위치',
         });
       }
     });
-  }, [city, userPos, isFireWater, isBuilding, loading, apiError, kakaoMap, sdkReady]);
+  }, [
+    dataCity,
+    operationalPos,
+    incidentLocation,
+    isFireWater,
+    isBuilding,
+    loading,
+    hasBlockingApiError,
+    kakaoMap,
+    sdkReady,
+  ]);
 
   const selectFacility = useCallback((facility: FacilityItem) => {
     onViewStateChange({ selectedKey: facilityItemKey(facility) });
@@ -451,7 +728,7 @@ export default function FacilitySearchView({
     markersRef.current = [];
 
     const visible = facilities.filter(f =>
-      (filterDistrict === '전체' || f.district === filterDistrict) &&
+      (effectiveFilterDistrict === '전체' || f.district === effectiveFilterDistrict) &&
       (!filter || f.name.includes(filter) || f.address.includes(filter))
     ).slice(0, 200);
 
@@ -522,7 +799,7 @@ export default function FacilitySearchView({
       });
       markersRef.current.push(marker);
     });
-  }, [facilities, filter, isFireWater, isBuilding, kakaoMap, filterDistrict, selectFacility]);
+  }, [effectiveFilterDistrict, facilities, filter, isFireWater, isBuilding, kakaoMap, selectFacility]);
 
   const handleSelectFacility = (fac: FacilityItem) => {
     selectFacility(fac);
@@ -533,7 +810,7 @@ export default function FacilitySearchView({
   };
 
   const filtered = facilities.filter(f =>
-    (filterDistrict === '전체' || f.district === filterDistrict) &&
+    (effectiveFilterDistrict === '전체' || f.district === effectiveFilterDistrict) &&
     (!filter || f.name.includes(filter) || f.address.includes(filter))
   );
   const restroomAddressPointCount = activeCategory === 'restrooms'
@@ -544,10 +821,17 @@ export default function FacilitySearchView({
     : 0;
   const selectedFacility = facilities.find(facility => facilityItemKey(facility) === viewState.selectedKey) ?? null;
   const hasQuery = filter.trim().length > 0;
-  const hasDistrictFilter = filterDistrict !== '전체';
+  const hasDistrictFilter = incidentFilterContextKey
+    ? effectiveFilterDistrict !== incidentDefaultDistrict
+    : effectiveFilterDistrict !== '전체';
   const hasActiveFilters = hasQuery || hasDistrictFilter;
   const resetFilters = () => {
-    onFilterStateChange({ query: '', district: '전체' });
+    setIncidentDistrictSelection(null);
+    onFilterStateChange(
+      incidentFilterContextKey
+        ? { query: '' }
+        : { query: '', district: '전체' },
+    );
     onViewStateChange({ selectedKey: null, listScrollTop: 0 });
     facilityListRef.current?.scrollTo({ top: 0, behavior: 'auto' });
     window.requestAnimationFrame(() => searchInputRef.current?.focus());
@@ -565,7 +849,7 @@ export default function FacilitySearchView({
       });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [activeCategory, city, facilities.length, filter, filterDistrict, viewState.listScrollTop]);
+  }, [activeCategory, dataCity, effectiveFilterDistrict, facilities.length, filter, viewState.listScrollTop]);
 
   useEffect(() => () => {
     if (listScrollFrameRef.current !== null) {
@@ -599,15 +883,20 @@ export default function FacilitySearchView({
             <div>
               <h2 className="ui-page-title">시설 조회</h2>
               <p className="text-xs text-on-surface-variant mt-0.5">
-                <span className="text-primary font-bold">{cityShort[city] || city}</span> 지역
+                <span className="text-primary font-bold">{dataCityLabel}</span>
+                {incidentCity ? ' 출동 관할' : ' 지역'}
                 {isFireWater
                   ? ` | ${currentCat.desc}`
                   : isBuilding
                     ? ` | ${currentCat.desc}`
-                    : !loading && !apiError ? ` | ${currentCat.label} ${filtered.length}개소` : ''
+                    : !loading && !hasBlockingApiError ? ` | ${currentCat.label} ${filtered.length}개소` : ''
                 }
-                {!isFireWater && !isBuilding && userPos && (
-                  activeCategory === 'restrooms' ? ' | 표시 좌표 기준 거리순' : ' | GPS 거리순'
+                {!isFireWater && !isBuilding && operationalPos && (
+                  incidentLocation
+                    ? ' | 출동 현장 기준 거리순'
+                    : activeCategory === 'restrooms'
+                      ? ' | 표시 좌표 기준 거리순'
+                      : ' | GPS 거리순'
                 )}
               </p>
               {freshness && (
@@ -630,13 +919,49 @@ export default function FacilitySearchView({
             </div>
           </div>
           {!isFireWater && !isBuilding && (
-            <button onClick={loadShelterData} disabled={loading}
+            <button
+              onClick={refreshFacilityData}
+              disabled={loading || restroomIndexLoading}
               className="bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/20 transition-colors flex items-center gap-2 disabled:opacity-50">
-              <span className={`material-symbols-outlined text-lg ${loading ? 'animate-spin' : ''}`}>refresh</span>
+              <span className={`material-symbols-outlined text-lg ${
+                loading || restroomIndexLoading ? 'animate-spin' : ''
+              }`}>refresh</span>
               새로고침
             </button>
           )}
         </div>
+
+        {incidentJurisdictionOverride && usesRegionalDataPool && (
+          <div role="status" className="mt-4 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5">
+            <span aria-hidden="true" className="material-symbols-outlined text-lg text-primary">my_location</span>
+            <p className="text-xs leading-5 text-on-surface-variant">
+              관심 지역 <strong className="text-on-surface">{cityShort[city] || city}</strong> 대신 출동 현장
+              {' '}<strong className="text-on-surface">{dataPoolLabel}</strong> 관할 데이터 풀을 우선 조회합니다.
+              거리와 시설 목록 모두 현장 기준입니다.
+            </p>
+          </div>
+        )}
+
+        {incidentRegionUnsupported && usesRegionalDataPool && (
+          <div role="alert" className="mt-4 flex items-start gap-2 rounded-lg border border-error/30 bg-error/5 px-3 py-2.5">
+            <span aria-hidden="true" className="material-symbols-outlined text-lg text-error">wrong_location</span>
+            <p className="text-xs leading-5 text-on-surface-variant">
+              출동 현장 <strong className="text-on-surface">{incidentLocation?.regionName}{incidentLocation?.districtName ? ` ${incidentLocation.districtName}` : ''}</strong>은 현재 시설 데이터 지원 범위 밖입니다.
+              AED와 거리는 현장 좌표로 조회하지만, 지역별 목록은 관심 지역
+              {' '}<strong className="text-on-surface">{cityShort[city] || city}</strong> 데이터를 대체 표시합니다.
+            </p>
+          </div>
+        )}
+
+        {incidentRegionUnavailable && usesRegionalDataPool && (
+          <div role="alert" className="mt-4 flex items-start gap-2 rounded-lg border border-error/30 bg-error/5 px-3 py-2.5">
+            <span aria-hidden="true" className="material-symbols-outlined text-lg text-error">wrong_location</span>
+            <p className="text-xs leading-5 text-on-surface-variant">
+              GPS 좌표의 행정구역을 확인하지 못했습니다. AED와 거리는 현장 좌표로 조회하지만, 지역별 목록은 관심 지역
+              {' '}<strong className="text-on-surface">{cityShort[city] || city}</strong> 데이터를 대체 표시합니다.
+            </p>
+          </div>
+        )}
 
         {/* 통합 카테고리 선택 */}
         <div className="flex gap-2 mt-4 flex-wrap">
@@ -663,21 +988,37 @@ export default function FacilitySearchView({
 
       {/* ═══ 소방용수 카테고리: FacilityList 임베드 ═══ */}
       {isFireWater && (
-        <FacilityList
-          data={filteredFireWater}
-          title={activeCategory === 'hydrants' ? '소화전 위치' : '급수탑 · 저수조 위치'}
-          icon={activeCategory === 'hydrants' ? '🚒' : '💧'}
-          typeLabel={currentCat.desc}
-          city={city}
-          isLoading={isLoadingFacilities}
-          cityIndex={cityIndex}
-          selectedDistrict={selectedDistrict}
-          onDistrictChange={onDistrictChange}
-          filterState={filterState}
-          onFilterStateChange={onFilterStateChange}
-          viewState={viewState}
-          onViewStateChange={onViewStateChange}
-        />
+        <div className="space-y-3">
+          {activeFireWaterError && (
+            <div role="alert" className="rounded-xl border border-error/30 bg-error/5 px-4 py-3 text-sm text-on-surface">
+              <p className="font-extrabold text-error">소방용수 등록 데이터 조회 불가</p>
+              <p className="mt-1 text-xs leading-5 text-on-surface-variant">
+                {activeFireWaterError}
+                {activeFireFacilities.length > 0
+                  ? ' 화면에는 직전 성공 목록을 유지합니다.'
+                  : ' 빈 목록을 시설 없음으로 판단하지 말고 관할 자료와 현장을 확인하세요.'}
+              </p>
+            </div>
+          )}
+          <FacilityList
+            data={filteredFireWater}
+            title={activeCategory === 'hydrants' ? '소화전 위치' : '급수탑 · 저수조 위치'}
+            icon={activeCategory === 'hydrants' ? '🚒' : '💧'}
+            typeLabel={currentCat.desc}
+            city={dataCity}
+            isLoading={activeFireWaterLoading}
+            cityIndex={useIncidentFireWater ? null : cityIndex}
+            selectedDistrict={useIncidentFireWater ? incidentDistrict || null : selectedDistrict}
+            onDistrictChange={useIncidentFireWater ? undefined : onDistrictChange}
+            filterState={incidentFilterContextKey
+              ? { ...filterState, district: effectiveFilterDistrict }
+              : filterState}
+            onFilterStateChange={handleContextFilterStateChange}
+            viewState={viewState}
+            onViewStateChange={onViewStateChange}
+            origin={incidentLocation ? operationalPos : null}
+          />
+        </div>
       )}
 
       {/* ═══ 건축물대장 카테고리 ═══ */}
@@ -699,7 +1040,11 @@ export default function FacilitySearchView({
               <span aria-hidden="true" className="material-symbols-outlined text-red-600 dark:text-red-300">cardiology</span>
               <div>
                 <p className="text-sm font-bold text-on-surface">
-                  {userPos ? '현재 GPS 위치 기준 가까운 AED입니다.' : `${cityShort[city] || city} 중심 좌표 기준입니다.`}
+                  {incidentLocation
+                    ? '출동 현장 기준 가까운 AED입니다.'
+                    : userPos
+                      ? '현재 GPS 위치 기준 가까운 AED입니다.'
+                      : `${dataCityLabel} 중심 좌표 기준입니다.`}
                 </p>
                 <p className="mt-1 text-xs text-on-surface-variant">
                   설치 위치와 운영시간은 기관 제공 참고정보입니다. 사용 전 현장 접근 가능 여부를 확인하고, 심정지 상황에서는 즉시 119에 신고하세요.
@@ -717,32 +1062,49 @@ export default function FacilitySearchView({
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
-                aria-pressed={filterDistrict === '전체'}
-                onClick={() => setFilterDistrict('전체')}
+                aria-pressed={effectiveFilterDistrict === incidentDefaultDistrict}
+                onClick={() => setFilterDistrict(incidentDefaultDistrict)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  filterDistrict === '전체'
+                  effectiveFilterDistrict === incidentDefaultDistrict
                     ? 'bg-primary text-on-primary shadow-lg shadow-primary/20 scale-105'
                     : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface'
                 }`}
-              >전체</button>
-              
-              {/* 동적 구/군 렌더링: 화장실은 restroomIndex 사용, 나머지는 로드된 데이터(facilities)에서 추출 */}
-              {(activeCategory === 'restrooms' && restroomIndex
-                  ? Object.keys(restroomIndex.districts).sort()
+              >
+                {activeCategory === 'restrooms' && incidentDistrict
+                  ? `현장 ${incidentDistrict}${
+                    activeRestroomIndex?.districts[incidentDistrict] !== undefined
+                      ? ` (${activeRestroomIndex.districts[incidentDistrict]})`
+                      : ''
+                  }`
+                  : '전체'}
+              </button>
+
+              {/* 동적 구/군 렌더링: 화장실은 현재 도시 인덱스, 나머지는 로드된 데이터에서 추출 */}
+              {(activeCategory === 'restrooms' && activeRestroomIndex
+                  ? Object.keys(activeRestroomIndex.districts).sort()
                   : Array.from(new Set(facilities.map(f => f.district).filter(d => Boolean(d) && d !== '전체'))).sort()
-                ).map(d => (
+                )
+                .filter(d => !(
+                  activeCategory === 'restrooms'
+                  && incidentCity
+                  && incidentDistrict
+                  && d === incidentDistrict
+                ))
+                .map(d => (
                 <button
                   key={d}
                   type="button"
-                  aria-pressed={filterDistrict === d}
+                  aria-pressed={effectiveFilterDistrict === d}
                   onClick={() => setFilterDistrict(d as string)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    filterDistrict === d
+                    effectiveFilterDistrict === d
                       ? 'bg-primary text-on-primary shadow-lg shadow-primary/20 scale-105'
                       : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
-                  {d} {activeCategory === 'restrooms' && restroomIndex?.districts && d ? `(${restroomIndex.districts[d as string]})` : ''}
+                  {d} {activeCategory === 'restrooms' && activeRestroomIndex?.districts && d
+                    ? `(${activeRestroomIndex.districts[d as string]})`
+                    : ''}
                 </button>
               ))}
             </div>
@@ -751,14 +1113,28 @@ export default function FacilitySearchView({
           {/* API 에러 */}
           {!loading && apiError && (
             <DataStatePanel
-              tone={apiError.includes('방대하여') ? 'guidance' : 'error'}
-              icon={apiError.includes('방대하여') ? 'touch_app' : 'cloud_off'}
-              title={apiError.includes('방대하여') ? `${currentCat.label} 구역을 선택해 주세요` : `${currentCat.label} 정보를 불러오지 못했습니다`}
-              description={apiError}
-              action={apiError.includes('방대하여') ? undefined : {
+              tone={hasRetainedFacilityData || isGuidanceApiError ? 'guidance' : 'error'}
+              icon={hasRetainedFacilityData
+                ? 'history'
+                : apiError.startsWith('관할 공개 데이터 없음:')
+                  ? 'location_off'
+                  : isGuidanceApiError
+                    ? 'touch_app'
+                    : 'cloud_off'}
+              title={hasRetainedFacilityData
+                ? `${currentCat.label} 최신 갱신 실패`
+                : apiError.startsWith('관할 공개 데이터 없음:')
+                  ? `${currentCat.label} 관할 공개 데이터가 없습니다`
+                  : isGuidanceApiError
+                    ? `${currentCat.label} 구역을 선택해 주세요`
+                    : `${currentCat.label} 정보를 불러오지 못했습니다`}
+              description={hasRetainedFacilityData
+                ? `${apiError} 화면에는 직전 성공 목록을 유지합니다.`
+                : apiError}
+              action={isGuidanceApiError ? undefined : {
                 label: '다시 시도',
                 icon: 'refresh',
-                onClick: () => void loadShelterData(),
+                onClick: refreshFacilityData,
               }}
               className="mt-4"
             />
@@ -783,8 +1159,8 @@ export default function FacilitySearchView({
             </div>
           )}
 
-          {/* 컨텐츠 (apiError가 없을 때만 지도 컨테이너 유지) */}
-          {!apiError && (
+          {/* 같은 컨텍스트의 갱신 실패는 직전 성공 목록을 유지한다. */}
+          {!hasBlockingApiError && (
             <div className={`space-y-4 ${loading ? 'opacity-50 mt-4 pointer-events-none' : 'mt-4'}`}>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -845,9 +1221,13 @@ export default function FacilitySearchView({
                     </div>
                     <div className="flex items-center justify-between mt-2">
                       <span role="status" aria-live="polite" className="text-[10px] text-on-surface-variant">{filtered.length}개 시설</span>
-                      {userPos && (
+                      {operationalPos && (
                         <span className="text-[10px] text-primary">
-                          📍 {activeCategory === 'restrooms' ? '표시 좌표 기준 거리순' : '거리순 정렬'}
+                          📍 {incidentLocation
+                            ? '출동 현장 기준 거리순'
+                            : activeCategory === 'restrooms'
+                              ? '표시 좌표 기준 거리순'
+                              : '거리순 정렬'}
                         </span>
                       )}
                     </div>
@@ -858,8 +1238,12 @@ export default function FacilitySearchView({
                       icon={hasActiveFilters ? 'search_off' : 'location_off'}
                       title={hasActiveFilters ? '검색·필터 결과가 없습니다' : '표시할 시설 데이터가 없습니다'}
                       description={hasActiveFilters
-                        ? <>{hasQuery && <><strong className="text-on-surface">‘{filter.trim()}’</strong> 검색어</>}{hasQuery && hasDistrictFilter ? '와 ' : ''}{hasDistrictFilter && <><strong className="text-on-surface">{filterDistrict}</strong> 지역 필터</>}에 맞는 시설이 없습니다.</>
-                        : '다른 지역이나 시설 종류를 선택해 확인해 주세요.'}
+                        ? <>{hasQuery && <><strong className="text-on-surface">‘{filter.trim()}’</strong> 검색어</>}{hasQuery && hasDistrictFilter ? '와 ' : ''}{hasDistrictFilter && <><strong className="text-on-surface">{effectiveFilterDistrict}</strong> 지역 필터</>}에 맞는 시설이 없습니다.</>
+                        : activeCategory === 'aed' && incidentLocation
+                          ? '출동 현장 좌표 주변에서 표시할 공개 AED를 확인하지 못했습니다. 시설 없음과 조회 실패는 구분해 관할 자료와 현장을 함께 확인하세요.'
+                          : incidentCity
+                          ? `출동 현장 ${dataPoolLabel} 데이터 풀에서 표시할 공개 시설을 확인하지 못했습니다. 시설 없음과 조회 실패는 구분해 관할 자료와 현장을 함께 확인하세요.`
+                          : `${dataCityLabel} 데이터 풀에서 표시할 공개 시설을 확인하지 못했습니다. 다른 지역이나 시설 종류를 선택해 확인해 주세요.`}
                       action={hasActiveFilters ? { label: '검색·필터 초기화', icon: 'restart_alt', onClick: resetFilters } : undefined}
                       className="m-4 border-0 bg-transparent"
                     />

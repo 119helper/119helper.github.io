@@ -109,6 +109,126 @@ const damDischargeResponseSchema = z.object({
   sourceUrl: z.string().optional(),
 }).passthrough();
 
+export type RoadDisasterType =
+  | 'underpass-flooding'
+  | 'river-flood'
+  | 'sinkhole'
+  | 'fire'
+  | 'unknown';
+
+export type RoadControlType =
+  | 'unknown'
+  | 'none'
+  | 'partial'
+  | 'lane-partial'
+  | 'full'
+  | 'detour'
+  | 'contraflow';
+
+export interface RoadDisasterItem {
+  eventId: string;
+  eventType: RoadDisasterType;
+  eventTypeCode: string;
+  eventDetailType: string | null;
+  status: string | null;
+  occurredAt: string | null;
+  endedAt: string | null;
+  facilityName: string | null;
+  facilityExtent: string | null;
+  geometry: {
+    type: 'Point' | 'LineString' | 'Polygon' | 'Unknown';
+    coordinates: [number, number][];
+    raw: string | null;
+  };
+  road: {
+    linkIds: string[];
+    names: string[];
+    number: string | null;
+    direction: string | null;
+  };
+  control: {
+    type: RoadControlType;
+    typeCode: string | null;
+    blockedLanes: string | null;
+  };
+  message: string | null;
+}
+
+export interface RoadDisasterResponse {
+  source: string;
+  sourceUrl: string;
+  retrievedAt: string;
+  query: {
+    lat: number;
+    lng: number;
+    radiusKm: number;
+    eventType: string;
+    startDate: string;
+    endDate: string;
+    bounds: {
+      minX: number;
+      maxX: number;
+      minY: number;
+      maxY: number;
+    };
+  };
+  totalCount: number;
+  truncated: boolean;
+  items: RoadDisasterItem[];
+}
+
+const roadDisasterItemSchema = z.object({
+  eventId: z.string(),
+  eventType: z.enum(['underpass-flooding', 'river-flood', 'sinkhole', 'fire', 'unknown']),
+  eventTypeCode: z.string(),
+  eventDetailType: z.string().nullable(),
+  status: z.string().nullable(),
+  occurredAt: z.string().nullable(),
+  endedAt: z.string().nullable(),
+  facilityName: z.string().nullable(),
+  facilityExtent: z.string().nullable(),
+  geometry: z.object({
+    type: z.enum(['Point', 'LineString', 'Polygon', 'Unknown']),
+    coordinates: z.array(z.tuple([z.number(), z.number()])),
+    raw: z.string().nullable(),
+  }),
+  road: z.object({
+    linkIds: z.array(z.string()),
+    names: z.array(z.string()),
+    number: z.string().nullable(),
+    direction: z.string().nullable(),
+  }),
+  control: z.object({
+    type: z.enum(['unknown', 'none', 'partial', 'lane-partial', 'full', 'detour', 'contraflow']),
+    typeCode: z.string().nullable(),
+    blockedLanes: z.string().nullable(),
+  }),
+  message: z.string().nullable(),
+});
+
+const roadDisasterResponseSchema = z.object({
+  source: z.string(),
+  sourceUrl: z.string().url(),
+  retrievedAt: z.string(),
+  query: z.object({
+    lat: z.number(),
+    lng: z.number(),
+    radiusKm: z.number(),
+    eventType: z.string(),
+    startDate: z.string(),
+    endDate: z.string(),
+    bounds: z.object({
+      minX: z.number(),
+      maxX: z.number(),
+      minY: z.number(),
+      maxY: z.number(),
+    }),
+  }),
+  totalCount: z.number(),
+  truncated: z.boolean(),
+  items: z.array(roadDisasterItemSchema),
+}) satisfies z.ZodType<RoadDisasterResponse>;
+
 export type ApiRecord = z.infer<typeof apiRecordSchema>;
 
 export interface PaginatedItemsResponse<T = ApiRecord> {
@@ -662,6 +782,27 @@ export async function fetchDamDischarge(forceRefresh = false): Promise<DamDischa
     maxStaleMs: HOUR_MS,
     forceRefresh,
     schema: damDischargeResponseSchema,
+  });
+}
+
+// ═══════ 도로 재난·통제 (1분, 폴백 최대 10분) ═══════
+export async function fetchRoadDisasters(
+  lat: number,
+  lng: number,
+  radiusKm = 5,
+  forceRefresh = false,
+): Promise<RoadDisasterResponse> {
+  return apiFetch<RoadDisasterResponse>('/api/road-disasters', {
+    lat: String(lat),
+    lng: String(lng),
+    radiusKm: String(radiusKm),
+    eventType: 'all',
+    days: '7',
+  }, {
+    cacheTtlMs: MINUTE_MS,
+    maxStaleMs: 10 * MINUTE_MS,
+    forceRefresh,
+    schema: roadDisasterResponseSchema,
   });
 }
 

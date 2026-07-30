@@ -192,6 +192,9 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    concurrency:
+      group: 119-helper-production-deploy
+      cancel-in-progress: false
     permissions:
       contents: read
       pages: write
@@ -288,9 +291,15 @@ jobs:
             'compatibility_date = "2026-07-07"',
             'compatibility_flags = ["nodejs_compat"]',
             '',
+            '[secrets]',
+            'required = ["ITS_API_KEY"]',
+            '',
             '[vars]',
             'ENVIRONMENT = "production"',
             'DAM_DISCHARGE_ENABLED = "true"',
+            '',
+            '[version_metadata]',
+            'binding = "CF_VERSION_METADATA"',
             '',
             '[observability]',
             'enabled = true',
@@ -319,21 +328,117 @@ jobs:
           NEWS_CACHE_KV_ID: ${{ secrets.NEWS_CACHE_KV_ID }}
           NEWS_CACHE_KV_PREVIEW_ID: ${{ secrets.NEWS_CACHE_KV_PREVIEW_ID }}
 
-      - name: Deploy Worker
+      - name: Capture current Worker version
+        id: worker_before
         if: steps.worker_deploy.outputs.deploy == 'true'
         working-directory: worker
-        run: npm exec -- wrangler deploy --config wrangler.ci.toml
+        shell: bash
+        run: |
+          set -euo pipefail
+          status_file="$(mktemp)"
+          npm exec -- wrangler deployments status --json --config wrangler.ci.toml > "$status_file"
+          version="$(node ../scripts/production-deploy-contracts.mjs active-version < "$status_file")"
+          deployment_id="$(node ../scripts/production-deploy-contracts.mjs deployment-id < "$status_file")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "deployment_id=$deployment_id" >> "$GITHUB_OUTPUT"
+          echo "Current Worker deployment: $deployment_id ($version)"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Production Worker smoke test
+      - name: Deploy Worker
         if: steps.worker_deploy.outputs.deploy == 'true'
+        working-directory: worker
+        run: npm exec -- wrangler deploy --message "GitHub Actions ${GITHUB_SHA}" --config wrangler.ci.toml
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Capture deployed Worker version
+        id: worker_after
+        if: steps.worker_deploy.outputs.deploy == 'true'
+        working-directory: worker
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREVIOUS_WORKER_VERSION: ${{ steps.worker_before.outputs.version }}
+          PREVIOUS_WORKER_DEPLOYMENT: ${{ steps.worker_before.outputs.deployment_id }}
+        run: |
+          set -euo pipefail
+          status_file="$(mktemp)"
+          npm exec -- wrangler deployments status --json --config wrangler.ci.toml > "$status_file"
+          version="$(node ../scripts/production-deploy-contracts.mjs active-version < "$status_file")"
+          deployment_id="$(node ../scripts/production-deploy-contracts.mjs deployment-id < "$status_file")"
+          if [[ "$version" == "$PREVIOUS_WORKER_VERSION" ]]; then
+            echo "::error::Worker deploy did not activate a new version."
+            exit 1
+          fi
+
+          npm exec -- wrangler deployments list --json --config wrangler.ci.toml \
+            | node ../scripts/production-deploy-contracts.mjs assert-direct-successor \
+                "$PREVIOUS_WORKER_DEPLOYMENT" "$deployment_id"
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "deployment_id=$deployment_id" >> "$GITHUB_OUTPUT"
+          echo "Deployed Worker deployment: $deployment_id ($version)"
+
+      - name: Production Worker smoke test
+        id: worker_smoke
+        if: steps.worker_deploy.outputs.deploy == 'true'
+        continue-on-error: true
         run: node scripts/smoke-production-api.mjs
         env:
           VITE_API_BASE: https://119-helper-api.teemozipsa.workers.dev
           VITE_APP_TOKEN: ${{ secrets.VITE_APP_TOKEN }}
           SMOKE_MODE: deploy
+          EXPECTED_WORKER_VERSION: ${{ steps.worker_after.outputs.version }}
+
+      - name: Roll back Worker after failed smoke
+        if: steps.worker_deploy.outputs.deploy == 'true' && steps.worker_smoke.outcome == 'failure'
+        working-directory: worker
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREVIOUS_WORKER_VERSION: ${{ steps.worker_before.outputs.version }}
+          DEPLOYED_WORKER_VERSION: ${{ steps.worker_after.outputs.version }}
+        run: |
+          set -euo pipefail
+          current="$(
+            npm exec -- wrangler deployments status --json --config wrangler.ci.toml \
+              | node ../scripts/production-deploy-contracts.mjs active-version
+          )"
+          if [[ "$current" != "$DEPLOYED_WORKER_VERSION" ]]; then
+            echo "::error::Active Worker changed after this job deployed it; refusing to roll back another deployment."
+            exit 1
+          fi
+
+          npm exec -- wrangler rollback "$PREVIOUS_WORKER_VERSION" \
+            --message "Automatic rollback after production smoke failure for ${GITHUB_SHA}" \
+            --yes \
+            --config wrangler.ci.toml
+
+          for attempt in 1 2 3; do
+            restored="$(
+              npm exec -- wrangler deployments status --json --config wrangler.ci.toml \
+                | node ../scripts/production-deploy-contracts.mjs active-version
+            )"
+            if [[ "$restored" == "$PREVIOUS_WORKER_VERSION" ]]; then
+              echo "Worker rollback verified: $restored"
+              exit 0
+            fi
+            sleep $((attempt * 2))
+          done
+
+          echo "::error::Worker rollback command completed but the previous version is not active."
+          exit 1
+
+      - name: Fail deployment after Worker smoke failure
+        if: steps.worker_deploy.outputs.deploy == 'true' && steps.worker_smoke.outcome == 'failure'
+        run: |
+          echo "::error::Production Worker smoke failed; Pages deployment was stopped."
+          exit 1
 
       - name: Setup Pages
         uses: actions/configure-pages@v6

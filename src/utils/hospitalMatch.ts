@@ -1,6 +1,9 @@
 import type { ERRealTimeData } from '../services/erApi';
 
 export interface MatchedHospital {
+  id: string | null;
+  hpid: string | null;
+  phpid: string | null;
   name: string;
   address: string;
   tel: string;
@@ -46,6 +49,9 @@ export function matchHospitals(beds: ERRealTimeData[], options: MatchOptions = {
     const distanceKm =
       origin && lat !== null && lon !== null ? haversineKm(origin.lat, origin.lon, lat, lon) : null;
     return {
+      id: b.hpid || b.phpid || null,
+      hpid: b.hpid || null,
+      phpid: b.phpid || null,
       name: b.dutyName,
       address: b.dutyAddr,
       tel: b.dutyTel3,

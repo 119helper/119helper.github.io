@@ -12,6 +12,7 @@ export interface LoggedActivityStamp {
 }
 
 export interface ActivitySessionState {
+  incidentId?: string;
   presetId: string;
   title: string;
   note: string;
@@ -29,6 +30,7 @@ export function normalizeActivitySession(value: unknown): ActivitySessionState {
   if (!value || typeof value !== 'object') return EMPTY_ACTIVITY_SESSION;
   const item = value as Partial<ActivitySessionState>;
   return {
+    incidentId: typeof item.incidentId === 'string' ? item.incidentId.trim().slice(0, 80) : undefined,
     presetId: typeof item.presetId === 'string' ? item.presetId : 'fire',
     title: typeof item.title === 'string' ? item.title : '',
     note: typeof item.note === 'string' ? item.note : '',
@@ -48,16 +50,25 @@ export function saveActivitySession(session: ActivitySessionState): ActivitySess
 }
 
 export function startActivityFromIncident(input: {
+  incidentId?: string;
   type: 'fire' | 'ems' | 'rescue' | 'support';
   title: string;
   note?: string;
   startedAt: number;
+  location?: { lat: number; lng: number };
 }): ActivitySessionState {
   const session: ActivitySessionState = {
+    incidentId: input.incidentId,
     presetId: input.type,
     title: input.title,
     note: input.note || '',
-    stamps: [{ stageId: 'dispatch', label: '출동', time: input.startedAt, lat: null, lon: null }],
+    stamps: [{
+      stageId: 'dispatch',
+      label: '출동',
+      time: input.startedAt,
+      lat: input.location?.lat ?? null,
+      lon: input.location?.lng ?? null,
+    }],
   };
   saveActivitySession(session);
   return session;
@@ -126,8 +137,15 @@ export function removeActivityStage(stageId: string): ActivityStageMutationResul
   return { session, changed: true };
 }
 
-export function appendActivityEvent(label: string, time = Date.now()): ActivitySessionState {
+export function appendActivityEvent(
+  label: string,
+  time = Date.now(),
+  expectedIncidentId?: string,
+): ActivitySessionState {
   const current = loadActivitySession();
+  if (expectedIncidentId && current.incidentId !== expectedIncidentId) {
+    return current;
+  }
   const session = {
     ...current,
     stamps: [
