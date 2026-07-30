@@ -99,6 +99,7 @@ describe('getDatasetCompletenessNotices', () => {
         id: 'gwangju-gwangsan-firewater',
         city: '광주광역시',
         district: '광산구',
+        overlayKind: 'district-replacement',
         sourceDate: '2026-05-07',
         total: 1_560,
         coordinateMappedCount: 1_559,
@@ -119,6 +120,35 @@ describe('getDatasetCompletenessNotices', () => {
     expect(notices.map(notice => notice.text)).toContain(
       '공급기관 주소의 시군구 누락 84행은 별도 시군구 필드로 보정',
     );
+  });
+
+  it('labels a partial firewater source as corroboration without implying replacement', () => {
+    const notices = getDatasetCompletenessNotices({
+      label: '소화전',
+      sourceDate: '2024-02-07',
+      generatedAt: '2026-07-30',
+      maxAgeDays: 120,
+      regionalOverlays: [{
+        id: 'gwangju-bukgu-firewater-corroboration',
+        city: '광주광역시',
+        district: '북구',
+        overlayKind: 'partial-corroboration',
+        replacementScope: 'none',
+        sourceDate: '2025-08-22',
+        sourceTotal: 1_031,
+        targetTotal: 1_088,
+        matchedCount: 698,
+        unmatchedCount: 246,
+        ambiguousMatchCount: 87,
+        coordinatesPreserved: true,
+      }],
+    });
+
+    expect(notices).toContainEqual({
+      tone: 'warning',
+      text: '북구 최신 원본 1,031행(2025-08-22) 중 기존 지도점 698곳 일대일 교차검증 · 미일치 246행 · 중복/다의 87행은 미적용 · 기존 1,088곳 주소·좌표 유지',
+    });
+    expect(notices.some(notice => notice.text.includes('적용 · 지도'))).toBe(false);
   });
 
   it('summarizes official restroom coordinate supplements separately from dataset replacements', () => {

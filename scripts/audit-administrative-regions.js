@@ -5,6 +5,10 @@ import {
   assertHostAddressPointDrift,
   REVIEWED_HOST_ADDRESS_POINT_FINGERPRINT,
 } from './restroom-host-address-points.mjs';
+import {
+  fingerprintCorroborationItems,
+  fingerprintFirewaterTargetBody,
+} from './sync-firewater-regional-overlays.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -41,6 +45,17 @@ const HOST_ADDRESS_POINT_BOUNDS = Object.freeze({
   daegu: { latitude: [35.55, 36.35], longitude: [128.3, 129.05] },
   sejong: { latitude: [36.3, 36.8], longitude: [127.05, 127.55] },
   ulsan: { latitude: [35.25, 35.8], longitude: [128.9, 129.55] },
+});
+const GWANGJU_BUKGU_FIREWATER_CORROBORATION = Object.freeze({
+  id: 'gwangju-bukgu-firewater-corroboration',
+  sourceDate: '2025-08-22',
+  sourceTotal: 1031,
+  targetTotal: 1088,
+  matchedCount: 698,
+  unmatchedCount: 246,
+  ambiguousMatchCount: 87,
+  matchFingerprint: '1bb2e6dd3b0daf1ff748db41bf04896116608e284f1cdd4ef47c68dd1737dc5a',
+  targetBodyFingerprint: 'edf3b028dd06c5b974fac9404c01e90e5660e3025cc11faa950b30fe672f8339',
 });
 const ALLOWED_ADDRESS_POINT_MATCH_METHODS = new Set([
   'unique-exact-road-address+building-name-corroboration',
@@ -874,9 +889,11 @@ function auditGwangjuFirewater() {
   }
 
   let actualTotal = 0;
+  const itemsByDistrict = new Map();
   for (const [district, expectedCount] of districtEntries) {
     const payload = readJson(path.join(cityDir, `${district}.json`));
     const items = payload?.response?.body?.items || [];
+    itemsByDistrict.set(district, items);
     actualTotal += items.length;
     check(items.length === Number(expectedCount), `광주/${district} 소방용수 개수가 인덱스와 다릅니다.`);
 
@@ -894,6 +911,47 @@ function auditGwangjuFirewater() {
   const manifestTotal = Number(manifest.cities?.['광주광역시']?.total);
   check(manifestTotal === Number(index.total), '광주 소방용수 매니페스트 합계가 인덱스와 다릅니다.');
   check(actualTotal === Number(index.total), '광주 소방용수 조각 파일 합계가 인덱스와 다릅니다.');
+  const reviewed = GWANGJU_BUKGU_FIREWATER_CORROBORATION;
+  const overlay = (manifest.regionalOverlays || [])
+    .find(item => item.id === reviewed.id);
+  check(Boolean(overlay), '광주 북구 소방용수 부분 교차검증 overlay가 없습니다.');
+  for (const field of [
+    'sourceDate',
+    'sourceTotal',
+    'targetTotal',
+    'matchedCount',
+    'unmatchedCount',
+    'ambiguousMatchCount',
+    'matchFingerprint',
+    'targetBodyFingerprint',
+  ]) {
+    check(
+      overlay?.[field] === reviewed[field],
+      `광주 북구 소방용수 부분 교차검증 ${field}가 검토 기준과 다릅니다.`,
+    );
+  }
+  check(
+    overlay?.overlayKind === 'partial-corroboration'
+      && overlay?.replacementScope === 'none'
+      && overlay?.coordinatesPreserved === true,
+    '광주 북구 소방용수 부분 교차검증이 관할 교체로 잘못 표시됐습니다.',
+  );
+  const northItems = itemsByDistrict.get('북구') || [];
+  const corroborationFingerprint = fingerprintCorroborationItems(northItems, reviewed.id);
+  const targetFingerprint = fingerprintFirewaterTargetBody(northItems);
+  check(
+    corroborationFingerprint.matchedCount === reviewed.matchedCount
+      && corroborationFingerprint.matchFingerprint === reviewed.matchFingerprint
+      && targetFingerprint.targetBodyFingerprint === reviewed.targetBodyFingerprint,
+    '광주 북구 소방용수 부분 교차검증 provenance 또는 기존 본문 지문이 다릅니다.',
+  );
+  const cityPayload = readJson(path.join(FIREWATER_DIR, '광주광역시.json'));
+  const cityNorthItems = (cityPayload?.response?.body?.items || [])
+    .filter(item => item.signguNm === '북구');
+  check(
+    JSON.stringify(cityNorthItems) === JSON.stringify(northItems),
+    '광주 전체 파일과 북구 조각 파일의 부분 교차검증 provenance가 다릅니다.',
+  );
   return Number(index.total);
 }
 

@@ -7,6 +7,10 @@ import {
   fingerprintTsunamiShelters,
   TSUNAMI_CONTENT_HASH_ALGORITHM,
 } from './tsunami-data-integrity.mjs';
+import {
+  fingerprintCorroborationItems,
+  fingerprintFirewaterTargetBody,
+} from './sync-firewater-regional-overlays.mjs';
 
 const REQUEST_TIMEOUT_MS = 20_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -256,6 +260,7 @@ async function auditStaticCompleteness() {
     restroomAddressPointText,
     restroomAddressPointIndexText,
     restroomHostAddressPointText,
+    firewaterRegionalSourceText,
   ] = await Promise.all([
     readFile(new URL('../public/data/manifest.json', import.meta.url), 'utf8'),
     readFile(new URL('../public/data/tsunami.json', import.meta.url), 'utf8'),
@@ -264,6 +269,7 @@ async function auditStaticCompleteness() {
     readFile(new URL('../public/data/restroom-official-address-points.json', import.meta.url), 'utf8'),
     readFile(new URL('../public/data/restroom-address-points/busan/index.json', import.meta.url), 'utf8'),
     readFile(new URL('../public/data/restroom-official-host-address-points.json', import.meta.url), 'utf8'),
+    readFile(new URL('./firewater-regional-sources.json', import.meta.url), 'utf8'),
   ]);
   const datasets = JSON.parse(manifestText).datasets ?? {};
 
@@ -669,6 +675,20 @@ async function auditStaticCompleteness() {
   );
 
   const firewater = JSON.parse(firewaterManifestText);
+  const firewaterRegionalRegistry = JSON.parse(firewaterRegionalSourceText);
+  const expectedCorroborations = new Map(
+    (firewaterRegionalRegistry.sources ?? [])
+      .filter(source => source.enabled && source.strategy === 'partial-corroboration')
+      .map(source => [source.id, source]),
+  );
+  const actualCorroborations = (firewater.regionalOverlays ?? [])
+    .filter(overlay => overlay.overlayKind === 'partial-corroboration');
+  if (actualCorroborations.length !== expectedCorroborations.size) {
+    throw new Error(
+      `소방용수: 부분 교차검증 manifest ${actualCorroborations.length}개와 `
+      + `registry ${expectedCorroborations.size}개가 다릅니다.`,
+    );
+  }
   const firewaterCities = Object.values(firewater.cities ?? {});
   const supportedFirewaterCities = numberField(
     firewater.supportedCityCount ?? firewaterCities.length,
@@ -696,6 +716,82 @@ async function auditStaticCompleteness() {
     );
     const overlayPayload = JSON.parse(await readFile(overlayFile, 'utf8'));
     const overlayItems = overlayPayload.response?.body?.items;
+    if (overlay.overlayKind === 'partial-corroboration') {
+      const expected = expectedCorroborations.get(overlay.id);
+      if (!expected) {
+        throw new Error(`소방용수 ${overlay.id}: registry에 없는 부분 교차검증 overlay입니다.`);
+      }
+      for (const [manifestField, registryField] of Object.entries({
+        sourceDate: 'expectedSourceDate',
+        sourceTotal: 'expectedSourceRows',
+        targetTotal: 'expectedTargetRows',
+        matchedCount: 'expectedMatchedCount',
+        unmatchedCount: 'expectedUnmatchedCount',
+        ambiguousMatchCount: 'expectedAmbiguousRows',
+        matchFingerprint: 'expectedMatchFingerprint',
+        targetBodyFingerprint: 'expectedTargetBodyFingerprint',
+      })) {
+        if (overlay[manifestField] !== expected[registryField]) {
+          throw new Error(
+            `소방용수 ${overlay.id}: manifest ${manifestField}가 registry ${registryField}와 다릅니다.`,
+          );
+        }
+      }
+      if (
+        !Array.isArray(overlayItems)
+        || overlayItems.length !== numberField(overlay.targetTotal, '부분 교차검증 대상 합계')
+      ) {
+        throw new Error(
+          `소방용수 ${overlay.city} ${overlay.district}: 기존 지도점 합계가 부분 교차검증 manifest와 다릅니다.`,
+        );
+      }
+      const sourceTotal = numberField(overlay.sourceTotal, '부분 교차검증 원본 합계');
+      const matchedCount = numberField(overlay.matchedCount, '부분 교차검증 일대일 합계');
+      const unmatchedCount = numberField(overlay.unmatchedCount, '부분 교차검증 미일치 합계');
+      const ambiguousCount = numberField(
+        overlay.ambiguousMatchCount,
+        '부분 교차검증 중복/다의 합계',
+      );
+      if (matchedCount + unmatchedCount + ambiguousCount !== sourceTotal) {
+        throw new Error(
+          `소방용수 ${overlay.city} ${overlay.district}: 부분 교차검증 집계가 원본 합계와 다릅니다.`,
+        );
+      }
+      const fingerprint = fingerprintCorroborationItems(overlayItems, overlay.id);
+      const targetFingerprint = fingerprintFirewaterTargetBody(overlayItems);
+      const corroborationRecords = overlayItems.flatMap(item =>
+        (item.regionalCorroborations ?? [])
+          .filter(record => record.sourceId === overlay.id)
+      );
+      if (
+        fingerprint.matchedCount !== matchedCount
+        || fingerprint.matchFingerprint !== overlay.matchFingerprint
+        || fingerprint.matchFingerprintAlgorithm !== overlay.matchFingerprintAlgorithm
+        || targetFingerprint.targetBodyFingerprint !== overlay.targetBodyFingerprint
+        || targetFingerprint.targetBodyFingerprintAlgorithm
+          !== overlay.targetBodyFingerprintAlgorithm
+        || overlay.coordinatesPreserved !== true
+        || overlay.replacementScope !== 'none'
+        || corroborationRecords.some(record =>
+          record.sourceName !== expected.sourceName
+          || record.sourceUrl !== expected.sourceUrl
+          || record.publicDataPk !== expected.publicDataPk
+          || record.sourceDate !== expected.expectedSourceDate
+          || record.sourceLicense !== expected.license
+          || record.matchMethod !== overlay.matchMethod
+        )
+      ) {
+        throw new Error(
+          `소방용수 ${overlay.city} ${overlay.district}: 부분 교차검증 provenance 지문이 다릅니다.`,
+        );
+      }
+      console.log(
+        `WARN static-completeness firewater-corroboration ${overlay.city}/${overlay.district} `
+        + `sourceRows=${sourceTotal} targets=${overlayItems.length} matched=${matchedCount} `
+        + `unmatched=${unmatchedCount} ambiguous=${ambiguousCount} coordinates=preserved`,
+      );
+      continue;
+    }
     if (!Array.isArray(overlayItems) || overlayItems.length !== numberField(overlay.total, '지역 오버레이 합계')) {
       throw new Error(`소방용수 ${overlay.city} ${overlay.district}: 오버레이 파일 행 수가 manifest와 다릅니다.`);
     }

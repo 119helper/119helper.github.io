@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -25,6 +26,15 @@ const FACILITY_TYPE_BY_CODE = {
   '6': '비상소화장치',
   '06': '비상소화장치',
 };
+const CORROBORATION_TYPE_CODE = {
+  지상식: '1',
+  지하식: '2',
+  급수탑: '3',
+  저수조: '4',
+};
+const CORROBORATION_MATCH_METHOD = 'unique-facility-type-code+normalized-road-address';
+const CORROBORATION_FINGERPRINT_ALGORITHM = 'sha256-sorted-source-target-tuples-v1';
+const TARGET_BODY_FINGERPRINT_ALGORITHM = 'sha256-sorted-firewater-body-tuples-v1';
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -36,6 +46,10 @@ function writeJson(filePath, value) {
 
 function asText(value) {
   return String(value ?? '').trim();
+}
+
+function sha256(value) {
+  return crypto.createHash('sha256').update(value).digest('hex');
 }
 
 function isHydrantType(item) {
@@ -96,6 +110,36 @@ function appendCookies(current, response) {
   return [...cookies].map(([name, value]) => `${name}=${value}`).join('; ');
 }
 
+export function readHiddenInputValue(html, inputName) {
+  const escapedName = inputName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const tag = String(html).match(
+    new RegExp(
+      `<input\\b(?=[^>]*(?:id|name)=["']${escapedName}["'])[^>]*>`,
+      'i',
+    ),
+  )?.[0];
+  return tag?.match(/\bvalue=["']([^"']*)["']/i)?.[1] || null;
+}
+
+export function assertCurrentPortalSource(html, source) {
+  const currentPublicDataPk = readHiddenInputValue(html, 'publicDataPk');
+  const currentPublicDataDetailPk = readHiddenInputValue(html, 'publicDataDetailPk');
+  if (
+    currentPublicDataPk !== source.publicDataPk
+    || currentPublicDataDetailPk !== source.publicDataDetailPk
+  ) {
+    throw new Error(
+      `${source.id}: 현재 공개 페이지 식별자 `
+      + `${currentPublicDataPk || '미확인'}/${currentPublicDataDetailPk || '미확인'}가 `
+      + `registry ${source.publicDataPk}/${source.publicDataDetailPk}와 다릅니다.`,
+    );
+  }
+  return {
+    publicDataPk: currentPublicDataPk,
+    publicDataDetailPk: currentPublicDataDetailPk,
+  };
+}
+
 async function checkedFetch(url, init = {}) {
   const response = await fetch(url, {
     ...init,
@@ -113,7 +157,8 @@ async function downloadPublicDataFile(source) {
     headers: { 'User-Agent': '119-helper-regional-firewater-sync/1.0' },
   });
   let cookies = appendCookies('', pageResponse);
-  await pageResponse.text();
+  const pageText = await pageResponse.text();
+  assertCurrentPortalSource(pageText, source);
 
   const infoResponse = await checkedFetch(DOWNLOAD_INFO_URL, {
     method: 'POST',
@@ -134,6 +179,12 @@ async function downloadPublicDataFile(source) {
   const info = await infoResponse.json();
   if (info.status !== true || !info.atchFileId || !info.fileDetailSn) {
     throw new Error(`${source.id}: 공공데이터포털 파일 식별자를 받지 못했습니다.`);
+  }
+  if (
+    asText(info.dataSetFileDetailInfo?.publicDataPk) !== source.publicDataPk
+    || asText(info.dataSetFileDetailInfo?.publicDataDetailPk) !== source.publicDataDetailPk
+  ) {
+    throw new Error(`${source.id}: 다운로드 응답의 데이터 식별자가 registry와 다릅니다.`);
   }
 
   const downloadUrl = new URL('/cmm/cmm/fileDownload.do', 'https://www.data.go.kr');
@@ -315,6 +366,271 @@ function normalizedAddress(value) {
     .trim();
 }
 
+function normalizedRoadAddress(value) {
+  return asText(value)
+    .replace(/도로명 주소 없음|주소 없음/g, '')
+    .replace(/\s+/g, '');
+}
+
+function corroborationMatchKey(typeCode, roadAddress) {
+  return `${asText(typeCode)}:${normalizedRoadAddress(roadAddress)}`;
+}
+
+function groupBy(items, keyOf) {
+  const grouped = new Map();
+  for (const item of items) {
+    const key = keyOf(item);
+    const values = grouped.get(key) || [];
+    values.push(item);
+    grouped.set(key, values);
+  }
+  return grouped;
+}
+
+function corroborationTuple(sourceRow, targetItem) {
+  return [
+    sourceRow.sourceRecordNumber,
+    sourceRow.sourceFacilityType,
+    sourceRow.facilityTypeCode,
+    sourceRow.normalizedRoadAddress,
+    sourceRow.sourceDate,
+    sourceRowKey(targetItem),
+  ].join('|');
+}
+
+function fingerprintTuples(tuples) {
+  return sha256([...tuples].sort().join('\n'));
+}
+
+export function fingerprintFirewaterTargetBody(items) {
+  return {
+    targetBodyFingerprint: fingerprintTuples(items.map(sourceRowKey)),
+    targetBodyFingerprintAlgorithm: TARGET_BODY_FINGERPRINT_ALGORITHM,
+  };
+}
+
+export function normalizeCorroborationRows(rows, source) {
+  const requiredColumns = [
+    '연번',
+    '소방용수시설구분',
+    '동별',
+    '소재지도로명주소',
+    '데이터기준일자',
+  ];
+  for (const column of requiredColumns) {
+    if (!rows.every(row => Object.hasOwn(row, column))) {
+      throw new Error(`${source.id}: 필수 컬럼 ${column}이 없습니다.`);
+    }
+  }
+  if (rows.length !== source.expectedSourceRows) {
+    throw new Error(
+      `${source.id}: 원본 ${rows.length}행이 검토 기준 ${source.expectedSourceRows}행과 다릅니다.`,
+    );
+  }
+
+  const recordNumberCounts = new Map();
+  const items = rows.map((row, index) => {
+    const sourceRecordNumber = asText(row.연번);
+    const sourceFacilityType = asText(row.소방용수시설구분);
+    const facilityTypeCode = CORROBORATION_TYPE_CODE[sourceFacilityType];
+    const roadAddress = asText(row.소재지도로명주소);
+    const normalized = normalizedRoadAddress(roadAddress);
+    const sourceDate = asText(row.데이터기준일자);
+    if (!sourceRecordNumber) {
+      throw new Error(`${source.id}: ${index + 2}행 연번이 비었습니다.`);
+    }
+    if (!facilityTypeCode) {
+      throw new Error(`${source.id}: 알 수 없는 소방용수시설구분 ${sourceFacilityType}입니다.`);
+    }
+    if (!normalized || !normalized.startsWith(normalizedRoadAddress(`${source.city} ${source.district}`))) {
+      throw new Error(`${source.id}: ${index + 2}행 도로명주소가 ${source.city} ${source.district} 범위가 아닙니다.`);
+    }
+    if (sourceDate !== source.expectedSourceDate) {
+      throw new Error(
+        `${source.id}: ${index + 2}행 기준일 ${sourceDate || '미확인'}이 검토 기준 `
+        + `${source.expectedSourceDate}와 다릅니다.`,
+      );
+    }
+    recordNumberCounts.set(
+      sourceRecordNumber,
+      (recordNumberCounts.get(sourceRecordNumber) || 0) + 1,
+    );
+    return {
+      sourceRowNumber: index + 2,
+      sourceRecordNumber,
+      sourceFacilityType,
+      facilityTypeCode,
+      neighborhood: asText(row.동별),
+      roadAddress,
+      normalizedRoadAddress: normalized,
+      sourceDate,
+      matchKey: corroborationMatchKey(facilityTypeCode, roadAddress),
+    };
+  });
+  const duplicateRecordNumbers = [...recordNumberCounts.entries()]
+    .filter(([, count]) => count > 1);
+  if (duplicateRecordNumbers.length > 0) {
+    throw new Error(
+      `${source.id}: 연번이 중복됐습니다: ${duplicateRecordNumbers.map(([key]) => key).join(', ')}`,
+    );
+  }
+  return {
+    items,
+    sourceDate: source.expectedSourceDate,
+  };
+}
+
+function corroborationRecord(sourceRow, targetItem, source) {
+  const recordTuple = corroborationTuple(sourceRow, targetItem);
+  return {
+    sourceId: source.id,
+    sourceName: source.sourceName,
+    sourceUrl: source.sourceUrl,
+    publicDataPk: source.publicDataPk,
+    sourceDate: sourceRow.sourceDate,
+    sourceLicense: source.license,
+    sourceRowNumber: sourceRow.sourceRowNumber,
+    sourceRecordNumber: sourceRow.sourceRecordNumber,
+    sourceFacilityType: sourceRow.sourceFacilityType,
+    facilityTypeCode: sourceRow.facilityTypeCode,
+    sourceRoadAddress: sourceRow.roadAddress,
+    normalizedRoadAddress: sourceRow.normalizedRoadAddress,
+    matchMethod: CORROBORATION_MATCH_METHOD,
+    recordFingerprint: sha256(recordTuple),
+  };
+}
+
+export function fingerprintCorroborationItems(items, sourceId) {
+  const tuples = [];
+  for (const item of items) {
+    const records = Array.isArray(item.regionalCorroborations)
+      ? item.regionalCorroborations.filter(record => record.sourceId === sourceId)
+      : [];
+    if (records.length > 1) {
+      throw new Error(`${sourceId}: 한 지도점에 교차검증 레코드가 여러 개 연결됐습니다.`);
+    }
+    if (records.length === 0) continue;
+    const [record] = records;
+    const tuple = [
+      asText(record.sourceRecordNumber),
+      asText(record.sourceFacilityType),
+      asText(record.facilityTypeCode),
+      asText(record.normalizedRoadAddress),
+      asText(record.sourceDate),
+      sourceRowKey(item),
+    ].join('|');
+    if (
+      record.matchMethod !== CORROBORATION_MATCH_METHOD
+      || corroborationMatchKey(record.facilityTypeCode, record.normalizedRoadAddress)
+        !== corroborationMatchKey(item.fcltySeCode, item.rdnmadr)
+      || record.recordFingerprint !== sha256(tuple)
+    ) {
+      throw new Error(`${sourceId}: 저장된 교차검증 레코드 provenance가 본문과 다릅니다.`);
+    }
+    tuples.push(tuple);
+  }
+  return {
+    matchedCount: tuples.length,
+    matchFingerprint: fingerprintTuples(tuples),
+    matchFingerprintAlgorithm: CORROBORATION_FINGERPRINT_ALGORITHM,
+  };
+}
+
+export function applyPartialCorroboration(items, normalized, source) {
+  if (items.length !== source.expectedTargetRows) {
+    throw new Error(
+      `${source.id}: 기존 지도점 ${items.length}행이 검토 기준 ${source.expectedTargetRows}행과 다릅니다.`,
+    );
+  }
+  const targetFingerprint = fingerprintFirewaterTargetBody(items);
+  if (targetFingerprint.targetBodyFingerprint !== source.expectedTargetBodyFingerprint) {
+    throw new Error(
+      `${source.id}: 기존 지도점 본문 지문 ${targetFingerprint.targetBodyFingerprint}이 검토 기준 `
+      + `${source.expectedTargetBodyFingerprint}와 다릅니다.`,
+    );
+  }
+  const targetGroups = groupBy(
+    items,
+    item => corroborationMatchKey(item.fcltySeCode, item.rdnmadr),
+  );
+  const sourceGroups = groupBy(normalized.items, item => item.matchKey);
+  const matchedByTarget = new Map();
+  const matchTuples = [];
+  let unmatchedCount = 0;
+  let ambiguousRowCount = 0;
+
+  for (const [matchKey, sourceRows] of sourceGroups) {
+    const targetRows = targetGroups.get(matchKey) || [];
+    if (sourceRows.length === 1 && targetRows.length === 1) {
+      const [sourceRow] = sourceRows;
+      const [targetItem] = targetRows;
+      matchedByTarget.set(targetItem, corroborationRecord(sourceRow, targetItem, source));
+      matchTuples.push(corroborationTuple(sourceRow, targetItem));
+    } else if (sourceRows.length === 1 && targetRows.length === 0) {
+      unmatchedCount += 1;
+    } else {
+      ambiguousRowCount += sourceRows.length;
+    }
+  }
+
+  const result = {
+    matchedCount: matchedByTarget.size,
+    unmatchedCount,
+    ambiguousRowCount,
+    sourceTotal: normalized.items.length,
+    targetTotal: items.length,
+    matchFingerprint: fingerprintTuples(matchTuples),
+    matchFingerprintAlgorithm: CORROBORATION_FINGERPRINT_ALGORITHM,
+    ...targetFingerprint,
+  };
+  const exactGates = {
+    matchedCount: source.expectedMatchedCount,
+    unmatchedCount: source.expectedUnmatchedCount,
+    ambiguousRowCount: source.expectedAmbiguousRows,
+    sourceTotal: source.expectedSourceRows,
+    targetTotal: source.expectedTargetRows,
+    matchFingerprint: source.expectedMatchFingerprint,
+    targetBodyFingerprint: source.expectedTargetBodyFingerprint,
+  };
+  for (const [field, expected] of Object.entries(exactGates)) {
+    if (result[field] !== expected) {
+      throw new Error(
+        `${source.id}: ${field} ${result[field]}이 검토 기준 ${expected}와 다릅니다.`,
+      );
+    }
+  }
+  if (result.matchedCount + result.unmatchedCount + result.ambiguousRowCount !== result.sourceTotal) {
+    throw new Error(`${source.id}: 매칭 집계가 원본 합계와 다릅니다.`);
+  }
+
+  const mergedItems = items.map(item => {
+    const priorRecords = Array.isArray(item.regionalCorroborations)
+      ? item.regionalCorroborations.filter(record => record.sourceId !== source.id)
+      : [];
+    const record = matchedByTarget.get(item);
+    if (!record && priorRecords.length === 0) {
+      const { regionalCorroborations: _removed, ...plainItem } = item;
+      return plainItem;
+    }
+    return {
+      ...item,
+      regionalCorroborations: [...priorRecords, ...(record ? [record] : [])]
+        .sort((a, b) => asText(a.sourceId).localeCompare(asText(b.sourceId))),
+    };
+  });
+  const persisted = fingerprintCorroborationItems(mergedItems, source.id);
+  if (
+    persisted.matchedCount !== result.matchedCount
+    || persisted.matchFingerprint !== result.matchFingerprint
+  ) {
+    throw new Error(`${source.id}: 저장할 provenance 지문이 계산 결과와 다릅니다.`);
+  }
+  return {
+    items: mergedItems,
+    ...result,
+  };
+}
+
 function validCoordinate(item, source) {
   const latitude = Number(item.latitude);
   const longitude = Number(item.longitude);
@@ -434,6 +750,52 @@ function replaceOverlayInManifest(overlays, overlay) {
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
+function stripSourceCorroboration(item, sourceId) {
+  if (!Array.isArray(item.regionalCorroborations)) return item;
+  const remaining = item.regionalCorroborations
+    .filter(record => record.sourceId !== sourceId);
+  const { regionalCorroborations: _removed, ...plainItem } = item;
+  return remaining.length > 0
+    ? { ...plainItem, regionalCorroborations: remaining }
+    : plainItem;
+}
+
+function assertOnlyCorroborationChanged(beforeItems, afterItems, sourceId) {
+  const before = beforeItems.map(item => stripSourceCorroboration(item, sourceId));
+  const after = afterItems.map(item => stripSourceCorroboration(item, sourceId));
+  if (JSON.stringify(before) !== JSON.stringify(after)) {
+    throw new Error(`${sourceId}: 주소·좌표 본문이 provenance 외 영역에서 변경됐습니다.`);
+  }
+}
+
+function replaceDistrictItemsInCity(cityItems, districtItems, source) {
+  const replacementQueues = new Map();
+  for (const item of districtItems) {
+    const key = sourceRowKey(item);
+    const queue = replacementQueues.get(key) || [];
+    queue.push(item);
+    replacementQueues.set(key, queue);
+  }
+  let replacedCount = 0;
+  const merged = cityItems.map(item => {
+    if (asText(item.signguNm || item.sigunguNm) !== source.district) return item;
+    const key = sourceRowKey(item);
+    const queue = replacementQueues.get(key) || [];
+    if (queue.length === 0) {
+      throw new Error(`${source.id}: 도시 전체 파일과 관할 파일의 행 식별자가 다릅니다.`);
+    }
+    replacedCount += 1;
+    return queue.shift();
+  });
+  if (
+    replacedCount !== districtItems.length
+    || [...replacementQueues.values()].some(queue => queue.length > 0)
+  ) {
+    throw new Error(`${source.id}: 도시 전체 파일과 관할 파일의 기존 행 수가 다릅니다.`);
+  }
+  return merged;
+}
+
 function applyRegionalOverlay(source, normalized, portalMetadata, generatedAt) {
   const manifest = readJson(MANIFEST_PATH);
   const cityFile = path.join(OUTPUT_DIR, `${source.city}.json`);
@@ -471,6 +833,7 @@ function applyRegionalOverlay(source, normalized, portalMetadata, generatedAt) {
     id: source.id,
     city: source.city,
     district: source.district,
+    overlayKind: 'district-replacement',
     replacementScope: 'district',
     sourceDate: normalized.sourceDate,
     total: regionalItems.length,
@@ -561,6 +924,108 @@ function applyRegionalOverlay(source, normalized, portalMetadata, generatedAt) {
   return overlay;
 }
 
+function applyCorroborationOverlay(source, normalized, portalMetadata, generatedAt) {
+  const manifest = readJson(MANIFEST_PATH);
+  const cityFile = path.join(OUTPUT_DIR, `${source.city}.json`);
+  const districtFile = path.join(OUTPUT_DIR, source.city, `${source.district}.json`);
+  const cityIndexFile = path.join(OUTPUT_DIR, source.city, 'index.json');
+  const cityEnvelope = readJson(cityFile);
+  const districtEnvelope = readJson(districtFile);
+  const cityIndex = readJson(cityIndexFile);
+  const cityItems = cityEnvelope.response?.body?.items;
+  const districtItems = districtEnvelope.response?.body?.items;
+  if (!Array.isArray(cityItems) || !Array.isArray(districtItems)) {
+    throw new Error(`${source.id}: 기존 도시 또는 관할 JSON 형식이 잘못됐습니다.`);
+  }
+
+  const corroborated = applyPartialCorroboration(districtItems, normalized, source);
+  assertOnlyCorroborationChanged(districtItems, corroborated.items, source.id);
+  const mergedCityItems = replaceDistrictItemsInCity(cityItems, corroborated.items, source);
+  assertOnlyCorroborationChanged(cityItems, mergedCityItems, source.id);
+  if (mergedCityItems.length !== cityItems.length || corroborated.items.length !== districtItems.length) {
+    throw new Error(`${source.id}: 부분 교차검증 중 기존 지도점 행 수가 변경됐습니다.`);
+  }
+
+  const overlay = {
+    id: source.id,
+    city: source.city,
+    district: source.district,
+    overlayKind: 'partial-corroboration',
+    replacementScope: 'none',
+    sourceDate: normalized.sourceDate,
+    sourceTotal: corroborated.sourceTotal,
+    targetTotal: corroborated.targetTotal,
+    matchedCount: corroborated.matchedCount,
+    unmatchedCount: corroborated.unmatchedCount,
+    ambiguousMatchCount: corroborated.ambiguousRowCount,
+    matchMethod: CORROBORATION_MATCH_METHOD,
+    matchFingerprint: corroborated.matchFingerprint,
+    matchFingerprintAlgorithm: corroborated.matchFingerprintAlgorithm,
+    targetBodyFingerprint: corroborated.targetBodyFingerprint,
+    targetBodyFingerprintAlgorithm: corroborated.targetBodyFingerprintAlgorithm,
+    coordinatesPreserved: true,
+    sourceUrl: source.sourceUrl,
+    publicDataPk: source.publicDataPk,
+    license: source.license,
+    sourceFileName: asText(portalMetadata.dataNm),
+    generatedAt,
+  };
+  const cityOverlays = replaceOverlayInManifest(
+    manifest.cities?.[source.city]?.regionalOverlays,
+    overlay,
+  );
+  const rootOverlays = replaceOverlayInManifest(manifest.regionalOverlays, overlay);
+  const existingCityMetadata = manifest.cities?.[source.city] || cityEnvelope.metadata || {};
+  const latestSourceDate = cityOverlays
+    .map(item => item.sourceDate)
+    .filter(Boolean)
+    .sort()
+    .at(-1)
+    || existingCityMetadata.latestSourceDate
+    || existingCityMetadata.sourceDate
+    || null;
+  const cityMetadata = {
+    ...existingCityMetadata,
+    dataset: '전국소방용수시설표준데이터 + 검증된 지역 원본 오버레이',
+    generatedAt,
+    latestSourceDate,
+    coverageScope: 'mixed-provenance-partial-district-overlay',
+    completenessStatus: 'partial',
+    regionalOverlays: cityOverlays,
+  };
+  const districtMetadata = {
+    ...(districtEnvelope.metadata || {}),
+    dataset: '전국소방용수시설표준데이터 + 북부소방서 최신 원본 부분 교차검증',
+    generatedAt,
+    latestCorroborationDate: normalized.sourceDate,
+    coverageScope: 'district-baseline-with-partial-corroboration',
+    completenessStatus: 'partial',
+    regionalOverlays: [overlay],
+  };
+
+  writeJson(cityFile, envelope(mergedCityItems, {
+    ...(cityEnvelope.metadata || {}),
+    ...cityMetadata,
+  }));
+  writeJson(districtFile, envelope(corroborated.items, districtMetadata));
+  writeJson(cityIndexFile, {
+    ...cityIndex,
+    metadata: cityMetadata,
+  });
+
+  manifest.version = Math.max(2, Number(manifest.version) || 1);
+  manifest.generatedAt = generatedAt;
+  manifest.supportedCityCount = Object.keys(manifest.cities || {}).length;
+  manifest.coverageScope = 'supported-cities-with-verified-regional-overlays';
+  manifest.completenessStatus = 'partial';
+  manifest.coverageNote = '전국 표준 원본을 기본값으로 유지합니다. 관할 전체 최신본은 검증 후 교체하고, 부분 최신본은 시설유형과 도로명주소가 양쪽에서 유일한 항목에만 교차검증 provenance를 추가합니다.';
+  manifest.regionalOverlays = rootOverlays;
+  manifest.cities[source.city] = cityMetadata;
+  writeJson(MANIFEST_PATH, manifest);
+
+  return overlay;
+}
+
 async function main() {
   const registry = readJson(REGISTRY_PATH);
   const sources = (registry.sources || []).filter(source => source.enabled);
@@ -570,14 +1035,28 @@ async function main() {
   for (const source of sources) {
     console.log(`${source.city} ${source.district}: ${source.sourceUrl} 확인 중`);
     const { text, portalMetadata } = await downloadPublicDataFile(source);
-    const normalized = normalizeRegionalRows(parseCsv(text), source);
-    const overlay = applyRegionalOverlay(source, normalized, portalMetadata, generatedAt);
-    console.log(
-      `${overlay.city} ${overlay.district}: ${overlay.total.toLocaleString()}행 적용, `
-      + `좌표 ${overlay.coordinateMappedCount.toLocaleString()}행, `
-      + `좌표 미확인 ${overlay.missingCoordinateCount.toLocaleString()}행, `
-      + `기준일 ${overlay.sourceDate}`,
-    );
+    if (source.strategy === 'partial-corroboration') {
+      const normalized = normalizeCorroborationRows(parseCsv(text), source);
+      const overlay = applyCorroborationOverlay(source, normalized, portalMetadata, generatedAt);
+      console.log(
+        `${overlay.city} ${overlay.district}: 기존 ${overlay.targetTotal.toLocaleString()}행 유지, `
+        + `일대일 교차검증 ${overlay.matchedCount.toLocaleString()}행, `
+        + `미일치 ${overlay.unmatchedCount.toLocaleString()}행, `
+        + `다의 ${overlay.ambiguousMatchCount.toLocaleString()}행, `
+        + `기준일 ${overlay.sourceDate}`,
+      );
+    } else if (source.strategy === 'district-replacement') {
+      const normalized = normalizeRegionalRows(parseCsv(text), source);
+      const overlay = applyRegionalOverlay(source, normalized, portalMetadata, generatedAt);
+      console.log(
+        `${overlay.city} ${overlay.district}: ${overlay.total.toLocaleString()}행 적용, `
+        + `좌표 ${overlay.coordinateMappedCount.toLocaleString()}행, `
+        + `좌표 미확인 ${overlay.missingCoordinateCount.toLocaleString()}행, `
+        + `기준일 ${overlay.sourceDate}`,
+      );
+    } else {
+      throw new Error(`${source.id}: 알 수 없는 overlay 전략 ${source.strategy || '없음'}입니다.`);
+    }
   }
 }
 

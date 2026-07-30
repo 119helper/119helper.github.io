@@ -38,6 +38,16 @@
 - 소방용수시설 정적 데이터 갱신 workflow가 공공데이터 API를 직접 호출하도록 변경됐다.
   - 관련 스크립트: `scripts/sync-firewater.js`
   - 필요한 GitHub secret: `FIRE_WATER_API_KEY`
+- 광주 소방용수 지역 원본은 `scripts/sync-firewater-regional-overlays.mjs`에서
+  교체와 부분 교차검증을 분리한다.
+  - 광산구 2026-05-07 원본 1,560행은 기존 관할을 교체하며, 검증된 이전 좌표 보충을
+    포함해 지도 1,559곳을 제공한다.
+  - 북구 2025-08-22 원본 1,031행은 좌표가 없으므로 기존 1,088행을 교체하지 않는다.
+    시설유형코드와 공백 제거 도로명주소가 원본·기존 양쪽에서 한 행인 698곳에만
+    provenance를 추가하고, 미일치 246행과 중복/다의 87행은 수량만 남긴다.
+  - 원본일·원본/대상/매칭 집계, 정렬한 source→target 튜플 지문, 기존 1,088행
+    주소·좌표 본문 지문을 registry와 manifest에서 exact 비교한다. 공개 페이지의 현재
+    `publicDataDetailPk`가 pinned UUID와 달라져도 자동 채택하지 않고 갱신을 실패시킨다.
 - 공중화장실 정적 데이터 갱신 workflow를 추가했다.
   - 관련 스크립트: `scripts/sync-restrooms.js`
   - 원본 기준일 필드를 추출해 `public/data/manifest.json`의 `restrooms.sourceDate`에 기록한다.

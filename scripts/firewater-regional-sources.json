@@ -4,6 +4,7 @@
     {
       "id": "gwangju-gwangsan-firewater",
       "enabled": true,
+      "strategy": "district-replacement",
       "city": "광주광역시",
       "district": "광산구",
       "publicDataPk": "15054971",
@@ -15,6 +16,27 @@
       "maximumRows": 2500,
       "latitudeRange": [34.9, 35.4],
       "longitudeRange": [126.6, 127.1],
+      "license": "이용허락범위 제한 없음"
+    },
+    {
+      "id": "gwangju-bukgu-firewater-corroboration",
+      "enabled": true,
+      "strategy": "partial-corroboration",
+      "city": "광주광역시",
+      "district": "북구",
+      "sourceName": "전남광주통합특별시 북부소방서 소방용수시설 현황",
+      "publicDataPk": "15054973",
+      "publicDataDetailPk": "uddi:11a47313-f62a-4ee7-a9e7-ff02c3726c0d",
+      "sourceUrl": "https://www.data.go.kr/data/15054973/fileData.do",
+      "encoding": "euc-kr",
+      "expectedSourceDate": "2025-08-22",
+      "expectedSourceRows": 1031,
+      "expectedTargetRows": 1088,
+      "expectedMatchedCount": 698,
+      "expectedUnmatchedCount": 246,
+      "expectedAmbiguousRows": 87,
+      "expectedMatchFingerprint": "1bb2e6dd3b0daf1ff748db41bf04896116608e284f1cdd4ef47c68dd1737dc5a",
+      "expectedTargetBodyFingerprint": "edf3b028dd06c5b974fac9404c01e90e5660e3025cc11faa950b30fe672f8339",
       "license": "이용허락범위 제한 없음"
     }
   ]

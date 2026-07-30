@@ -47,7 +47,20 @@ export interface RegionalDatasetOverlay {
   city: string;
   district: string;
   sourceDate: string;
-  total: number;
+  overlayKind?: 'district-replacement' | 'partial-corroboration';
+  replacementScope?: 'district' | 'none';
+  total?: number;
+  sourceTotal?: number;
+  targetTotal?: number;
+  matchedCount?: number;
+  unmatchedCount?: number;
+  ambiguousMatchCount?: number;
+  matchMethod?: string;
+  matchFingerprint?: string;
+  matchFingerprintAlgorithm?: string;
+  targetBodyFingerprint?: string;
+  targetBodyFingerprintAlgorithm?: string;
+  coordinatesPreserved?: boolean;
   regionalCoordinateCount?: number;
   baselineCoordinateBackfillCount?: number;
   coordinateMappedCount?: number;
@@ -319,13 +332,30 @@ export function getDatasetCompletenessNotices(meta: DatasetFreshness): DatasetCo
   }
 
   for (const overlay of meta.regionalOverlays ?? []) {
+    if (overlay.overlayKind === 'partial-corroboration') {
+      const sourceTotal = overlay.sourceTotal ?? 0;
+      const targetTotal = overlay.targetTotal ?? 0;
+      const matched = overlay.matchedCount ?? 0;
+      const unmatched = overlay.unmatchedCount ?? 0;
+      const ambiguous = overlay.ambiguousMatchCount ?? 0;
+      notices.push({
+        tone: unmatched > 0 || ambiguous > 0 ? 'warning' : 'info',
+        text: `${overlay.district} 최신 원본 ${sourceTotal.toLocaleString()}행(${overlay.sourceDate}) 중 `
+          + `기존 지도점 ${matched.toLocaleString()}곳 일대일 교차검증`
+          + ` · 미일치 ${unmatched.toLocaleString()}행`
+          + ` · 중복/다의 ${ambiguous.toLocaleString()}행은 미적용`
+          + ` · 기존 ${targetTotal.toLocaleString()}곳 주소·좌표 유지`,
+      });
+      continue;
+    }
     const mapped = overlay.coordinateMappedCount ?? overlay.total;
     const baselineBackfill = overlay.baselineCoordinateBackfillCount ?? 0;
-    const missing = overlay.missingCoordinateCount ?? Math.max(0, overlay.total - mapped);
+    const total = overlay.total ?? 0;
+    const missing = overlay.missingCoordinateCount ?? Math.max(0, total - (mapped ?? 0));
     notices.push({
       tone: missing > 0 || baselineBackfill > 0 ? 'warning' : 'info',
-      text: `${overlay.district} 최신 원본 ${overlay.total.toLocaleString()}곳(${overlay.sourceDate}) 적용 · `
-        + `지도 ${mapped.toLocaleString()}곳`
+      text: `${overlay.district} 최신 원본 ${total.toLocaleString()}곳(${overlay.sourceDate}) 적용 · `
+        + `지도 ${(mapped ?? 0).toLocaleString()}곳`
         + (baselineBackfill > 0
           ? `(이 중 ${baselineBackfill.toLocaleString()}곳은 정확 주소가 같은 이전 좌표 유지)`
           : '')
