@@ -6,10 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const newsMocks = vi.hoisted(() => ({
   fetchLocalNews: vi.fn(),
+  fetchNewsThumbnail: vi.fn(),
 }));
 
 vi.mock('../services/newsApi', () => ({
   fetchLocalNews: newsMocks.fetchLocalNews,
+  fetchNewsThumbnail: newsMocks.fetchNewsThumbnail,
 }));
 
 import NewsDashboard from './NewsDashboard';

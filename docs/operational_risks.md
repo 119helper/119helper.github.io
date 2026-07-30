@@ -86,8 +86,11 @@
 - Worker 공공 API 키 인코딩 처리를 일부 구버전 라우트에서도 공통 헬퍼로 통일했다.
   - 대상: 대기질, 건축물대장, 기상청 API Hub
   - 관련 테스트: `worker/src/routes/proxyInput.test.ts`, `worker/src/routes/weather.test.ts`
-- 뉴스 프록시의 og:image 보강 fetch를 제한했다.
-  - 최대 6개 item, 동시 3개, 1.5초 timeout, 128KB HTML 상한, 로컬/사설 IP 차단.
+- 뉴스 프록시의 og:image 보강 fetch와 썸네일 전달을 제한했다.
+  - 최대 8개 item, 동시 4개, 2.5초 timeout으로 원 언론사 HTML 앞부분 128KB만 읽고
+    로컬/사설 IP를 차단한다.
+  - 브라우저는 외부 언론사 URL을 직접 열지 않고 인증된 Worker 프록시를 거쳐 `blob:`으로
+    표시한다. 프록시는 래스터 이미지 MIME만 허용하고 응답당 3MB로 제한한다.
 - Worker 문자열 입력 정규화가 HTML 태그 조각을 먼저 제거하도록 개선됐다.
 - Worker의 직접 응답, Edge Cache 응답, XML 응답에도 중앙 CORS와 보안 헤더가 일관되게 적용된다.
   - 관련 테스트: `worker/src/middleware/cors.test.ts`

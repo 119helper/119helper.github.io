@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchPolicyNews, type NewsItem } from '../services/newsApi';
 import DataStatePanel from './DataStatePanel';
+import NewsThumbnail from './NewsThumbnail';
 
 const stripHtml = (value: string | undefined) => (value || '').replace(/<[^>]*>/g, '');
 
@@ -51,76 +52,6 @@ const categoryTheme = {
     badge: "border-outline-variant text-on-surface-variant bg-surface-variant/30",
   }
 };
-
-function PolicyVisualFallback({
-  theme,
-  isHero,
-}: {
-  theme: typeof categoryTheme[keyof typeof categoryTheme];
-  isHero: boolean;
-}) {
-  return (
-    <div
-      className={`
-        relative z-10 overflow-hidden bg-gradient-to-br ${theme.gradient} shrink-0 flex items-center justify-center
-        ${isHero
-          ? 'w-full md:w-1/2 h-64 md:h-auto border-b md:border-b-0 md:border-r border-outline-variant/20'
-          : 'w-full h-48 sm:h-44 border-b border-outline-variant/20'}
-      `}
-    >
-      <span
-        className="material-symbols-outlined text-white/80 text-[72px]"
-        style={{ fontVariationSettings: "'FILL' 1" }}
-      >
-        {theme.icon}
-      </span>
-    </div>
-  );
-}
-
-function SafeNewsImage({
-  src,
-  isHero,
-  theme,
-}: {
-  src?: string;
-  isHero: boolean;
-  theme: typeof categoryTheme[keyof typeof categoryTheme];
-}) {
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    setFailed(false);
-  }, [src]);
-
-  if (!src || failed) {
-    return <PolicyVisualFallback theme={theme} isHero={isHero} />;
-  }
-
-  return (
-    <div
-      className={`
-        relative z-10 overflow-hidden bg-surface-container shrink-0
-        ${isHero
-          ? 'w-full md:w-1/2 h-64 md:h-auto border-b md:border-b-0 md:border-r border-outline-variant/20'
-          : 'w-full h-48 sm:h-44 border-b border-outline-variant/20'}
-      `}
-    >
-      <img
-        src={src}
-        alt=""
-        loading="lazy"
-        referrerPolicy="no-referrer"
-        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-        onError={() => setFailed(true)}
-      />
-
-      {isHero && (
-        <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-surface-container-lowest to-transparent hidden md:block" />
-      )}
-    </div>
-  );
-}
 
 export default function PolicyDashboard() {
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -220,8 +151,12 @@ export default function PolicyDashboard() {
                 {/* 하이테크 상단 글로우 바 */}
                 <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${theme.gradient} opacity-50 group-hover:opacity-100 transition-opacity`}></div>
 
-                {/* 이미지 영역 (fallback 지원) */}
-                <SafeNewsImage src={item.imageUrl} isHero={isHero} theme={theme} />
+                <NewsThumbnail
+                  src={item.imageUrl}
+                  isHero={isHero}
+                  gradient={theme.gradient}
+                  icon={theme.icon}
+                />
 
                 {/* 콘텐츠 영역 */}
                 <div className={`p-6 md:p-8 flex-1 flex flex-col relative z-20`}>

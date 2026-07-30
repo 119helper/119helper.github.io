@@ -25,7 +25,7 @@ import { handleFireDamage } from './routes/fireDamage';
 import { handleCivilShelter } from './routes/civilShelter';
 import { handleEquipment } from './routes/equipment';
 
-import { newsHandler, prefetchNews } from './routes/news';
+import { newsHandler, newsImageHandler, prefetchNews } from './routes/news';
 import { handleWildfire } from './routes/wildfire';
 import { handleForestFireRisk } from './routes/forestFireRisk';
 import { handleTsunamiShelter } from './routes/tsunamiShelter';
@@ -143,6 +143,9 @@ export default {
       if (path.startsWith('/api/emergency/')) {
         cacheUrl.searchParams.set('_cv', '1'); // 본부명·응답 필드·상세조회 파라미터 교정 전 캐시 무효화
       }
+      if (path.startsWith('/api/news')) {
+        cacheUrl.searchParams.set('_cv', '1'); // 썸네일 추출 및 안전한 이미지 프록시 도입
+      }
 
       const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
       const cache = caches.default;
@@ -192,6 +195,13 @@ export default {
       else if (path === '/api/ambulance') result = await handleAmbulance(url, env.AMBULANCE_API_KEY);
       else if (path.startsWith('/api/law')) {
         return applyCors(await handleLaw(request), request, env.ENVIRONMENT);
+      }
+      else if (path === '/api/news/image') {
+        const imageResponse = await newsImageHandler(request);
+        if (imageResponse.status === 200) {
+          ctx.waitUntil(cachePutBestEffort(cache, cacheKey, imageResponse.clone()));
+        }
+        return applyCors(imageResponse, request, env.ENVIRONMENT);
       }
       else if (path === '/api/news') {
         isNews = true;

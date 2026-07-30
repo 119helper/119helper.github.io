@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchLocalNews, type NewsItem } from '../services/newsApi';
 import DataStatePanel from './DataStatePanel';
+import NewsThumbnail from './NewsThumbnail';
 
 type NewsCategory = 'fire' | 'rescue' | 'medical' | 'default';
 
@@ -153,31 +154,15 @@ export default function NewsDashboard({ city }: NewsDashboardProps) {
                 {/* 하이테크 상단 글로우 바 */}
                 <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${theme.gradient} opacity-50 group-hover:opacity-100 transition-opacity`}></div>
 
-                {/* 이미지 영역 (있을 경우만) */}
-                {item.imageUrl && (
-                  <div className={`
-                    relative z-10 overflow-hidden bg-surface-container shrink-0
-                    ${isHero ? 'w-full md:w-1/2 h-64 md:h-auto border-b md:border-b-0 md:border-r border-outline-variant/20' : 'w-full h-48 sm:h-44 border-b border-outline-variant/20'}
-                  `}>
-                    <img 
-                      src={item.imageUrl} 
-                      alt="" 
-                      loading="lazy"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-                      onError={(e) => {
-                        const parent = e.currentTarget.parentElement;
-                        if (parent) parent.style.display = 'none';
-                      }}
-                    />
-                    {/* 데스크톱 영웅 카드용 이너 오버레이 (텍스트로 넘어가는 경계 부드럽게) */}
-                    {isHero && (
-                      <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-surface-container-lowest to-transparent hidden md:block"></div>
-                    )}
-                  </div>
-                )}
+                <NewsThumbnail
+                  src={item.imageUrl}
+                  isHero={isHero}
+                  gradient={theme.gradient}
+                  icon={theme.icon}
+                />
 
                 {/* 콘텐츠 영역 */}
-                <div className={`p-6 md:p-8 flex-1 flex flex-col relative z-20 ${isHero && !item.imageUrl ? 'justify-center' : ''}`}>
+                <div className="p-6 md:p-8 flex-1 flex flex-col relative z-20">
                   
                   {/* 거대 백그라운드 워터마크 마이크로 인터랙션 */}
                   <span className={`material-symbols-outlined absolute pointer-events-none z-0 ${theme.iconColor} transform -rotate-12 group-hover:scale-110 group-hover:rotate-0 transition-all duration-700 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isHero ? '-bottom-10 -right-10 text-[200px]' : '-bottom-6 -right-6 text-[120px]'}`} style={{ fontVariationSettings: "'FILL' 1" }}>

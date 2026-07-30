@@ -14,10 +14,23 @@ import { sanitizeStringParam } from '../middleware/cors';
 const CACHE_TTL = 60 * 60; // 1시간 (KV 만료 기본 단위 초)
 const STALE_TTL = 6 * 60 * 60; // 6시간 동안은 실패 시 과거 데이터라도 반환
 const ALLOWED_TYPES = new Set(['google', 'nfa']);
-const OG_IMAGE_FETCH_LIMIT = 6;
-const OG_IMAGE_CONCURRENCY = 3;
-const OG_IMAGE_TIMEOUT_MS = 1500;
+const OG_IMAGE_FETCH_LIMIT = 8;
+const OG_IMAGE_CONCURRENCY = 4;
+const OG_IMAGE_TIMEOUT_MS = 2500;
 const OG_HTML_MAX_BYTES = 128 * 1024;
+const NEWS_IMAGE_TIMEOUT_MS = 6000;
+const NEWS_IMAGE_MAX_BYTES = 3 * 1024 * 1024;
+const NEWS_IMAGE_URL_MAX_LENGTH = 4096;
+const NEWS_IMAGE_CONTENT_TYPES = new Set([
+  'image/avif',
+  'image/gif',
+  'image/jpeg',
+  'image/jpg',
+  'image/pjpeg',
+  'image/png',
+  'image/webp',
+  'image/x-png',
+]);
 const RSS_MAX_BYTES = 512 * 1024;
 const REDIRECT_LIMIT = 3;
 
@@ -58,6 +71,64 @@ export async function newsHandler(request: Request, env: NewsEnv): Promise<Respo
   return await getNewsWithCache(type, query, env, false);
 }
 
+export async function newsImageHandler(request: Request): Promise<Response> {
+  const rawUrl = new URL(request.url).searchParams.get('url')?.trim() || '';
+  if (!rawUrl || rawUrl.length > NEWS_IMAGE_URL_MAX_LENGTH) {
+    return imageErrorResponse('Invalid image URL', 400);
+  }
+
+  const target = assertFetchableHttpUrl(rawUrl);
+  if (!target) {
+    return imageErrorResponse('Blocked image URL', 400);
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), NEWS_IMAGE_TIMEOUT_MS);
+
+  try {
+    const fetched = await fetchWithSafeRedirects(target, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'image/avif,image/webp,image/png,image/jpeg,image/gif',
+        'Accept-Language': 'ko-KR,ko;q=0.9',
+      },
+    }, controller.signal);
+
+    if (!fetched || !fetched.response.ok) {
+      return imageErrorResponse('Image upstream unavailable', 502);
+    }
+
+    const contentType = fetched.response.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase() || '';
+    if (!NEWS_IMAGE_CONTENT_TYPES.has(contentType)) {
+      return imageErrorResponse('Unsupported image response', 415);
+    }
+
+    const contentLength = Number(fetched.response.headers.get('content-length') || 0);
+    if (Number.isFinite(contentLength) && contentLength > NEWS_IMAGE_MAX_BYTES) {
+      return imageErrorResponse('Image response too large', 413);
+    }
+
+    const bytes = await readResponseBytes(fetched.response, NEWS_IMAGE_MAX_BYTES);
+    if (bytes.byteLength === 0) {
+      return imageErrorResponse('Empty image response', 502);
+    }
+
+    return new Response(bytes, {
+      headers: {
+        'Content-Type': contentType,
+        'Content-Length': String(bytes.byteLength),
+        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    });
+  } catch (error) {
+    const status = error instanceof Error && error.message.includes('exceeded') ? 413 : 502;
+    return imageErrorResponse('Image fetch failed', status);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // Cron Trigger에서 주기적으로 호출하기 위한 프리패치 함수
 export async function prefetchNews(env: NewsEnv) {
   // 프리패치 할 기본 검색어: "소방" (화재 OR 구조 OR 구급 OR 재난)
@@ -74,7 +145,7 @@ export async function prefetchNews(env: NewsEnv) {
 
 async function getNewsWithCache(type: string, query: string, env: NewsEnv, forceFetch: boolean): Promise<Response> {
   // 캐시 키 버전을 v4 등으로 올려서 이전 데이터(이미지 없는 데이터) 캐시를 즉시 무효화
-  const CACHE_PREFIX = 'news:v5:';
+  const CACHE_PREFIX = 'news:v6:';
   const cacheKey = `${CACHE_PREFIX}${type}:${encodeURIComponent(query)}`;
   const kv = env.NEWS_CACHE; // binding from wrangler.toml
 
@@ -249,6 +320,36 @@ function assertFetchableHttpUrl(value: string): string {
   return url.toString();
 }
 
+async function fetchWithSafeRedirects(
+  initialUrl: string,
+  init: RequestInit,
+  signal: AbortSignal,
+): Promise<{ response: Response; finalUrl: string } | null> {
+  let target = assertFetchableHttpUrl(initialUrl);
+  if (!target) return null;
+
+  for (let redirects = 0; redirects <= REDIRECT_LIMIT; redirects += 1) {
+    const response = await fetch(target, {
+      ...init,
+      redirect: 'manual',
+      signal,
+    });
+
+    if (!isRedirectStatus(response.status)) {
+      return { response, finalUrl: target };
+    }
+
+    await response.body?.cancel().catch(() => undefined);
+    if (redirects === REDIRECT_LIMIT) return null;
+    const location = response.headers.get('Location');
+    if (!location) return null;
+    target = assertFetchableHttpUrl(new URL(location, target).toString());
+    if (!target) return null;
+  }
+
+  return null;
+}
+
 async function readResponseText(response: Response, maxBytes: number): Promise<string> {
   const contentLength = Number(response.headers.get('content-length') || 0);
   if (Number.isFinite(contentLength) && contentLength > maxBytes) {
@@ -280,53 +381,136 @@ async function readResponseText(response: Response, maxBytes: number): Promise<s
   return text;
 }
 
+async function readResponsePrefix(response: Response, maxBytes: number): Promise<string> {
+  if (!response.body) return '';
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let totalBytes = 0;
+  let text = '';
+
+  try {
+    while (totalBytes < maxBytes) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const remaining = maxBytes - totalBytes;
+      const chunk = value.byteLength > remaining ? value.slice(0, remaining) : value;
+      totalBytes += chunk.byteLength;
+      text += decoder.decode(chunk, { stream: true });
+
+      if (value.byteLength > remaining || totalBytes === maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        break;
+      }
+    }
+    text += decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+
+  return text;
+}
+
+async function readResponseBytes(response: Response, maxBytes: number): Promise<Uint8Array> {
+  if (!response.body) return new Uint8Array();
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new Error(`Response exceeded ${maxBytes} bytes`);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const combined = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return combined;
+}
+
+function decodeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (_match, code: string) => String.fromCodePoint(Number.parseInt(code, 16)))
+    .replace(/&#(\d+);/g, (_match, code: string) => String.fromCodePoint(Number.parseInt(code, 10)));
+}
+
+function htmlAttribute(tag: string, name: string): string {
+  const match = tag.match(new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'<>]+))`, 'i'));
+  return match?.[1] || match?.[2] || match?.[3] || '';
+}
+
+function extractMetaImageUrl(html: string, baseUrl: string): string {
+  const supportedKeys = new Set([
+    'og:image',
+    'og:image:url',
+    'og:image:secure_url',
+    'twitter:image',
+    'twitter:image:src',
+  ]);
+
+  for (const match of html.matchAll(/<meta\b[^>]*>/gi)) {
+    const tag = match[0];
+    const key = (htmlAttribute(tag, 'property') || htmlAttribute(tag, 'name')).trim().toLowerCase();
+    if (!supportedKeys.has(key)) continue;
+
+    const content = decodeHtmlAttribute(htmlAttribute(tag, 'content').trim());
+    if (!content) continue;
+
+    try {
+      const resolved = new URL(content, baseUrl).toString();
+      const safe = assertFetchableHttpUrl(resolved);
+      if (safe) return safe;
+    } catch {
+      // 다음 메타 태그를 계속 확인한다.
+    }
+  }
+
+  return '';
+}
+
 // 썸네일 URL(Og:Image)만 짧은 제한 안에서 가져오는 best-effort 스크래퍼
 async function fetchOgImage(link: string): Promise<string> {
   try {
-    let target = assertFetchableHttpUrl(link);
+    const target = assertFetchableHttpUrl(link);
     if (!target) return '';
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), OG_IMAGE_TIMEOUT_MS);
 
-    let res: Response | null = null;
     try {
-      for (let redirects = 0; redirects <= REDIRECT_LIMIT; redirects += 1) {
-        res = await fetch(target, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Cache-Control': 'no-cache',
-            'Range': `bytes=0-${OG_HTML_MAX_BYTES - 1}`,
-          },
-          redirect: 'manual',
-          signal: controller.signal
-        });
+      const fetched = await fetchWithSafeRedirects(target, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+          'Cache-Control': 'no-cache',
+        },
+      }, controller.signal);
 
-        if (!isRedirectStatus(res.status)) break;
-        const location = res.headers.get('Location');
-        if (!location) return '';
-        const next = new URL(location, target).toString();
-        target = assertFetchableHttpUrl(next);
-        if (!target) return '';
-      }
+      if (!fetched || !fetched.response.ok) return '';
+      const html = await readResponsePrefix(fetched.response, OG_HTML_MAX_BYTES);
+      return extractMetaImageUrl(html, fetched.finalUrl);
     } finally {
       clearTimeout(timeout);
     }
-
-    if (!res) return '';
-    if (!res.ok) return '';
-    const contentLength = Number(res.headers.get('content-length') || 0);
-    if (contentLength > OG_HTML_MAX_BYTES) return '';
-    
-    const html = await readResponseText(res, OG_HTML_MAX_BYTES);
-    if (html.length > OG_HTML_MAX_BYTES) return '';
-    // meta og:image 추출 정규식 (줄바꿈 허용, 순서 무관)
-    const match = html.match(/<meta[^>]*?property=["']og:image["'][^>]*?content=["']([^"']+)["']/i) || 
-                  html.match(/<meta[^>]*?content=["']([^"']+)["'][^>]*?property=["']og:image["']/i) ||
-                  html.match(/<meta[^>]*?name=["']twitter:image["'][^>]*?content=["']([^"']+)["']/i);
-    return match ? assertFetchableHttpUrl(match[1]) : '';
   } catch {
     return '';
   }
@@ -370,7 +554,7 @@ async function enhanceRssWithImages(xml: string): Promise<string> {
   async function enhanceItem(itemXml: string, index: number): Promise<string> {
     // 1. Bing News의 <News:Image> 태그가 이미 존재하면 즉시 사용
     const bingImageMatch = itemXml.match(/<News:Image>([^<]+)<\/News:Image>/i);
-    const bingImage = bingImageMatch ? safeHttpUrl(bingImageMatch[1]) : '';
+    const bingImage = bingImageMatch ? safeHttpUrl(decodeHtmlAttribute(bingImageMatch[1])) : '';
     if (bingImage) {
        return itemXml.replace(/<\/item>/i, `  <imageUrl><![CDATA[${cdata(bingImage)}]]></imageUrl>\n    </item>`);
     }
@@ -380,20 +564,18 @@ async function enhanceRssWithImages(xml: string): Promise<string> {
     if (index >= OG_IMAGE_FETCH_LIMIT) return itemXml;
 
     let targetLink = '';
-    // Priority: If link contains naver.com, use it (extremely fast and standard). Otherwise fallback to originallink, then link.
+    // 원 언론사 페이지가 Naver 중계 페이지보다 보도사진 메타데이터를 안정적으로 제공한다.
     const linkUrl = xmlTagText(itemXml, 'link');
     const originalLinkUrl = xmlTagText(itemXml, 'originallink');
     
-    if (linkUrl.includes('naver.com')) {
-      targetLink = linkUrl;
-    } else if (originalLinkUrl) {
+    if (originalLinkUrl) {
       targetLink = originalLinkUrl;
     } else if (linkUrl) {
       targetLink = linkUrl;
     }
     
     if (!targetLink) return itemXml;
-    targetLink = safeHttpUrl(targetLink);
+    targetLink = safeHttpUrl(decodeHtmlAttribute(targetLink));
     
     const imageUrl = await fetchOgImage(targetLink);
     
@@ -476,6 +658,17 @@ function xmlResponse(body: string, isError: boolean = false): Response {
       'Content-Type': 'application/xml; charset=utf-8',
       'Access-Control-Allow-Origin': '*',
       'Cache-Control': isError ? 'no-store, no-cache, must-revalidate' : 'public, max-age=600',
+    },
+  });
+}
+
+function imageErrorResponse(message: string, status: number): Response {
+  return new Response(message, {
+    status,
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
     },
   });
 }

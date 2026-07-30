@@ -20,6 +20,17 @@ interface ParsedNewsItem extends Omit<NewsItem, 'pubDate'> {
   pubDateStr: string;
 }
 const CACHE_TTL = 3 * 60 * 1000; // 3분 캐시
+const NEWS_THUMBNAIL_MAX_BYTES = 3 * 1024 * 1024;
+const NEWS_THUMBNAIL_CONTENT_TYPES = new Set([
+  'image/avif',
+  'image/gif',
+  'image/jpeg',
+  'image/jpg',
+  'image/pjpeg',
+  'image/png',
+  'image/webp',
+  'image/x-png',
+]);
 
 const localNewsCache: Record<string, CacheEntry> = {};
 let policyNewsCache: CacheEntry | null = null;
@@ -49,6 +60,45 @@ function extractImageUrl(item: Element): string {
   const imgMatch = descRaw.match(/<img[^>]+src=["']([^"']+)["']/i);
   if (imgMatch?.[1]) return imgMatch[1];
   return '';
+}
+
+export async function fetchNewsThumbnail(imageUrl: string, signal?: AbortSignal): Promise<Blob> {
+  const safeImageUrl = safeHttpUrl(imageUrl);
+  if (!safeImageUrl) {
+    throw new Error('유효하지 않은 뉴스 이미지 URL입니다.');
+  }
+
+  const proxyUrl = new URL(`${API_BASE}/api/news/image`);
+  proxyUrl.searchParams.set('url', safeImageUrl);
+
+  const response = await fetch(proxyUrl.toString(), {
+    cache: 'force-cache',
+    headers: workerHeaders({
+      Accept: 'image/avif,image/webp,image/png,image/jpeg,image/gif',
+    }),
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(`뉴스 이미지 요청 실패: ${response.status}`);
+  }
+
+  const contentType = response.headers.get('Content-Type')?.split(';', 1)[0].trim().toLowerCase() || '';
+  if (!NEWS_THUMBNAIL_CONTENT_TYPES.has(contentType)) {
+    throw new Error('뉴스 이미지가 아닌 응답입니다.');
+  }
+
+  const contentLength = Number(response.headers.get('Content-Length') || 0);
+  if (Number.isFinite(contentLength) && contentLength > NEWS_THUMBNAIL_MAX_BYTES) {
+    throw new Error('뉴스 이미지가 허용 크기를 초과했습니다.');
+  }
+
+  const blob = await response.blob();
+  if (blob.size === 0 || blob.size > NEWS_THUMBNAIL_MAX_BYTES) {
+    throw new Error('뉴스 이미지 크기가 올바르지 않습니다.');
+  }
+
+  return blob;
 }
 
 async function fetchRssAndParse(url: string, sourceName: string, isOfficial: boolean, limit: number, retries = 2, options?: { filterBadImages?: boolean }): Promise<ParsedNewsItem[]> {
