@@ -61,7 +61,7 @@ const ALL_QUICK_TOOLS: QuickToolDef[] = [
   { id: 'aviation', tab: 'aviation', icon: 'flight_takeoff', label: '항공/드론', color: 'text-cyan-400', category: '현장 도구', bgImage: '/images/tools/quick_aviation.webp' },
   { id: 'law_defense', tab: 'law', subId: 'DEFENSE', icon: 'gavel', label: '법률 방어망', color: 'text-rose-500', category: '법률 보호', bgImage: '/images/tools/quick_law_defense.webp' },
   { id: 'checklist', tab: 'checklist', icon: 'check_circle', label: '장비점검', color: 'text-orange-400', category: '현장 도구', bgImage: '/images/tools/quick_checklist.webp' },
-  { id: 'field_timer', tab: 'field-timer', icon: 'timer', label: '현장 타이머', color: 'text-red-500', category: '현장 도구', bgImage: '/images/tools/bg_timer.webp' },
+  { id: 'field_timer', tab: 'field-timer', icon: 'timer', label: '현장 타이머', color: 'text-red-500', category: '현장 도구', bgImage: '/images/tools/quick_timer.webp' },
   { id: 'building', tab: 'shelter', subId: 'building', icon: 'apartment', label: '건축물대장', color: 'text-purple-400', category: '조회', bgImage: '/images/tools/bg_building.webp' },
   { id: 'shelter', tab: 'shelter', icon: 'location_city', label: '시설 조회', color: 'text-yellow-400', category: '조회', bgImage: '/images/tools/bg_shelter.webp' },
   { id: 'er', tab: 'er', icon: 'local_hospital', label: '응급실 현황', color: 'text-pink-400', category: '현장 도구', bgImage: '/images/tools/bg_er.webp' },
@@ -460,9 +460,13 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
             style={{ minHeight: '120px' }}
           >
             {/* Background Image Layer */}
-            <div 
-              className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-              style={{ backgroundImage: `url(/images/dashboard/ppe-check.svg)` }}
+            <img
+              src="/images/dashboard/ppe-check.webp"
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+              style={{ objectPosition: 'center 28%' }}
             />
             {/* Dark overlay for text readability & mood */}
             <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/30 transition-colors duration-1000" />
@@ -512,9 +516,12 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
             }}
           >
             {/* Background Image Layer */}
-            <div 
-              className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-              style={{ backgroundImage: `url(/images/dashboard/er-capacity.svg)` }}
+            <img
+              src="/images/dashboard/er-capacity.webp"
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+              className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
             />
             {/* Dark overlay for text readability & mood */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30 transition-colors duration-1000" />
