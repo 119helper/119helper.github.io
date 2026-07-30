@@ -362,6 +362,9 @@ test('pins every corroborating record while allowing a source-date-only refresh'
   refreshedRecord.recordFingerprint = hostRecordFingerprint(refreshedRecord);
   refreshedSource.sourceDate = refreshedRecord.sourceDate;
   refreshedSource.recordFingerprint = refreshedRecord.recordFingerprint;
+  dateRefresh.sources
+    .find(sourceItem => sourceItem.id === 'second-host-source')
+    .sourceDate = refreshedRecord.sourceDate;
   assert.equal(
     hostAddressPointReviewFingerprint(dateRefresh.items),
     reviewOptions.expectedFingerprint,
@@ -388,6 +391,48 @@ test('checked-in source completeness gates cannot be removed or weakened', () =>
   assert.throws(
     () => assertHostAddressPointDrift(weakenedGate),
     /저장 완전성 게이트가 코드 검토 기준과 다릅니다/,
+  );
+
+  const tooOldRecord = structuredClone(ledger);
+  const tooOldItem = tooOldRecord.items
+    .find(item => item.corroboratingRecords.length > 1);
+  const oldRecord = tooOldItem.corroboratingRecords
+    .find(record => record.sourceId !== tooOldItem.sourceId);
+  const oldEvidence = tooOldItem.corroboratingSources
+    .find(evidence => evidence.sourceId === oldRecord.sourceId);
+  oldRecord.sourceDate = '1900-01-01';
+  oldRecord.recordFingerprint = hostRecordFingerprint(oldRecord);
+  oldEvidence.sourceDate = oldRecord.sourceDate;
+  oldEvidence.recordFingerprint = oldRecord.recordFingerprint;
+  assert.throws(
+    () => assertHostAddressPointDrift(tooOldRecord),
+    /원천 레코드 근거가 불완전합니다/,
+  );
+
+  const futureRecord = structuredClone(ledger);
+  const futureItem = futureRecord.items
+    .find(item => item.corroboratingRecords.length > 1);
+  const futureEvidenceRecord = futureItem.corroboratingRecords
+    .find(record => record.sourceId !== futureItem.sourceId);
+  const futureSourceEvidence = futureItem.corroboratingSources
+    .find(evidence => evidence.sourceId === futureEvidenceRecord.sourceId);
+  futureEvidenceRecord.sourceDate = '2099-12-31';
+  futureEvidenceRecord.recordFingerprint = hostRecordFingerprint(futureEvidenceRecord);
+  futureSourceEvidence.sourceDate = futureEvidenceRecord.sourceDate;
+  futureSourceEvidence.recordFingerprint = futureEvidenceRecord.recordFingerprint;
+  assert.throws(
+    () => assertHostAddressPointDrift(futureRecord),
+    /원천 레코드 근거가 불완전합니다/,
+  );
+
+  assert.throws(
+    () => hostRecordFingerprint({
+      sourceRecordKey: 'invalid-date',
+      lat: 35.1,
+      lng: 128.1,
+      sourceDate: '2026-99-99',
+    }),
+    /지문 필드가 불완전합니다/,
   );
 });
 

@@ -472,6 +472,13 @@ function isoDate(value) {
     : null;
 }
 
+function isValidIsoDate(value) {
+  const text = asText(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false;
+  const parsed = new Date(`${text}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === text;
+}
+
 function sourceScopeAddress(value) {
   return asText(value)
     .replace(/\s+/g, ' ')
@@ -892,7 +899,7 @@ export function hostRecordFingerprint(record) {
     !sourceRecordKey
     || !Number.isFinite(latitude)
     || !Number.isFinite(longitude)
-    || !sourceDate
+    || !isValidIsoDate(sourceDate)
   ) {
     throw new Error('호스트 원천 레코드 지문 필드가 불완전합니다.');
   }
@@ -1401,6 +1408,14 @@ export function assertHostAddressPointDrift(result, options = {}) {
   if (!usesDefaultReview && options.validateProvenance !== true) return;
 
   const sourceById = new Map((result?.sources || []).map(source => [String(source.id), source]));
+  const reviewedSourceById = new Map(HOST_ADDRESS_SOURCES.map(source => [source.id, source]));
+  const maximumSourceDate = asText(
+    options.maximumSourceDate
+      || new Date(Date.now() + 86_400_000).toISOString().slice(0, 10),
+  );
+  if (!isValidIsoDate(maximumSourceDate)) {
+    throw new Error('공식 호스트 시설 주소점 허용 최대 기준일이 올바르지 않습니다.');
+  }
   if (usesDefaultReview) {
     const expectedSourceIds = HOST_ADDRESS_SOURCES.map(source => source.id).sort();
     const actualSourceIds = [...sourceById.keys()].sort();
@@ -1431,6 +1446,9 @@ export function assertHostAddressPointDrift(result, options = {}) {
     }
   }
   for (const source of sourceById.values()) {
+    if (!isValidIsoDate(source.sourceDate) || source.sourceDate > maximumSourceDate) {
+      throw new Error(`공식 호스트 시설 주소점 ${source.id} 최신 기준일이 올바르지 않습니다.`);
+    }
     const validRowsByCity = source.validScopedRowsByCity || {};
     const validRowsByCityTotal = Object.values(validRowsByCity)
       .reduce((sum, value) => sum + Number(value || 0), 0);
@@ -1507,6 +1525,11 @@ export function assertHostAddressPointDrift(result, options = {}) {
       `${asText(record.sourceId)}|${asText(record.sourceRecordKey)}`
     );
     const invalidRecord = records.find(record => {
+      const recordSourceId = asText(record.sourceId);
+      const recordSource = sourceById.get(recordSourceId);
+      const reviewedSource = usesDefaultReview
+        ? reviewedSourceById.get(recordSourceId)
+        : null;
       const latitude = Number(record.lat);
       const longitude = Number(record.lng);
       const recordedDistance = Number(record.distanceFromPrimaryMeters);
@@ -1521,10 +1544,17 @@ export function assertHostAddressPointDrift(result, options = {}) {
         return true;
       }
       return (
-        !sourceById.has(asText(record.sourceId))
+        !recordSource
         || !asText(record.sourceRecordKey)
         || !asText(record.recordFingerprint)
         || !asText(record.matchedAddressKey)
+        || !isValidIsoDate(record.sourceDate)
+        || record.sourceDate > maximumSourceDate
+        || record.sourceDate > asText(recordSource?.sourceDate)
+        || (
+          reviewedSource
+          && record.sourceDate < asText(reviewedSource.minimumSourceDate)
+        )
         || !Number.isFinite(latitude)
         || !Number.isFinite(longitude)
         || !Number.isFinite(recordedDistance)
