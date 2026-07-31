@@ -832,11 +832,14 @@ test('활성 출동: 사건 맥락으로 유사 위해사고를 즉시 좁힌다
   });
 
   await page.goto('/?tab=incident');
+  await page.getByRole('button', { name: 'emergency 구조', exact: true }).click();
   await page.getByLabel('출동 제목').fill('아파트 욕실 고령자 낙상 구조');
   await page.getByLabel(/현장 주소/).fill('서울특별시 종로구 세종대로 209');
   await page.getByLabel('초기 상황 및 위험요소').fill('욕실 바닥에서 넘어짐');
   await page.getByRole('button', { name: /위치 기준 브리핑 시작/ }).click();
-  await page.getByRole('button', { name: /유사사고/ }).click();
+  const nextChecks = page.getByRole('region', { name: '출동별 다음 확인' });
+  await expect(nextChecks).toContainText('확인 0/4');
+  await nextChecks.getByRole('button', { name: '지금: 유사사고 패턴 확인' }).click();
 
   await expect(page).toHaveURL(/#hazards$/);
   await expect(page.getByText(/진행 중 사건과 연결됨/)).toBeVisible();
@@ -844,6 +847,11 @@ test('활성 출동: 사건 맥락으로 유사 위해사고를 즉시 좁힌다
   await expect(page.getByRole('button', { name: /낙상·추락/ })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText(/‘욕실’ 범위까지 자동으로 넓혔습니다/)).toBeVisible();
   await expect(page.getByText(/현재 조건 3건/)).toBeVisible();
+
+  await page.goto('/#incident');
+  const advancedChecks = page.getByRole('region', { name: '출동별 다음 확인' });
+  await expect(advancedChecks).toContainText('확인 1/4');
+  await expect(advancedChecks.getByRole('button', { name: '지금: 건축물 정보 확인' })).toBeVisible();
 });
 
 test('활동 기록: 뒤바뀐 단계 시각을 경고하고 수정 후 해제한다', async ({ page }) => {

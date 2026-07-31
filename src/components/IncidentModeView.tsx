@@ -57,6 +57,11 @@ import {
 } from '../services/triageSession';
 import { archiveIncidentCase } from '../services/incidentCaseStore';
 import { getIncidentActionOrder } from '../utils/incidentActionOrder';
+import {
+  buildIncidentNextActions,
+  currentIncidentNextActions,
+  type IncidentNextAction,
+} from '../utils/incidentNextActions';
 
 const INCIDENT_TYPES: Array<{ id: IncidentType; label: string; icon: string }> = [
   { id: 'fire', label: '화재', icon: 'local_fire_department' },
@@ -273,6 +278,27 @@ export default function IncidentModeView({
   const elapsed = session.active ? now - session.startedAt : 0;
   const typeMeta = INCIDENT_TYPES.find(t => t.id === session.type) ?? INCIDENT_TYPES[0];
   const activityPreset = ACTIVITY_PRESETS.find(preset => preset.id === session.type) ?? ACTIVITY_PRESETS[0];
+  const incidentNextActions = useMemo(() => buildIncidentNextActions({
+    type: session.type,
+    title: session.title,
+    note: session.note,
+    activityLabels: activitySession.incidentId === session.incidentId
+      ? activitySession.stamps.map(stamp => stamp.label)
+      : [],
+    selections: session.selections,
+    hasTriagePatients: triageCount > 0,
+  }), [
+    activitySession.incidentId,
+    activitySession.stamps,
+    session.incidentId,
+    session.note,
+    session.selections,
+    session.title,
+    session.type,
+    triageCount,
+  ]);
+  const currentNextActions = currentIncidentNextActions(incidentNextActions);
+  const completedNextActionCount = incidentNextActions.filter(action => action.completed).length;
   const hasRecentIncident = !session.active
     && Boolean(session.title)
     && session.startedAt > 0
@@ -653,6 +679,16 @@ export default function IncidentModeView({
     onNavigate(tab, subId);
   };
 
+  const runIncidentNextAction = (action: IncidentNextAction) => {
+    appendActivityEvent(action.activityLabel, currentTimestamp(), session.incidentId);
+    if (action.target.kind === 'tab') {
+      onNavigate(action.target.tab, action.target.subId);
+      return;
+    }
+    document.querySelector(`[data-incident-action-card="${action.target.card}"]`)
+      ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  };
+
   if (!session.active) {
     return (
       <div className="space-y-6">
@@ -978,6 +1014,76 @@ export default function IncidentModeView({
           </div>
         </div>
       )}
+
+      <section
+        role="region"
+        aria-label="출동별 다음 확인"
+        className="rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-primary/5 to-surface-container-lowest p-4"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-primary">사건 흐름 연결</p>
+            <h3 className="mt-1 text-lg font-extrabold text-on-surface">지금 확인할 것</h3>
+            <p className="mt-1 text-xs text-on-surface-variant">
+              {typeMeta.label} 유형과 신고 내용·열람 기록에 따라 다음 정보 화면을 이어줍니다.
+            </p>
+          </div>
+          <div className="rounded-full bg-surface-container-lowest px-3 py-1.5 text-xs font-extrabold text-primary shadow-sm">
+            확인 {completedNextActionCount}/{incidentNextActions.length}
+          </div>
+        </div>
+
+        {currentNextActions.length > 0 ? (
+          <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-3">
+            {currentNextActions.map((action, index) => {
+              const sequenceLabel = index === 0 ? '지금' : index === 1 ? '다음' : '이후';
+              return (
+                <button
+                  key={action.id}
+                  type="button"
+                  aria-label={`${sequenceLabel}: ${action.title}`}
+                  onClick={() => runIncidentNextAction(action)}
+                  className={`group flex min-h-24 items-start gap-3 rounded-xl border p-3 text-left transition-colors ${
+                    index === 0
+                      ? 'border-primary/35 bg-primary text-on-primary hover:bg-primary/90'
+                      : 'border-outline-variant/20 bg-surface-container-lowest text-on-surface hover:border-primary/30 hover:bg-primary/5'
+                  }`}
+                >
+                  <span className={`material-symbols-outlined mt-0.5 rounded-lg p-2 text-xl ${
+                    index === 0 ? 'bg-on-primary/15 text-on-primary' : 'bg-primary/10 text-primary'
+                  }`} aria-hidden="true">
+                    {action.icon}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${
+                      index === 0 ? 'text-on-primary/75' : 'text-primary'
+                    }`}>
+                      {sequenceLabel}
+                    </span>
+                    <span className="mt-0.5 block text-sm font-extrabold">{action.title}</span>
+                    <span className={`mt-1 block text-[11px] leading-4 ${
+                      index === 0 ? 'text-on-primary/80' : 'text-on-surface-variant'
+                    }`}>
+                      {action.description}
+                    </span>
+                  </span>
+                  <span aria-hidden="true" className="material-symbols-outlined mt-1 text-lg opacity-70 transition-transform group-hover:translate-x-0.5">
+                    arrow_forward
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-on-surface">
+            <span aria-hidden="true" className="material-symbols-outlined text-emerald-700 dark:text-emerald-300">task_alt</span>
+            <span className="font-extrabold">연결된 정보 화면을 모두 확인했습니다.</span>
+          </div>
+        )}
+        <p className="mt-3 text-[11px] leading-4 text-on-surface-variant">
+          열람 동선을 정리하는 기능이며 처치·지휘 순서를 지시하지 않습니다. 현장 지휘와 기관 SOP를 우선하세요.
+        </p>
+      </section>
 
       {hasSelectedActions && (
         <section

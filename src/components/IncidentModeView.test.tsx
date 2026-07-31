@@ -26,6 +26,13 @@ const mocks = vi.hoisted(() => ({
   removeTriagePatients: vi.fn(),
   clearIncidentTimers: vi.fn(),
   navigate: vi.fn(),
+  activityStamps: [] as Array<{
+    stageId: string;
+    label: string;
+    time: number;
+    lat: null;
+    lon: null;
+  }>,
 }));
 
 vi.mock('../hooks/useIncidentSession', () => ({
@@ -42,7 +49,7 @@ vi.mock('../hooks/useActivitySession', () => ({
     presetId: typeof mocks.session.type === 'string' ? mocks.session.type : 'fire',
     title: typeof mocks.session.title === 'string' ? mocks.session.title : '',
     note: '',
-    stamps: [],
+    stamps: mocks.activityStamps,
   }, vi.fn()],
 }));
 
@@ -269,6 +276,7 @@ beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
   mocks.session = { ...EMPTY_INCIDENT_SESSION };
+  mocks.activityStamps = [];
   mocks.getWeather.mockResolvedValue([]);
   mocks.getErBeds.mockResolvedValue([]);
   mocks.getRoadDisasters.mockResolvedValue({ data: roadResponse(), staleAt: null });
@@ -303,6 +311,48 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('IncidentModeView operational flow', () => {
+  it('prioritizes the next checks from the incident type and note and opens the current action', async () => {
+    mocks.session = {
+      ...activeSession(),
+      type: 'rescue',
+      title: '아파트 욕실 고령자 낙상 구조',
+      note: '욕실 바닥에서 넘어짐',
+    };
+    renderView();
+
+    const nextChecks = await screen.findByRole('region', { name: '출동별 다음 확인' });
+    expect(within(nextChecks).getByText('확인 0/4')).toBeInTheDocument();
+    expect(within(nextChecks).getByRole('button', { name: '지금: 유사사고 패턴 확인' })).toBeInTheDocument();
+    expect(within(nextChecks).getByRole('button', { name: '다음: 건축물 정보 확인' })).toBeInTheDocument();
+
+    fireEvent.click(within(nextChecks).getByRole('button', { name: '지금: 유사사고 패턴 확인' }));
+
+    expect(mocks.navigate).toHaveBeenCalledWith('hazards', undefined);
+    expect(mocks.appendActivity).toHaveBeenCalledWith(
+      '유사사고 열람',
+      expect.any(Number),
+      'incident-active',
+    );
+  });
+
+  it('advances past previously reviewed checks instead of showing a static tool grid order', async () => {
+    mocks.session = activeSession();
+    mocks.activityStamps = [{
+      stageId: 'auto-building',
+      label: '건축물 열람',
+      time: Date.now() - 1_000,
+      lat: null,
+      lon: null,
+    }];
+    renderView();
+
+    const nextChecks = await screen.findByRole('region', { name: '출동별 다음 확인' });
+    expect(within(nextChecks).getByText('확인 1/4')).toBeInTheDocument();
+    expect(within(nextChecks).queryByRole('button', { name: /건축물 정보 확인/ })).not.toBeInTheDocument();
+    expect(within(nextChecks).getByRole('button', { name: '지금: 소방용수 후보 확인' })).toBeInTheDocument();
+    expect(within(nextChecks).getByRole('button', { name: '다음: 진입로 상태 확인' })).toBeInTheDocument();
+  });
+
   it('opens similar incident evidence from the active incident workspace and records the access', async () => {
     mocks.session = activeSession();
     renderView();
