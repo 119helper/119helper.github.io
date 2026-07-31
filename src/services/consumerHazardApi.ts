@@ -33,8 +33,10 @@ export interface ConsumerHazardDataset {
 }
 
 const CACHE_TTL = 1000 * 60 * 60 * 24;
-const PAGE_SIZE = 1000;
-const ANALYSIS_PAGE_COUNT = 3;
+// 원 API는 1,000건 응답에서 간헐적으로 Worker 제한시간을 넘는다.
+// 250건씩 4페이지를 병렬 수집해 분석 범위를 넓히면서 첫 화면 실패를 피한다.
+const PAGE_SIZE = 250;
+const ANALYSIS_PAGE_COUNT = 4;
 const SOURCE_NAME = '한국소비자원 소비자위해감시시스템(CISS)';
 const SOURCE_URL = 'https://www.data.go.kr/data/15142643/openapi.do';
 
@@ -156,6 +158,7 @@ async function loadPage(pageNo: number, forceRefresh: boolean): Promise<{ page: 
       {
         cacheTtlMs: CACHE_TTL,
         forceRefresh,
+        timeoutMs: 30_000,
         schema: hazardResponseSchema,
       },
     );
@@ -170,27 +173,26 @@ async function loadPage(pageNo: number, forceRefresh: boolean): Promise<{ page: 
 }
 
 export async function fetchConsumerHazardDataset(forceRefresh = false): Promise<ConsumerHazardDataset> {
-  const first = await loadPage(1, forceRefresh);
-  const totalPages = Math.max(1, Math.ceil(first.page.totalCount / PAGE_SIZE));
+  const pageNumbers = Array.from({ length: ANALYSIS_PAGE_COUNT }, (_, index) => index + 1);
+  const results = await Promise.allSettled(pageNumbers.map(pageNo => loadPage(pageNo, forceRefresh)));
+  const successful = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
+  if (successful.length === 0) {
+    const firstFailure = results.find(result => result.status === 'rejected');
+    throw firstFailure?.reason ?? new Error('위해정보 분석 자료를 불러오지 못했습니다.');
+  }
+
+  const totalPages = Math.max(1, Math.ceil(successful[0].page.totalCount / PAGE_SIZE));
   const requestedPages = Math.min(ANALYSIS_PAGE_COUNT, totalPages);
-  const remainingPageNumbers = Array.from({ length: requestedPages - 1 }, (_, index) => index + 2);
-  const remaining = await Promise.allSettled(
-    remainingPageNumbers.map(pageNo => loadPage(pageNo, forceRefresh)),
-  );
-
-  const pages = [first.page];
-  const staleTimes = first.staleAt ? [first.staleAt] : [];
-  const failedPages: number[] = [];
-
-  remaining.forEach((result, index) => {
-    const pageNo = remainingPageNumbers[index];
-    if (result.status === 'fulfilled') {
-      pages.push(result.value.page);
-      if (result.value.staleAt) staleTimes.push(result.value.staleAt);
-    } else {
-      failedPages.push(pageNo);
-    }
-  });
+  const pages = successful
+    .map(result => result.page)
+    .filter(page => page.pageNo <= requestedPages)
+    .sort((a, b) => a.pageNo - b.pageNo);
+  const staleTimes = successful
+    .map(result => result.staleAt)
+    .filter((value): value is number => value !== null);
+  const failedPages = results.flatMap((result, index) => (
+    result.status === 'rejected' && pageNumbers[index] <= requestedPages ? [pageNumbers[index]] : []
+  ));
 
   const dataset = combinePages(pages, requestedPages, failedPages);
   return staleTimes.length > 0 ? tagStale(dataset, Math.min(...staleTimes)) : dataset;
