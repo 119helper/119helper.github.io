@@ -1,25 +1,49 @@
-import { apiFetch, isStaleDataError, tagStale } from './apiClient';
 import { z } from 'zod';
+import { apiFetch, isStaleDataError, tagStale } from './apiClient';
 
 export interface HazardItem {
   id: string;
-  receiveDay: string;      // 접수일자
-  age: string;             // 나이
-  gender: string;          // 성별
-  itemMajor: string;       // 품목대분류
-  itemMiddle: string;      // 품목중분류
-  itemMinor: string;       // 품목소분류
-  injuryReason: string;    // 위해원인
-  injuryPart: string;      // 위해부위
-  injurySymptoms: string;  // 위해증상
-  occurrencePlace: string; // 발생장소
+  receiveDay: string;
+  occurrenceDate: string;
+  treatmentPeriod: string;
+  age: string;
+  gender: string;
+  itemMajor: string;
+  itemMiddle: string;
+  itemMinor: string;
+  injuryReason: string;
+  injuryPart: string;
+  injurySymptoms: string;
+  occurrencePlace: string;
 }
 
-const CACHE_TTL = 1000 * 60 * 60 * 24; // 1일 캐시
+export interface ConsumerHazardDataset {
+  items: HazardItem[];
+  totalCount: number;
+  loadedCount: number;
+  pageSize: number;
+  requestedPages: number;
+  loadedPages: number;
+  failedPages: number[];
+  latestReceiveDay: string;
+  earliestReceiveDay: string;
+  sourceName: string;
+  sourceUrl: string;
+  partial: boolean;
+}
+
+const CACHE_TTL = 1000 * 60 * 60 * 24;
+const PAGE_SIZE = 1000;
+const ANALYSIS_PAGE_COUNT = 3;
+const SOURCE_NAME = '한국소비자원 소비자위해감시시스템(CISS)';
+const SOURCE_URL = 'https://www.data.go.kr/data/15142643/openapi.do';
 
 const hazardApiItemSchema = z.object({
   receptionNumber: z.unknown().optional(),
   receiveDay: z.unknown().optional(),
+  occurrenDate: z.unknown().optional(),
+  occurrenceDate: z.unknown().optional(),
+  treatmentPeriod: z.unknown().optional(),
   age: z.unknown().optional(),
   gender: z.unknown().optional(),
   itemMajor: z.unknown().optional(),
@@ -37,6 +61,9 @@ const hazardResponseSchema = z.object({
       items: z.object({
         item: z.union([hazardApiItemSchema, z.array(hazardApiItemSchema)]).optional(),
       }).passthrough().optional(),
+      totalCount: z.coerce.number().catch(0),
+      pageNo: z.coerce.number().catch(1),
+      numOfRows: z.coerce.number().catch(PAGE_SIZE),
     }).passthrough().optional(),
   }).passthrough().optional(),
 }).passthrough();
@@ -44,8 +71,15 @@ const hazardResponseSchema = z.object({
 type HazardApiItem = z.infer<typeof hazardApiItemSchema>;
 type HazardApiResponse = z.infer<typeof hazardResponseSchema>;
 
+interface HazardPage {
+  items: HazardItem[];
+  totalCount: number;
+  pageNo: number;
+  numOfRows: number;
+}
+
 function text(value: unknown, fallback = ''): string {
-  return value === undefined || value === null || value === '' ? fallback : String(value);
+  return value === undefined || value === null || value === '' ? fallback : String(value).trim();
 }
 
 function itemsFromResponse(json: HazardApiResponse): HazardApiItem[] {
@@ -54,10 +88,18 @@ function itemsFromResponse(json: HazardApiResponse): HazardApiItem[] {
   return Array.isArray(raw) ? raw : [raw];
 }
 
-function mapHazards(json: HazardApiResponse): HazardItem[] {
-  const items = itemsFromResponse(json).map((item): HazardItem => ({
-    id: text(item.receptionNumber) || Math.random().toString(36).substr(2, 9),
+function dateValue(value: string): number {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function mapHazardPage(json: HazardApiResponse): HazardPage {
+  const body = json.response?.body;
+  const items = itemsFromResponse(json).map((item, index): HazardItem => ({
+    id: text(item.receptionNumber) || `unknown-${body?.pageNo ?? 1}-${index}`,
     receiveDay: text(item.receiveDay),
+    occurrenceDate: text(item.occurrenDate ?? item.occurrenceDate),
+    treatmentPeriod: text(item.treatmentPeriod),
     age: text(item.age, '미상'),
     gender: text(item.gender, '미상'),
     itemMajor: text(item.itemMajor, '-'),
@@ -69,24 +111,92 @@ function mapHazards(json: HazardApiResponse): HazardItem[] {
     occurrencePlace: text(item.occurrencePlace, '-'),
   }));
 
-  return items.sort((a, b) => new Date(b.receiveDay).getTime() - new Date(a.receiveDay).getTime());
+  return {
+    items,
+    totalCount: body?.totalCount || items.length,
+    pageNo: body?.pageNo || 1,
+    numOfRows: body?.numOfRows || PAGE_SIZE,
+  };
 }
 
-export async function fetchConsumerHazards(forceRefresh = false): Promise<HazardItem[]> {
-  try {
-    // Cloudflare Worker 프록시 통신
-    const json = await apiFetch<HazardApiResponse>('/api/consumer-hazard', undefined, {
-      cacheTtlMs: CACHE_TTL,
-      forceRefresh,
-      schema: hazardResponseSchema,
-    });
+function combinePages(
+  pages: HazardPage[],
+  requestedPages: number,
+  failedPages: number[],
+): ConsumerHazardDataset {
+  const unique = new Map<string, HazardItem>();
+  pages.flatMap(page => page.items).forEach(item => unique.set(item.id, item));
+  const items = [...unique.values()].sort((a, b) => (
+    dateValue(b.receiveDay) - dateValue(a.receiveDay) || b.id.localeCompare(a.id)
+  ));
+  const datedItems = items.filter(item => item.receiveDay);
+  const firstPage = pages[0];
 
-    return mapHazards(json);
-  } catch (err) {
-    if (isStaleDataError(err)) {
-      return tagStale(mapHazards(err.cachedData as HazardApiResponse), err.cachedAt);
-    }
-    console.error('Consumer Hazard Fetch Error:', err);
-    throw err;
+  return {
+    items,
+    totalCount: Math.max(firstPage?.totalCount ?? 0, items.length),
+    loadedCount: items.length,
+    pageSize: firstPage?.numOfRows ?? PAGE_SIZE,
+    requestedPages,
+    loadedPages: pages.length,
+    failedPages,
+    latestReceiveDay: datedItems[0]?.receiveDay ?? '',
+    earliestReceiveDay: datedItems.at(-1)?.receiveDay ?? '',
+    sourceName: SOURCE_NAME,
+    sourceUrl: SOURCE_URL,
+    partial: failedPages.length > 0,
+  };
+}
+
+async function loadPage(pageNo: number, forceRefresh: boolean): Promise<{ page: HazardPage; staleAt: number | null }> {
+  try {
+    const json = await apiFetch<HazardApiResponse>(
+      `/api/consumer-hazard?pageNo=${pageNo}&numOfRows=${PAGE_SIZE}`,
+      undefined,
+      {
+        cacheTtlMs: CACHE_TTL,
+        forceRefresh,
+        schema: hazardResponseSchema,
+      },
+    );
+    return { page: mapHazardPage(json), staleAt: null };
+  } catch (error) {
+    if (!isStaleDataError(error)) throw error;
+    return {
+      page: mapHazardPage(error.cachedData as HazardApiResponse),
+      staleAt: error.cachedAt,
+    };
   }
+}
+
+export async function fetchConsumerHazardDataset(forceRefresh = false): Promise<ConsumerHazardDataset> {
+  const first = await loadPage(1, forceRefresh);
+  const totalPages = Math.max(1, Math.ceil(first.page.totalCount / PAGE_SIZE));
+  const requestedPages = Math.min(ANALYSIS_PAGE_COUNT, totalPages);
+  const remainingPageNumbers = Array.from({ length: requestedPages - 1 }, (_, index) => index + 2);
+  const remaining = await Promise.allSettled(
+    remainingPageNumbers.map(pageNo => loadPage(pageNo, forceRefresh)),
+  );
+
+  const pages = [first.page];
+  const staleTimes = first.staleAt ? [first.staleAt] : [];
+  const failedPages: number[] = [];
+
+  remaining.forEach((result, index) => {
+    const pageNo = remainingPageNumbers[index];
+    if (result.status === 'fulfilled') {
+      pages.push(result.value.page);
+      if (result.value.staleAt) staleTimes.push(result.value.staleAt);
+    } else {
+      failedPages.push(pageNo);
+    }
+  });
+
+  const dataset = combinePages(pages, requestedPages, failedPages);
+  return staleTimes.length > 0 ? tagStale(dataset, Math.min(...staleTimes)) : dataset;
+}
+
+/** 기존 호출부 호환. 신규 화면은 범위 메타데이터가 있는 dataset 함수를 사용한다. */
+export async function fetchConsumerHazards(forceRefresh = false): Promise<HazardItem[]> {
+  return (await fetchConsumerHazardDataset(forceRefresh)).items;
 }
