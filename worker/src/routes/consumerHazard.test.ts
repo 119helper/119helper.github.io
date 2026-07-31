@@ -12,7 +12,7 @@ describe('consumer hazard proxy pagination', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('forwards a bounded page and row count to the official API', async () => {
-    const fetchMock = vi.fn(async () => new Response(SUCCESS, { status: 200 }));
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => new Response(SUCCESS, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
     await handleConsumerHazard(
@@ -26,7 +26,7 @@ describe('consumer hazard proxy pagination', () => {
   });
 
   it('falls back to safe defaults for out-of-range pagination', async () => {
-    const fetchMock = vi.fn(async () => new Response(SUCCESS, { status: 200 }));
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => new Response(SUCCESS, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
     await handleConsumerHazard(
