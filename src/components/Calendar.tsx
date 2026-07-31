@@ -23,6 +23,9 @@ const TYPE_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
+const formatLocalDate = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
 const isValidSchedule = (value: unknown): value is Schedule => {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<Schedule>;
@@ -105,7 +108,7 @@ const generateICS = (schedulesToExport: Schedule[]) => {
 export default function Calendar() {
   const { showUndo, showNotice } = useAppFeedback();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => formatLocalDate(new Date()));
   const [schedules, setSchedules] = useState<Schedule[]>(loadSchedules);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -145,7 +148,7 @@ export default function Calendar() {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const todayStr = formatLocalDate(today);
 
   // 공휴일 데이터 — 정적 데이터에서 즉시 로드 (API 불필요)
   const holidays = getStaticHolidays(year, month + 1);
@@ -161,9 +164,7 @@ export default function Calendar() {
   const goToday = () => {
     const now = new Date();
     setCurrentDate(now);
-    setSelectedDate(
-      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    );
+    setSelectedDate(formatLocalDate(now));
   };
 
   const dateStr = (day: number) =>

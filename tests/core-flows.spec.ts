@@ -119,6 +119,152 @@ test('모바일: 통합 검색으로 기능을 바로 연다', async ({ page }) 
   await expect(page).toHaveURL(/#weather$/);
 });
 
+test('평시 대시보드: 오늘 저장 상태를 실제 업무 브리핑으로 보여준다', async ({ page }) => {
+  await page.addInitScript(() => {
+    const now = new Date();
+    const today = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-');
+
+    localStorage.setItem('119helper-schedules', JSON.stringify([
+      {
+        id: 'routine-schedule',
+        date: today,
+        title: '소방특별조사 자료 취합',
+        type: '점검',
+        memo: '대시보드에는 노출하지 않을 상세',
+      },
+    ]));
+    localStorage.setItem('119helper-notes', JSON.stringify([
+      { id: 'note-1', text: '첫 메모', color: 'yellow', createdAt: '오늘' },
+      { id: 'note-2', text: '', color: 'blue', createdAt: '오늘' },
+    ]));
+    localStorage.setItem('119helper-preplans', JSON.stringify([
+      {
+        id: 'preplan-briefing',
+        name: '광주청사',
+        address: '브리핑에 노출하지 않을 주소',
+        hazards: [],
+        facilities: [],
+        contacts: [],
+        photoKeys: [],
+        accessNotes: '',
+        updatedAt: Date.now(),
+      },
+    ]));
+    localStorage.setItem('119helper-equipment-checklist', JSON.stringify({
+      'scba-1': true,
+      'ppe-1': true,
+    }));
+    localStorage.setItem('119helper-equipment-checklist-date', JSON.stringify(today));
+  });
+
+  await page.goto('/#dashboard');
+
+  const briefing = page.getByRole('region', { name: '오늘 업무 브리핑' });
+  await expect(briefing).toContainText('소방특별조사 자료 취합');
+  await expect(briefing).toContainText('오늘 1건');
+  await expect(briefing).toContainText('2/13 완료');
+  await expect(briefing).toContainText('광주청사');
+  await expect(briefing).toContainText('2건 저장');
+  await expect(briefing).not.toContainText('브리핑에 노출하지 않을 주소');
+  await expect(briefing).not.toContainText('대시보드에는 노출하지 않을 상세');
+});
+
+test('모바일 통합 검색: 주소·저장 대상물·SOP를 실제 화면 상태로 이어간다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    localStorage.setItem('119helper-preplans', JSON.stringify([
+      {
+        id: 'preplan-search',
+        name: '송정센터',
+        address: '광주광역시 광산구 상무대로 201',
+        hazards: ['리튬 배터리', '가스'],
+        facilities: [],
+        contacts: [],
+        photoKeys: [],
+        accessNotes: '',
+        updatedAt: Date.now(),
+      },
+    ]));
+  });
+  await page.goto('/#dashboard');
+
+  await page.getByRole('button', { name: '기능 검색 열기' }).click();
+  let dialog = page.getByRole('dialog', { name: '기능 검색' });
+  await dialog.getByRole('searchbox', { name: '기능 검색' })
+    .fill('광주광역시 북구 서암대로 71');
+  await dialog.getByRole('button', { name: /^건축물대장으로 조회/ }).click();
+
+  await expect(page).toHaveURL(/#shelter\?category=building$/);
+  await expect(page.getByRole('textbox', { name: '건축물 주소' }))
+    .toHaveValue('광주광역시 북구 서암대로 71');
+
+  await page.getByRole('button', { name: '기능 검색 열기' }).click();
+  dialog = page.getByRole('dialog', { name: '기능 검색' });
+  await dialog.getByRole('searchbox', { name: '기능 검색' }).fill('송정센터');
+  await dialog.getByRole('button', { name: /^저장 대상물 · 송정센터/ }).click();
+
+  await expect(page).toHaveURL(/#preplan$/);
+  await expect(page.getByRole('searchbox', { name: '대상물 검색' })).toHaveValue('송정센터');
+  await expect(page.getByText('검색 결과 1개')).toBeVisible();
+
+  await page.getByRole('button', { name: '기능 검색 열기' }).click();
+  dialog = page.getByRole('dialog', { name: '기능 검색' });
+  await dialog.getByRole('searchbox', { name: '기능 검색' }).fill('리튬 배터리');
+  await dialog.getByRole('button', { name: /^차량화재 SOP 참고표 열기/ }).click();
+
+  await expect(page).toHaveURL(/#manual\?subId=sop%3Avehicle-fire$/);
+  await expect(page.getByRole('button', { name: /SOP 체크리스트/ }))
+    .toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('heading', { name: '차량화재' })).toBeVisible();
+
+  await page.getByRole('button', { name: '기능 검색 열기' }).click();
+  await expect(page.getByRole('dialog', { name: '기능 검색' })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole('dialog', { name: '기능 검색' })).toBeHidden();
+  await expect(page).toHaveURL(/#manual\?subId=sop%3Avehicle-fire$/);
+});
+
+test('데스크톱 통합 검색: 뒤로가기는 화면을 옮기기 전에 결과창부터 닫는다', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/#weather');
+
+  const search = page.getByRole('searchbox', { name: '기능 검색' });
+  await search.fill('산불');
+  await expect(page.getByRole('button', { name: /실시간 산불 발생·진화 현황/ })).toBeVisible();
+
+  await page.goBack();
+
+  await expect(page.getByRole('button', { name: /실시간 산불 발생·진화 현황/ })).toBeHidden();
+  await expect(page).toHaveURL(/#weather$/);
+});
+
+test('대상물 사전계획: 빈 초안은 버리고 의미 있는 입력만 저장한다', async ({ page }) => {
+  await page.goto('/#preplan');
+
+  await page.getByRole('button', { name: '새 대상물', exact: true }).click();
+  await page.getByRole('button', { name: '대상물 목록으로 돌아가기' }).click();
+  await expect(page.getByText('등록된 대상물 0개')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('119helper-preplans')))
+    .toBe('[]');
+
+  await page.getByRole('button', { name: '새 대상물', exact: true }).click();
+  await page.getByLabel('대상물명').fill('x');
+  await page.getByLabel('대상물명').fill('');
+  await page.getByRole('button', { name: '대상물 목록으로 돌아가기' }).click();
+  await expect(page.getByText('등록된 대상물 0개')).toBeVisible();
+
+  await page.getByRole('button', { name: '새 대상물', exact: true }).click();
+  await page.getByLabel('대상물명').fill('광주 중앙시장');
+  await page.getByRole('button', { name: '대상물 목록으로 돌아가기' }).click();
+
+  await expect(page.getByText('등록된 대상물 1개')).toBeVisible();
+  await expect(page.getByText('광주 중앙시장')).toBeVisible();
+});
+
 test('모바일: 즐겨찾기를 보존하고 데이터 상태를 화면 안에 표시한다', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto('/');

@@ -1,20 +1,37 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import type { NavigateTarget } from '../types/navigation';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
+import { loadStoredJson } from '../services/privacySettings';
 
-interface SearchResult {
+interface SearchResultPresentation {
   id: string;
   title: string;
   subtitle: string;
   icon: string;
-  tab: NavigateTarget;
-  subId?: string;
   color: string;
 }
 
+type SearchResult = SearchResultPresentation & (
+  | { action: 'navigate'; tab: NavigateTarget; subId?: string }
+  | { action: 'building-address'; address: string }
+  | { action: 'preplan'; search: string }
+);
+
 interface GlobalSearchProps {
   onNavigate: (tab: NavigateTarget, subId?: string) => void;
+  onOpenBuildingAddress: (address: string) => void;
+  onOpenPreplan: (search: string) => void;
 }
+
+interface StoredPreplanSearchItem {
+  id: string;
+  name: string;
+  address: string;
+  hazards: string[];
+}
+
+const PREPLAN_STORAGE_KEY = '119helper-preplans';
+const SEARCH_HISTORY_STATE_KEY = '__119helperGlobalSearchOverlay';
 
 const MENU_ITEMS: { keyword: string[]; tab: NavigateTarget; subId?: string; label: string; subtitle: string; icon: string; color: string }[] = [
   { keyword: ['대시보드', 'dashboard', '홈', '메인', '평시', '업무'], tab: 'dashboard', label: '평시 대시보드', subtitle: '근무 준비·지역 모니터링·빠른 도구', icon: 'dashboard', color: 'text-primary' },
@@ -52,37 +69,175 @@ function toSearchResult(item: (typeof MENU_ITEMS)[number]): SearchResult {
     title: item.label,
     subtitle: item.subtitle,
     icon: item.icon,
+    action: 'navigate',
     tab: item.tab,
     subId: item.subId,
     color: item.color,
   };
 }
 
-export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
+function isHistoryStateRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isSearchHistoryState(value: unknown): boolean {
+  return isHistoryStateRecord(value) && value[SEARCH_HISTORY_STATE_KEY] === true;
+}
+
+function withSearchHistoryState(value: unknown): Record<string, unknown> {
+  return {
+    ...(isHistoryStateRecord(value) ? value : {}),
+    [SEARCH_HISTORY_STATE_KEY]: true,
+  };
+}
+
+function looksLikeKoreanAddress(value: string): boolean {
+  const normalized = value.trim().replace(/\s+/g, ' ');
+  if (!/\d/.test(normalized)) return false;
+
+  const roadAddress = /(?:대로|로|길|번길)\s*\d+(?:-\d+)?(?:\s|$)/;
+  const lotAddress = /(?:동|읍|면|리|가)\s*(?:산\s*)?\d+(?:-\d+)?(?:\s|$)/;
+  return roadAddress.test(normalized) || lotAddress.test(normalized);
+}
+
+function toStoredPreplans(value: unknown): StoredPreplanSearchItem[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((candidate, index) => {
+    if (!isHistoryStateRecord(candidate)) return [];
+
+    const name = typeof candidate.name === 'string' ? candidate.name.trim().slice(0, 120) : '';
+    const address = typeof candidate.address === 'string' ? candidate.address.trim().slice(0, 200) : '';
+    const hazards = Array.isArray(candidate.hazards)
+      ? candidate.hazards
+        .filter((hazard): hazard is string => typeof hazard === 'string')
+        .map(hazard => hazard.trim().slice(0, 80))
+        .filter(Boolean)
+        .slice(0, 10)
+      : [];
+    if (!name && !address) return [];
+
+    const id = typeof candidate.id === 'string' && candidate.id.trim()
+      ? candidate.id.trim()
+      : String(index);
+    return [{ id, name, address, hazards }];
+  });
+}
+
+function getStoredPreplans(): StoredPreplanSearchItem[] {
+  return loadStoredJson<StoredPreplanSearchItem[]>(
+    PREPLAN_STORAGE_KEY,
+    [],
+    toStoredPreplans,
+  );
+}
+
+const FIELD_MANUAL_KEYWORDS = [
+  'sop',
+  '리튬 배터리',
+  '리튬',
+  '전기차',
+  '화학',
+  '가스',
+  '차량',
+];
+
+const FIELD_MANUAL_SOP_TARGETS: Record<string, { id: string; title: string }> = {
+  '리튬 배터리': { id: 'vehicle-fire', title: '차량화재' },
+  '리튬': { id: 'vehicle-fire', title: '차량화재' },
+  '전기차': { id: 'vehicle-fire', title: '차량화재' },
+  '차량': { id: 'vehicle-fire', title: '차량화재' },
+  '화학': { id: 'hazmat-fire', title: '위험물/화학 화재' },
+  '가스': { id: 'gas-leak', title: '가스누출' },
+};
+
+export default function GlobalSearch({
+  onNavigate,
+  onOpenBuildingAddress,
+  onOpenPreplan,
+}: GlobalSearchProps) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const [storedPreplans, setStoredPreplans] = useState<StoredPreplanSearchItem[]>(() => getStoredPreplans());
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const mobileTriggerRef = useRef<HTMLButtonElement>(null);
-  const closeMobileSearch = () => {
+  const searchHistoryActiveRef = useRef(false);
+  const pendingSelectionRef = useRef<(() => void) | null>(null);
+
+  const openSearchHistory = useCallback(() => {
+    if (!isSearchHistoryState(window.history.state)) {
+      window.history.pushState(
+        withSearchHistoryState(window.history.state),
+        '',
+        window.location.href,
+      );
+    }
+    searchHistoryActiveRef.current = true;
+  }, []);
+
+  const openDesktopSearch = useCallback(() => {
+    openSearchHistory();
+    setIsOpen(true);
+  }, [openSearchHistory]);
+
+  const openMobileSearch = useCallback(() => {
+    openSearchHistory();
+    setMobileOpen(true);
+    setIsOpen(true);
+    window.setTimeout(() => mobileInputRef.current?.focus(), 0);
+  }, [openSearchHistory]);
+
+  const closeSearch = useCallback(() => {
     setMobileOpen(false);
     setIsOpen(false);
-  };
-  const mobileDialogRef = useDialogAccessibility<HTMLDivElement>(mobileOpen, closeMobileSearch, mobileTriggerRef);
+    pendingSelectionRef.current = null;
+
+    if (searchHistoryActiveRef.current && isSearchHistoryState(window.history.state)) {
+      searchHistoryActiveRef.current = false;
+      window.history.back();
+    } else {
+      searchHistoryActiveRef.current = false;
+    }
+  }, []);
+  const mobileDialogRef = useDialogAccessibility<HTMLDivElement>(mobileOpen, closeSearch, mobileTriggerRef);
+
+  useEffect(() => {
+    const handleHistoryNavigation = () => {
+      if (!searchHistoryActiveRef.current && pendingSelectionRef.current === null) return;
+
+      searchHistoryActiveRef.current = false;
+      setMobileOpen(false);
+      setIsOpen(false);
+      const pendingSelection = pendingSelectionRef.current;
+      pendingSelectionRef.current = null;
+      if (pendingSelection) {
+        // App의 popstate 라우트 동기화가 끝난 뒤 선택한 목적지로 이동한다.
+        window.setTimeout(pendingSelection, 0);
+      }
+    };
+
+    window.addEventListener('popstate', handleHistoryNavigation);
+    return () => window.removeEventListener('popstate', handleHistoryNavigation);
+  }, []);
 
   // 외부 클릭 시 닫기
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
+        closeSearch();
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [closeSearch]);
+
+  useEffect(() => {
+    if (isOpen) setStoredPreplans(getStoredPreplans());
+  }, [isOpen]);
 
   // 단축키 '/' 포커스
   useEffect(() => {
@@ -99,23 +254,75 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
 
       e.preventDefault();
       if (window.matchMedia('(max-width: 767px)').matches) {
-        setMobileOpen(true);
-        window.setTimeout(() => mobileInputRef.current?.focus(), 0);
+        openMobileSearch();
       } else {
         inputRef.current?.focus();
+        openDesktopSearch();
       }
-      setIsOpen(true);
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [openDesktopSearch, openMobileSearch]);
 
   // 통합 검색 (메뉴 바로가기 + 기능 키워드)
   const results = useMemo<SearchResult[]>(() => {
-    if (!query.trim()) return [];
-    const q = query.trim().toLowerCase();
+    const rawQuery = query.trim();
+    if (!rawQuery) return [];
+
+    const q = rawQuery.toLowerCase();
     const out: SearchResult[] = [];
+
+    if (looksLikeKoreanAddress(rawQuery)) {
+      out.push({
+        id: 'building-address-query',
+        title: '건축물대장으로 조회',
+        subtitle: `‘${rawQuery}’ 주소를 입력한 상태로 시설조회 > 건축물을 엽니다.`,
+        icon: 'apartment',
+        color: 'text-purple-400',
+        action: 'building-address',
+        address: rawQuery,
+      });
+    }
+
+    storedPreplans
+      .filter(plan => (
+        plan.name.toLowerCase().includes(q)
+        || plan.address.toLowerCase().includes(q)
+        || plan.hazards.some(hazard => hazard.toLowerCase().includes(q))
+      ))
+      .slice(0, 3)
+      .forEach(plan => {
+        const hazardSummary = plan.hazards.length > 0
+          ? `위험요소: ${plan.hazards.join(', ')}`
+          : '위험요소 미입력';
+        out.push({
+          id: `preplan-${plan.id}`,
+          title: `저장 대상물 · ${plan.name || '이름 미입력'}`,
+          subtitle: `${plan.address || '주소 미입력'} · ${hazardSummary}`,
+          icon: 'fact_check',
+          color: 'text-orange-400',
+          action: 'preplan',
+          search: plan.name || plan.address,
+        });
+      });
+
+    const fieldKeyword = FIELD_MANUAL_KEYWORDS.find(keyword => q.includes(keyword));
+    if (fieldKeyword) {
+      const directSop = FIELD_MANUAL_SOP_TARGETS[fieldKeyword];
+      out.push({
+        id: 'manual-sop-field-query',
+        title: directSop ? `${directSop.title} SOP 참고표 열기` : 'SOP 체크리스트 열기',
+        subtitle: fieldKeyword === 'sop'
+          ? '현장 유형별 참고 목록에서 항목을 직접 선택하고 기관 공식 지침을 우선하세요.'
+          : `‘${fieldKeyword}’ 관련 ${directSop?.title ?? 'SOP'} 참고표를 열며 기관 공식 지침을 우선하세요.`,
+        icon: 'checklist',
+        color: 'text-indigo-400',
+        action: 'navigate',
+        tab: 'manual',
+        subId: directSop ? `sop:${directSop.id}` : 'sop',
+      });
+    }
 
     MENU_ITEMS.forEach(m => {
       if (m.keyword.some(k => k.includes(q) || q.includes(k)) || m.label.toLowerCase().includes(q)) {
@@ -123,8 +330,13 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
       }
     });
 
-    return out.slice(0, 8);
-  }, [query]);
+    const seen = new Set<string>();
+    return out.filter(result => {
+      if (seen.has(result.id)) return false;
+      seen.add(result.id);
+      return true;
+    }).slice(0, 8);
+  }, [query, storedPreplans]);
 
   const displayedResults = results;
 
@@ -149,8 +361,7 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
       e.preventDefault();
       handleSelect(displayedResults[selectedIdx]);
     } else if (e.key === 'Escape') {
-      if (mobileOpen) closeMobileSearch();
-      else setIsOpen(false);
+      closeSearch();
     }
   };
 
@@ -161,11 +372,36 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
     window.requestAnimationFrame(() => (mobileOpen ? mobileInputRef.current : inputRef.current)?.focus());
   };
 
-  const handleSelect = (result: SearchResult) => {
-    onNavigate(result.tab, result.subId);
-    setQuery('');
+  const handleSelect = useCallback((result: SearchResult) => {
+    const completeSelection = () => {
+      if (result.action === 'building-address') {
+        onOpenBuildingAddress(result.address);
+      } else if (result.action === 'preplan') {
+        onOpenPreplan(result.search);
+      } else {
+        onNavigate(result.tab, result.subId);
+      }
+      setQuery('');
+    };
+
     setIsOpen(false);
     setMobileOpen(false);
+
+    if (searchHistoryActiveRef.current && isSearchHistoryState(window.history.state)) {
+      pendingSelectionRef.current = completeSelection;
+      searchHistoryActiveRef.current = false;
+      window.history.back();
+      return;
+    }
+
+    searchHistoryActiveRef.current = false;
+    completeSelection();
+  }, [onNavigate, onOpenBuildingAddress, onOpenPreplan]);
+
+  const handleResultClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const resultIndex = Number(event.currentTarget.dataset.resultIndex);
+    const result = displayedResults[resultIndex];
+    if (result) handleSelect(result);
   };
 
   const renderResults = (mobile = false) => (
@@ -181,7 +417,8 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
             <button
               key={result.id}
               type="button"
-              onClick={() => handleSelect(result)}
+              data-result-index={index}
+              onClick={handleResultClick}
               onMouseEnter={() => setSelectedIdx(index)}
               aria-current={index === selectedIdx ? 'true' : undefined}
               className={`flex w-full min-w-0 items-center gap-3 px-4 py-3 text-left transition-colors ${
@@ -230,11 +467,7 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
         ref={mobileTriggerRef}
         type="button"
         aria-label="기능 검색 열기"
-        onClick={() => {
-          setMobileOpen(true);
-          setIsOpen(true);
-          window.setTimeout(() => mobileInputRef.current?.focus(), 0);
-        }}
+        onClick={openMobileSearch}
         className="md:hidden w-11 h-11 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container"
       >
         <span className="material-symbols-outlined text-xl">search</span>
@@ -250,7 +483,7 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
           type="search"
           value={query}
           onChange={e => { setQuery(e.target.value); setIsOpen(true); setSelectedIdx(0); }}
-          onFocus={() => setIsOpen(true)}
+          onFocus={openDesktopSearch}
           onKeyDown={handleKeyDown}
         />
         {!query && (
@@ -260,7 +493,7 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm p-3 safe-area-top" onClick={closeMobileSearch}>
+        <div className="md:hidden fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm p-3 safe-area-top" onClick={closeSearch}>
           <div ref={mobileDialogRef} role="dialog" aria-modal="true" aria-label="기능 검색" tabIndex={-1} className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl shadow-2xl p-3 mt-2" onClick={event => event.stopPropagation()}>
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
@@ -277,7 +510,7 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                   onKeyDown={handleKeyDown}
                 />
               </div>
-              <button type="button" aria-label="기능 검색 닫기" onClick={closeMobileSearch} className="w-12 h-12 rounded-xl flex items-center justify-center text-on-surface-variant hover:bg-surface-container">
+              <button type="button" aria-label="기능 검색 닫기" onClick={closeSearch} className="w-12 h-12 rounded-xl flex items-center justify-center text-on-surface-variant hover:bg-surface-container">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>

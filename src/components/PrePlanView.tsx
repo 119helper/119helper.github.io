@@ -50,16 +50,38 @@ interface PrePlanViewProps {
   onSearchQueryChange?: (query: string) => void;
 }
 
+function hasMeaningfulPrePlanContent(plan: PrePlan): boolean {
+  return Boolean(
+    plan.name.trim()
+    || plan.address.trim()
+    || plan.accessNotes.trim()
+    || plan.hazards.some(value => value.trim())
+    || plan.facilities.some(value => value.trim())
+    || plan.contacts.some(contact => (
+      contact.role.trim() || contact.name.trim() || contact.phone.trim()
+    ))
+    || plan.photoKeys.length > 0
+  );
+}
+
 export default function PrePlanView({ incidentContext = null, searchQuery, onSearchQueryChange }: PrePlanViewProps) {
   const { showUndo, showNotice, confirmAction } = useAppFeedback();
   const [plans, setPlans] = useLocalStorageState<PrePlan[]>('119helper-preplans', []);
   const [localSearch, setLocalSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftPlan, setDraftPlan] = useState<PrePlan | null>(null);
   const fileImportRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const search = searchQuery ?? localSearch;
   const setSearch = onSearchQueryChange ?? setLocalSearch;
   const hasSearch = search.trim().length > 0;
+
+  useEffect(() => {
+    setPlans(current => {
+      const meaningful = current.filter(hasMeaningfulPrePlanContent);
+      return meaningful.length === current.length ? current : meaningful;
+    });
+  }, [setPlans]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -68,7 +90,10 @@ export default function PrePlanView({ incidentContext = null, searchQuery, onSea
     return sorted.filter(p => p.name.toLowerCase().includes(q) || p.address.toLowerCase().includes(q));
   }, [plans, search]);
 
-  const editing = plans.find(p => p.id === editingId) ?? null;
+  const editing = draftPlan?.id === editingId
+    ? draftPlan
+    : plans.find(p => p.id === editingId) ?? null;
+  const editingIsDraft = Boolean(editing && draftPlan?.id === editing.id);
 
   const createNew = () => {
     const plan = {
@@ -76,15 +101,41 @@ export default function PrePlanView({ incidentContext = null, searchQuery, onSea
       name: incidentContext?.title.trim() ?? '',
       address: incidentContext?.address.trim() ?? '',
     };
-    setPlans(prev => [plan, ...prev]);
+    if (hasMeaningfulPrePlanContent(plan)) {
+      setPlans(prev => [plan, ...prev]);
+      setDraftPlan(null);
+    } else {
+      setDraftPlan(plan);
+    }
     setEditingId(plan.id);
   };
 
   const updatePlan = (updated: PrePlan) => {
-    setPlans(prev => prev.map(p => (p.id === updated.id ? { ...updated, updatedAt: Date.now() } : p)));
+    const next = { ...updated, updatedAt: Date.now() };
+    if (draftPlan?.id === updated.id) {
+      if (!hasMeaningfulPrePlanContent(next)) {
+        setDraftPlan(next);
+        return;
+      }
+      setPlans(prev => [next, ...prev]);
+      setDraftPlan(null);
+      return;
+    }
+    if (!hasMeaningfulPrePlanContent(next)) {
+      setPlans(prev => prev.filter(plan => plan.id !== updated.id));
+      setDraftPlan(next);
+      return;
+    }
+    setPlans(prev => prev.map(p => (p.id === updated.id ? next : p)));
   };
 
   const deletePlan = (plan: PrePlan) => {
+    if (draftPlan?.id === plan.id) {
+      setDraftPlan(null);
+      setEditingId(null);
+      showNotice({ message: '빈 대상물 초안을 닫았습니다.', tone: 'info' });
+      return;
+    }
     const index = plans.findIndex(item => item.id === plan.id);
     setPlans(prev => prev.filter(p => p.id !== plan.id));
     if (editingId === plan.id) setEditingId(null);
@@ -163,7 +214,18 @@ export default function PrePlanView({ incidentContext = null, searchQuery, onSea
   };
 
   if (editing) {
-    return <PrePlanEditor plan={editing} onChange={updatePlan} onClose={() => setEditingId(null)} onDelete={() => deletePlan(editing)} />;
+    return (
+      <PrePlanEditor
+        plan={editing}
+        isDraft={editingIsDraft}
+        onChange={updatePlan}
+        onClose={() => {
+          setEditingId(null);
+          setDraftPlan(null);
+        }}
+        onDelete={() => deletePlan(editing)}
+      />
+    );
   }
 
   return (
@@ -178,10 +240,10 @@ export default function PrePlanView({ incidentContext = null, searchQuery, onSea
         </div>
         <div className="flex gap-2">
           <button onClick={exportAll} className="px-3 py-2 rounded-lg text-sm font-bold bg-surface-container text-on-surface-variant hover:bg-surface-container-high flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-base">download</span>내보내기
+            <span aria-hidden="true" className="material-symbols-outlined text-base">download</span>내보내기
           </button>
           <button onClick={() => fileImportRef.current?.click()} className="px-3 py-2 rounded-lg text-sm font-bold bg-surface-container text-on-surface-variant hover:bg-surface-container-high flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-base">upload</span>가져오기
+            <span aria-hidden="true" className="material-symbols-outlined text-base">upload</span>가져오기
           </button>
           <input
             ref={fileImportRef}
@@ -195,7 +257,7 @@ export default function PrePlanView({ incidentContext = null, searchQuery, onSea
             }}
           />
           <button onClick={createNew} className="px-4 py-2 rounded-lg text-sm font-bold bg-primary text-on-primary hover:bg-primary/80 flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-base">add</span>{incidentContext ? '출동 정보로 추가' : '새 대상물'}
+            <span aria-hidden="true" className="material-symbols-outlined text-base">add</span>{incidentContext ? '출동 정보로 추가' : '새 대상물'}
           </button>
         </div>
       </div>
@@ -209,6 +271,20 @@ export default function PrePlanView({ incidentContext = null, searchQuery, onSea
           </div>
         </div>
       )}
+
+      <div
+        role="note"
+        className="flex items-start gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-on-surface"
+      >
+        <span aria-hidden="true" className="material-symbols-outlined text-amber-700 dark:text-amber-300">save</span>
+        <div>
+          <p className="font-extrabold">장기 보존 자료 · 이 기기 전용</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-on-surface-variant">
+            대상물 정보는 설정한 자동 삭제 기간과 관계없이 이 기기에 계속 보관됩니다.
+            다른 기기와 자동 동기화되지 않으며, 공용 기기 모드나 민감데이터 전체 삭제 시 제거됩니다.
+          </p>
+        </div>
+      </div>
 
       <div>
         <div className="relative">
@@ -256,11 +332,7 @@ export default function PrePlanView({ incidentContext = null, searchQuery, onSea
                   window.requestAnimationFrame(() => searchInputRef.current?.focus());
                 },
               }
-            : {
-                label: incidentContext ? '출동 정보로 추가' : '새 대상물 추가',
-                icon: 'add',
-                onClick: createNew,
-              }}
+            : undefined}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -293,11 +365,13 @@ export default function PrePlanView({ incidentContext = null, searchQuery, onSea
 // ── 편집기 ────────────────────────────────────────────────────
 function PrePlanEditor({
   plan,
+  isDraft,
   onChange,
   onClose,
   onDelete,
 }: {
   plan: PrePlan;
+  isDraft: boolean;
   onChange: (p: PrePlan) => void;
   onClose: () => void;
   onDelete: () => void;
@@ -330,8 +404,10 @@ function PrePlanEditor({
         <div className="min-w-0 flex-1">
           <h2 className="text-xl font-extrabold text-on-surface font-headline">대상물 편집</h2>
           <p role="status" className="mt-0.5 flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-            <span aria-hidden="true" className="material-symbols-outlined text-sm">cloud_done</span>
-            입력 즉시 이 기기에 자동 저장됩니다
+            <span aria-hidden="true" className="material-symbols-outlined text-sm">save</span>
+            {isDraft
+              ? '내용을 입력하면 이 기기에 자동 저장됩니다'
+              : '입력 즉시 이 기기에 자동 저장됩니다 · 서버 동기화 없음'}
           </p>
         </div>
         <button type="button" onClick={onDelete} className="px-3 py-2 rounded-lg text-sm font-bold text-error hover:bg-error/10 flex items-center gap-1.5">

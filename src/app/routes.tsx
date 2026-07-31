@@ -120,7 +120,7 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
   wildfire: { render: ctx => <WildfireView cityName={ctx.cityLabel} /> },
   hazmat: { render: () => <HazmatView /> },
   'annual-fire': { render: () => <AnnualFireView /> },
-  manual: { render: () => <ManualView /> },
+  manual: { render: ctx => <ManualView subId={ctx.activeSubId} /> },
   calculator: { render: ctx => <Calculators subId={ctx.activeSubId} /> },
   'field-timer': { render: () => <FieldTimer /> },
   calendar: { render: () => <Calendar /> },

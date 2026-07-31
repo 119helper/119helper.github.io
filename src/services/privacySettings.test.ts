@@ -36,25 +36,51 @@ describe('privacy settings', () => {
   it('blocks sensitive persistence in public device mode', () => {
     savePrivacySettings(settings({ publicDeviceMode: true }));
     expect(canPersistStorageKey('119helper-notes')).toBe(false);
+    expect(canPersistStorageKey('119helper-equipment-checklist-date')).toBe(false);
     expect(canPersistStorageKey('119helper-incident-case-archive')).toBe(false);
     expect(canPersistStorageKey('119helper-timer-session')).toBe(false);
     expect(canPersistStorageKey('119helper-theme')).toBe(true);
   });
 
-  it('clears expired sensitive values', async () => {
+  it('clears expired period-based data but keeps long-lived schedules and preplans', async () => {
     localStorage.setItem('119helper-notes', '[]');
     localStorage.setItem(storageTimestampKey('119helper-notes'), String(Date.now() - 31 * 24 * 60 * 60 * 1000));
+    localStorage.setItem('119helper-schedules', '[{"id":"schedule-1"}]');
+    localStorage.setItem(storageTimestampKey('119helper-schedules'), String(Date.now() - 31 * 24 * 60 * 60 * 1000));
+    localStorage.setItem('119helper-preplans', '[{"id":"preplan-1"}]');
+    localStorage.setItem(storageTimestampKey('119helper-preplans'), String(Date.now() - 31 * 24 * 60 * 60 * 1000));
 
     await applyPrivacyRetention();
 
     expect(localStorage.getItem('119helper-notes')).toBeNull();
+    expect(localStorage.getItem('119helper-schedules')).toBe('[{"id":"schedule-1"}]');
+    expect(localStorage.getItem('119helper-preplans')).toBe('[{"id":"preplan-1"}]');
+  });
+
+  it('still removes long-lived schedules and preplans when public device mode is applied', async () => {
+    localStorage.setItem('119helper-schedules', '[{"id":"schedule-1"}]');
+    localStorage.setItem(storageTimestampKey('119helper-schedules'), String(Date.now()));
+    localStorage.setItem('119helper-preplans', '[{"id":"preplan-1"}]');
+    localStorage.setItem(storageTimestampKey('119helper-preplans'), String(Date.now()));
+    savePrivacySettings(settings({ publicDeviceMode: true }));
+
+    await applyPrivacyRetention();
+
+    expect(localStorage.getItem('119helper-schedules')).toBeNull();
+    expect(localStorage.getItem(storageTimestampKey('119helper-schedules'))).toBeNull();
+    expect(localStorage.getItem('119helper-preplans')).toBeNull();
+    expect(localStorage.getItem(storageTimestampKey('119helper-preplans'))).toBeNull();
   });
 
   it('clears known sensitive values on request', async () => {
+    localStorage.setItem('119helper-schedules', '[]');
     localStorage.setItem('119helper-preplans', '[]');
+    localStorage.setItem('119helper-equipment-checklist-date', '"2026-07-31"');
     localStorage.setItem('119helper-incident-case-archive', '{"version":1,"records":[]}');
     await clearSensitiveStoredData();
+    expect(localStorage.getItem('119helper-schedules')).toBeNull();
     expect(localStorage.getItem('119helper-preplans')).toBeNull();
+    expect(localStorage.getItem('119helper-equipment-checklist-date')).toBeNull();
     expect(localStorage.getItem('119helper-incident-case-archive')).toBeNull();
   });
 

@@ -28,6 +28,7 @@ export default function AnnualFireView() {
   const [year, setYear] = useState(FALLBACK_YEARS[0]);
   const [years, setYears] = useState<string[]>(FALLBACK_YEARS);
   const [coverage, setCoverage] = useState<AnnualFireYearsResponse | null>(null);
+  const [coverageStatus, setCoverageStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [data, setData] = useState<AnnualFireStatsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,12 +40,18 @@ export default function AnnualFireView() {
     let cancelled = false;
     fetchAnnualFireYears()
       .then(res => {
-        if (cancelled || res.years.length === 0) return;
+        if (cancelled) return;
+        setCoverageStatus('success');
+        if (res.years.length === 0) return;
         setCoverage(res);
         setYears(res.years);
         setYear(res.latestYear ?? res.years[0]);
       })
-      .catch(err => console.warn('[AnnualFireView] supported years failed:', err));
+      .catch(err => {
+        if (cancelled) return;
+        setCoverageStatus('error');
+        console.warn('[AnnualFireView] supported years failed:', err);
+      });
     return () => {
       cancelled = true;
     };
@@ -88,6 +95,12 @@ export default function AnnualFireView() {
   // 바 차트 최대값
   const maxSido = useMemo(() => data ? Math.max(...data.bySido.map(d => d.count), 1) : 1, [data]);
   const maxMonth = useMemo(() => data ? Math.max(...data.byMonth.map(d => d.count), 1) : 1, [data]);
+  const latestCompleteYear = coverage?.latestCompleteYear
+    ?? coverage?.periods
+      ?.filter(period => period.coverageType === 'complete')
+      .map(period => period.year)
+      .sort((a, b) => Number(b) - Number(a))[0]
+    ?? (data?.coverageType === 'complete' ? data.year : null);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -163,7 +176,14 @@ export default function AnnualFireView() {
 
       <div role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-on-surface-variant">
         <span className="material-symbols-outlined text-lg text-primary">database</span>
-        <strong className="text-on-surface">공식 완결연도 {coverage?.latestCompleteYear ?? coverage?.latestYear ?? years[0]}년</strong>
+        {latestCompleteYear ? (
+          <strong className="text-on-surface">공식 완결연도 {latestCompleteYear}년</strong>
+        ) : coverageStatus === 'loading' ? (
+          <strong className="text-on-surface">공식 완결연도 확인 중</strong>
+        ) : (
+          <strong className="text-amber-700 dark:text-amber-300">공식 완결연도 미확인</strong>
+        )}
+        {coverageStatus === 'error' && <span>· 제공 연도 목록을 불러오지 못함</span>}
         {coverage?.latestDataThrough && <span>· 최신 누계 {coverage.latestDataThrough} 기준</span>}
         {data?.coverageType === 'partial' && data.dataThrough && (
           <strong className="text-amber-700 dark:text-amber-300">· 현재 화면은 {data.dataThrough}까지 누계</strong>

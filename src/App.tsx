@@ -572,6 +572,16 @@ export default function App() {
     setTimeout(() => scrollToTop(false), 50);
   };
 
+  const handleOpenBuildingAddress = (address: string) => {
+    setBuildingWorkspace(createBuildingWorkspaceState(address));
+    handleNavigate('building');
+  };
+
+  const handleOpenPreplan = (search: string) => {
+    setPreplanSearch(search);
+    handleNavigate('preplan');
+  };
+
   const handleWorkspaceChange = (workspace: WorkspaceMode) => {
     setWorkspaceMode(workspace);
     const defaultGroup = workspace === 'response' ? 'group-command' : 'group-readiness';
@@ -886,7 +896,11 @@ export default function App() {
             </h2>
 
             {/* Search */}
-            <GlobalSearch onNavigate={handleNavigate} />
+            <GlobalSearch
+              onNavigate={handleNavigate}
+              onOpenBuildingAddress={handleOpenBuildingAddress}
+              onOpenPreplan={handleOpenPreplan}
+            />
           </div>
           <div className="flex items-center gap-1 min-[360px]:gap-2 md:gap-3 shrink-0">
             {/* 📍 Global Location Selector (Custom Beautiful Dropdown) */}

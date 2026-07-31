@@ -179,9 +179,12 @@ const toValidDate = (value: unknown) => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
-export default function SOPChecklist() {
+export default function SOPChecklist({ initialSopId }: { initialSopId?: string }) {
   const { confirmAction, showNotice } = useAppFeedback();
-  const [selectedSOP, setSelectedSOP] = useState<string | null>(null);
+  const resolveSopId = useCallback((sopId?: string) => (
+    sopId && SOP_LIST.some(sop => sop.id === sopId) ? sopId : null
+  ), []);
+  const [selectedSOP, setSelectedSOP] = useState<string | null>(() => resolveSopId(initialSopId));
   
   const [checked, setChecked] = useState<Record<string, boolean>>(() => {
     return loadStoredJson<Record<string, boolean>>(CHECKED_STORAGE_KEY, {}, parsed =>
@@ -209,6 +212,10 @@ export default function SOPChecklist() {
   useEffect(() => {
     saveStoredJson(CHECKED_STORAGE_KEY, checked);
   }, [checked]);
+
+  useEffect(() => {
+    setSelectedSOP(resolveSopId(initialSopId));
+  }, [initialSopId, resolveSopId]);
 
   useEffect(() => {
     saveStoredJson(

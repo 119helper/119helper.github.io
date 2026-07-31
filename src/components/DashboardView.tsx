@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useId, useRef } from 'react';
+import React, { useState, useEffect, useId, useRef, useCallback } from 'react';
 import { getRealtimeAirQuality, type AirQualityData } from '../services/airQualityApi';
 import { getERRealTimeBeds, CITY_TO_SIDO, type ERRealTimeData } from '../services/erApi';
 import { getUltraShortNow, parseCurrentWeather, CITY_GRIDS, type CurrentWeather } from '../services/weatherApi';
@@ -10,12 +10,11 @@ import WeatherAlertBanner from './WeatherAlertBanner';
 import StickyNotes from './StickyNotes';
 import { WildfireTicker } from './WildfireTicker';
 import { WindCompass } from './WindCompass';
-import { EQUIPMENT_CHECKLIST_TOTAL } from '../data/equipmentChecklist';
 import type { NavigateTarget } from '../types/navigation';
 import { classifyAviationSafety } from '../utils/aviationSafety';
-import { loadStoredJson } from '../services/privacySettings';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 import type { IncidentSession } from '../services/incidentSession';
+import { loadRoutineBriefing, type RoutineBriefingSnapshot } from '../services/routineBriefing';
 import DashboardIncidentCard from './DashboardIncidentCard';
 
 import hydrantBg from '../assets/hydrant_bg.webp';
@@ -53,7 +52,6 @@ interface RoutineShortcutDef {
   tab: NavigateTarget;
   icon: string;
   label: string;
-  description: string;
   iconClass: string;
 }
 
@@ -63,7 +61,6 @@ const ROUTINE_SHORTCUTS: RoutineShortcutDef[] = [
     tab: 'calendar',
     icon: 'calendar_month',
     label: '일정관리',
-    description: '근무 일정·할 일',
     iconClass: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
   },
   {
@@ -71,7 +68,6 @@ const ROUTINE_SHORTCUTS: RoutineShortcutDef[] = [
     tab: 'checklist',
     icon: 'fact_check',
     label: '장비점검',
-    description: '개인안전장비 확인',
     iconClass: 'bg-orange-500/10 text-orange-700 dark:text-orange-300',
   },
   {
@@ -79,7 +75,6 @@ const ROUTINE_SHORTCUTS: RoutineShortcutDef[] = [
     tab: 'preplan',
     icon: 'domain',
     label: '대상물 정보',
-    description: '사전 정보 관리',
     iconClass: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
   },
 ];
@@ -112,12 +107,15 @@ const ALL_QUICK_TOOLS: QuickToolDef[] = [
   { id: 'manual', tab: 'manual', icon: 'menu_book', label: '대응 매뉴얼', color: 'text-blue-500', category: '행정/기타' },
   { id: 'policy', tab: 'policy', icon: 'gavel', label: '법안/지침', color: 'text-green-500', category: '행정/기타' },
   { id: 'offline_readiness', tab: 'offline-readiness', icon: 'download_for_offline', label: '오프라인 점검', color: 'text-lime-400', category: '행정/기타' },
+  { id: 'equipment_cert', tab: 'equipment-cert', icon: 'verified', label: '장비 인증', color: 'text-emerald-400', category: '업무 참고' },
 ];
 
-const DEFAULT_TOOLS = ['calendar', 'checklist', 'preplan', 'manual', 'facility_hydrants', 'facility_towers', 'law_defense'];
+const DEFAULT_TOOLS = ['manual', 'offline_readiness', 'equipment_cert', 'facility_hydrants', 'facility_towers', 'calc_water', 'law_defense'];
 const LEGACY_DEFAULT_TOOL_SETS = [
+  ['facility_hydrants', 'facility_towers', 'checklist', 'calc_water', 'calc_hazmat', 'building'],
   ['incident', 'facility_hydrants', 'facility_towers', 'checklist', 'calc_water', 'aviation', 'law_defense'],
   ['facility_hydrants', 'facility_towers', 'checklist', 'field_timer', 'calc_water', 'aviation', 'law_defense'],
+  ['calendar', 'checklist', 'preplan', 'manual', 'facility_hydrants', 'facility_towers', 'law_defense'],
 ] as const;
 
 function isLegacyDefaultTools(tools: string[]): boolean {
@@ -206,8 +204,7 @@ export default function DashboardView({
   
   // 섹션 접기/펴기 상태
   const [showQuickTools, setShowQuickTools] = useState(true);
-  // 개인안전장비 점검 진행률
-  const [checklistProgress, setChecklistProgress] = useState(0);
+  const [routineBriefing, setRoutineBriefing] = useState<RoutineBriefingSnapshot>(loadRoutineBriefing);
   // 빠른 도구 상태
   const [customTools, setCustomTools] = useState<string[]>(() => {
     try {
@@ -218,10 +215,6 @@ export default function DashboardView({
         if (isLegacyDefaultTools(parsed)) {
           parsed = [...DEFAULT_TOOLS];
         }
-        // 자동 마이그레이션: 'building'(건축물대장) 대신 'law_defense'(법률방어망)를 기본으로 노출
-        if (parsed.includes('building') && !parsed.includes('law_defense')) {
-          parsed = parsed.map(t => t === 'building' ? 'law_defense' : t);
-        }
         localStorage.setItem('119helper-custom-tools', JSON.stringify(parsed));
         return parsed;
       }
@@ -231,6 +224,7 @@ export default function DashboardView({
   const [isEditingTools, setIsEditingTools] = useState(false);
   const toolsDialogTitleId = useId();
   const toolsDialogTriggerRef = useRef<HTMLButtonElement>(null);
+  const notesSectionRef = useRef<HTMLDivElement>(null);
   const toolsDialogRef = useDialogAccessibility<HTMLDivElement>(isEditingTools, () => setIsEditingTools(false), toolsDialogTriggerRef);
 
   const saveTools = (newTools: string[]) => {
@@ -238,7 +232,52 @@ export default function DashboardView({
     localStorage.setItem('119helper-custom-tools', JSON.stringify(newTools));
   };
 
+  const handleNoteCountChange = useCallback((noteCount: number) => {
+    setRoutineBriefing(current => (
+      current.noteCount === noteCount
+        ? current
+        : { ...current, noteCount }
+    ));
+  }, []);
+
   const fetchSeqRef = useRef(0);
+
+  useEffect(() => {
+    const refreshRoutineBriefing = () => setRoutineBriefing(loadRoutineBriefing());
+    let dateRolloverTimer: number | null = null;
+    const scheduleDateRollover = () => {
+      const now = new Date();
+      const nextDay = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+        0,
+        0,
+        1,
+      );
+      dateRolloverTimer = window.setTimeout(() => {
+        refreshRoutineBriefing();
+        scheduleDateRollover();
+      }, Math.max(1_000, nextDay.getTime() - now.getTime()));
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshRoutineBriefing();
+    };
+
+    scheduleDateRollover();
+    window.addEventListener('focus', refreshRoutineBriefing);
+    window.addEventListener('storage', refreshRoutineBriefing);
+    window.addEventListener('119helper-settings-updated', refreshRoutineBriefing);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (dateRolloverTimer !== null) window.clearTimeout(dateRolloverTimer);
+      window.removeEventListener('focus', refreshRoutineBriefing);
+      window.removeEventListener('storage', refreshRoutineBriefing);
+      window.removeEventListener('119helper-settings-updated', refreshRoutineBriefing);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -304,15 +343,6 @@ export default function DashboardView({
       }
     });
 
-    // 개인안전장비 점검 진행률 로드
-    const checklist = loadStoredJson<Record<string, boolean>>('119helper-equipment-checklist', {}, parsed =>
-      parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, boolean> : {}
-    );
-    if (isMounted) {
-      const checkedCount = Object.values(checklist).filter(Boolean).length;
-      setChecklistProgress(Math.round((checkedCount / EQUIPMENT_CHECKLIST_TOTAL) * 100));
-    }
-
     return () => { isMounted = false; };
   }, [city, cityLabel, refreshVersion]);
 
@@ -333,6 +363,22 @@ export default function DashboardView({
 
   const regionImageUrl = `/images/regions/${city}.webp`;
   const aviation = weather ? classifyAviationSafety(weather.windSpeed) : null;
+  const routineShortcutStatus: Record<string, { primary: string; secondary: string }> = {
+    calendar: {
+      primary: routineBriefing.todayScheduleTitle ?? '오늘 일정 없음',
+      secondary: routineBriefing.todayScheduleCount > 1
+        ? `오늘 ${routineBriefing.todayScheduleCount}건 · 외 ${routineBriefing.todayScheduleCount - 1}건`
+        : `오늘 ${routineBriefing.todayScheduleCount}건`,
+    },
+    checklist: {
+      primary: `${routineBriefing.checklistChecked}/${routineBriefing.checklistTotal} 완료`,
+      secondary: `점검 ${routineBriefing.checklistProgress}%`,
+    },
+    preplan: {
+      primary: routineBriefing.recentPrePlanName ?? '저장 대상물 없음',
+      secondary: `저장 ${routineBriefing.prePlanCount}곳${routineBriefing.recentPrePlanName ? ' · 최근 수정' : ''}`,
+    },
+  };
 
   const getBgOverlay = () => {
     if (!weather) return 'from-black/80 via-black/50 to-black/30';
@@ -384,52 +430,82 @@ export default function DashboardView({
       <WildfireTicker cityName={cityLabel} onClick={() => onNavigate('wildfire')} />
 
       <section
-        aria-labelledby="dashboard-routine-shortcuts-title"
+        aria-labelledby="dashboard-routine-briefing-title"
         className="rounded-xl border border-outline-variant/15 bg-surface-container-lowest p-3 shadow-sm md:p-4"
       >
-        <div className="flex items-center gap-2">
-          <span
-            aria-hidden="true"
-            className="material-symbols-outlined text-xl text-primary"
-            style={{ fontVariationSettings: "'FILL' 1" }}
-          >
-            work_history
-          </span>
-          <div>
-            <p className="text-[10px] font-extrabold uppercase tracking-widest text-primary">평시 업무</p>
-            <h2 id="dashboard-routine-shortcuts-title" className="text-base font-extrabold text-on-surface">
-              근무 준비 바로가기
-            </h2>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="material-symbols-outlined text-xl text-primary"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              work_history
+            </span>
+            <div>
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-primary">평시 업무</p>
+              <h2 id="dashboard-routine-briefing-title" className="text-base font-extrabold text-on-surface">
+                오늘 업무 브리핑
+              </h2>
+            </div>
           </div>
+          <p className="pt-1 text-right text-[10px] text-on-surface-variant">이 기기에 저장된 정보 기준</p>
         </div>
 
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {ROUTINE_SHORTCUTS.map(shortcut => (
-            <button
-              key={shortcut.id}
-              type="button"
-              aria-label={`${shortcut.label} 열기`}
-              onClick={() => onNavigate(shortcut.tab)}
-              className="flex min-h-16 min-w-0 items-center gap-2 rounded-xl border border-outline-variant/15 bg-surface-container px-2.5 py-2 text-left transition-colors hover:bg-surface-container-high focus:outline-none focus:ring-2 focus:ring-primary/30 sm:px-3"
-            >
-              <span
-                aria-hidden="true"
-                className={`material-symbols-outlined flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg ${shortcut.iconClass}`}
+        <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+          {ROUTINE_SHORTCUTS.map(shortcut => {
+            const status = routineShortcutStatus[shortcut.id];
+            return (
+              <button
+                key={shortcut.id}
+                type="button"
+                aria-label={`${shortcut.label} 열기`}
+                onClick={() => onNavigate(shortcut.tab)}
+                className="flex min-h-20 min-w-0 items-center gap-2 rounded-xl border border-outline-variant/15 bg-surface-container px-2.5 py-2.5 text-left transition-colors hover:bg-surface-container-high focus:outline-none focus:ring-2 focus:ring-primary/30 sm:px-3"
               >
-                {shortcut.icon}
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-xs font-extrabold text-on-surface sm:text-sm">
-                  {shortcut.label}
+                <span
+                  aria-hidden="true"
+                  className={`material-symbols-outlined flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg ${shortcut.iconClass}`}
+                >
+                  {shortcut.icon}
                 </span>
-                <span className="mt-0.5 hidden truncate text-[11px] text-on-surface-variant sm:block">
-                  {shortcut.id === 'checklist'
-                    ? `점검 진행 ${checklistProgress}%`
-                    : shortcut.description}
+                <span className="min-w-0">
+                  <span className="block truncate text-[11px] font-bold text-on-surface-variant">
+                    {shortcut.label}
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs font-extrabold text-on-surface sm:text-sm">
+                    {status.primary}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[10px] text-on-surface-variant">
+                    {status.secondary}
+                  </span>
                 </span>
+              </button>
+            );
+          })}
+
+          <button
+            type="button"
+            aria-label="저장 메모 보기"
+            onClick={() => notesSectionRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })}
+            className="flex min-h-20 min-w-0 items-center gap-2 rounded-xl border border-outline-variant/15 bg-surface-container px-2.5 py-2.5 text-left transition-colors hover:bg-surface-container-high focus:outline-none focus:ring-2 focus:ring-primary/30 sm:px-3"
+          >
+            <span
+              aria-hidden="true"
+              className="material-symbols-outlined flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-lg text-sky-700 dark:text-sky-300"
+            >
+              sticky_note_2
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-[11px] font-bold text-on-surface-variant">메모</span>
+              <span className="mt-0.5 block truncate text-xs font-extrabold text-on-surface sm:text-sm">
+                {routineBriefing.noteCount}건 저장
               </span>
-            </button>
-          ))}
+              <span className="mt-0.5 block truncate text-[10px] text-on-surface-variant">
+                {routineBriefing.noteCount > 0 ? '내용은 메모장에서 확인' : '빠른 메모 남기기'}
+              </span>
+            </span>
+          </button>
         </div>
       </section>
 
@@ -596,15 +672,15 @@ export default function DashboardView({
                     aria-label="개인안전장비 점검률"
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-valuenow={checklistProgress}
+                    aria-valuenow={routineBriefing.checklistProgress}
                   >
                     <div 
-                      className={`h-full transition-all duration-500 ease-out ${checklistProgress === 100 ? 'bg-success' : 'bg-primary'}`}
-                      style={{ width: `${checklistProgress}%` }}
+                      className={`h-full transition-all duration-500 ease-out ${routineBriefing.checklistProgress === 100 ? 'bg-success' : 'bg-primary'}`}
+                      style={{ width: `${routineBriefing.checklistProgress}%` }}
                     />
                   </div>
-                  <span className={`text-xs font-bold w-9 text-right ${checklistProgress === 100 ? 'text-success' : 'text-primary-fixed-dim'}`}>
-                    {checklistProgress}%
+                  <span className={`text-xs font-bold w-9 text-right ${routineBriefing.checklistProgress === 100 ? 'text-success' : 'text-primary-fixed-dim'}`}>
+                    {routineBriefing.checklistProgress}%
                   </span>
                 </div>
                 <p className="text-white/75 text-[11px] mt-1">출근 직후 필수 점검 사항</p>
@@ -770,7 +846,9 @@ export default function DashboardView({
       </section>
 
       {/* Embedded Sticky Notes */}
-      <StickyNotes embedMode />
+      <div ref={notesSectionRef}>
+        <StickyNotes embedMode onCountChange={handleNoteCountChange} />
+      </div>
 
       {/* Editor Modal */}
       {isEditingTools && (

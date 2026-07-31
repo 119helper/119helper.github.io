@@ -4,6 +4,10 @@ import RadioCodes from './RadioCodes';
 import SOPChecklist from './SOPChecklist';
 
 type SubTab = 'assessment' | 'radio' | 'sop';
+interface ManualRouteTarget {
+  tab: SubTab;
+  sopId?: string;
+}
 
 const SUB_TABS: { id: SubTab; label: string; icon: string }[] = [
   { id: 'assessment', label: '현장 평가', icon: 'emergency' },
@@ -11,13 +15,23 @@ const SUB_TABS: { id: SubTab; label: string; icon: string }[] = [
   { id: 'sop', label: 'SOP 체크리스트', icon: 'checklist' },
 ];
 
+function resolveRouteTarget(subId?: string): ManualRouteTarget {
+  if (subId?.startsWith('sop:')) {
+    return { tab: 'sop', sopId: subId.slice('sop:'.length) || undefined };
+  }
+  if (subId === 'radio' || subId === 'sop' || subId === 'assessment') return { tab: subId };
+  return { tab: 'assessment' };
+}
+
 export default function ManualView({ subId }: { subId?: string }) {
-  const [activeSubTab, setActiveSubTab] = useState<SubTab>('assessment');
+  const routeTarget = resolveRouteTarget(subId);
+  const [activeSubTab, setActiveSubTab] = useState<SubTab>(() => routeTarget.tab);
+  const [initialSopId, setInitialSopId] = useState<string | undefined>(() => routeTarget.sopId);
 
   useEffect(() => {
-    if (subId === 'radio') setActiveSubTab('radio');
-    if (subId === 'sop') setActiveSubTab('sop');
-    if (subId === 'assessment') setActiveSubTab('assessment');
+    const next = resolveRouteTarget(subId);
+    setActiveSubTab(next.tab);
+    setInitialSopId(next.sopId);
   }, [subId]);
 
   return (
@@ -35,7 +49,12 @@ export default function ManualView({ subId }: { subId?: string }) {
         {SUB_TABS.map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveSubTab(tab.id)}
+            type="button"
+            aria-pressed={activeSubTab === tab.id}
+            onClick={() => {
+              setActiveSubTab(tab.id);
+              if (tab.id === 'sop' && activeSubTab !== 'sop') setInitialSopId(undefined);
+            }}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
               activeSubTab === tab.id
                 ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
@@ -57,7 +76,7 @@ export default function ManualView({ subId }: { subId?: string }) {
       <div className="mt-6">
         {activeSubTab === 'assessment' && <FieldAssessment />}
         {activeSubTab === 'radio' && <RadioCodes />}
-        {activeSubTab === 'sop' && <SOPChecklist />}
+        {activeSubTab === 'sop' && <SOPChecklist initialSopId={initialSopId} />}
       </div>
     </div>
   );

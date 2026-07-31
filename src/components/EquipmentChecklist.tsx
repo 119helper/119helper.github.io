@@ -2,13 +2,44 @@ import React from 'react';
 import { CHECKLIST_SECTIONS } from '../data/equipmentChecklist';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useAppFeedback } from '../contexts/FeedbackContext';
+import {
+  EQUIPMENT_CHECKLIST_DATE_STORAGE_KEY,
+  EQUIPMENT_CHECKLIST_STORAGE_KEY,
+  localDateKey,
+} from '../services/equipmentChecklistState';
 
 const EquipmentChecklist: React.FC = () => {
   const { confirmAction, showNotice } = useAppFeedback();
-  const [checkedItems, setCheckedItems] = useLocalStorageState<Record<string, boolean>>('119helper-equipment-checklist', {});
+  const [checkedItems, setCheckedItems] = useLocalStorageState<Record<string, boolean>>(
+    EQUIPMENT_CHECKLIST_STORAGE_KEY,
+    {},
+  );
+  const [checkedDate, setCheckedDate] = useLocalStorageState<string | null>(
+    EQUIPMENT_CHECKLIST_DATE_STORAGE_KEY,
+    null,
+  );
+  const [today, setToday] = React.useState(() => localDateKey());
+
+  React.useEffect(() => {
+    const refreshDate = () => setToday(localDateKey());
+    const timer = window.setInterval(refreshDate, 60_000);
+    window.addEventListener('focus', refreshDate);
+    document.addEventListener('visibilitychange', refreshDate);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshDate);
+      document.removeEventListener('visibilitychange', refreshDate);
+    };
+  }, []);
+
+  const todayCheckedItems = checkedDate === today ? checkedItems : {};
 
   const toggleCheck = (id: string) => {
-    setCheckedItems(prev => ({ ...prev, [id]: !prev[id] }));
+    setCheckedItems(prev => {
+      const current = checkedDate === today ? prev : {};
+      return { ...current, [id]: !current[id] };
+    });
+    setCheckedDate(today);
   };
 
   const resetChecks = async () => {
@@ -20,11 +51,13 @@ const EquipmentChecklist: React.FC = () => {
     });
     if (!approved) return;
     setCheckedItems({});
+    setCheckedDate(today);
     showNotice({ message: '장비 점검 내역을 초기화했습니다.', tone: 'success' });
   };
 
-  const totalItemsCount = CHECKLIST_SECTIONS.reduce((acc, sec) => acc + sec.items.length, 0);
-  const checkedItemsCount = Object.values(checkedItems).filter(Boolean).length;
+  const checklistItemIds = CHECKLIST_SECTIONS.flatMap(section => section.items.map(item => item.id));
+  const totalItemsCount = checklistItemIds.length;
+  const checkedItemsCount = checklistItemIds.filter(id => todayCheckedItems[id]).length;
   const progressPercent = totalItemsCount === 0 ? 0 : Math.round((checkedItemsCount / totalItemsCount) * 100);
 
   return (
@@ -89,6 +122,15 @@ const EquipmentChecklist: React.FC = () => {
         </p>
       </div>
 
+      {checkedDate !== today && Object.values(checkedItems).some(Boolean) && (
+        <div className="rounded-xl border border-primary/30 bg-primary/10 p-4 text-sm text-on-surface" role="status">
+          <p className="font-bold">이전 점검 기록은 오늘 점검에 포함하지 않았습니다.</p>
+          <p className="mt-1 text-xs text-on-surface-variant">
+            첫 항목을 확인하면 오늘 날짜로 새 점검이 시작됩니다.
+          </p>
+        </div>
+      )}
+
       {progressPercent === 100 && (
         <div className="rounded-xl border border-success/30 bg-success-container p-4 text-on-success-container shadow-sm" role="status">
           <div className="flex items-center gap-3">
@@ -102,7 +144,7 @@ const EquipmentChecklist: React.FC = () => {
       <div className="space-y-4">
         {CHECKLIST_SECTIONS.map((section) => {
           const sectionTotal = section.items.length;
-          const sectionChecked = section.items.filter(item => checkedItems[item.id]).length;
+          const sectionChecked = section.items.filter(item => todayCheckedItems[item.id]).length;
           const sectionDone = sectionTotal === sectionChecked;
 
           return (
@@ -125,7 +167,7 @@ const EquipmentChecklist: React.FC = () => {
                     <div className="relative flex items-center">
                       <input 
                         type="checkbox" 
-                        checked={!!checkedItems[item.id]}
+                        checked={!!todayCheckedItems[item.id]}
                         onChange={() => toggleCheck(item.id)}
                         className="peer appearance-none w-6 h-6 border-2 border-outline rounded-md bg-surface-container checked:bg-primary checked:border-primary cursor-pointer transition-colors"
                       />
@@ -133,7 +175,7 @@ const EquipmentChecklist: React.FC = () => {
                         check
                       </span>
                     </div>
-                    <span className={`ml-4 text-sm font-semibold transition-colors ${checkedItems[item.id] ? 'text-on-surface-variant line-through' : 'text-on-surface'}`}>
+                    <span className={`ml-4 text-sm font-semibold transition-colors ${todayCheckedItems[item.id] ? 'text-on-surface-variant line-through' : 'text-on-surface'}`}>
                       {item.label}
                     </span>
                   </label>

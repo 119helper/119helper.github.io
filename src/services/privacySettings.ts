@@ -28,6 +28,7 @@ export const SENSITIVE_STORAGE_KEYS = [
   '119helper-building-recent',
   '119helper-schedules',
   '119helper-equipment-checklist',
+  '119helper-equipment-checklist-date',
   '119helper-sop-checklist-checked',
   '119helper-sop-checklist-timestamps',
   '119helper-stress-check',
@@ -38,6 +39,12 @@ export const SENSITIVE_STORAGE_KEYS = [
 ];
 
 const sensitiveKeySet = new Set(SENSITIVE_STORAGE_KEYS);
+const retentionExemptSensitiveKeySet = new Set([
+  // 일정과 대상물 사전계획은 출동 기록과 달리 장기간 축적하는 업무자료다.
+  // 민감정보 전체삭제와 공용기기 차단은 그대로 적용하되 기간 만료만 면제한다.
+  '119helper-schedules',
+  '119helper-preplans',
+]);
 
 export function loadPrivacySettings(): PrivacySettings {
   try {
@@ -78,21 +85,12 @@ export function storageTimestampKey(key: string): string {
   return `${key}:updatedAt`;
 }
 
-function deleteIndexedDb(name: string): Promise<void> {
-  if (typeof indexedDB === 'undefined') return Promise.resolve();
-  return new Promise((resolve) => {
-    const req = indexedDB.deleteDatabase(name);
-    req.onsuccess = () => resolve();
-    req.onerror = () => resolve();
-    req.onblocked = () => resolve();
-  });
-}
-
 export async function clearSensitiveStoredData(): Promise<void> {
   SENSITIVE_STORAGE_KEYS.forEach(key => {
     removeStoredJson(key);
   });
-  await deleteIndexedDb('119-preplan');
+  const { clearPreplanPhotos } = await import('./preplanPhotos');
+  await clearPreplanPhotos();
 }
 
 export function canPersistStorageKey(key: string): boolean {
@@ -104,6 +102,7 @@ export function isStorageExpired(key: string, now = Date.now()): boolean {
   if (!isSensitiveStorageKey(key)) return false;
   const settings = loadPrivacySettings();
   if (settings.publicDeviceMode) return true;
+  if (retentionExemptSensitiveKeySet.has(key)) return false;
   if (settings.retentionDays <= 0) return false;
 
   const rawUpdatedAt = localStorage.getItem(storageTimestampKey(key));

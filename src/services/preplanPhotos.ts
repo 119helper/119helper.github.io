@@ -1,6 +1,6 @@
 // 대상물 사진 저장소 — localStorage 용량 한계를 피해 IndexedDB(idb-keyval)에 보관한다.
 
-import { createStore, del, get, set } from 'idb-keyval';
+import { clear, createStore, del, get, set } from 'idb-keyval';
 import { canPersistStorageKey } from './privacySettings';
 
 const photoStore = createStore('119-preplan', 'photos');
@@ -70,4 +70,9 @@ export async function getPhoto(key: string): Promise<string | undefined> {
 
 export async function deletePhoto(key: string): Promise<void> {
   await del(key, photoStore);
+}
+
+export async function clearPreplanPhotos(): Promise<void> {
+  if (typeof indexedDB === 'undefined') return;
+  await clear(photoStore);
 }

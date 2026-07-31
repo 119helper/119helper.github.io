@@ -288,6 +288,10 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
               <option value={30}>30일 보관</option>
               <option value={90}>90일 보관</option>
             </select>
+            <p className="text-[10px] leading-relaxed text-on-surface-variant">
+              선택한 기간은 메모·현장 기록 등 기간성 민감데이터에 적용됩니다.
+              일정·대상물은 장기 업무자료라 자동 만료에서 제외되며, 민감데이터 전체 삭제 또는 공용 기기 모드에서 삭제됩니다.
+            </p>
           </div>
           <div className="border-t border-outline-variant/10 pt-3 space-y-2">
             <div className="flex items-center justify-between gap-3">

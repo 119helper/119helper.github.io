@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useAppFeedback } from '../contexts/FeedbackContext';
 
@@ -19,13 +19,18 @@ const COLORS = [
 
 interface StickyNotesProps {
   embedMode?: boolean;
+  onCountChange?: (count: number) => void;
 }
 
-export default function StickyNotes({ embedMode = false }: StickyNotesProps) {
+export default function StickyNotes({ embedMode = false, onCountChange }: StickyNotesProps) {
   const [notes, setNotes] = useLocalStorageState<Note[]>('119helper-notes', []);
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const { showUndo } = useAppFeedback();
+
+  useEffect(() => {
+    onCountChange?.(notes.length);
+  }, [notes.length, onCountChange]);
 
   // 드래그 앤 드롭 상태
   const [dragId, setDragId] = useState<string | null>(null);
