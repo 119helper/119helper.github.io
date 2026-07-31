@@ -779,6 +779,72 @@ test('활성 출동: 현장 모드와 사건 주소를 다른 도구로 이어�
   await expect(page.getByLabel('주소')).toHaveValue('서울특별시 종로구 세종대로 209');
 });
 
+test('활성 출동: 사건 맥락으로 유사 위해사고를 즉시 좁힌다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installIncidentGeocoder(page);
+  await page.route('**/api/consumer-hazard**', async route => {
+    const request = route.request();
+    if (request.method() === 'OPTIONS') {
+      await route.fulfill({
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': '*',
+          'Access-Control-Allow-Methods': 'GET,OPTIONS',
+        },
+      });
+      return;
+    }
+
+    const url = new URL(request.url());
+    const pageNo = Number(url.searchParams.get('pageNo') || '1');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({
+        response: {
+          body: {
+            items: {
+              item: [{
+                receptionNumber: `incident-hazard-${pageNo}`,
+                receiveDay: '2026-04-02',
+                occurrenDate: '2026-04-01',
+                treatmentPeriod: '당일',
+                age: '70대',
+                gender: '여성',
+                itemMajor: '주택 설비',
+                itemMiddle: '욕실',
+                itemMinor: '욕실 바닥',
+                injuryReason: '미끄러져 넘어짐',
+                injuryPart: '엉덩이',
+                injurySymptoms: '타박상',
+                occurrencePlace: '공동주택 욕실',
+              }],
+            },
+            totalCount: 750,
+            pageNo,
+            numOfRows: 250,
+          },
+        },
+      }),
+    });
+  });
+
+  await page.goto('/?tab=incident');
+  await page.getByLabel('출동 제목').fill('아파트 욕실 고령자 낙상 구조');
+  await page.getByLabel(/현장 주소/).fill('서울특별시 종로구 세종대로 209');
+  await page.getByLabel('초기 상황 및 위험요소').fill('욕실 바닥에서 넘어짐');
+  await page.getByRole('button', { name: /위치 기준 브리핑 시작/ }).click();
+  await page.getByRole('button', { name: /유사사고/ }).click();
+
+  await expect(page).toHaveURL(/#hazards$/);
+  await expect(page.getByText(/진행 중 사건과 연결됨/)).toBeVisible();
+  await expect(page.getByLabel('유사 사고 검색')).toHaveValue('아파트 욕실');
+  await expect(page.getByRole('button', { name: /낙상·추락/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText(/현재 조건 3건/)).toBeVisible();
+});
+
 test('활동 기록: 뒤바뀐 단계 시각을 경고하고 수정 후 해제한다', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/?tab=incident');

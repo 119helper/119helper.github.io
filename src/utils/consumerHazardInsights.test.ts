@@ -43,6 +43,7 @@ describe('consumer hazard insights', () => {
     expect(filterConsumerHazards(rows, '', 'senior')).toHaveLength(1);
     expect(filterConsumerHazards(rows, '전기포트 화상', 'all')).toEqual([rows[1]]);
     expect(filterConsumerHazards(rows, '', 'fall')).toHaveLength(2);
+    expect(filterConsumerHazards(rows, '아파트 욕실', 'fall')).toHaveLength(2);
   });
 
   it('builds ranked facts without counting missing values as evidence', () => {

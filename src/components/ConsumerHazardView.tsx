@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   fetchConsumerHazardDataset,
   type ConsumerHazardDataset,
@@ -13,6 +13,10 @@ import {
   type HazardPreset,
   type HazardRank,
 } from '../utils/consumerHazardInsights';
+import {
+  buildIncidentHazardSuggestion,
+  type IncidentHazardContext,
+} from '../utils/incidentHazardSearch';
 import StaleBadge from './StaleBadge';
 
 const PRESETS: { id: HazardPreset; label: string; icon: string }[] = [
@@ -188,7 +192,9 @@ function LoadingState() {
   );
 }
 
-export default function ConsumerHazardView() {
+export default function ConsumerHazardView({ incidentContext = null }: {
+  incidentContext?: IncidentHazardContext | null;
+}) {
   const [dataset, setDataset] = useState<ConsumerHazardDataset | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -196,6 +202,12 @@ export default function ConsumerHazardView() {
   const [query, setQuery] = useState('');
   const [preset, setPreset] = useState<HazardPreset>('all');
   const [visibleCount, setVisibleCount] = useState(12);
+  const lastAppliedIncidentId = useRef('');
+
+  const incidentSuggestion = useMemo(
+    () => buildIncidentHazardSuggestion(incidentContext),
+    [incidentContext],
+  );
 
   const loadData = useCallback(async (forceRefresh: boolean) => {
     setLoading(true);
@@ -213,6 +225,12 @@ export default function ConsumerHazardView() {
 
   useEffect(() => { void loadData(false); }, [loadData]);
   useEffect(() => { setVisibleCount(12); }, [query, preset]);
+  useEffect(() => {
+    if (!incidentSuggestion || lastAppliedIncidentId.current === incidentSuggestion.incidentId) return;
+    lastAppliedIncidentId.current = incidentSuggestion.incidentId;
+    setQuery(incidentSuggestion.query);
+    setPreset(incidentSuggestion.preset);
+  }, [incidentSuggestion]);
 
   const filtered = useMemo(
     () => filterConsumerHazards(dataset?.items ?? [], query, preset),
@@ -224,6 +242,11 @@ export default function ConsumerHazardView() {
   );
   const filteredInsights = useMemo(() => buildConsumerHazardInsights(filtered), [filtered]);
   const shownItems = filtered.slice(0, visibleCount);
+  const incidentFiltersActive = Boolean(
+    incidentSuggestion
+    && query === incidentSuggestion.query
+    && preset === incidentSuggestion.preset,
+  );
   const analyzedRatio = dataset?.totalCount
     ? Math.min(100, (dataset.loadedCount / dataset.totalCount) * 100)
     : 0;
@@ -312,6 +335,53 @@ export default function ConsumerHazardView() {
           </section>
 
           <section className="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-5">
+            {incidentSuggestion && incidentContext && (
+              <div className="mb-5 rounded-xl border border-primary/25 bg-primary/5 p-4">
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-2 text-xs font-extrabold text-primary">
+                      <span className="material-symbols-outlined text-lg">emergency_home</span>
+                      진행 중 사건과 연결됨
+                    </p>
+                    <p className="mt-2 truncate font-extrabold text-on-surface">{incidentContext.title}</p>
+                    {incidentContext.address && (
+                      <p className="mt-1 truncate text-xs text-on-surface-variant">{incidentContext.address}</p>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {incidentSuggestion.labels.map(label => (
+                        <span key={label} className="rounded-full bg-surface-container px-2.5 py-1 text-xs font-bold text-on-surface-variant">
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuery(incidentSuggestion.query);
+                        setPreset(incidentSuggestion.preset);
+                      }}
+                      className="rounded-lg bg-primary px-3 py-2 text-xs font-extrabold text-on-primary hover:bg-primary/90"
+                    >
+                      {incidentFiltersActive ? '사건 조건 적용됨' : '사건 조건 적용'}
+                    </button>
+                    {incidentFiltersActive && (
+                      <button
+                        type="button"
+                        onClick={() => { setQuery(''); setPreset('all'); }}
+                        className="rounded-lg border border-outline-variant/30 bg-surface-container px-3 py-2 text-xs font-extrabold text-on-surface hover:bg-surface-container-high"
+                      >
+                        전체 보기
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="mt-3 text-xs text-on-surface-variant">
+                  출동 제목·메모에서 찾은 조건을 자동 적용했습니다. 실제 현장 판단과는 별개의 과거 접수 사례 검색입니다.
+                </p>
+              </div>
+            )}
             <label htmlFor="hazard-search" className="text-sm font-bold text-on-surface">유사 사고 검색</label>
             <div className="relative mt-2">
               <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>

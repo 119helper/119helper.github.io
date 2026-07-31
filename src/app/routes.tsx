@@ -115,7 +115,17 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
   emergency: { render: () => <EmergencyAnalysis /> },
   'fire-analysis': { render: () => <FireAnalysis /> },
   'fire-damage': { render: () => <FireDamageView /> },
-  hazards: { render: () => <ConsumerHazardView /> },
+  hazards: {
+    render: ctx => (
+      <ConsumerHazardView incidentContext={ctx.incidentSession.active ? {
+        incidentId: ctx.incidentSession.incidentId,
+        type: ctx.incidentSession.type,
+        title: ctx.incidentSession.title,
+        address: ctx.incidentSession.address,
+        note: ctx.incidentSession.note,
+      } : null} />
+    ),
+  },
   multiuse: { render: ctx => <MultiUseView city={ctx.city} /> },
   wildfire: { render: ctx => <WildfireView cityName={ctx.cityLabel} /> },
   hazmat: { render: () => <HazmatView /> },

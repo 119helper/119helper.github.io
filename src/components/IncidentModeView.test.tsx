@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   loadTriagePatients: vi.fn(),
   removeTriagePatients: vi.fn(),
   clearIncidentTimers: vi.fn(),
+  navigate: vi.fn(),
 }));
 
 vi.mock('../hooks/useIncidentSession', () => ({
@@ -252,7 +253,7 @@ function ViewTree() {
       fireFacilities={[]}
       isLoadingFacilities={false}
       cityIndex={null}
-      onNavigate={vi.fn()}
+      onNavigate={mocks.navigate}
     />
     </IncidentChangeMonitorProvider>
   );
@@ -302,6 +303,20 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('IncidentModeView operational flow', () => {
+  it('opens similar incident evidence from the active incident workspace and records the access', async () => {
+    mocks.session = activeSession();
+    renderView();
+
+    fireEvent.click(await screen.findByRole('button', { name: /유사사고/ }));
+
+    expect(mocks.navigate).toHaveBeenCalledWith('hazards', undefined);
+    expect(mocks.appendActivity).toHaveBeenCalledWith(
+      '유사사고 열람',
+      expect.any(Number),
+      'incident-active',
+    );
+  });
+
   it('resolves one address and shares the same incident identity and coordinate with activity logging', async () => {
     mocks.geocodeAddress.mockResolvedValue(LOCATION);
     renderView();

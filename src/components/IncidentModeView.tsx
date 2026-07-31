@@ -1551,6 +1551,7 @@ export default function IncidentModeView({
             <QuickAction icon="groups" label="환자보드" onClick={() => openIncidentTool('triage', '환자보드')} />
             <QuickAction icon="map" label="시설조회" onClick={() => openIncidentTool('shelter', '시설조회')} />
             <QuickAction icon="menu_book" label="매뉴얼" onClick={() => openIncidentTool('manual', '매뉴얼')} />
+            <QuickAction icon="health_and_safety" label="유사사고" onClick={() => openIncidentTool('hazards', '유사사고')} />
             <QuickAction icon="download_for_offline" label="오프라인" onClick={() => openIncidentTool('offline-readiness', '오프라인 점검')} />
           </div>
         </div>

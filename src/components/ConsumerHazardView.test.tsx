@@ -90,4 +90,23 @@ describe('ConsumerHazardView', () => {
     expect(screen.getByText(/현재 조건 1건/)).toBeInTheDocument();
     expect(screen.getAllByText('욕조').length).toBeGreaterThan(0);
   });
+
+  it('automatically applies a concrete active-incident suggestion and lets the user return to all cases', async () => {
+    render(<ConsumerHazardView incidentContext={{
+      incidentId: 'incident-active',
+      type: 'rescue',
+      title: '아파트 욕실 고령자 낙상 구조',
+      address: '서울특별시 중구 세종대로 110',
+      note: '욕실 바닥에서 넘어짐',
+    }} />);
+
+    expect(await screen.findByText('진행 중 사건과 연결됨')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('아파트 욕실')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /낙상·추락/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/현재 조건 1건/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '전체 보기' }));
+    expect(screen.getByLabelText('유사 사고 검색')).toHaveValue('');
+    expect(screen.getByRole('button', { name: /전체$/ })).toHaveAttribute('aria-pressed', 'true');
+  });
 });

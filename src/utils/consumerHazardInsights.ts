@@ -19,6 +19,14 @@ export interface ConsumerHazardInsights {
 
 const EMPTY_VALUES = new Set(['', '-', '해당없음', '미상', '불상', '알 수 없음', '연령 미상']);
 
+const SEARCH_VARIANTS: Record<string, string[]> = {
+  아파트: ['아파트', '공동주택', '주택'],
+  상가: ['상가', '상업시설', '판매시설', '음식점'],
+  화장실: ['화장실', '욕실'],
+  엘리베이터: ['엘리베이터', '승강기'],
+  킥보드: ['킥보드', '개인형 이동장치'],
+};
+
 function clean(value: string): string {
   const normalized = value.trim();
   return EMPTY_VALUES.has(normalized) ? '' : normalized;
@@ -87,7 +95,7 @@ export function filterConsumerHazards(
     if (!matchesPreset(item, preset)) return false;
     if (terms.length === 0) return true;
     const text = searchableText(item);
-    return terms.every(term => text.includes(term));
+    return terms.every(term => (SEARCH_VARIANTS[term] ?? [term]).some(variant => text.includes(variant)));
   });
 }
 
