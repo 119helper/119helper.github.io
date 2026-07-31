@@ -813,13 +813,13 @@ test('활성 출동: 사건 맥락으로 유사 위해사고를 즉시 좁힌다
                 treatmentPeriod: '당일',
                 age: '70대',
                 gender: '여성',
-                itemMajor: '주택 설비',
+                itemMajor: '시설 및 서비스',
                 itemMiddle: '욕실',
                 itemMinor: '욕실 바닥',
                 injuryReason: '미끄러져 넘어짐',
                 injuryPart: '엉덩이',
                 injurySymptoms: '타박상',
-                occurrencePlace: '공동주택 욕실',
+                occurrencePlace: '가정 욕실',
               }],
             },
             totalCount: 750,
@@ -840,8 +840,9 @@ test('활성 출동: 사건 맥락으로 유사 위해사고를 즉시 좁힌다
 
   await expect(page).toHaveURL(/#hazards$/);
   await expect(page.getByText(/진행 중 사건과 연결됨/)).toBeVisible();
-  await expect(page.getByLabel('유사 사고 검색')).toHaveValue('아파트 욕실');
+  await expect(page.getByLabel('유사 사고 검색')).toHaveValue('욕실');
   await expect(page.getByRole('button', { name: /낙상·추락/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText(/‘욕실’ 범위까지 자동으로 넓혔습니다/)).toBeVisible();
   await expect(page.getByText(/현재 조건 3건/)).toBeVisible();
 });
 

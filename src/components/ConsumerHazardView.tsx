@@ -15,6 +15,7 @@ import {
 } from '../utils/consumerHazardInsights';
 import {
   buildIncidentHazardSuggestion,
+  resolveIncidentHazardSuggestion,
   type IncidentHazardContext,
 } from '../utils/incidentHazardSearch';
 import StaleBadge from './StaleBadge';
@@ -208,6 +209,10 @@ export default function ConsumerHazardView({ incidentContext = null }: {
     () => buildIncidentHazardSuggestion(incidentContext),
     [incidentContext],
   );
+  const resolvedIncidentSuggestion = useMemo(
+    () => resolveIncidentHazardSuggestion(incidentSuggestion, dataset?.items ?? []),
+    [dataset?.items, incidentSuggestion],
+  );
 
   const loadData = useCallback(async (forceRefresh: boolean) => {
     setLoading(true);
@@ -226,11 +231,11 @@ export default function ConsumerHazardView({ incidentContext = null }: {
   useEffect(() => { void loadData(false); }, [loadData]);
   useEffect(() => { setVisibleCount(12); }, [query, preset]);
   useEffect(() => {
-    if (!incidentSuggestion || lastAppliedIncidentId.current === incidentSuggestion.incidentId) return;
-    lastAppliedIncidentId.current = incidentSuggestion.incidentId;
-    setQuery(incidentSuggestion.query);
-    setPreset(incidentSuggestion.preset);
-  }, [incidentSuggestion]);
+    if (!dataset || !resolvedIncidentSuggestion || lastAppliedIncidentId.current === resolvedIncidentSuggestion.incidentId) return;
+    lastAppliedIncidentId.current = resolvedIncidentSuggestion.incidentId;
+    setQuery(resolvedIncidentSuggestion.query);
+    setPreset(resolvedIncidentSuggestion.preset);
+  }, [dataset, resolvedIncidentSuggestion]);
 
   const filtered = useMemo(
     () => filterConsumerHazards(dataset?.items ?? [], query, preset),
@@ -243,9 +248,14 @@ export default function ConsumerHazardView({ incidentContext = null }: {
   const filteredInsights = useMemo(() => buildConsumerHazardInsights(filtered), [filtered]);
   const shownItems = filtered.slice(0, visibleCount);
   const incidentFiltersActive = Boolean(
+    resolvedIncidentSuggestion
+    && query === resolvedIncidentSuggestion.query
+    && preset === resolvedIncidentSuggestion.preset,
+  );
+  const incidentSearchBroadened = Boolean(
     incidentSuggestion
-    && query === incidentSuggestion.query
-    && preset === incidentSuggestion.preset,
+    && resolvedIncidentSuggestion
+    && incidentSuggestion.query !== resolvedIncidentSuggestion.query,
   );
   const analyzedRatio = dataset?.totalCount
     ? Math.min(100, (dataset.loadedCount / dataset.totalCount) * 100)
@@ -359,8 +369,8 @@ export default function ConsumerHazardView({ incidentContext = null }: {
                     <button
                       type="button"
                       onClick={() => {
-                        setQuery(incidentSuggestion.query);
-                        setPreset(incidentSuggestion.preset);
+                        setQuery(resolvedIncidentSuggestion?.query ?? incidentSuggestion.query);
+                        setPreset(resolvedIncidentSuggestion?.preset ?? incidentSuggestion.preset);
                       }}
                       className="rounded-lg bg-primary px-3 py-2 text-xs font-extrabold text-on-primary hover:bg-primary/90"
                     >
@@ -378,7 +388,10 @@ export default function ConsumerHazardView({ incidentContext = null }: {
                   </div>
                 </div>
                 <p className="mt-3 text-xs text-on-surface-variant">
-                  출동 제목·메모에서 찾은 조건을 자동 적용했습니다. 실제 현장 판단과는 별개의 과거 접수 사례 검색입니다.
+                  {incidentSearchBroadened
+                    ? `정확히 일치하는 표본이 없어 ‘${resolvedIncidentSuggestion?.query || PRESETS.find(item => item.id === resolvedIncidentSuggestion?.preset)?.label}’ 범위까지 자동으로 넓혔습니다. `
+                    : '출동 제목·메모에서 찾은 조건을 자동 적용했습니다. '}
+                  실제 현장 판단과는 별개의 과거 접수 사례 검색입니다.
                 </p>
               </div>
             )}

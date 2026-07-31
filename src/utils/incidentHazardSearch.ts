@@ -1,5 +1,6 @@
 import type { IncidentType } from '../services/incidentSession';
-import type { HazardPreset } from './consumerHazardInsights';
+import type { HazardItem } from '../services/consumerHazardApi';
+import { filterConsumerHazards, type HazardPreset } from './consumerHazardInsights';
 
 export interface IncidentHazardContext {
   incidentId: string;
@@ -76,4 +77,56 @@ export function buildIncidentHazardSuggestion(
     preset,
     labels: [...new Set(labels)].slice(0, 4),
   };
+}
+
+function reducedQueries(query: string): string[][] {
+  const terms = [...new Set(query.trim().split(/\s+/).filter(Boolean))];
+  const groups: string[][] = [];
+
+  for (let size = terms.length - 1; size >= 1; size -= 1) {
+    const candidates: string[] = [];
+    const visit = (start: number, selected: string[]) => {
+      if (selected.length === size) {
+        candidates.push(selected.join(' '));
+        return;
+      }
+      for (let index = start; index < terms.length; index += 1) {
+        visit(index + 1, [...selected, terms[index]]);
+      }
+    };
+    visit(0, []);
+    groups.push(candidates);
+  }
+
+  return groups;
+}
+
+/** 표본에 정확한 조합이 없으면 사고 유형은 유지한 채 가장 가까운 검색 범위로 넓힌다. */
+export function resolveIncidentHazardSuggestion(
+  suggestion: IncidentHazardSuggestion | null,
+  items: HazardItem[],
+): IncidentHazardSuggestion | null {
+  if (!suggestion || items.length === 0 || !suggestion.query) return suggestion;
+  if (filterConsumerHazards(items, suggestion.query, suggestion.preset).length > 0) return suggestion;
+
+  for (const candidates of reducedQueries(suggestion.query)) {
+    const matches = candidates
+      .map((query, order) => ({
+        query,
+        order,
+        count: filterConsumerHazards(items, query, suggestion.preset).length,
+      }))
+      .filter(candidate => candidate.count > 0)
+      .sort((a, b) => a.count - b.count || a.order - b.order);
+    if (matches[0]) return { ...suggestion, query: matches[0].query };
+  }
+
+  if (
+    suggestion.preset !== 'all'
+    && filterConsumerHazards(items, '', suggestion.preset).length > 0
+  ) {
+    return { ...suggestion, query: '' };
+  }
+
+  return suggestion;
 }
