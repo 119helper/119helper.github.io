@@ -126,8 +126,9 @@ test('모바일: 즐겨찾기를 보존하고 데이터 상태를 화면 안에 
   await page.getByRole('button', { name: '전체 메뉴 열기' }).click();
   const sidebar = page.getByRole('dialog', { name: '전체 메뉴' });
   const favorites = sidebar.getByRole('region', { name: '즐겨찾기' });
-  await expect(favorites).toContainText('전체 메뉴의 별표를 눌러 기능을 추가하세요.');
+  await expect(favorites).toContainText('이 업무 공간 메뉴의 별표를 눌러 기능을 추가하세요.');
 
+  await sidebar.getByRole('button', { name: '모니터링' }).click();
   await sidebar.getByRole('button', { name: '날씨 즐겨찾기 추가' }).click();
   await expect(favorites.getByRole('button', { name: '날씨', exact: true })).toBeVisible();
   await expect(favorites.getByText('최근 사용', { exact: true })).toHaveCount(0);
@@ -135,6 +136,7 @@ test('모바일: 즐겨찾기를 보존하고 데이터 상태를 화면 안에 
   await page.reload();
   await page.getByRole('button', { name: '전체 메뉴 열기' }).click();
   await expect(favorites.getByRole('button', { name: '날씨', exact: true })).toBeVisible();
+  await sidebar.getByRole('button', { name: '모니터링' }).click();
   await expect(sidebar.getByRole('button', { name: '날씨 즐겨찾기 해제' })).toBeVisible();
   await sidebar.getByRole('button', { name: '전체 메뉴 닫기' }).click();
 
@@ -146,6 +148,54 @@ test('모바일: 즐겨찾기를 보존하고 데이터 상태를 화면 안에 
   expect(box).not.toBeNull();
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+});
+
+test('업무 공간: 평시 업무와 출동 대응의 메뉴와 하단 동선을 함께 전환한다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+
+  await expect(page.getByRole('button', { name: '평시 업무 모드' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('navigation', { name: '주요 기능' }).getByRole('button', { name: '대시보드' })).toBeVisible();
+
+  await page.getByRole('button', { name: '출동 대응 모드' }).click();
+  await expect(page).toHaveURL(/#incident$/);
+  await expect(page.getByRole('button', { name: '출동 대응 모드' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('navigation', { name: '주요 기능' }).getByRole('button', { name: '상황판' })).toBeVisible();
+
+  await page.getByRole('button', { name: '전체 메뉴 열기' }).click();
+  const sidebar = page.getByRole('dialog', { name: '전체 메뉴' });
+  await expect(sidebar.getByText('출동 대응 메뉴', { exact: true })).toBeVisible();
+  await expect(sidebar.getByRole('button', { name: '지휘·기록' })).toBeVisible();
+  await sidebar.getByRole('button', { name: '전체 메뉴 닫기' }).click();
+
+  await page.getByRole('button', { name: '평시 업무 모드' }).click();
+  await expect(page).toHaveURL(/#dashboard$/);
+  await expect(page.getByRole('navigation', { name: '주요 기능' }).getByRole('button', { name: '대시보드' })).toBeVisible();
+});
+
+test('업무 공간: 새로고침해도 진행 중인 출동 대응 상태를 우선 복원한다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const startedAt = Date.now() - 120_000;
+  await page.addInitScript(({ incidentStartedAt }) => {
+    localStorage.setItem('119helper-incident-session', JSON.stringify({
+      incidentId: 'persisted-incident',
+      active: true,
+      type: 'fire',
+      title: '복원 확인 화재',
+      address: '광주광역시 북구 테스트로 119',
+      startedAt: incidentStartedAt,
+      note: '',
+    }));
+  }, { incidentStartedAt: startedAt });
+
+  await page.goto('/#dashboard');
+
+  await expect(page.getByRole('button', {
+    name: '출동 대응 모드, 복원 확인 화재 진행 중',
+  })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('region', { name: '진행 중인 출동' })).toContainText('복원 확인 화재');
+  await expect(page.getByRole('navigation', { name: '주요 기능' }).getByRole('button', { name: '상황판' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '복원 확인 화재' })).toBeVisible();
 });
 
 test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 자동 기록된다', async ({ page }) => {
@@ -165,6 +215,17 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
   const incidentNav = page.getByRole('navigation', { name: '주요 기능' });
   await expect(incidentNav.getByRole('button', { name: '상황판' })).toBeVisible();
   await expect(incidentNav.getByRole('button', { name: '타이머' })).toBeVisible();
+
+  await page.getByRole('button', { name: '평시 업무 모드' }).click();
+  await expect(page).toHaveURL(/#dashboard$/);
+  await expect(page.getByRole('region', { name: '진행 중인 출동' })).toBeVisible();
+  await expect(page.getByRole('button', {
+    name: '출동 대응 모드, 광주 환자 이송 진행 중',
+  })).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('button', {
+    name: '출동 대응 모드, 광주 환자 이송 진행 중',
+  }).click();
+  await expect(page).toHaveURL(/#incident$/);
 
   const quickActivity = page.getByLabel('구급 출동 활동 빠른 기록');
   await quickActivity.getByRole('button', { name: '현장도착 기록' }).click();
@@ -234,6 +295,7 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
   expect(ended.incident.endedAt).toBeGreaterThan(ended.incident.startedAt);
   expect(ended.activity.stamps.some((stamp: { label?: string }) => stamp.label === '상황판 종료')).toBe(true);
   await expect(page.getByRole('region', { name: '진행 중인 출동' })).toBeHidden();
+  await expect(page.getByRole('button', { name: '평시 업무 모드' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('navigation', { name: '주요 기능' }).getByRole('button', { name: '대시보드' })).toBeVisible();
 
   const recentIncident = page.getByRole('region', { name: '최근 종료 출동' });

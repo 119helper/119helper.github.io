@@ -39,6 +39,20 @@ describe('GlobalSearch', () => {
     expect(within(dialog).queryByRole('button', { name: /즐겨찾기/ })).not.toBeInTheDocument();
   });
 
+  it('opens the response workspace entry from a field-response query', () => {
+    const onNavigate = vi.fn();
+    render(<GlobalSearch onNavigate={onNavigate} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '기능 검색 열기' }));
+    const dialog = screen.getByRole('dialog', { name: '기능 검색' });
+    fireEvent.change(within(dialog).getByRole('searchbox', { name: '기능 검색' }), {
+      target: { value: '상황판' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: /출동 시작·현장 브리핑·활동 기록/ }));
+
+    expect(onNavigate).toHaveBeenCalledWith('incident', undefined);
+  });
+
   it('keeps a mobile query when the dialog is closed and reopened', () => {
     render(<GlobalSearch onNavigate={vi.fn()} />);
 

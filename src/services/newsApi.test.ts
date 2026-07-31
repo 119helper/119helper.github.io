@@ -8,6 +8,7 @@ import {
   isLikelyPlaceholderImageUrl,
   normalizeNewsText,
 } from './newsApi';
+import { API_BASE } from './apiConfig';
 
 describe('news feed normalization', () => {
   it('removes markup, decodes named and numeric entities, and cleans whitespace', () => {
@@ -81,7 +82,7 @@ describe('fetchNewsThumbnail', () => {
     await expect(fetchNewsThumbnail('https://cdn.example/fire.webp?width=800')).resolves.toEqual(image);
 
     const requestUrl = new URL(String(fetchMock.mock.calls[0][0]));
-    expect(requestUrl.origin).toBe('https://119-helper-api.teemozipsa.workers.dev');
+    expect(requestUrl.origin).toBe(new URL(API_BASE).origin);
     expect(requestUrl.pathname).toBe('/api/news/image');
     expect(requestUrl.searchParams.get('url')).toBe('https://cdn.example/fire.webp?width=800');
   });

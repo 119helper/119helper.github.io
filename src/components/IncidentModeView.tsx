@@ -700,7 +700,7 @@ export default function IncidentModeView({
                 </p>
               </div>
             </div>
-            <div className="px-5 pb-5">
+            <div className="grid gap-2 px-5 pb-5 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => openIncidentTool('activity-log', '활동기록')}
@@ -708,6 +708,14 @@ export default function IncidentModeView({
               >
                 <span aria-hidden="true" className="material-symbols-outlined text-lg">description</span>
                 활동 기록·보고서 열기
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('dashboard')}
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-outline-variant/25 bg-surface-container px-4 py-2.5 text-sm font-extrabold text-on-surface hover:bg-surface-container-high"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-lg">space_dashboard</span>
+                평시 업무로 돌아가기
               </button>
             </div>
           </section>

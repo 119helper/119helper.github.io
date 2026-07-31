@@ -8,6 +8,7 @@ import IncidentStatusStrip from './components/IncidentStatusStrip';
 import IncidentChangeGlobalBanner from './components/IncidentChangeGlobalBanner';
 import SidebarQuickAccess from './components/SidebarQuickAccess';
 import DataStatusSummary from './components/DataStatusSummary';
+import WorkspaceSwitcher from './components/WorkspaceSwitcher';
 import {
   fetchFireWaterFacilities,
   fetchCityIndex,
@@ -23,7 +24,17 @@ import { prefetchCriticalViews } from './utils/prefetchCriticalViews';
 import { fetchDisasterMsgs } from './services/disasterMsgApi';
 import { useNotifications, formatTimeAgo } from './hooks/useNotifications';
 
-import { BOTTOM_TABS, INCIDENT_BOTTOM_TABS, NAV_ITEMS, cityNames, getTabLabel } from './app/navigation';
+import {
+  BOTTOM_TABS,
+  INCIDENT_BOTTOM_TABS,
+  WORKSPACE_META,
+  cityNames,
+  getDefaultWorkspaceForTab,
+  getTabLabel,
+  getWorkspaceNavItems,
+  getWorkspaceTabIds,
+  type WorkspaceMode,
+} from './app/navigation';
 import { TabRouteView, type RouteContext } from './app/routes';
 import { buildTabHash, readTabLocation } from './app/tabHash';
 import { readMainScrollTop, withMainScrollTop } from './app/historyScroll';
@@ -62,8 +73,13 @@ function TabLoading({ label }: { label: string }) {
 export default function App() {
   // #tab 해시 또는 ?tab= 파라미터로 시작 탭 지정 가능 (manifest 바로가기 '/?tab=wildfire' 등)
   const initialRoute = readTabLocation();
+  const [incidentSession] = useIncidentSession();
+  const initialWorkspace: WorkspaceMode = incidentSession.active
+    ? 'response'
+    : getDefaultWorkspaceForTab(initialRoute.tab) ?? 'routine';
   const [activeTab, setActiveTab] = useState<TabId>(initialRoute.tab);
   const [activeSubId, setActiveSubId] = useState<string | undefined>(initialRoute.subId);
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(initialWorkspace);
   const [city, setCity] = useState<string>(() => localStorage.getItem('119helper-city') || 'seoul');
   const [fireFacilities, setFireFacilities] = useState<FireFacility[]>([]);
   const [isLoadingFacilities, setIsLoadingFacilities] = useState(false);
@@ -77,12 +93,13 @@ export default function App() {
   const [buildingWorkspace, setBuildingWorkspace] = useState<BuildingWorkspaceState>(() => createBuildingWorkspaceState());
   const { gpsStatus, locationNotice, setGpsStatus, setLocationNotice } = useGeolocation(setCity);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState<string[]>(['group-monitoring']);
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([
+    initialWorkspace === 'response' ? 'group-command' : 'group-readiness',
+  ]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { displayName, subtitle } = useUserProfile();
   const [notiOpen, setNotiOpen] = useState(false);
   const { notifications, addNotification, markAllRead, clearAll } = useNotifications();
-  const [incidentSession] = useIncidentSession();
   const [fieldReadabilityMode, setFieldReadabilityMode] = useState(() => loadDisplaySettings().fieldReadabilityMode);
   const [navPreferences, setNavPreferences] = useState(loadNavigationPreferences);
   const networkStatus = useNetworkStatus();
@@ -104,6 +121,7 @@ export default function App() {
   const sidebarInteractive = isDesktopSidebar || sidebarOpen;
   const sidebarRef = useDialogAccessibility<HTMLElement>(sidebarOpen && !isDesktopSidebar, () => setSidebarOpen(false));
   const undoRouteRef = useRef(`${activeTab}:${activeSubId ?? ''}:${shelterCategory}`);
+  const previousIncidentActiveRef = useRef(incidentSession.active);
 
   useEffect(() => {
     const routeKey = `${activeTab}:${activeSubId ?? ''}:${shelterCategory}`;
@@ -112,6 +130,22 @@ export default function App() {
       undoRouteRef.current = routeKey;
     }
   }, [activeSubId, activeTab, finalizeFeedback, shelterCategory]);
+
+  useEffect(() => {
+    const wasActive = previousIncidentActiveRef.current;
+    previousIncidentActiveRef.current = incidentSession.active;
+    if (!wasActive && incidentSession.active) {
+      setWorkspaceMode('response');
+      setExpandedGroups(previous => (
+        previous.includes('group-command') ? previous : [...previous, 'group-command']
+      ));
+    } else if (wasActive && !incidentSession.active) {
+      setWorkspaceMode('routine');
+      setExpandedGroups(previous => (
+        previous.includes('group-readiness') ? previous : [...previous, 'group-readiness']
+      ));
+    }
+  }, [incidentSession.active]);
 
   // 오프라인 대비: 핵심 화면(계산기·매뉴얼·타이머 등) 청크 사전 로드
   useEffect(() => {
@@ -142,6 +176,8 @@ export default function App() {
       const next = readTabLocation();
       setActiveTab(next.tab);
       setActiveSubId(next.subId);
+      const nextWorkspace = getDefaultWorkspaceForTab(next.tab);
+      if (nextWorkspace) setWorkspaceMode(nextWorkspace);
       if (next.tab === 'shelter') {
         setShelterCategory(next.shelterCategory ?? 'building');
       }
@@ -508,11 +544,28 @@ export default function App() {
     } else {
       nextTab = 'dashboard';
     }
+    const nextWorkspace = getDefaultWorkspaceForTab(nextTab);
+    if (nextWorkspace) {
+      setWorkspaceMode(nextWorkspace);
+      const defaultGroup = nextWorkspace === 'response' ? 'group-command' : 'group-readiness';
+      setExpandedGroups(previous => (
+        previous.includes(defaultGroup) ? previous : [...previous, defaultGroup]
+      ));
+    }
     setActiveTab(nextTab);
     setActiveSubId(subId);
     setSidebarOpen(false);
     // 탭 이동 시 맨 위로 스크롤
     setTimeout(() => scrollToTop(false), 50);
+  };
+
+  const handleWorkspaceChange = (workspace: WorkspaceMode) => {
+    setWorkspaceMode(workspace);
+    const defaultGroup = workspace === 'response' ? 'group-command' : 'group-readiness';
+    setExpandedGroups(previous => (
+      previous.includes(defaultGroup) ? previous : [...previous, defaultGroup]
+    ));
+    handleNavigate(workspace === 'response' ? 'incident' : 'dashboard');
   };
 
   const handleScroll = () => {
@@ -595,7 +648,9 @@ export default function App() {
     onNavigate: handleNavigate,
     incidentSession,
   };
-  const bottomTabs = incidentSession.active ? INCIDENT_BOTTOM_TABS : BOTTOM_TABS;
+  const workspaceNavItems = getWorkspaceNavItems(workspaceMode);
+  const workspaceTabIds = getWorkspaceTabIds(workspaceMode);
+  const bottomTabs = workspaceMode === 'response' ? INCIDENT_BOTTOM_TABS : BOTTOM_TABS;
 
   return (
     <AppLockGate>
@@ -639,9 +694,9 @@ export default function App() {
                 </div>
                 <h1 className="text-xl font-extrabold tracking-tight text-on-surface font-headline">119 Helper</h1>
               </div>
-              <p className="text-xs text-on-surface-variant font-medium">소방관 도우미</p>
+              <p className="text-xs text-on-surface-variant font-medium">평시 업무와 출동 대응</p>
               <p className="mt-1 text-[10px] font-semibold text-on-surface-variant/70">
-                비공식 현장 참고 도구
+                비공식 업무 보조 도구
               </p>
             </div>
             <button
@@ -658,10 +713,13 @@ export default function App() {
           <SidebarQuickAccess
             preferences={navPreferences}
             activeTab={activeTab}
+            visibleTabs={workspaceTabIds}
             onNavigate={handleNavigate}
           />
-          <p className="px-2 pb-1 pt-2 text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">전체 메뉴</p>
-          {NAV_ITEMS.map(item => {
+          <p className="px-2 pb-1 pt-2 text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">
+            {WORKSPACE_META[workspaceMode].label} 메뉴
+          </p>
+          {workspaceNavItems.map(item => {
             const hasSub = !!item.subItems;
             const isExpanded = expandedGroups.includes(item.id);
             const isGroupActive = hasSub && item.subItems?.some(sub => sub.id === activeTab);
@@ -986,6 +1044,13 @@ export default function App() {
             </div>
           </div>
         </header>
+
+        <WorkspaceSwitcher
+          workspace={workspaceMode}
+          incidentActive={incidentSession.active}
+          incidentTitle={incidentSession.title}
+          onChange={handleWorkspaceChange}
+        />
 
         <IncidentStatusStrip
           session={incidentSession}

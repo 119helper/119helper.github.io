@@ -74,6 +74,7 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
         fireFacilities={ctx.fireFacilities}
         isLoadingFacilities={ctx.isLoadingFacilities}
         cityIndex={ctx.cityIndex}
+        incidentSession={ctx.incidentSession}
       />
     ),
   },

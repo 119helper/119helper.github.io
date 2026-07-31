@@ -17,7 +17,8 @@ interface GlobalSearchProps {
 }
 
 const MENU_ITEMS: { keyword: string[]; tab: NavigateTarget; subId?: string; label: string; subtitle: string; icon: string; color: string }[] = [
-  { keyword: ['대시보드', 'dashboard', '홈', '메인'], tab: 'dashboard', label: '대시보드', subtitle: '종합 현황 보기', icon: 'dashboard', color: 'text-primary' },
+  { keyword: ['대시보드', 'dashboard', '홈', '메인', '평시', '업무'], tab: 'dashboard', label: '평시 대시보드', subtitle: '근무 준비·지역 모니터링·빠른 도구', icon: 'dashboard', color: 'text-primary' },
+  { keyword: ['출동', '상황판', '현장 대응', '지휘', 'incident'], tab: 'incident', label: '출동 상황판', subtitle: '출동 시작·현장 브리핑·활동 기록', icon: 'assignment', color: 'text-red-500' },
   { keyword: ['날씨', '기상', '온도', '비', '눈', '바람', '습도', 'weather', '풍속', '예보'], tab: 'weather', label: '기상 정보', subtitle: '실시간 날씨·예보·특보', icon: 'cloud', color: 'text-blue-400' },
   { keyword: ['소화전', '수도', 'hydrant', '소방용수'], tab: 'hydrants', label: '소화전', subtitle: '소화전 위치·현황', icon: 'fire_hydrant', color: 'text-red-400' },
   { keyword: ['급수탑', '저수조', '비상소화', 'water', '수원', '탱크'], tab: 'waterTowers', label: '급수탑/저수조', subtitle: '급수탑·저수조·비상소화장치', icon: 'water_pump', color: 'text-cyan-400' },

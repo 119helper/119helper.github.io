@@ -16,6 +16,8 @@ import type { NavigateTarget } from '../types/navigation';
 import { classifyAviationSafety } from '../utils/aviationSafety';
 import { loadStoredJson } from '../services/privacySettings';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
+import type { IncidentSession } from '../services/incidentSession';
+import DashboardIncidentCard from './DashboardIncidentCard';
 
 import hydrantBg from '../assets/hydrant_bg.webp';
 import waterTowerBg from '../assets/water_tower_bg.webp';
@@ -31,6 +33,7 @@ interface DashboardProps {
   fireFacilities: FireFacility[];
   isLoadingFacilities: boolean;
   cityIndex?: CityIndex | null;
+  incidentSession: IncidentSession;
 }
 
 type LiveDataStatus = 'loading' | 'success' | 'error';
@@ -75,7 +78,8 @@ const ALL_QUICK_TOOLS: QuickToolDef[] = [
   { id: 'offline_readiness', tab: 'offline-readiness', icon: 'download_for_offline', label: '오프라인 점검', color: 'text-lime-400', category: '행정/기타' },
 ];
 
-const DEFAULT_TOOLS = ['incident', 'facility_hydrants', 'facility_towers', 'checklist', 'calc_water', 'aviation', 'law_defense'];
+const DEFAULT_TOOLS = ['facility_hydrants', 'facility_towers', 'checklist', 'field_timer', 'calc_water', 'aviation', 'law_defense'];
+const LEGACY_DEFAULT_TOOLS = ['incident', 'facility_hydrants', 'facility_towers', 'checklist', 'calc_water', 'aviation', 'law_defense'];
 
 const WeatherParticles = React.memo(({ type }: { type: string }) => {
   const particleStyles = React.useMemo(() => {
@@ -129,7 +133,14 @@ const WeatherParticles = React.memo(({ type }: { type: string }) => {
   );
 });
 
-export default function DashboardView({ onNavigate, city, fireFacilities, isLoadingFacilities, cityIndex }: DashboardProps) {
+export default function DashboardView({
+  onNavigate,
+  city,
+  fireFacilities,
+  isLoadingFacilities,
+  cityIndex,
+  incidentSession,
+}: DashboardProps) {
   const cityLabel = cityNames[city] || '서울';
   
   const [airQuality, setAirQuality] = useState<AirQualityData | null>(null);
@@ -157,11 +168,18 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
       const saved = localStorage.getItem('119helper-custom-tools');
       if (saved) {
         let parsed = JSON.parse(saved) as string[];
+        // 예전 기본값만 새 구성으로 옮기고 사용자가 직접 고른 출동 타일은 보존한다.
+        if (
+          parsed.length === LEGACY_DEFAULT_TOOLS.length
+          && parsed.every((tool, index) => tool === LEGACY_DEFAULT_TOOLS[index])
+        ) {
+          parsed = [...DEFAULT_TOOLS];
+        }
         // 자동 마이그레이션: 'building'(건축물대장) 대신 'law_defense'(법률방어망)를 기본으로 노출
         if (parsed.includes('building') && !parsed.includes('law_defense')) {
           parsed = parsed.map(t => t === 'building' ? 'law_defense' : t);
-          localStorage.setItem('119helper-custom-tools', JSON.stringify(parsed));
         }
+        localStorage.setItem('119helper-custom-tools', JSON.stringify(parsed));
         return parsed;
       }
     } catch { /* parse error fallback */ }
@@ -321,6 +339,12 @@ export default function DashboardView({ onNavigate, city, fireFacilities, isLoad
 
       {/* 산불 실시간 지역 티커 */}
       <WildfireTicker cityName={cityLabel} onClick={() => onNavigate('wildfire')} />
+
+      <DashboardIncidentCard
+        session={incidentSession}
+        routineCityLabel={cityLabel}
+        onOpen={() => onNavigate('incident')}
+      />
 
       {/* Large Weather + ER Row */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">

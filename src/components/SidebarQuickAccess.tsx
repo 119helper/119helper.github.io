@@ -5,14 +5,18 @@ import type { TabId } from '../types/navigation';
 interface SidebarQuickAccessProps {
   preferences: NavigationPreferences;
   activeTab: TabId;
+  visibleTabs: readonly TabId[];
   onNavigate: (tab: TabId) => void;
 }
 
 export default function SidebarQuickAccess({
   preferences,
   activeTab,
+  visibleTabs,
   onNavigate,
 }: SidebarQuickAccessProps) {
+  const visibleFavorites = preferences.favorites.filter(tab => visibleTabs.includes(tab));
+
   return (
     <section aria-labelledby="sidebar-favorites-title" className="mb-3 rounded-2xl border border-outline-variant/20 bg-surface-container/55 p-3">
       <div className="flex items-center gap-2">
@@ -29,9 +33,9 @@ export default function SidebarQuickAccess({
         </div>
       </div>
 
-      {preferences.favorites.length > 0 ? (
+      {visibleFavorites.length > 0 ? (
         <div className="mt-2 space-y-1">
-          {preferences.favorites.map(tab => {
+          {visibleFavorites.map(tab => {
             const selected = activeTab === tab;
             return (
               <button
@@ -58,7 +62,7 @@ export default function SidebarQuickAccess({
         </div>
       ) : (
         <div className="mt-2 rounded-xl bg-surface-container-lowest px-3 py-2.5 text-[11px] leading-4 text-on-surface-variant">
-          전체 메뉴의 별표를 눌러 기능을 추가하세요.
+          이 업무 공간 메뉴의 별표를 눌러 기능을 추가하세요.
         </div>
       )}
     </section>
