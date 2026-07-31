@@ -76,6 +76,24 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
   const updateWorkspace = useCallback((patch: Partial<BuildingWorkspaceState>) => {
     onWorkspaceChange(patch);
   }, [onWorkspaceChange]);
+  const applyIncidentAddress = useCallback(() => {
+    requestSeqRef.current += 1;
+    shouldFocusResultRef.current = false;
+    setIsLoading(false);
+    setFireLoading(false);
+    updateWorkspace({
+      address: normalizedInitialAddress,
+      errorMsg: '',
+      warningMsg: '',
+      bldgInfo: null,
+      hasSearched: false,
+      fireAccom: [],
+      fireSys: [],
+      fireSido: '',
+      fireStatus: 'idle',
+      fireError: '',
+    });
+  }, [normalizedInitialAddress, updateWorkspace]);
 
   useEffect(() => {
     return () => {
@@ -91,10 +109,10 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
     if (appliedInitialAddressRef.current === normalizedInitialAddress) return;
 
     appliedInitialAddressRef.current = normalizedInitialAddress;
-    if (!address.trim()) {
-      updateWorkspace({ address: normalizedInitialAddress });
+    if (address.trim() !== normalizedInitialAddress) {
+      applyIncidentAddress();
     }
-  }, [address, normalizedInitialAddress, updateWorkspace]);
+  }, [address, applyIncidentAddress, normalizedInitialAddress]);
 
   useEffect(() => {
     if (isLoading || !bldgInfo || !shouldFocusResultRef.current) return;
@@ -398,10 +416,10 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
           <button
             type="button"
             disabled={address.trim() === normalizedInitialAddress}
-            onClick={() => updateWorkspace({ address: normalizedInitialAddress })}
+            onClick={applyIncidentAddress}
             className="shrink-0 rounded-lg bg-surface-container-lowest px-3 py-2 text-xs font-extrabold text-on-surface hover:bg-surface-container-high disabled:text-primary"
           >
-            {address.trim() === normalizedInitialAddress ? '적용됨' : '주소 적용'}
+            {address.trim() === normalizedInitialAddress ? '자동 적용됨' : '출동 주소로 복원'}
           </button>
         </div>
       )}

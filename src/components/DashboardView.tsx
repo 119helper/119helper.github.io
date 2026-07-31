@@ -10,7 +10,6 @@ import WeatherAlertBanner from './WeatherAlertBanner';
 import StickyNotes from './StickyNotes';
 import { WildfireTicker } from './WildfireTicker';
 import { WindCompass } from './WindCompass';
-import MiniTimerWidget from './MiniTimerWidget';
 import { EQUIPMENT_CHECKLIST_TOTAL } from '../data/equipmentChecklist';
 import type { NavigateTarget } from '../types/navigation';
 import { classifyAviationSafety } from '../utils/aviationSafety';
@@ -49,6 +48,42 @@ interface QuickToolDef {
   bgImage?: string;
 }
 
+interface RoutineShortcutDef {
+  id: string;
+  tab: NavigateTarget;
+  icon: string;
+  label: string;
+  description: string;
+  iconClass: string;
+}
+
+const ROUTINE_SHORTCUTS: RoutineShortcutDef[] = [
+  {
+    id: 'calendar',
+    tab: 'calendar',
+    icon: 'calendar_month',
+    label: '일정관리',
+    description: '근무 일정·할 일',
+    iconClass: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+  },
+  {
+    id: 'checklist',
+    tab: 'checklist',
+    icon: 'fact_check',
+    label: '장비점검',
+    description: '개인안전장비 확인',
+    iconClass: 'bg-orange-500/10 text-orange-700 dark:text-orange-300',
+  },
+  {
+    id: 'preplan',
+    tab: 'preplan',
+    icon: 'domain',
+    label: '대상물 정보',
+    description: '사전 정보 관리',
+    iconClass: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
+  },
+];
+
 const ALL_QUICK_TOOLS: QuickToolDef[] = [
   // 소방시설 (기존 위젯을 빠른 도구로 편입)
   { id: 'facility_hydrants', tab: 'hydrants', icon: 'fire_hydrant', label: '소화전', color: 'text-blue-400', category: '소방시설', bgImage: hydrantBg },
@@ -63,7 +98,9 @@ const ALL_QUICK_TOOLS: QuickToolDef[] = [
   { id: 'incident', tab: 'incident', icon: 'assignment', label: '출동 상황판', color: 'text-red-400', category: '현장 도구', bgImage: '/images/tools/quick_incident.webp' },
   { id: 'aviation', tab: 'aviation', icon: 'flight_takeoff', label: '항공/드론', color: 'text-cyan-400', category: '현장 도구', bgImage: '/images/tools/quick_aviation.webp' },
   { id: 'law_defense', tab: 'law', subId: 'DEFENSE', icon: 'gavel', label: '법률 방어망', color: 'text-rose-500', category: '법률 보호', bgImage: '/images/tools/quick_law_defense.webp' },
-  { id: 'checklist', tab: 'checklist', icon: 'check_circle', label: '장비점검', color: 'text-orange-400', category: '현장 도구', bgImage: '/images/tools/quick_checklist.webp' },
+  { id: 'checklist', tab: 'checklist', icon: 'check_circle', label: '장비점검', color: 'text-orange-400', category: '평시 업무', bgImage: '/images/tools/quick_checklist.webp' },
+  { id: 'preplan', tab: 'preplan', icon: 'domain', label: '대상물 정보', color: 'text-violet-400', category: '평시 업무' },
+  { id: 'calendar', tab: 'calendar', icon: 'calendar_month', label: '일정관리', color: 'text-red-400', category: '평시 업무' },
   { id: 'field_timer', tab: 'field-timer', icon: 'timer', label: '현장 타이머', color: 'text-red-500', category: '현장 도구', bgImage: '/images/tools/quick_timer.webp' },
   { id: 'building', tab: 'shelter', subId: 'building', icon: 'apartment', label: '건축물대장', color: 'text-purple-400', category: '조회', bgImage: '/images/tools/bg_building.webp' },
   { id: 'shelter', tab: 'shelter', icon: 'location_city', label: '시설 조회', color: 'text-yellow-400', category: '조회', bgImage: '/images/tools/bg_shelter.webp' },
@@ -73,13 +110,22 @@ const ALL_QUICK_TOOLS: QuickToolDef[] = [
   { id: 'news', tab: 'news', icon: 'newspaper', label: '소방 뉴스', color: 'text-teal-500', category: '행정/기타' },
   { id: 'wildfire', tab: 'wildfire', icon: 'local_fire_department', label: '산불 현황', color: 'text-red-500', category: '행정/기타', bgImage: '/images/tools/bg_wildfire.webp' },
   { id: 'manual', tab: 'manual', icon: 'menu_book', label: '대응 매뉴얼', color: 'text-blue-500', category: '행정/기타' },
-  { id: 'calendar', tab: 'calendar', icon: 'calendar_month', label: '달력/일정', color: 'text-red-400', category: '행정/기타' },
   { id: 'policy', tab: 'policy', icon: 'gavel', label: '법안/지침', color: 'text-green-500', category: '행정/기타' },
   { id: 'offline_readiness', tab: 'offline-readiness', icon: 'download_for_offline', label: '오프라인 점검', color: 'text-lime-400', category: '행정/기타' },
 ];
 
-const DEFAULT_TOOLS = ['facility_hydrants', 'facility_towers', 'checklist', 'field_timer', 'calc_water', 'aviation', 'law_defense'];
-const LEGACY_DEFAULT_TOOLS = ['incident', 'facility_hydrants', 'facility_towers', 'checklist', 'calc_water', 'aviation', 'law_defense'];
+const DEFAULT_TOOLS = ['calendar', 'checklist', 'preplan', 'manual', 'facility_hydrants', 'facility_towers', 'law_defense'];
+const LEGACY_DEFAULT_TOOL_SETS = [
+  ['incident', 'facility_hydrants', 'facility_towers', 'checklist', 'calc_water', 'aviation', 'law_defense'],
+  ['facility_hydrants', 'facility_towers', 'checklist', 'field_timer', 'calc_water', 'aviation', 'law_defense'],
+] as const;
+
+function isLegacyDefaultTools(tools: string[]): boolean {
+  return LEGACY_DEFAULT_TOOL_SETS.some(legacy => (
+    tools.length === legacy.length
+    && tools.every((tool, index) => tool === legacy[index])
+  ));
+}
 
 const WeatherParticles = React.memo(({ type }: { type: string }) => {
   const particleStyles = React.useMemo(() => {
@@ -168,11 +214,8 @@ export default function DashboardView({
       const saved = localStorage.getItem('119helper-custom-tools');
       if (saved) {
         let parsed = JSON.parse(saved) as string[];
-        // 예전 기본값만 새 구성으로 옮기고 사용자가 직접 고른 출동 타일은 보존한다.
-        if (
-          parsed.length === LEGACY_DEFAULT_TOOLS.length
-          && parsed.every((tool, index) => tool === LEGACY_DEFAULT_TOOLS[index])
-        ) {
+        // 알려진 예전 기본값만 평시 중심 구성으로 옮기고 사용자 커스텀 순서는 보존한다.
+        if (isLegacyDefaultTools(parsed)) {
           parsed = [...DEFAULT_TOOLS];
         }
         // 자동 마이그레이션: 'building'(건축물대장) 대신 'law_defense'(법률방어망)를 기본으로 노출
@@ -340,9 +383,58 @@ export default function DashboardView({
       {/* 산불 실시간 지역 티커 */}
       <WildfireTicker cityName={cityLabel} onClick={() => onNavigate('wildfire')} />
 
+      <section
+        aria-labelledby="dashboard-routine-shortcuts-title"
+        className="rounded-xl border border-outline-variant/15 bg-surface-container-lowest p-3 shadow-sm md:p-4"
+      >
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="material-symbols-outlined text-xl text-primary"
+            style={{ fontVariationSettings: "'FILL' 1" }}
+          >
+            work_history
+          </span>
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-primary">평시 업무</p>
+            <h2 id="dashboard-routine-shortcuts-title" className="text-base font-extrabold text-on-surface">
+              근무 준비 바로가기
+            </h2>
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {ROUTINE_SHORTCUTS.map(shortcut => (
+            <button
+              key={shortcut.id}
+              type="button"
+              aria-label={`${shortcut.label} 열기`}
+              onClick={() => onNavigate(shortcut.tab)}
+              className="flex min-h-16 min-w-0 items-center gap-2 rounded-xl border border-outline-variant/15 bg-surface-container px-2.5 py-2 text-left transition-colors hover:bg-surface-container-high focus:outline-none focus:ring-2 focus:ring-primary/30 sm:px-3"
+            >
+              <span
+                aria-hidden="true"
+                className={`material-symbols-outlined flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg ${shortcut.iconClass}`}
+              >
+                {shortcut.icon}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-extrabold text-on-surface sm:text-sm">
+                  {shortcut.label}
+                </span>
+                <span className="mt-0.5 hidden truncate text-[11px] text-on-surface-variant sm:block">
+                  {shortcut.id === 'checklist'
+                    ? `점검 진행 ${checklistProgress}%`
+                    : shortcut.description}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
       <DashboardIncidentCard
         session={incidentSession}
-        routineCityLabel={cityLabel}
         onOpen={() => onNavigate('incident')}
       />
 
@@ -464,10 +556,6 @@ export default function DashboardView({
 
         {/* ER + Info Column */}
         <div className="lg:col-span-5 flex flex-col gap-4 md:gap-6 mt-4 lg:mt-0">
-          
-          {/* 현장 타이머 미니 위젯 */}
-          <MiniTimerWidget onNavigate={onNavigate} />
-
           {/* 개인안전장비 점검 미니 위젯 */}
           <div 
             role="button"
@@ -601,7 +689,10 @@ export default function DashboardView({
       </div>
 
       {/* Quick Tools */}
-      <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden shadow-sm transition-all">
+      <section
+        aria-labelledby="dashboard-quick-tools-title"
+        className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden shadow-sm transition-all"
+      >
         <div className="flex items-center justify-between border-b border-outline-variant/10 p-3 md:p-4">
           <button 
             type="button"
@@ -610,7 +701,7 @@ export default function DashboardView({
             className="ui-section-toggle"
           >
             <span className="material-symbols-outlined text-primary text-xl">build_circle</span>
-            <h3 className="text-lg font-extrabold text-on-surface font-headline">빠른 도구</h3>
+            <h3 id="dashboard-quick-tools-title" className="text-lg font-extrabold text-on-surface font-headline">빠른 도구</h3>
             <span className={`material-symbols-outlined text-on-surface-variant transition-transform duration-300 ${showQuickTools ? 'rotate-180' : ''}`}>
               expand_more
             </span>
@@ -634,6 +725,7 @@ export default function DashboardView({
               return (
                 <button
                   key={tool.id}
+                  type="button"
                   onClick={() => onNavigate(tool.tab, tool.subId)}
                   className="relative flex flex-col items-center justify-center gap-2 p-4 md:p-6 rounded-2xl overflow-hidden transition-all group shadow-sm hover:shadow-xl border border-outline-variant/10 min-h-[100px] md:min-h-[120px] bg-surface-container"
                 >
@@ -648,7 +740,7 @@ export default function DashboardView({
                   <div className={`absolute inset-0 transition-colors duration-500 ${tool.bgImage ? 'bg-black/50 group-hover:bg-black/30' : 'bg-transparent group-hover:bg-surface-container-highest'}`} />
                   
                   <div className="relative z-10 flex flex-col items-center gap-1.5">
-                    <span className={`material-symbols-outlined text-3xl md:text-4xl ${tool.color} group-hover:-translate-y-1 transition-transform drop-shadow-md`}>{tool.icon}</span>
+                    <span aria-hidden="true" className={`material-symbols-outlined text-3xl md:text-4xl ${tool.color} group-hover:-translate-y-1 transition-transform drop-shadow-md`}>{tool.icon}</span>
                     <span className={`text-xs md:text-sm font-extrabold whitespace-nowrap drop-shadow-md ${tool.bgImage ? 'text-white' : 'text-on-surface'}`}>{tool.label}</span>
                   </div>
 

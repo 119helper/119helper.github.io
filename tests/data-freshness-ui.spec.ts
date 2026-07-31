@@ -229,9 +229,13 @@ test('광주 소방용수: 2026 광산구 관할 오버레이의 좌표와 중�
   await page.addInitScript(() => localStorage.setItem('119helper-city', 'gwangju'));
   await page.goto('/#shelter?category=hydrants');
 
-  await expect(page.getByText(
+  const overlayNotice = page.getByText(
     '광산구 최신 원본 1,560곳(2026-05-07) 적용 · 지도 1,559곳(이 중 46곳은 정확 주소가 같은 이전 좌표 유지) · 좌표 미확인 1곳',
-  )).toBeVisible();
+  );
+  await expect(overlayNotice).toBeHidden();
+  await page.locator('summary').filter({ hasText: '자료 범위·검증 상세' }).click();
+
+  await expect(overlayNotice).toBeVisible();
   await expect(page.getByText('공급기관 시설번호 중복 18개(40행)는 임의 삭제하지 않음')).toBeVisible();
   await expect(page.getByText('공급기관 주소의 시군구 누락 84행은 별도 시군구 필드로 보정')).toBeVisible();
 });

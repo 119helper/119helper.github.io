@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTimer, type TimerState } from '../contexts/TimerContext';
 import { useAppFeedback } from '../contexts/FeedbackContext';
+import { useIncidentSession } from '../hooks/useIncidentSession';
 
 // ─── 타이머 프리셋 ───
 const PRESETS = [
@@ -13,6 +14,7 @@ const PRESETS = [
 
 export default function FieldTimer() {
   const { showNotice } = useAppFeedback();
+  const [incidentSession] = useIncidentSession();
   const { 
     timers, otherScopeTimerCount,
     stopwatchRunning, stopwatchStart, stopwatchElapsed, stopwatchScopeBlocked, laps,
@@ -27,6 +29,10 @@ export default function FieldTimer() {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>(() =>
     'Notification' in window ? Notification.permission : 'unsupported'
   );
+  const hasActiveIncident = incidentSession.active && Boolean(incidentSession.incidentId);
+
+  const activityLapLabel = (label: string, elapsed: number) =>
+    label === '출동' && elapsed === 0 ? '활동 시작' : label;
 
   const requestTimerNotifications = async () => {
     if (!('Notification' in window)) return;
@@ -60,7 +66,7 @@ export default function FieldTimer() {
     if (laps.length > 0) {
       text += `📍 스톱워치 기록:\n`;
       laps.forEach((lap, i) => {
-        text += `  ${i + 1}. ${lap.label}: ${lap.time.toLocaleTimeString('ko-KR')} (${formatTimeMs(lap.elapsed)})\n`;
+        text += `  ${i + 1}. ${activityLapLabel(lap.label, lap.elapsed)}: ${lap.time.toLocaleTimeString('ko-KR')} (${formatTimeMs(lap.elapsed)})\n`;
       });
       text += `  총 경과: ${formatTimeMs(stopwatchElapsed)}\n\n`;
     }
@@ -107,7 +113,7 @@ export default function FieldTimer() {
                 현장 활동 타이머
               </h2>
               <p className="ui-page-description">
-                공기호흡기 · 교대 · 출동 시간 관리
+                공기호흡기 · 교대 · 활동 구간 관리
               </p>
             </div>
           </div>
@@ -216,8 +222,13 @@ export default function FieldTimer() {
           >
             {/* 진행 바 */}
             <div className="h-1.5 bg-surface-container/30">
-              <div
-                className={`h-full transition-all duration-1000 ${
+                <div
+                  role="progressbar"
+                  aria-label={`${t.label} 타이머 진행률`}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(progress)}
+                  className={`h-full transition-all duration-1000 ${
                   t.remaining <= 0 ? 'bg-red-500' :
                   t.remaining / t.totalSeconds <= DANGER_THRESHOLD ? 'bg-red-500 animate-pulse' :
                   t.remaining / t.totalSeconds <= WARN_THRESHOLD ? 'bg-yellow-500' : 'bg-green-500'
@@ -235,8 +246,13 @@ export default function FieldTimer() {
                     {color.label}
                   </span>
                 </div>
-                <button type="button" onClick={() => { removeTimer(t.id); if(timers.length <= 1) setShowPresets(true); }} className="text-on-surface-variant hover:text-red-400 transition-colors">
-                  <span className="material-symbols-outlined text-lg">close</span>
+                <button
+                  type="button"
+                  aria-label={`${t.label} 타이머 삭제`}
+                  onClick={() => { removeTimer(t.id); if(timers.length <= 1) setShowPresets(true); }}
+                  className="text-on-surface-variant hover:text-red-400 transition-colors"
+                >
+                  <span aria-hidden="true" className="material-symbols-outlined text-lg">close</span>
                 </button>
               </div>
 
@@ -271,10 +287,11 @@ export default function FieldTimer() {
                 </button>
                 <button
                   type="button"
+                  aria-label={`${t.label} 타이머 초기화`}
                   onClick={() => resetTimer(t.id)}
                   className="px-4 py-3 rounded-xl text-sm font-bold bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors flex items-center gap-1.5"
                 >
-                  <span className="material-symbols-outlined text-lg">restart_alt</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-lg">restart_alt</span>
                   리셋
                 </button>
               </div>
@@ -283,22 +300,37 @@ export default function FieldTimer() {
         );
       })}
 
-      {/* 스톱워치 (출동 시간 기록) */}
+      {/* 사건 경과 시간과 분리된 활동 스톱워치 */}
       <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden">
         <div className="p-5 border-b border-outline-variant/10 bg-surface-container/30">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-blue-700 dark:text-blue-300 text-2xl">timer</span>
             <div>
-              <h3 className="text-lg font-bold text-on-surface">출동 시간 기록</h3>
-              <p className="text-xs text-on-surface-variant">출동 → 도착 → 진압 완료 시간 자동 기록</p>
+              <h3 className="text-lg font-bold text-on-surface">별도 활동 스톱워치</h3>
+              <p className="text-xs text-on-surface-variant">훈련이나 현장 작업 구간을 필요할 때 독립적으로 기록합니다.</p>
             </div>
           </div>
         </div>
 
         <div className="p-5">
+          {hasActiveIncident && (
+            <div
+              role="status"
+              className="mb-5 rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-sm leading-relaxed text-blue-800 dark:text-blue-200"
+            >
+              <p className="font-bold">진행 중 사건의 경과 시간은 출동 상황판이 기준입니다.</p>
+              <p className="mt-1 text-xs">
+                이 스톱워치는 사건 전체 시간이 아닌 별도 활동 구간만 기록합니다.
+              </p>
+            </div>
+          )}
+
           {/* 경과 시간 */}
           <div className="text-center mb-5">
-            <p className={`text-5xl font-black font-mono tracking-tight tabular-nums ${stopwatchRunning ? 'text-blue-700 dark:text-blue-300' : 'text-on-surface'}`}>
+            <p
+              aria-label={`별도 활동 경과 시간 ${formatTimeMs(stopwatchElapsed)}`}
+              className={`text-5xl font-black font-mono tracking-tight tabular-nums ${stopwatchRunning ? 'text-blue-700 dark:text-blue-300' : 'text-on-surface'}`}
+            >
               {formatTimeMs(stopwatchElapsed)}
             </p>
             {stopwatchStart && (
@@ -322,7 +354,11 @@ export default function FieldTimer() {
                   : 'bg-primary text-on-primary shadow-primary/20'
               }`}
             >
-              <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
+              <span
+                aria-hidden="true"
+                className="material-symbols-outlined text-lg"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
                 {stopwatchRunning ? 'pause' : 'play_arrow'}
               </span>
               {stopwatchScopeBlocked
@@ -331,15 +367,16 @@ export default function FieldTimer() {
                   ? '일시정지'
                   : stopwatchStart
                     ? '재개'
-                    : '출동 시작'}
+                    : '활동 시작'}
             </button>
             {stopwatchStart && (
               <button
                 type="button"
+                aria-label="활동 스톱워치 초기화"
                 onClick={resetStopwatch}
                 className="px-4 py-3 rounded-xl text-sm font-bold bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors"
               >
-                <span className="material-symbols-outlined text-lg">restart_alt</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-lg">restart_alt</span>
               </button>
             )}
           </div>
@@ -369,7 +406,7 @@ export default function FieldTimer() {
                     <span className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center justify-center text-[10px] font-black">
                       {i + 1}
                     </span>
-                    <span className="font-bold text-on-surface">{lap.label}</span>
+                    <span className="font-bold text-on-surface">{activityLapLabel(lap.label, lap.elapsed)}</span>
                   </div>
                   <div className="text-right">
                     <span className="text-on-surface-variant text-xs">{lap.time.toLocaleTimeString('ko-KR')}</span>

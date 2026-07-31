@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import type { FireFacility } from '../data/mockData';
 import { loadKakaoMapSDK, retryKakaoLoad } from '../utils/kakaoLoader';
 import type { KakaoMapInstance, KakaoMarker, KakaoMarkerClusterer, KakaoMarkerImage, KakaoOverlay } from '../types/kakao';
+import { getFireFacilityKey } from '../utils/fireFacilityIdentity';
 
 // 도시별 중심 좌표
 const CITY_CENTERS: Record<string, { lat: number; lng: number }> = {
@@ -40,10 +41,10 @@ interface KakaoMapProps {
   data: FireFacility[];
   city: string;
   height?: string;
-  selectedId?: string | null;
+  selectedKey?: string | null;
 }
 
-export default function KakaoMap({ data, city, height = '300px', selectedId }: KakaoMapProps) {
+export default function KakaoMap({ data, city, height = '300px', selectedKey }: KakaoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<KakaoMapInstance | null>(null);
   const clustererRef = useRef<KakaoMarkerClusterer | null>(null);
@@ -169,6 +170,7 @@ export default function KakaoMap({ data, city, height = '300px', selectedId }: K
     data.forEach(item => {
       if (!isValidCoord(item.lat, item.lng)) return;
       validItems.push(item);
+      const itemKey = getFireFacilityKey(item);
 
       const position = new window.kakao.maps.LatLng(item.lat, item.lng);
       const color = STATUS_COLORS[item.status] || '#9ca3af';
@@ -246,8 +248,8 @@ export default function KakaoMap({ data, city, height = '300px', selectedId }: K
         map.panTo(position);
       });
 
-      markersRef.current.set(item.id, marker);
-      overlaysRef.current.set(item.id, overlay);
+      markersRef.current.set(itemKey, marker);
+      overlaysRef.current.set(itemKey, overlay);
       newMarkers.push(marker);
     });
 
@@ -277,12 +279,12 @@ export default function KakaoMap({ data, city, height = '300px', selectedId }: K
     };
   }, [data]);
 
-  // 외부에서 selectedId 변경 시 해당 마커 포커스
+  // 외부에서 selectedKey 변경 시 해당 마커 포커스
   useEffect(() => {
-    if (!selectedId || !mapRef.current) return;
+    if (!selectedKey || !mapRef.current) return;
 
-    const overlay = overlaysRef.current.get(selectedId);
-    const marker = markersRef.current.get(selectedId);
+    const overlay = overlaysRef.current.get(selectedKey);
+    const marker = markersRef.current.get(selectedKey);
     if (!overlay || !marker) return;
 
     // 다른 오버레이 닫기
@@ -290,7 +292,7 @@ export default function KakaoMap({ data, city, height = '300px', selectedId }: K
     // 해당 마커에 오버레이 표시 + 이동
     overlay.setMap(mapRef.current);
     mapRef.current.panTo(marker.getPosition());
-  }, [selectedId]);
+  }, [selectedKey]);
 
   // SDK 에러 시 UI
   if (sdkError) {

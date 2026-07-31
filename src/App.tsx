@@ -74,9 +74,8 @@ export default function App() {
   // #tab 해시 또는 ?tab= 파라미터로 시작 탭 지정 가능 (manifest 바로가기 '/?tab=wildfire' 등)
   const initialRoute = readTabLocation();
   const [incidentSession] = useIncidentSession();
-  const initialWorkspace: WorkspaceMode = incidentSession.active
-    ? 'response'
-    : getDefaultWorkspaceForTab(initialRoute.tab) ?? 'routine';
+  const initialWorkspace: WorkspaceMode = getDefaultWorkspaceForTab(initialRoute.tab)
+    ?? (incidentSession.active ? 'response' : 'routine');
   const [activeTab, setActiveTab] = useState<TabId>(initialRoute.tab);
   const [activeSubId, setActiveSubId] = useState<string | undefined>(initialRoute.subId);
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(initialWorkspace);
@@ -136,11 +135,25 @@ export default function App() {
     previousIncidentActiveRef.current = incidentSession.active;
     if (!wasActive && incidentSession.active) {
       setWorkspaceMode('response');
+      setActiveTab('incident');
+      setActiveSubId(undefined);
+      setSidebarOpen(false);
+      pendingHistoryScrollRef.current = null;
+      window.requestAnimationFrame(() => {
+        mainScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+      });
       setExpandedGroups(previous => (
         previous.includes('group-command') ? previous : [...previous, 'group-command']
       ));
     } else if (wasActive && !incidentSession.active) {
       setWorkspaceMode('routine');
+      setActiveTab('dashboard');
+      setActiveSubId(undefined);
+      setSidebarOpen(false);
+      pendingHistoryScrollRef.current = null;
+      window.requestAnimationFrame(() => {
+        mainScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+      });
       setExpandedGroups(previous => (
         previous.includes('group-readiness') ? previous : [...previous, 'group-readiness']
       ));

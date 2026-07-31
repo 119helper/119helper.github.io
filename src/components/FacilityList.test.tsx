@@ -107,4 +107,49 @@ describe('FacilityList', () => {
     expect(screen.getAllByText('2 / 2')).not.toHaveLength(0);
     expect(screen.getByRole('row', { name: /H-051/ })).toHaveAttribute('aria-selected', 'true');
   });
+
+  it('keeps rows with the same provider facility number independently selectable', () => {
+    const duplicateIdFacilities: FireFacility[] = [
+      {
+        ...facility,
+        id: '서부-화정-서부-2',
+        address: '광주광역시 서구 무진대로',
+        type: '소화전',
+        district: '서구',
+      },
+      {
+        ...facility,
+        id: '서부-화정-서부-2',
+        address: '광주광역시 서구 천변좌로 260-1',
+        type: '비상소화장치',
+        district: '서구',
+      },
+    ];
+
+    function Harness() {
+      const [viewState, setViewState] = useState({ selectedKey: null as string | null, page: 1, listScrollTop: 0 });
+      return (
+        <FacilityList
+          data={duplicateIdFacilities}
+          title="소화전 위치"
+          icon="🚒"
+          typeLabel="소방용수"
+          city="gwangju"
+          filterState={{ query: '', district: '전체' }}
+          onFilterStateChange={vi.fn()}
+          viewState={viewState}
+          onViewStateChange={patch => setViewState(previous => ({ ...previous, ...patch }))}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const hydrantRow = screen.getByRole('row', { name: /광주광역시 서구 무진대로/ });
+    const emergencyDeviceRow = screen.getByRole('row', { name: /광주광역시 서구 천변좌로 260-1/ });
+
+    fireEvent.click(hydrantRow);
+
+    expect(hydrantRow).toHaveAttribute('aria-selected', 'true');
+    expect(emergencyDeviceRow).toHaveAttribute('aria-selected', 'false');
+  });
 });

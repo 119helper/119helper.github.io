@@ -5,6 +5,7 @@ import type { FacilityFilterState, FacilityViewState } from '../types/navigation
 import KakaoMap from './KakaoMap';
 import DataStatePanel from './DataStatePanel';
 import { formatDistanceLabel, haversineDistanceKm } from '../services/incidentBriefing';
+import { getFireFacilityKey } from '../utils/fireFacilityIdentity';
 
 interface Props {
   data: FireFacility[];
@@ -34,7 +35,7 @@ export default function FacilityList({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const search = filterState.query;
   const filterDistrict = filterState.district;
-  const selectedId = viewState.selectedKey;
+  const selectedKey = viewState.selectedKey;
 
   // 분할 도시 여부 판단
   const isSplit = !!cityIndex && !!onDistrictChange;
@@ -45,11 +46,11 @@ export default function FacilityList({
     ? Object.keys(cityIndex.districts).sort()
     : Array.from(new Set(data.map(d => d.district))).sort();
 
-  const distanceById = useMemo(() => {
+  const distanceByKey = useMemo(() => {
     const distances = new Map<string, number>();
     if (!origin) return distances;
     for (const item of data) {
-      distances.set(item.id, haversineDistanceKm(origin, { lat: item.lat, lng: item.lng }));
+      distances.set(getFireFacilityKey(item), haversineDistanceKm(origin, { lat: item.lat, lng: item.lng }));
     }
     return distances;
   }, [data, origin]);
@@ -63,12 +64,12 @@ export default function FacilityList({
     });
     if (origin) {
       matches.sort((left, right) => (
-        (distanceById.get(left.id) ?? Number.POSITIVE_INFINITY)
-        - (distanceById.get(right.id) ?? Number.POSITIVE_INFINITY)
+        (distanceByKey.get(getFireFacilityKey(left)) ?? Number.POSITIVE_INFINITY)
+        - (distanceByKey.get(getFireFacilityKey(right)) ?? Number.POSITIVE_INFINITY)
       ));
     }
     return matches;
-  }, [data, distanceById, search, filterDistrict, isSplit, origin]);
+  }, [data, distanceByKey, search, filterDistrict, isSplit, origin]);
 
   // 페이지네이션
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -83,8 +84,8 @@ export default function FacilityList({
     const candidate = typeof nextPage === 'function' ? nextPage(page) : nextPage;
     onViewStateChange({ page: Math.min(Math.max(1, candidate), Math.max(1, totalPages)) });
   };
-  const toggleSelectedId = (id: string) => {
-    onViewStateChange({ selectedKey: selectedId === id ? null : id });
+  const toggleSelectedKey = (key: string) => {
+    onViewStateChange({ selectedKey: selectedKey === key ? null : key });
   };
 
   // 검색/필터 변경 시 페이지 리셋
@@ -201,7 +202,7 @@ export default function FacilityList({
         <>
           {/* KakaoMap — 분할 도시의 경우 미선택 시에도 지도 자체는 표시 */}
           <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden relative mt-4">
-            <KakaoMap data={paged} city={city} height="300px" selectedId={selectedId} />
+            <KakaoMap data={paged} city={city} height="300px" selectedKey={selectedKey} />
             {/* Status overlay - 데이터가 있을 때만 표시 */}
             {data.length > 0 && (
               <div className="absolute top-4 left-4 z-10 bg-surface-container-lowest/90 backdrop-blur-sm p-3 rounded-xl border border-outline-variant/20">
@@ -364,20 +365,22 @@ export default function FacilityList({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/10">
-                    {paged.map(item => (
+                    {paged.map(item => {
+                      const itemKey = getFireFacilityKey(item);
+                      return (
                       <tr
-                        key={item.id}
+                        key={itemKey}
                         tabIndex={0}
-                        aria-selected={selectedId === item.id}
-                        onClick={() => toggleSelectedId(item.id)}
+                        aria-selected={selectedKey === itemKey}
+                        onClick={() => toggleSelectedKey(itemKey)}
                         onKeyDown={event => {
                           if (event.key === 'Enter' || event.key === ' ') {
                             event.preventDefault();
-                            toggleSelectedId(item.id);
+                            toggleSelectedKey(itemKey);
                           }
                         }}
                         className={`cursor-pointer transition-colors ${
-                          selectedId === item.id
+                          selectedKey === itemKey
                             ? 'bg-primary/10 ring-1 ring-inset ring-primary/30'
                             : 'hover:bg-surface-container/30'
                         }`}
@@ -395,7 +398,7 @@ export default function FacilityList({
                         <td className="px-6 py-4 text-right text-xs text-on-surface-variant font-mono">
                           {origin && (
                             <span className="mb-0.5 block font-extrabold text-primary">
-                              {formatDistanceLabel(distanceById.get(item.id))}
+                              {formatDistanceLabel(distanceByKey.get(itemKey))}
                             </span>
                           )}
                           {item.lat.toFixed(4)}, {item.lng.toFixed(4)}
@@ -414,24 +417,27 @@ export default function FacilityList({
                           </a>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
   
               {/* Mobile card list */}
               <div className="md:hidden divide-y divide-outline-variant/10">
-                {paged.map(item => (
+                {paged.map(item => {
+                  const itemKey = getFireFacilityKey(item);
+                  return (
                   <div
-                    key={item.id}
+                    key={itemKey}
                     className={`relative transition-colors ${
-                      selectedId === item.id ? 'bg-primary/10' : 'hover:bg-surface-container/30'
+                      selectedKey === itemKey ? 'bg-primary/10' : 'hover:bg-surface-container/30'
                     }`}
                   >
                     <button
                       type="button"
-                      onClick={() => toggleSelectedId(item.id)}
-                      aria-expanded={selectedId === item.id}
+                      onClick={() => toggleSelectedKey(itemKey)}
+                      aria-expanded={selectedKey === itemKey}
                       className="w-full p-4 pr-24 text-left"
                     >
                       <span className="mb-1 flex items-center justify-between">
@@ -444,7 +450,7 @@ export default function FacilityList({
                       <span className="block text-sm text-on-surface">{item.address}</span>
                       <p className="text-xs text-on-surface-variant">
                         {item.type} · {item.district}
-                        {origin ? ` · ${formatDistanceLabel(distanceById.get(item.id))}` : ''}
+                        {origin ? ` · ${formatDistanceLabel(distanceByKey.get(itemKey))}` : ''}
                       </p>
                     </button>
                     <a
@@ -458,7 +464,8 @@ export default function FacilityList({
                       길찾기
                     </a>
                   </div>
-                ))}
+                  );
+                })}
               </div>
                 </>
               )}

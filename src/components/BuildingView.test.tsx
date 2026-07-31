@@ -97,6 +97,32 @@ function Harness() {
   );
 }
 
+function IncidentAddressHarness() {
+  const [workspace, setWorkspace] = useState<BuildingWorkspaceState>(() => ({
+    ...createBuildingWorkspaceState('서울특별시 종로구 이전로 1'),
+    errorMsg: '이전 조회 오류',
+    warningMsg: '이전 조회 경고',
+    bldgInfo: {
+      bldNm: '이전 조회 건물',
+      searchedAddress: '서울특별시 종로구 이전로 1',
+    },
+    hasSearched: true,
+    fireAccom: [{ bldNm: '이전 소방대상물' }],
+    fireSys: [{ bldNm: '이전 소방시설' }],
+    fireSido: '서울특별시',
+    fireStatus: 'success',
+    fireError: '이전 참고정보 오류',
+  }));
+
+  return (
+    <BuildingView
+      initialAddress="광주광역시 서구 내방로 111"
+      workspace={workspace}
+      onWorkspaceChange={patch => setWorkspace(previous => ({ ...previous, ...patch }))}
+    />
+  );
+}
+
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
@@ -120,6 +146,18 @@ afterEach(() => {
 });
 
 describe('BuildingView', () => {
+  it('automatically applies a new incident address and clears stale lookup results', async () => {
+    render(<IncidentAddressHarness />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: '건축물 주소' })).toHaveValue('광주광역시 서구 내방로 111');
+    });
+    expect(screen.getByRole('button', { name: '자동 적용됨' })).toBeDisabled();
+    expect(screen.queryByText('이전 조회 건물')).not.toBeInTheDocument();
+    expect(screen.queryByText('이전 조회 오류')).not.toBeInTheDocument();
+    expect(screen.queryByText('이전 소방대상물')).not.toBeInTheDocument();
+  });
+
   it('restores the entered address and lookup error after the view is remounted', () => {
     render(<Harness />);
 

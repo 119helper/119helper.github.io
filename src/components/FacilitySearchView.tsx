@@ -913,7 +913,7 @@ export default function FacilitySearchView({
                     <span>생성 {formatDatasetDate(freshness.generatedAt)}</span>
                     {freshnessExpired && <span className="font-bold text-amber-400">갱신 주기 초과</span>}
                   </div>
-                  <DatasetCompletenessNotice meta={freshness} />
+                  <DatasetCompletenessNotice meta={freshness} collapsible />
                 </div>
               )}
             </div>

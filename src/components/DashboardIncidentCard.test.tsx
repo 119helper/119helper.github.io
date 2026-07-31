@@ -7,54 +7,65 @@ import { EMPTY_INCIDENT_SESSION, type IncidentSession } from '../services/incide
 import DashboardIncidentCard from './DashboardIncidentCard';
 
 describe('DashboardIncidentCard', () => {
-  it('opens the response workspace without replacing the routine dashboard', () => {
+  it('renders an idle response entry as a compact supporting row', () => {
     const onOpen = vi.fn();
-    render(
+    const view = render(
       <DashboardIncidentCard
         session={EMPTY_INCIDENT_SESSION}
-        routineCityLabel="서울"
         onOpen={onOpen}
       />,
     );
 
+    expect(screen.getByRole('region', { name: '출동 대응 바로가기' })).toBeVisible();
     expect(screen.getByRole('heading', {
-      name: '현장 대응이 필요할 때 한 번에 전환',
+      name: '출동이 생기면 전용 상황판으로 전환',
     })).toBeVisible();
+    expect(view.container.querySelector('img')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '출동 대응 열기' }));
     expect(onOpen).toHaveBeenCalledOnce();
   });
 
-  it('summarizes an active incident and its committed actions', () => {
+  it('shows a recent closed incident without turning it into a dashboard hero', () => {
     const session: IncidentSession = {
       ...EMPTY_INCIDENT_SESSION,
       incidentId: 'incident-1',
-      active: true,
+      active: false,
       title: '○○동 상가 화재',
       address: '광주광역시 북구 테스트로 119',
-      startedAt: Date.now() - 60_000,
-      selections: {
-        fireWater: {
-          id: 'water-1',
-          selectedAt: Date.now() - 30_000,
-          type: '소화전',
-          address: '광주광역시 북구 테스트로 120',
-          status: '정상',
-          sourceDate: '2026-07-01',
-        },
-      },
+      startedAt: 10_000,
+      endedAt: 70_000,
     };
+    const onOpen = vi.fn();
 
     render(
       <DashboardIncidentCard
         session={session}
-        routineCityLabel="광주"
+        onOpen={onOpen}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: '최근 종료 · ○○동 상가 화재' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: '최근 출동 확인' }));
+    expect(onOpen).toHaveBeenCalledOnce();
+  });
+
+  it('does not duplicate the global status strip for an active incident', () => {
+    const session: IncidentSession = {
+      ...EMPTY_INCIDENT_SESSION,
+      incidentId: 'incident-active',
+      active: true,
+      title: '진행 중인 화재',
+      startedAt: Date.now() - 60_000,
+    };
+
+    const view = render(
+      <DashboardIncidentCard
+        session={session}
         onOpen={() => undefined}
       />,
     );
 
-    expect(screen.getByRole('heading', { name: '○○동 상가 화재' })).toBeVisible();
-    expect(screen.getByText('선택한 조치 1건')).toBeVisible();
-    expect(screen.getByText('아래 정보는 광주 관심 지역 기준')).toBeVisible();
-    expect(screen.getByRole('button', { name: '상황판 계속하기' })).toBeVisible();
+    expect(view.container).toBeEmptyDOMElement();
+    expect(screen.queryByRole('button', { name: /상황판/ })).not.toBeInTheDocument();
   });
 });
