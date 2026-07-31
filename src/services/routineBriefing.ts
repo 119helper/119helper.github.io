@@ -1,13 +1,13 @@
 import { CHECKLIST_SECTIONS } from '../data/equipmentChecklist';
 import { loadStoredJson } from './privacySettings';
 import { loadEquipmentChecklistForDate, localDateKey } from './equipmentChecklistState';
+import {
+  isCompletedSchedule,
+  isTrackedSchedule,
+  loadSchedules,
+} from './scheduleStore';
 
 const MAX_VISIBLE_LABEL_LENGTH = 80;
-
-interface StoredSchedule {
-  date: string;
-  title: string;
-}
 
 interface StoredPrePlan {
   name: string;
@@ -17,6 +17,10 @@ interface StoredPrePlan {
 export interface RoutineBriefingSnapshot {
   todayScheduleCount: number;
   todayScheduleTitle: string | null;
+  todayScheduleTrackedCount: number;
+  todayScheduleCompletedCount: number;
+  todaySchedulePendingCount: number;
+  overdueScheduleCount: number;
   noteCount: number;
   prePlanCount: number;
   recentPrePlanName: string | null;
@@ -48,25 +52,14 @@ function hasMeaningfulStoredPrePlan(candidate: Record<string, unknown>): boolean
   return hasText || hasTag || hasContact || hasPhoto;
 }
 
-function storedSchedules(): StoredSchedule[] {
-  return loadStoredJson<StoredSchedule[]>('119helper-schedules', [], parsed => (
-    Array.isArray(parsed)
-      ? parsed.flatMap(value => {
-          if (!value || typeof value !== 'object') return [];
-          const candidate = value as Partial<StoredSchedule>;
-          const title = visibleLabel(candidate.title);
-          return typeof candidate.date === 'string' && title
-            ? [{ date: candidate.date, title }]
-            : [];
-        })
-      : []
-  ));
-}
-
 function storedNoteCount(): number {
   return loadStoredJson<number>('119helper-notes', 0, parsed => (
     Array.isArray(parsed)
-      ? parsed.filter(value => value !== null && typeof value === 'object').length
+      ? parsed.filter(value => (
+          value !== null
+          && typeof value === 'object'
+          && visibleLabel((value as { text?: unknown }).text) !== null
+        )).length
       : 0
   ));
 }
@@ -90,7 +83,20 @@ function storedPrePlans(): StoredPrePlan[] {
 
 export function loadRoutineBriefing(now = Date.now()): RoutineBriefingSnapshot {
   const today = localDateKey(now);
-  const todaySchedules = storedSchedules().filter(schedule => schedule.date === today);
+  const schedules = loadSchedules();
+  const todaySchedules = schedules.filter(schedule => schedule.date === today);
+  const todayTrackedSchedules = todaySchedules.filter(isTrackedSchedule);
+  const todayCompletedSchedules = todayTrackedSchedules.filter(isCompletedSchedule);
+  const todayPendingSchedules = todayTrackedSchedules.filter(schedule => !isCompletedSchedule(schedule));
+  const todayCalendarOnlySchedules = todaySchedules.filter(schedule => !isTrackedSchedule(schedule));
+  const overdueSchedules = schedules.filter(schedule => (
+    isTrackedSchedule(schedule)
+    && !isCompletedSchedule(schedule)
+    && schedule.date < today
+  ));
+  const representativeSchedule = todayPendingSchedules[0]
+    ?? todayCalendarOnlySchedules[0]
+    ?? todayCompletedSchedules[0];
   const prePlans = storedPrePlans();
   const recentNamedPrePlan = [...prePlans]
     .filter(plan => plan.name)
@@ -102,7 +108,11 @@ export function loadRoutineBriefing(now = Date.now()): RoutineBriefingSnapshot {
 
   return {
     todayScheduleCount: todaySchedules.length,
-    todayScheduleTitle: todaySchedules[0]?.title ?? null,
+    todayScheduleTitle: visibleLabel(representativeSchedule?.title),
+    todayScheduleTrackedCount: todayTrackedSchedules.length,
+    todayScheduleCompletedCount: todayCompletedSchedules.length,
+    todaySchedulePendingCount: todayPendingSchedules.length,
+    overdueScheduleCount: overdueSchedules.length,
     noteCount: storedNoteCount(),
     prePlanCount: prePlans.length,
     recentPrePlanName: recentNamedPrePlan?.name ?? null,

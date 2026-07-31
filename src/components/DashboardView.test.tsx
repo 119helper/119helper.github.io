@@ -91,6 +91,10 @@ describe('DashboardView routine-first layout', () => {
     routineMocks.loadRoutineBriefing.mockReturnValue({
       todayScheduleCount: 0,
       todayScheduleTitle: null,
+      todayScheduleTrackedCount: 0,
+      todayScheduleCompletedCount: 0,
+      todaySchedulePendingCount: 0,
+      overdueScheduleCount: 0,
       noteCount: 0,
       prePlanCount: 0,
       recentPrePlanName: null,
@@ -126,6 +130,10 @@ describe('DashboardView routine-first layout', () => {
     routineMocks.loadRoutineBriefing.mockReturnValue({
       todayScheduleCount: 2,
       todayScheduleTitle: '월간 장비 점검',
+      todayScheduleTrackedCount: 2,
+      todayScheduleCompletedCount: 1,
+      todaySchedulePendingCount: 1,
+      overdueScheduleCount: 1,
       noteCount: 3,
       prePlanCount: 4,
       recentPrePlanName: '광주청사',
@@ -138,7 +146,7 @@ describe('DashboardView routine-first layout', () => {
     const routine = screen.getByRole('region', { name: '오늘 업무 브리핑' });
 
     expect(within(routine).getByText('월간 장비 점검')).toBeVisible();
-    expect(within(routine).getByText('오늘 2건 · 외 1건')).toBeVisible();
+    expect(within(routine).getByText('업무 완료 1/2 · 이전 미완료 1건')).toBeVisible();
     expect(within(routine).getByText('6/13 완료')).toBeVisible();
     expect(within(routine).getByText('점검 46%')).toBeVisible();
     expect(within(routine).getByText('광주청사')).toBeVisible();
@@ -147,6 +155,76 @@ describe('DashboardView routine-first layout', () => {
     expect(routine).not.toHaveTextContent('주소');
     expect(routine).not.toHaveTextContent('연락처');
     expect(routine).not.toHaveTextContent('메모 내용');
+  });
+
+  it('clearly closes the loop when every tracked item for today is done', () => {
+    routineMocks.loadRoutineBriefing.mockReturnValue({
+      todayScheduleCount: 2,
+      todayScheduleTitle: '완료한 일정',
+      todayScheduleTrackedCount: 2,
+      todayScheduleCompletedCount: 2,
+      todaySchedulePendingCount: 0,
+      overdueScheduleCount: 0,
+      noteCount: 0,
+      prePlanCount: 0,
+      recentPrePlanName: null,
+      checklistChecked: 0,
+      checklistTotal: 13,
+      checklistProgress: 0,
+    });
+
+    renderDashboard();
+
+    const routine = screen.getByRole('region', { name: '오늘 업무 브리핑' });
+    expect(within(routine).getByText('오늘 업무 완료')).toBeVisible();
+    expect(within(routine).getByText('업무 완료 2/2')).toBeVisible();
+  });
+
+  it('keeps previous unfinished work prominent even when today is complete', () => {
+    routineMocks.loadRoutineBriefing.mockReturnValue({
+      todayScheduleCount: 1,
+      todayScheduleTitle: '오늘 완료한 업무',
+      todayScheduleTrackedCount: 1,
+      todayScheduleCompletedCount: 1,
+      todaySchedulePendingCount: 0,
+      overdueScheduleCount: 1,
+      noteCount: 0,
+      prePlanCount: 0,
+      recentPrePlanName: null,
+      checklistChecked: 0,
+      checklistTotal: 13,
+      checklistProgress: 0,
+    });
+
+    renderDashboard();
+
+    const routine = screen.getByRole('region', { name: '오늘 업무 브리핑' });
+    expect(within(routine).getByText('이전 미완료 1건')).toBeVisible();
+    expect(routine).not.toHaveTextContent('오늘 업무 완료');
+    expect(within(routine).getByText('업무 완료 1/1 · 이전 미완료 1건')).toBeVisible();
+  });
+
+  it('shows the full schedule count when tracked work and calendar events are mixed', () => {
+    routineMocks.loadRoutineBriefing.mockReturnValue({
+      todayScheduleCount: 2,
+      todayScheduleTitle: '교육자료 취합',
+      todayScheduleTrackedCount: 1,
+      todayScheduleCompletedCount: 0,
+      todaySchedulePendingCount: 1,
+      overdueScheduleCount: 0,
+      noteCount: 0,
+      prePlanCount: 0,
+      recentPrePlanName: null,
+      checklistChecked: 0,
+      checklistTotal: 13,
+      checklistProgress: 0,
+    });
+
+    renderDashboard();
+
+    const routine = screen.getByRole('region', { name: '오늘 업무 브리핑' });
+    expect(within(routine).getByText('교육자료 취합')).toBeVisible();
+    expect(within(routine).getByText('오늘 2건 · 업무 완료 0/1')).toBeVisible();
   });
 
   it('updates the saved-note count when the embedded memo pad changes in the same tab', () => {
@@ -164,6 +242,10 @@ describe('DashboardView routine-first layout', () => {
     routineMocks.loadRoutineBriefing.mockReturnValue({
       todayScheduleCount: 1,
       todayScheduleTitle: '7월 31일 업무',
+      todayScheduleTrackedCount: 1,
+      todayScheduleCompletedCount: 0,
+      todaySchedulePendingCount: 1,
+      overdueScheduleCount: 0,
       noteCount: 0,
       prePlanCount: 0,
       recentPrePlanName: null,
@@ -179,6 +261,10 @@ describe('DashboardView routine-first layout', () => {
       routineMocks.loadRoutineBriefing.mockReturnValue({
         todayScheduleCount: 1,
         todayScheduleTitle: '8월 1일 업무',
+        todayScheduleTrackedCount: 1,
+        todayScheduleCompletedCount: 0,
+        todaySchedulePendingCount: 1,
+        overdueScheduleCount: 1,
         noteCount: 0,
         prePlanCount: 0,
         recentPrePlanName: null,

@@ -29,8 +29,8 @@ export default function StickyNotes({ embedMode = false, onCountChange }: Sticky
   const { showUndo } = useAppFeedback();
 
   useEffect(() => {
-    onCountChange?.(notes.length);
-  }, [notes.length, onCountChange]);
+    onCountChange?.(notes.filter(note => note.text.trim().length > 0).length);
+  }, [notes, onCountChange]);
 
   // 드래그 앤 드롭 상태
   const [dragId, setDragId] = useState<string | null>(null);

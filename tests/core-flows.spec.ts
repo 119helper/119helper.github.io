@@ -168,9 +168,73 @@ test('평시 대시보드: 오늘 저장 상태를 실제 업무 브리핑으로
   await expect(briefing).toContainText('오늘 1건');
   await expect(briefing).toContainText('2/13 완료');
   await expect(briefing).toContainText('광주청사');
-  await expect(briefing).toContainText('2건 저장');
+  await expect(briefing).toContainText('1건 저장');
   await expect(briefing).not.toContainText('브리핑에 노출하지 않을 주소');
   await expect(briefing).not.toContainText('대시보드에는 노출하지 않을 상세');
+});
+
+test('평시 일정: 오늘 업무를 완료하고 지난 미완료를 놓치지 않는다', async ({ page }) => {
+  await page.addInitScript(() => {
+    const now = new Date();
+    const today = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-');
+    const yesterdayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const yesterday = [
+      yesterdayDate.getFullYear(),
+      String(yesterdayDate.getMonth() + 1).padStart(2, '0'),
+      String(yesterdayDate.getDate()).padStart(2, '0'),
+    ].join('-');
+    localStorage.setItem('119helper-schedules', JSON.stringify([
+      {
+        id: 'today-pending',
+        date: today,
+        title: '교육자료 취합',
+        type: '교육',
+        memo: '',
+        trackCompletion: true,
+      },
+      {
+        id: 'today-done',
+        date: today,
+        title: '월간 점검 결재',
+        type: '점검',
+        memo: '',
+        trackCompletion: true,
+        completedAt: Date.now() - 1_000,
+      },
+      {
+        id: 'overdue-pending',
+        date: yesterday,
+        title: '소방특별조사 회신 확인',
+        type: '기타',
+        memo: '',
+        trackCompletion: true,
+      },
+    ]));
+  });
+  await page.goto('/#dashboard');
+
+  const briefing = page.getByRole('region', { name: '오늘 업무 브리핑' });
+  await expect(briefing).toContainText('교육자료 취합');
+  await expect(briefing).toContainText('업무 완료 1/2 · 이전 미완료 1건');
+  await briefing.getByRole('button', { name: '일정관리 열기' }).click();
+
+  const overdue = page.getByRole('region', { name: '이전 미완료 업무' });
+  await expect(overdue).toContainText('소방특별조사 회신 확인');
+  await overdue.getByRole('button', { name: '소방특별조사 회신 확인 이전 업무 완료 표시' }).click();
+  await expect(overdue).toBeHidden();
+
+  await page.getByRole('button', { name: '교육자료 취합 완료 표시' }).click();
+  await page.getByRole('complementary', { name: '전체 메뉴' })
+    .getByRole('button', { name: '평시 대시보드', exact: true })
+    .click();
+
+  await expect(briefing).toContainText('오늘 업무 완료');
+  await expect(briefing).toContainText('업무 완료 2/2');
+  await expect(briefing).not.toContainText('이전 미완료');
 });
 
 test('모바일 통합 검색: 주소·저장 대상물·SOP를 실제 화면 상태로 이어간다', async ({ page }) => {

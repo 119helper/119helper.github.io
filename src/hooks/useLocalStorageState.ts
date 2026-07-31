@@ -53,17 +53,57 @@ export function useLocalStorageState<T>(
   }, [key, state]);
 
   useEffect(() => {
-    const syncPrivacyPolicy = () => {
+    const syncStoredState = () => {
       if (!canPersistStorageKey(key) || isStorageExpired(key)) {
+        removeStoredJson(key);
+        setState(initialValue());
+        return;
+      }
+
+      try {
+        const saved = localStorage.getItem(key);
+        if (saved === null) {
+          setState(current => {
+            const next = initialValue();
+            return JSON.stringify(current) === JSON.stringify(next) ? current : next;
+          });
+          return;
+        }
+        const parsed = JSON.parse(saved) as T;
+        setState(current => JSON.stringify(current) === saved ? current : parsed);
+      } catch {
         removeStoredJson(key);
         setState(initialValue());
       }
     };
-
-    window.addEventListener('119helper-settings-updated', syncPrivacyPolicy);
-    return () => {
-      window.removeEventListener('119helper-settings-updated', syncPrivacyPolicy);
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === key || event.key === storageTimestampKey(key) || event.key === null) {
+        syncStoredState();
+      }
     };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') syncStoredState();
+    };
+
+    window.addEventListener('119helper-settings-updated', syncStoredState);
+    window.addEventListener('focus', syncStoredState);
+    window.addEventListener('storage', handleStorage);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('119helper-settings-updated', syncStoredState);
+      window.removeEventListener('focus', syncStoredState);
+      window.removeEventListener('storage', handleStorage);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [initialValue, key]);
+
+  const setPersistedState = useCallback<Dispatch<SetStateAction<T>>>((action) => {
+    if (!canPersistStorageKey(key) || isStorageExpired(key)) {
+      removeStoredJson(key);
+      setState(initialValue());
+      return;
+    }
+    setState(action);
   }, [initialValue, key]);
 
   const reset = useCallback(() => {
@@ -75,5 +115,5 @@ export function useLocalStorageState<T>(
     setState(initialValue());
   }, [key, initialValue]);
 
-  return [state, setState, reset];
+  return [state, setPersistedState, reset];
 }

@@ -15,6 +15,7 @@ import { classifyAviationSafety } from '../utils/aviationSafety';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 import type { IncidentSession } from '../services/incidentSession';
 import { loadRoutineBriefing, type RoutineBriefingSnapshot } from '../services/routineBriefing';
+import { SCHEDULES_UPDATED_EVENT } from '../services/scheduleStore';
 import DashboardIncidentCard from './DashboardIncidentCard';
 
 import hydrantBg from '../assets/hydrant_bg.webp';
@@ -267,6 +268,7 @@ export default function DashboardView({
     scheduleDateRollover();
     window.addEventListener('focus', refreshRoutineBriefing);
     window.addEventListener('storage', refreshRoutineBriefing);
+    window.addEventListener(SCHEDULES_UPDATED_EVENT, refreshRoutineBriefing);
     window.addEventListener('119helper-settings-updated', refreshRoutineBriefing);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
@@ -274,6 +276,7 @@ export default function DashboardView({
       if (dateRolloverTimer !== null) window.clearTimeout(dateRolloverTimer);
       window.removeEventListener('focus', refreshRoutineBriefing);
       window.removeEventListener('storage', refreshRoutineBriefing);
+      window.removeEventListener(SCHEDULES_UPDATED_EVENT, refreshRoutineBriefing);
       window.removeEventListener('119helper-settings-updated', refreshRoutineBriefing);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -363,12 +366,30 @@ export default function DashboardView({
 
   const regionImageUrl = `/images/regions/${city}.webp`;
   const aviation = weather ? classifyAviationSafety(weather.windSpeed) : null;
+  const allTrackedTodayDone = routineBriefing.todayScheduleTrackedCount > 0
+    && routineBriefing.todaySchedulePendingCount === 0
+    && routineBriefing.todayScheduleTrackedCount === routineBriefing.todayScheduleCount;
+  const scheduleSecondary = routineBriefing.todayScheduleTrackedCount > 0
+    ? `${routineBriefing.todayScheduleCount > routineBriefing.todayScheduleTrackedCount
+      ? `오늘 ${routineBriefing.todayScheduleCount}건 · `
+      : ''}업무 완료 ${routineBriefing.todayScheduleCompletedCount}/${routineBriefing.todayScheduleTrackedCount}`
+    : `오늘 ${routineBriefing.todayScheduleCount}건`;
+  const scheduleCarryover = routineBriefing.overdueScheduleCount > 0
+    ? ` · 이전 미완료 ${routineBriefing.overdueScheduleCount}건`
+    : '';
+  const overdueNeedsPrimaryAttention = routineBriefing.overdueScheduleCount > 0
+    && routineBriefing.todaySchedulePendingCount === 0;
   const routineShortcutStatus: Record<string, { primary: string; secondary: string }> = {
     calendar: {
-      primary: routineBriefing.todayScheduleTitle ?? '오늘 일정 없음',
-      secondary: routineBriefing.todayScheduleCount > 1
-        ? `오늘 ${routineBriefing.todayScheduleCount}건 · 외 ${routineBriefing.todayScheduleCount - 1}건`
-        : `오늘 ${routineBriefing.todayScheduleCount}건`,
+      primary: overdueNeedsPrimaryAttention
+        ? `이전 미완료 ${routineBriefing.overdueScheduleCount}건`
+        : allTrackedTodayDone
+          ? '오늘 업무 완료'
+        : routineBriefing.todayScheduleTitle
+          ?? (routineBriefing.overdueScheduleCount > 0
+            ? `이전 미완료 ${routineBriefing.overdueScheduleCount}건`
+            : '오늘 일정 없음'),
+      secondary: `${scheduleSecondary}${scheduleCarryover}`,
     },
     checklist: {
       primary: `${routineBriefing.checklistChecked}/${routineBriefing.checklistTotal} 완료`,
@@ -476,7 +497,7 @@ export default function DashboardView({
                   <span className="mt-0.5 block truncate text-xs font-extrabold text-on-surface sm:text-sm">
                     {status.primary}
                   </span>
-                  <span className="mt-0.5 block truncate text-[10px] text-on-surface-variant">
+                  <span className="mt-0.5 block text-[10px] leading-tight text-on-surface-variant">
                     {status.secondary}
                   </span>
                 </span>
