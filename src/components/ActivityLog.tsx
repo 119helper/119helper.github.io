@@ -1,25 +1,36 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ACTIVITY_PRESETS } from '../data/activityStages';
 import ActivityStageEditorDialog from './ActivityStageEditorDialog';
 import {
-  buildReportPackageText,
   formatDuration,
   totalDurationMs,
-  type ReportTimerSummary,
   type StageStamp,
 } from '../utils/activityReport';
 import { useActivitySession } from '../hooks/useActivitySession';
 import { useUserProfile, type DutyRole } from '../contexts/UserProfileContext';
 import { useTimer } from '../contexts/TimerContext';
-import { loadStoredJson } from '../services/privacySettings';
 import { buildSensitiveExportMessage } from '../utils/sensitiveExport';
 import { useAppFeedback } from '../contexts/FeedbackContext';
 import { findActivityOrderIssues } from '../utils/activityOrder';
 import {
   EMPTY_ACTIVITY_SESSION,
-  type ActivitySessionState,
   type LoggedActivityStamp,
 } from '../services/activitySession';
+import { useIncidentSession } from '../hooks/useIncidentSession';
+import { loadPrivacySettings } from '../services/privacySettings';
+import { loadTriagePatients } from '../services/triageSession';
+import {
+  getIncidentCaseSnapshot,
+  INCIDENT_CASE_ARCHIVE_EVENT,
+  listIncidentCaseSnapshots,
+  type IncidentCaseSnapshot,
+} from '../services/incidentCaseStore';
+import {
+  buildScopedActivityReport,
+  resolveActivityReportSource,
+  sourceFromArchivedIncident,
+  type ActivityReportBundle,
+} from '../utils/activityReportScope';
 
 const ROLE_TO_PRESET: Record<DutyRole, string> = { fire: 'fire', ems: 'ems', rescue: 'rescue', '': 'fire' };
 const ACTIVITY_REPORT_SENSITIVE_DETAILS = [
@@ -29,49 +40,26 @@ const ACTIVITY_REPORT_SENSITIVE_DETAILS = [
   '환자 분류 집계와 타이머 상태',
 ];
 
-const INCIDENT_TYPE_LABELS: Record<string, string> = { fire: '화재', ems: '구급', rescue: '구조', support: '지원' };
-
-interface StoredIncident {
-  active?: boolean;
-  type?: string;
-  title?: string;
-  address?: string;
-  startedAt?: number;
-  endedAt?: number;
-}
-
-interface StoredTriagePatient {
-  color?: 'red' | 'yellow' | 'green' | 'black';
-}
-
-interface ActivityReportBundle {
-  generatedAt: string;
-  title: string;
-  session: ActivitySessionState;
-  report: string;
-  timers: ReportTimerSummary[];
-  triageCounts: Record<'red' | 'yellow' | 'green' | 'black', number>;
-  incident: StoredIncident | null;
-}
-
-function readJson<T>(key: string, fallback: T): T {
-  return loadStoredJson<T>(key, fallback);
-}
-
 export default function ActivityLog() {
   const { confirmAction } = useAppFeedback();
   const { authorLine, profile } = useUserProfile();
-  const { timers } = useTimer();
+  const { allTimers } = useTimer();
+  const [currentIncident] = useIncidentSession();
   const [session, setSession] = useActivitySession(ROLE_TO_PRESET[profile.role]);
   const [useGps, setUseGps] = useState(true);
   const [report, setReport] = useState<string | null>(null);
   const [reportBundle, setReportBundle] = useState<ActivityReportBundle | null>(null);
+  const [archivedCases, setArchivedCases] = useState<IncidentCaseSnapshot[]>(
+    () => listIncidentCaseSnapshots(),
+  );
+  const [selectedArchivedIncidentId, setSelectedArchivedIncidentId] = useState('');
   const [copied, setCopied] = useState(false);
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
 
   const preset = ACTIVITY_PRESETS.find(p => p.id === session.presetId) ?? ACTIVITY_PRESETS[0];
   const started = session.stamps.length > 0;
+  const hasActiveIncident = currentIncident.active && Boolean(currentIncident.incidentId);
 
   const stampByStage = useMemo(() => {
     const m = new Map<string, LoggedActivityStamp>();
@@ -96,11 +84,40 @@ export default function ActivityLog() {
   );
   const editingStamp = editingStageId ? stampByStage.get(editingStageId) ?? null : null;
 
+  const refreshArchivedCases = useCallback(() => {
+    const next = listIncidentCaseSnapshots();
+    setArchivedCases(next);
+    setSelectedArchivedIncidentId(previous => (
+      previous && next.some(item => item.incidentId === previous)
+        ? previous
+        : next[0]?.incidentId ?? ''
+    ));
+  }, []);
+
   useEffect(() => {
     if (!feedback) return;
     const timeout = window.setTimeout(() => setFeedback(''), 2000);
     return () => window.clearTimeout(timeout);
   }, [feedback]);
+
+  useEffect(() => {
+    const refresh = () => {
+      refreshArchivedCases();
+      if (!loadPrivacySettings().publicDeviceMode) return;
+      setReport(null);
+      setReportBundle(null);
+      setCopied(false);
+    };
+    refresh();
+    window.addEventListener('focus', refresh);
+    window.addEventListener('119helper-settings-updated', refresh);
+    window.addEventListener(INCIDENT_CASE_ARCHIVE_EVENT, refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('119helper-settings-updated', refresh);
+      window.removeEventListener(INCIDENT_CASE_ARCHIVE_EVENT, refresh);
+    };
+  }, [refreshArchivedCases]);
 
   const recordStage = (stageId: string, label: string) => {
     const commit = (lat: number | null, lon: number | null) => {
@@ -120,46 +137,49 @@ export default function ActivityLog() {
     }
   };
 
-  const generateReport = () => {
-    const title = session.title.trim() || `${preset.label} 출동`;
-    const incident = readJson<StoredIncident | null>('119helper-incident-session', null);
-    const triagePatients = readJson<StoredTriagePatient[]>('119helper-triage-patients', []);
-    const triageCounts: Record<'red' | 'yellow' | 'green' | 'black', number> = { red: 0, yellow: 0, green: 0, black: 0 };
-    triagePatients.forEach(patient => {
-      if (patient.color && patient.color in triageCounts) triageCounts[patient.color] += 1;
-    });
-    const timerSummaries: ReportTimerSummary[] = timers.map(t => ({
-      label: t.label,
-      remainingSeconds: t.remaining,
-      totalSeconds: t.totalSeconds,
-      running: t.isRunning,
-    }));
+  const showReportSource = (
+    source: ReturnType<typeof resolveActivityReportSource>,
+  ) => {
+    const bundle = buildScopedActivityReport(source, authorLine);
+    setReport(bundle.report);
+    setReportBundle(bundle);
+  };
 
-    const nextReport = buildReportPackageText({
-      title,
-      stamps: sortedStamps,
-      note: session.note,
-      author: authorLine,
-      incident: incident?.title ? {
-        title: incident.title || title,
-        type: incident.type ? INCIDENT_TYPE_LABELS[incident.type] || incident.type : undefined,
-        address: incident.address,
-        startedAt: incident.startedAt,
-        endedAt: incident.endedAt,
-      } : null,
-      timers: timerSummaries,
-      triageCounts,
-    });
-    setReport(nextReport);
-    setReportBundle({
-      generatedAt: new Date().toISOString(),
-      title,
+  const generateReport = () => {
+    const incidentId = session.incidentId?.trim() || null;
+    const archivedIncident = incidentId
+      ? getIncidentCaseSnapshot(incidentId)
+      : null;
+    showReportSource(resolveActivityReportSource({
       session,
-      report: nextReport,
-      timers: timerSummaries,
-      triageCounts,
-      incident: incident?.title ? incident : null,
+      currentIncident,
+      triagePatients: loadTriagePatients(),
+      timers: allTimers,
+      archivedIncident,
+    }));
+  };
+
+  const loadArchivedReport = () => {
+    if (!selectedArchivedIncidentId) return;
+    const archived = getIncidentCaseSnapshot(selectedArchivedIncidentId);
+    const source = archived ? sourceFromArchivedIncident(archived) : null;
+    if (!source) {
+      setFeedback('종료 출동 보관본을 찾을 수 없습니다.');
+      refreshArchivedCases();
+      return;
+    }
+    showReportSource(source);
+    setFeedback('종료 출동 보고서를 읽기 전용으로 불러왔습니다.');
+  };
+
+  const archivedCaseLabel = (item: IncidentCaseSnapshot) => {
+    const closedAt = new Date(item.closedAt).toLocaleString('ko-KR', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
     });
+    return `${closedAt} · ${item.incident.title || item.incidentId}`;
   };
 
   const copyReport = async () => {
@@ -181,6 +201,10 @@ export default function ActivityLog() {
   };
 
   const reset = () => {
+    if (hasActiveIncident) {
+      setFeedback('진행 중인 출동의 활동 기록은 상황판에서 종료한 뒤 새로 시작할 수 있습니다.');
+      return;
+    }
     setSession({ ...EMPTY_ACTIVITY_SESSION, presetId: session.presetId });
     setReport(null);
     setReportBundle(null);
@@ -224,6 +248,53 @@ export default function ActivityLog() {
           GPS {useGps ? '기록' : '끔'}
         </button>
       </div>
+
+      {archivedCases.length > 0 && (
+        <section
+          aria-labelledby="archived-activity-report-title"
+          className="rounded-xl border border-outline-variant/15 bg-surface-container-lowest p-5"
+        >
+          <div className="flex items-start gap-3">
+            <span
+              aria-hidden="true"
+              className="material-symbols-outlined rounded-lg bg-secondary-container p-2 text-on-secondary-container"
+            >
+              inventory_2
+            </span>
+            <div className="min-w-0 flex-1">
+              <h3 id="archived-activity-report-title" className="font-extrabold text-on-surface">
+                종료 출동 보고서
+              </h3>
+              <p className="mt-1 text-xs leading-5 text-on-surface-variant">
+                종료 시점에 고정된 보관본입니다. 현재 출동 기록은 바뀌지 않습니다.
+              </p>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <select
+                  aria-label="종료 출동 선택"
+                  value={selectedArchivedIncidentId}
+                  onFocus={refreshArchivedCases}
+                  onChange={event => setSelectedArchivedIncidentId(event.target.value)}
+                  className="min-w-0 flex-1 rounded-lg border border-outline-variant/20 bg-surface-container px-3 py-2.5 text-sm font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  {archivedCases.map(item => (
+                    <option key={item.incidentId} value={item.incidentId}>
+                      {archivedCaseLabel(item)}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!selectedArchivedIncidentId}
+                  onClick={loadArchivedReport}
+                  className="rounded-lg bg-secondary-container px-4 py-2.5 text-sm font-extrabold text-on-secondary-container disabled:opacity-40"
+                >
+                  읽기 전용으로 불러오기
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* 출동 유형 + 제목 */}
       <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 space-y-4">
@@ -347,17 +418,37 @@ export default function ActivityLog() {
           </button>
           <button
             onClick={reset}
-            className="px-4 py-2.5 rounded-lg font-bold bg-surface-container text-on-surface-variant hover:text-error transition-colors"
+            disabled={hasActiveIncident}
+            aria-describedby={hasActiveIncident ? 'active-incident-activity-protection' : undefined}
+            className="px-4 py-2.5 rounded-lg font-bold bg-surface-container text-on-surface-variant hover:text-error transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-on-surface-variant"
           >
-            새 출동
+            {hasActiveIncident ? '출동 기록 보호 중' : '새 출동'}
           </button>
         </div>
+        {hasActiveIncident && (
+          <p
+            id="active-incident-activity-protection"
+            role="status"
+            className="text-xs font-bold leading-5 text-on-surface-variant"
+          >
+            {currentIncident.title || '진행 중인 출동'} 활동 기록은 상황판 종료 전까지 새 기록으로 덮어쓸 수 없습니다.
+          </p>
+        )}
       </div>
 
       {report && (
         <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-on-surface">보고서 초안</h3>
+          <div>
+            <h3 className="text-lg font-bold text-on-surface">
+              {reportBundle?.readOnly ? '종료 출동 보고서' : '보고서 초안'}
+            </h3>
+            {reportBundle?.readOnly && (
+              <p className="mt-0.5 text-xs font-bold text-on-surface-variant">
+                읽기 전용 · 보관 시점 {new Date(reportBundle.snapshotAt).toLocaleString('ko-KR')}
+              </p>
+            )}
+          </div>
           <div className="flex gap-2">
               <button
                 onClick={downloadReportBundle}
@@ -376,6 +467,15 @@ export default function ActivityLog() {
               </button>
           </div>
         </div>
+          {reportBundle?.scopeWarning && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-sm font-bold text-amber-800 dark:text-amber-200"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-lg">warning</span>
+              <span>{reportBundle.scopeWarning}</span>
+            </div>
+          )}
           <textarea
             aria-label="생성된 보고서 초안"
             readOnly

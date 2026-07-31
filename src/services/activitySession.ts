@@ -84,6 +84,76 @@ export interface ActivityStageMutationResult {
   changed: boolean;
 }
 
+export interface CloseActivitySessionInput {
+  current: ActivitySessionState;
+  incidentId: string;
+  presetId: string;
+  title: string;
+  note: string;
+  startedAt: number;
+  endedAt: number;
+  location?: { lat: number; lng: number };
+}
+
+export function buildClosedActivitySession(
+  input: CloseActivitySessionInput,
+): ActivitySessionState {
+  const incidentId = input.incidentId.trim().slice(0, 80);
+  if (
+    !incidentId
+    || !Number.isFinite(input.startedAt)
+    || input.startedAt <= 0
+    || !Number.isFinite(input.endedAt)
+    || input.endedAt < input.startedAt
+  ) {
+    throw new Error('종료 활동 기록의 출동 식별자와 시각을 확인해 주세요.');
+  }
+
+  const normalizedCurrent = normalizeActivitySession(input.current);
+  const belongsToIncident = normalizedCurrent.incidentId === incidentId;
+  const base: ActivitySessionState = belongsToIncident
+    ? normalizedCurrent
+    : {
+        incidentId,
+        presetId: input.presetId,
+        title: input.title,
+        note: input.note,
+        stamps: [],
+      };
+  const withoutPreviousClose = base.stamps.filter(stamp => (
+    stamp.stageId !== 'incident-close'
+    && !(
+      stamp.label === '상황판 종료'
+      && typeof stamp.stageId === 'string'
+      && stamp.stageId.startsWith('auto-')
+    )
+  ));
+  const withDispatch = withoutPreviousClose.some(stamp => stamp.stageId === 'dispatch')
+    ? withoutPreviousClose
+    : [{
+        stageId: 'dispatch',
+        label: '출동',
+        time: input.startedAt,
+        lat: input.location?.lat ?? null,
+        lon: input.location?.lng ?? null,
+      }, ...withoutPreviousClose];
+
+  return normalizeActivitySession({
+    ...base,
+    incidentId,
+    stamps: [
+      ...withDispatch,
+      {
+        stageId: 'incident-close',
+        label: '상황판 종료',
+        time: input.endedAt,
+        lat: null,
+        lon: null,
+      },
+    ],
+  });
+}
+
 export function recordActivityStage(
   stageId: string,
   label: string,

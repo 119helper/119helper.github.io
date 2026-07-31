@@ -14,7 +14,8 @@ const PRESETS = [
 export default function FieldTimer() {
   const { showNotice } = useAppFeedback();
   const { 
-    timers, stopwatchRunning, stopwatchStart, stopwatchElapsed, laps,
+    timers, otherScopeTimerCount,
+    stopwatchRunning, stopwatchStart, stopwatchElapsed, stopwatchScopeBlocked, laps,
     addTimer, toggleTimer, resetTimer, removeTimer,
     toggleStopwatch, addLap, resetStopwatch,
     formatTime, formatTimeMs,
@@ -135,6 +136,20 @@ export default function FieldTimer() {
           </div>
         </div>
       </div>
+
+      {(otherScopeTimerCount > 0 || stopwatchScopeBlocked) && (
+        <div
+          role="status"
+          className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs leading-relaxed text-amber-800 dark:text-amber-200"
+        >
+          {otherScopeTimerCount > 0 && (
+            <p>다른 출동 또는 독립 기록의 타이머 {otherScopeTimerCount}개는 이 화면에서 분리해 보존 중입니다.</p>
+          )}
+          {stopwatchScopeBlocked && (
+            <p>다른 출동의 스톱워치 기록을 보호 중입니다. 해당 출동 범위에서만 이어서 조작할 수 있습니다.</p>
+          )}
+        </div>
+      )}
 
       {/* 프리셋 선택 */}
       {showPresets && (
@@ -298,8 +313,11 @@ export default function FieldTimer() {
             <button
               type="button"
               onClick={toggleStopwatch}
+              disabled={stopwatchScopeBlocked}
               className={`px-6 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-lg ${
-                stopwatchRunning
+                stopwatchScopeBlocked
+                  ? 'bg-surface-container text-on-surface-variant shadow-none cursor-not-allowed'
+                  : stopwatchRunning
                   ? 'bg-yellow-500 text-black shadow-yellow-500/20'
                   : 'bg-primary text-on-primary shadow-primary/20'
               }`}
@@ -307,7 +325,13 @@ export default function FieldTimer() {
               <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
                 {stopwatchRunning ? 'pause' : 'play_arrow'}
               </span>
-              {stopwatchRunning ? '일시정지' : stopwatchStart ? '재개' : '출동 시작'}
+              {stopwatchScopeBlocked
+                ? '다른 출동 기록 보호 중'
+                : stopwatchRunning
+                  ? '일시정지'
+                  : stopwatchStart
+                    ? '재개'
+                    : '출동 시작'}
             </button>
             {stopwatchStart && (
               <button

@@ -33,6 +33,205 @@ describe('incidentSession', () => {
       address: '서울 중구 세종대로',
     });
     expect(session.location).toBeUndefined();
+    expect(session.selections).toBeUndefined();
+  });
+
+  it('restores bounded immutable candidate snapshots without retaining the upstream object', () => {
+    const upstream = {
+      road: {
+        id: ` road-${'x'.repeat(200)} `,
+        selectedAt: 11_000,
+        isActiveAtSelection: true,
+        eventLabel: ' 도로 화재 ',
+        controlLabel: ' 전면 통제 ',
+        roadName: ' 세종대로 ',
+        distanceKm: 1.25,
+        distanceLabel: ' 1.3km ',
+        status: ' 진행 중 ',
+        sourceObservedAt: 10_900,
+      },
+      fireWater: {
+        id: ' FW-119 ',
+        selectedAt: 12_000,
+        type: ' 소화전 ',
+        address: ' 서울 중구 세종대로 ',
+        distanceKm: 0.18,
+        distanceLabel: ' 180m ',
+        status: ' 정상 ',
+        sourceDate: '2026-07-30',
+      },
+      hospital: {
+        id: ' A110001 ',
+        selectedAt: 13_000,
+        name: ' 서울시민병원 ',
+        address: ' 서울 중구 ',
+        tel: ' 02-1234-5678 ',
+        distanceKm: 4.2,
+        distanceLabel: ' 4.2km ',
+        erBeds: 7.8,
+        wardBeds: 12,
+        sourceObservedAt: 12_900,
+      },
+    };
+    const session = normalizeIncidentSession({
+      incidentId: 'incident-selection',
+      active: true,
+      type: 'ems',
+      startedAt: 10_000,
+      selections: upstream,
+    });
+
+    upstream.hospital.name = 'upstream changed';
+
+    expect(session.selections).toEqual({
+      road: {
+        id: `road-${'x'.repeat(155)}`,
+        selectedAt: 11_000,
+        isActiveAtSelection: true,
+        eventLabel: '도로 화재',
+        controlLabel: '전면 통제',
+        roadName: '세종대로',
+        distanceKm: 1.25,
+        distanceLabel: '1.3km',
+        status: '진행 중',
+        sourceObservedAt: 10_900,
+      },
+      fireWater: {
+        id: 'FW-119',
+        selectedAt: 12_000,
+        type: '소화전',
+        address: '서울 중구 세종대로',
+        distanceKm: 0.18,
+        distanceLabel: '180m',
+        status: '정상',
+        sourceDate: '2026-07-30',
+      },
+      hospital: {
+        id: 'A110001',
+        selectedAt: 13_000,
+        name: '서울시민병원',
+        address: '서울 중구',
+        tel: '02-1234-5678',
+        distanceKm: 4.2,
+        distanceLabel: '4.2km',
+        erBeds: undefined,
+        wardBeds: 12,
+        sourceObservedAt: 12_900,
+      },
+    });
+  });
+
+  it('drops damaged selections and removes invalid optional fields', () => {
+    const session = normalizeIncidentSession({
+      incidentId: 'incident-damaged',
+      active: true,
+      type: 'fire',
+      startedAt: 10_000,
+      selections: {
+        road: {
+          id: 'road-1',
+          selectedAt: 11_000,
+          isActiveAtSelection: true,
+          eventLabel: '침수',
+          distanceKm: -1,
+          sourceObservedAt: 10_500,
+        },
+        fireWater: {
+          id: '',
+          selectedAt: 12_000,
+          type: '소화전',
+          address: '서울 중구',
+          status: '미확인',
+          sourceDate: null,
+        },
+        hospital: {
+          id: 'hospital-1',
+          selectedAt: 0,
+          name: '시민병원',
+          address: '서울 중구',
+          sourceObservedAt: 11_000,
+        },
+      },
+    });
+
+    expect(session.selections).toEqual({
+      road: {
+        id: 'road-1',
+        selectedAt: 11_000,
+        isActiveAtSelection: true,
+        eventLabel: '침수',
+        controlLabel: undefined,
+        roadName: undefined,
+        distanceKm: undefined,
+        distanceLabel: undefined,
+        status: undefined,
+        sourceObservedAt: 10_500,
+      },
+      fireWater: undefined,
+      hospital: undefined,
+    });
+  });
+
+  it('drops a selections envelope when none of its candidate snapshots are valid', () => {
+    const session = normalizeIncidentSession({
+      incidentId: 'incident-invalid',
+      active: true,
+      type: 'fire',
+      startedAt: 10_000,
+      selections: {
+        road: {
+          id: 'road-1',
+          selectedAt: Number.NaN,
+          isActiveAtSelection: true,
+          eventLabel: '침수',
+          sourceObservedAt: 10_500,
+        },
+        hospital: {
+          id: 'hospital-1',
+          selectedAt: 11_000,
+          name: '',
+          address: '서울',
+          sourceObservedAt: 10_500,
+        },
+      },
+    });
+
+    expect(session.selections).toBeUndefined();
+  });
+
+  it('drops unscoped and temporally invalid selection snapshots', () => {
+    const unscoped = normalizeIncidentSession({
+      active: true,
+      type: 'fire',
+      startedAt: 10_000,
+      selections: {
+        road: {
+          id: 'road-1',
+          selectedAt: 11_000,
+          isActiveAtSelection: true,
+          eventLabel: '침수',
+          sourceObservedAt: 10_500,
+        },
+      },
+    });
+    const futureObservation = normalizeIncidentSession({
+      incidentId: 'incident-time',
+      active: true,
+      type: 'ems',
+      startedAt: 10_000,
+      selections: {
+        hospital: {
+          id: 'hospital-1',
+          selectedAt: 11_000,
+          name: '시민병원',
+          address: '서울',
+          sourceObservedAt: 12_000,
+        },
+      },
+    });
+
+    expect(unscoped.selections).toBeUndefined();
+    expect(futureObservation.selections).toBeUndefined();
   });
 
   it('normalizes a valid incident coordinate and drops an invalid one', () => {

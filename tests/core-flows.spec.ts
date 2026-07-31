@@ -56,6 +56,8 @@ function erXml(hospitalName?: string, includeAddress = true): string {
     <phpid>TEST-1</phpid>
     <hvec>5</hvec>
     <hvgc>10</hvgc>
+    <wgs84Lat>37.5666</wgs84Lat>
+    <wgs84Lon>126.9781</wgs84Lon>
   </item></items></body></response>`;
 }
 
@@ -209,6 +211,8 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
 
   await page.getByRole('button', { name: /활동기록/ }).click();
   await expect(page).toHaveURL(/#activity-log$/);
+  await expect(page.getByRole('button', { name: '출동 기록 보호 중' })).toBeDisabled();
+  await expect(page.getByText(/상황판 종료 전까지 새 기록으로 덮어쓸 수 없습니다/)).toBeVisible();
   const afterTool = await page.evaluate(() => JSON.parse(localStorage.getItem('119helper-activity-session') || '{}'));
   expect(afterTool.stamps.some((stamp: { label?: string }) => stamp.label === '활동기록 열람')).toBe(true);
 
@@ -237,6 +241,213 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
   await expect(recentIncident).toContainText('출동 시간');
   await recentIncident.getByRole('button', { name: '활동 기록·보고서 열기' }).click();
   await expect(page).toHaveURL(/#activity-log$/);
+});
+
+test.describe('모바일 출동 원탭', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('모바일: 출동 원탭 후보를 지정하고 새로고침 뒤에도 복원한다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installIncidentGeocoder(page);
+  await page.route('**/api/road-disasters**', async route => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': '*',
+          'Access-Control-Allow-Methods': 'GET,OPTIONS',
+        },
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({
+        source: '국토교통부 국가교통정보센터',
+        sourceUrl: 'https://its.go.kr/',
+        retrievedAt: new Date().toISOString(),
+        query: {
+          lat: 37.5665,
+          lng: 126.978,
+          radiusKm: 5,
+          eventType: 'all',
+          startDate: '20260724',
+          endDate: '20260731',
+          bounds: { minX: 126.9, maxX: 127, minY: 37.5, maxY: 37.6 },
+        },
+        totalCount: 1,
+        truncated: false,
+        items: [{
+          eventId: 'ROAD-1',
+          eventType: 'sinkhole',
+          eventTypeCode: 'D06',
+          eventDetailType: '1',
+          status: '1',
+          occurredAt: '2026-07-31T08:00:00+09:00',
+          endedAt: null,
+          facilityName: null,
+          facilityExtent: null,
+          geometry: {
+            type: 'Point',
+            coordinates: [[126.978, 37.5665]],
+            raw: 'POINT(126.978 37.5665)',
+          },
+          road: { linkIds: [], names: ['세종대로'], number: null, direction: null },
+          control: { type: 'full', typeCode: '4', blockedLanes: '전 차로' },
+          message: '복구 작업으로 전면 통제',
+        }],
+      }),
+    });
+  });
+  await page.route('**/api/er/**', async route => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': '*',
+          'Access-Control-Allow-Methods': 'GET,OPTIONS',
+        },
+      });
+      return;
+    }
+    const pathname = new URL(route.request().url()).pathname;
+    const hospitalName = pathname.endsWith('/beds') || pathname.endsWith('/list')
+      ? '서울시민병원'
+      : undefined;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ xml: erXml(hospitalName) }),
+    });
+  });
+  await page.route('**/firewater/**', async route => {
+    const pathname = decodeURIComponent(new URL(route.request().url()).pathname);
+    if (pathname.endsWith('/manifest.json')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          version: 2,
+          generatedAt: '2026-07-31T00:00:00.000Z',
+          maxAgeDays: 120,
+          cities: {
+            서울특별시: {
+              city: '서울특별시',
+              sourceDate: '2026-07-30',
+              generatedAt: '2026-07-31T00:00:00.000Z',
+              total: 1,
+              hydrants: 1,
+              waterTowers: 0,
+            },
+          },
+        }),
+      });
+      return;
+    }
+    if (pathname.endsWith('/index.json')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          total: 1,
+          districts: { 종로구: 1 },
+          hydrants: 1,
+          waterTowers: 0,
+        }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        response: {
+          body: {
+            items: [{
+              fcltyNo: 'FW-1',
+              fcltyKndNm: '소화전',
+              rdnmadr: '서울특별시 종로구 세종대로 210',
+              latitude: '37.5666',
+              longitude: '126.9781',
+              signguNm: '종로구',
+              insptnSttusNm: '정상',
+            }],
+          },
+        },
+      }),
+    });
+  });
+
+  await page.goto('/?tab=incident');
+  await page.getByRole('button', { name: 'ambulance 구급', exact: true }).click();
+  await page.getByLabel('출동 제목').fill('세종대로 구급');
+  await page.getByLabel(/현장 주소/).fill('서울특별시 종로구 세종대로 209');
+  await page.getByRole('button', { name: /위치 기준 브리핑 시작/ }).click();
+
+  const roadButton = page.getByRole('button', { name: '세종대로 진입 주의로 고정' });
+  const fireWaterButton = page.getByRole('button', { name: 'FW-1 소화전 사용 후보 지정' });
+  const hospitalButton = page.getByRole('button', { name: '서울시민병원 전화 확인 후보 지정' });
+  await expect(roadButton).toHaveAttribute('aria-pressed', 'false');
+  await expect(fireWaterButton).toHaveAttribute('aria-pressed', 'false');
+  await expect(hospitalButton).toHaveAttribute('aria-pressed', 'false');
+  await roadButton.click();
+  await fireWaterButton.click();
+  await hospitalButton.click();
+  await expect(roadButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(fireWaterButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(hospitalButton).toHaveAttribute('aria-pressed', 'true');
+
+  const selectedActions = page.getByRole('region', { name: '선택한 현장 조치' });
+  await expect(selectedActions).toContainText('세종대로');
+  await expect(selectedActions).toContainText('서울시민병원');
+  const beforeRepeat = await page.evaluate(() => {
+    const activity = JSON.parse(localStorage.getItem('119helper-activity-session') || '{}');
+    return activity.stamps.filter((stamp: { label?: string }) => stamp.label?.includes('후보 지정')).length;
+  });
+  await roadButton.click();
+  const persisted = await page.evaluate(() => {
+    const incident = JSON.parse(localStorage.getItem('119helper-incident-session') || '{}');
+    const activity = JSON.parse(localStorage.getItem('119helper-activity-session') || '{}');
+    return {
+      selections: incident.selections,
+      selectionActivityCount: activity.stamps.filter(
+        (stamp: { label?: string }) => stamp.label?.includes('후보 지정'),
+      ).length,
+    };
+  });
+  expect(persisted.selections).toMatchObject({
+    road: { id: 'ROAD-1' },
+    fireWater: { id: 'FW-1' },
+    hospital: { id: 'TEST-1' },
+  });
+  expect(persisted.selectionActivityCount).toBe(beforeRepeat);
+
+  await page.reload();
+  await expect(page.getByRole('region', { name: '선택한 현장 조치' })).toContainText('서울시민병원');
+  await expect(page.getByRole('button', { name: '세종대로 진입 주의로 고정' }))
+    .toHaveAttribute('aria-pressed', 'true');
+
+  await page.setViewportSize({ width: 320, height: 568 });
+  const touchTargets = [
+    page.getByRole('button', { name: '세종대로 진입 주의로 고정' }),
+    page.getByRole('button', { name: 'FW-1 소화전 사용 후보 지정' }),
+    page.getByRole('button', { name: '서울시민병원 전화 확인 후보 지정' }),
+    page.getByRole('link', { name: '서울시민병원 전화' }),
+  ];
+  for (const target of touchTargets) {
+    await target.scrollIntoViewIfNeeded();
+    const box = await target.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+  }
+  });
 });
 
 test('활성 출동: 현장 모드와 사건 주소를 다른 도구로 이어간다', async ({ page }) => {

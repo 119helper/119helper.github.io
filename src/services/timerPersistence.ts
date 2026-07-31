@@ -4,6 +4,7 @@ export const TIMER_SESSION_KEY = '119helper-timer-session';
 
 export interface TimerState {
   id: number;
+  incidentId: string | null;
   label: string;
   totalSeconds: number;
   remaining: number;
@@ -20,6 +21,7 @@ export interface StopwatchLap {
 
 export interface TimerSessionSnapshot {
   timers: TimerState[];
+  stopwatchIncidentId: string | null;
   stopwatchRunning: boolean;
   stopwatchStart: Date | null;
   stopwatchElapsed: number;
@@ -29,6 +31,7 @@ export interface TimerSessionSnapshot {
 
 const EMPTY_SESSION: TimerSessionSnapshot = {
   timers: [],
+  stopwatchIncidentId: null,
   stopwatchRunning: false,
   stopwatchStart: null,
   stopwatchElapsed: 0,
@@ -44,6 +47,19 @@ function parseDate(value: unknown): Date | null {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function normalizeIncidentId(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const incidentId = value.trim().slice(0, 80);
+  return incidentId || null;
+}
+
+export function timersForIncident(
+  timers: TimerState[],
+  incidentId: string | null,
+): TimerState[] {
+  return timers.filter(timer => timer.incidentId === incidentId);
 }
 
 export function restoreTimerSession(value: unknown, now = Date.now()): TimerSessionSnapshot {
@@ -67,6 +83,7 @@ export function restoreTimerSession(value: unknown, now = Date.now()): TimerSess
 
         return [{
           id,
+          incidentId: normalizeIncidentId(timer.incidentId),
           label: timer.label.slice(0, 80),
           totalSeconds,
           remaining,
@@ -101,6 +118,7 @@ export function restoreTimerSession(value: unknown, now = Date.now()): TimerSess
 
   return {
     timers,
+    stopwatchIncidentId: normalizeIncidentId(raw.stopwatchIncidentId),
     stopwatchRunning,
     stopwatchStart,
     stopwatchElapsed,
@@ -116,11 +134,12 @@ export function loadTimerSession(now = Date.now()): TimerSessionSnapshot {
 
 export function saveTimerSession(session: TimerSessionSnapshot): void {
   saveStoredJson(TIMER_SESSION_KEY, {
-    version: 1,
+    version: 2,
     timers: session.timers.map(timer => ({
       ...timer,
       startedAt: timer.startedAt?.toISOString() ?? null,
     })),
+    stopwatchIncidentId: session.stopwatchIncidentId,
     stopwatchRunning: session.stopwatchRunning,
     stopwatchStart: session.stopwatchStart?.toISOString() ?? null,
     stopwatchElapsed: session.stopwatchElapsed,

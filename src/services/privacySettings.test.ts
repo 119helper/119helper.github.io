@@ -36,6 +36,7 @@ describe('privacy settings', () => {
   it('blocks sensitive persistence in public device mode', () => {
     savePrivacySettings(settings({ publicDeviceMode: true }));
     expect(canPersistStorageKey('119helper-notes')).toBe(false);
+    expect(canPersistStorageKey('119helper-incident-case-archive')).toBe(false);
     expect(canPersistStorageKey('119helper-timer-session')).toBe(false);
     expect(canPersistStorageKey('119helper-theme')).toBe(true);
   });
@@ -51,8 +52,10 @@ describe('privacy settings', () => {
 
   it('clears known sensitive values on request', async () => {
     localStorage.setItem('119helper-preplans', '[]');
+    localStorage.setItem('119helper-incident-case-archive', '{"version":1,"records":[]}');
     await clearSensitiveStoredData();
     expect(localStorage.getItem('119helper-preplans')).toBeNull();
+    expect(localStorage.getItem('119helper-incident-case-archive')).toBeNull();
   });
 
   it('centralized JSON storage respects public device mode', () => {

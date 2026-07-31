@@ -20,6 +20,51 @@ export interface IncidentLocation {
   accuracyMeters?: number;
 }
 
+export interface IncidentRoadSelection {
+  readonly id: string;
+  readonly selectedAt: number;
+  readonly isActiveAtSelection: true;
+  readonly eventLabel: string;
+  readonly controlLabel?: string;
+  readonly roadName?: string;
+  readonly distanceKm?: number;
+  readonly distanceLabel?: string;
+  readonly status?: string;
+  readonly sourceObservedAt: number;
+}
+
+export type IncidentFireWaterStatus = '정상' | '점검필요' | '고장' | '미확인';
+
+export interface IncidentFireWaterSelection {
+  readonly id: string;
+  readonly selectedAt: number;
+  readonly type: string;
+  readonly address: string;
+  readonly distanceKm?: number;
+  readonly distanceLabel?: string;
+  readonly status: IncidentFireWaterStatus;
+  readonly sourceDate: string | null;
+}
+
+export interface IncidentHospitalSelection {
+  readonly id: string;
+  readonly selectedAt: number;
+  readonly name: string;
+  readonly address: string;
+  readonly tel?: string;
+  readonly distanceKm?: number;
+  readonly distanceLabel?: string;
+  readonly erBeds?: number;
+  readonly wardBeds?: number;
+  readonly sourceObservedAt: number;
+}
+
+export interface IncidentSelections {
+  readonly road?: IncidentRoadSelection;
+  readonly fireWater?: IncidentFireWaterSelection;
+  readonly hospital?: IncidentHospitalSelection;
+}
+
 export interface IncidentSession {
   incidentId: string;
   active: boolean;
@@ -30,6 +75,7 @@ export interface IncidentSession {
   startedAt: number;
   endedAt?: number;
   note: string;
+  selections?: IncidentSelections;
   snapshot?: {
     capturedAt: number;
     cityLabel: string;
@@ -62,6 +108,177 @@ function optionalFiniteNumber(value: unknown): number | null {
   if (typeof value !== 'string' || value.trim() === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function requiredBoundedText(value: unknown, maxLength: number): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().slice(0, maxLength);
+  return normalized || null;
+}
+
+function optionalBoundedText(value: unknown, maxLength: number): string | undefined {
+  return requiredBoundedText(value, maxLength) ?? undefined;
+}
+
+function optionalNonNegativeNumber(value: unknown): number | undefined {
+  const normalized = optionalFiniteNumber(value);
+  return normalized !== null && normalized >= 0 ? normalized : undefined;
+}
+
+function optionalNonNegativeInteger(value: unknown): number | undefined {
+  const normalized = optionalNonNegativeNumber(value);
+  return normalized !== undefined && Number.isSafeInteger(normalized)
+    ? normalized
+    : undefined;
+}
+
+function positiveTimestamp(value: unknown): number | null {
+  const normalized = optionalFiniteNumber(value);
+  return normalized !== null && normalized > 0 && Number.isSafeInteger(normalized)
+    ? normalized
+    : null;
+}
+
+function normalizedSourceDate(value: unknown): string | null | undefined {
+  if (value === null) return null;
+  const normalized = optionalBoundedText(value, 40);
+  if (!normalized || !/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(normalized)) return undefined;
+  return Number.isFinite(Date.parse(normalized)) ? normalized : undefined;
+}
+
+function selectionTimestamp(
+  value: unknown,
+  startedAt: number,
+  endedAt: number | undefined,
+): number | null {
+  const selectedAt = positiveTimestamp(value);
+  const upperBound = endedAt ?? Date.now() + 5 * 60 * 1000;
+  return selectedAt !== null && selectedAt >= startedAt && selectedAt <= upperBound
+    ? selectedAt
+    : null;
+}
+
+function observedTimestamp(value: unknown, selectedAt: number): number | null {
+  const observedAt = positiveTimestamp(value);
+  return observedAt !== null && observedAt <= selectedAt ? observedAt : null;
+}
+
+function normalizeRoadSelection(
+  value: unknown,
+  startedAt: number,
+  endedAt: number | undefined,
+): IncidentRoadSelection | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const selection = value as Partial<IncidentRoadSelection>;
+  const id = requiredBoundedText(selection.id, 160);
+  const selectedAt = selectionTimestamp(selection.selectedAt, startedAt, endedAt);
+  const eventLabel = requiredBoundedText(selection.eventLabel, 100);
+  const sourceObservedAt = selectedAt === null
+    ? null
+    : observedTimestamp(selection.sourceObservedAt, selectedAt);
+  if (
+    !id
+    || selectedAt === null
+    || selection.isActiveAtSelection !== true
+    || !eventLabel
+    || sourceObservedAt === null
+  ) return undefined;
+
+  return {
+    id,
+    selectedAt,
+    isActiveAtSelection: true,
+    eventLabel,
+    controlLabel: optionalBoundedText(selection.controlLabel, 100),
+    roadName: optionalBoundedText(selection.roadName, 160),
+    distanceKm: optionalNonNegativeNumber(selection.distanceKm),
+    distanceLabel: optionalBoundedText(selection.distanceLabel, 40),
+    status: optionalBoundedText(selection.status, 80),
+    sourceObservedAt,
+  };
+}
+
+function normalizeFireWaterSelection(
+  value: unknown,
+  startedAt: number,
+  endedAt: number | undefined,
+): IncidentFireWaterSelection | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const selection = value as Partial<IncidentFireWaterSelection>;
+  const id = requiredBoundedText(selection.id, 160);
+  const selectedAt = selectionTimestamp(selection.selectedAt, startedAt, endedAt);
+  const type = requiredBoundedText(selection.type, 80);
+  const address = requiredBoundedText(selection.address, 240);
+  const statuses = new Set<IncidentFireWaterStatus>(['정상', '점검필요', '고장', '미확인']);
+  const rawStatus = optionalBoundedText(selection.status, 20);
+  const status = statuses.has(rawStatus as IncidentFireWaterStatus)
+    ? rawStatus as IncidentFireWaterStatus
+    : null;
+  const sourceDate = normalizedSourceDate(selection.sourceDate);
+  if (
+    !id
+    || selectedAt === null
+    || !type
+    || !address
+    || !status
+    || sourceDate === undefined
+  ) return undefined;
+
+  return {
+    id,
+    selectedAt,
+    type,
+    address,
+    distanceKm: optionalNonNegativeNumber(selection.distanceKm),
+    distanceLabel: optionalBoundedText(selection.distanceLabel, 40),
+    status,
+    sourceDate,
+  };
+}
+
+function normalizeHospitalSelection(
+  value: unknown,
+  startedAt: number,
+  endedAt: number | undefined,
+): IncidentHospitalSelection | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const selection = value as Partial<IncidentHospitalSelection>;
+  const id = requiredBoundedText(selection.id, 160);
+  const selectedAt = selectionTimestamp(selection.selectedAt, startedAt, endedAt);
+  const name = requiredBoundedText(selection.name, 160);
+  const address = requiredBoundedText(selection.address, 240);
+  const sourceObservedAt = selectedAt === null
+    ? null
+    : observedTimestamp(selection.sourceObservedAt, selectedAt);
+  if (!id || selectedAt === null || !name || !address || sourceObservedAt === null) return undefined;
+
+  return {
+    id,
+    selectedAt,
+    name,
+    address,
+    tel: optionalBoundedText(selection.tel, 40),
+    distanceKm: optionalNonNegativeNumber(selection.distanceKm),
+    distanceLabel: optionalBoundedText(selection.distanceLabel, 40),
+    erBeds: optionalNonNegativeInteger(selection.erBeds),
+    wardBeds: optionalNonNegativeInteger(selection.wardBeds),
+    sourceObservedAt,
+  };
+}
+
+function normalizeIncidentSelections(
+  value: unknown,
+  incidentId: string,
+  startedAt: number,
+  endedAt: number | undefined,
+): IncidentSelections | undefined {
+  if (!incidentId || startedAt <= 0 || !value || typeof value !== 'object') return undefined;
+  const selections = value as Partial<IncidentSelections>;
+  const road = normalizeRoadSelection(selections.road, startedAt, endedAt);
+  const fireWater = normalizeFireWaterSelection(selections.fireWater, startedAt, endedAt);
+  const hospital = normalizeHospitalSelection(selections.hospital, startedAt, endedAt);
+  if (!road && !fireWater && !hospital) return undefined;
+  return { road, fireWater, hospital };
 }
 
 function normalizeIncidentLocation(value: unknown): IncidentLocation | undefined {
@@ -114,19 +331,30 @@ export function normalizeIncidentSession(value: unknown): IncidentSession {
   if (!value || typeof value !== 'object') return EMPTY_INCIDENT_SESSION;
   const session = value as Partial<IncidentSession>;
   const startedAt = Number(session.startedAt);
+  const normalizedStartedAt = Number.isFinite(startedAt) ? startedAt : 0;
+  const endedAt = Number.isFinite(Number(session.endedAt)) ? Number(session.endedAt) : undefined;
+  const incidentId = typeof session.incidentId === 'string'
+    ? session.incidentId.trim().slice(0, 80)
+    : '';
   const active = session.active === true && Number.isFinite(startedAt) && startedAt > 0;
 
   return {
     ...EMPTY_INCIDENT_SESSION,
-    incidentId: typeof session.incidentId === 'string' ? session.incidentId.trim().slice(0, 80) : '',
+    incidentId,
     active,
     type: isIncidentType(session.type) ? session.type : 'fire',
     title: typeof session.title === 'string' ? session.title.trim().slice(0, 120) : '',
     address: typeof session.address === 'string' ? session.address.trim().slice(0, 200) : '',
     location: normalizeIncidentLocation(session.location),
-    startedAt: Number.isFinite(startedAt) ? startedAt : 0,
-    endedAt: Number.isFinite(Number(session.endedAt)) ? Number(session.endedAt) : undefined,
+    startedAt: normalizedStartedAt,
+    endedAt,
     note: typeof session.note === 'string' ? session.note.slice(0, 1000) : '',
+    selections: normalizeIncidentSelections(
+      session.selections,
+      incidentId,
+      normalizedStartedAt,
+      endedAt,
+    ),
     snapshot: session.snapshot,
   };
 }

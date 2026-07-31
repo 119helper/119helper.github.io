@@ -14,6 +14,7 @@ const stamp = (stageId: string, time: number): LoggedActivityStamp => ({
 });
 const timer = (overrides: Partial<TimerState> = {}): TimerState => ({
   id: 1,
+  incidentId: null,
   label: '30분',
   totalSeconds: 1800,
   remaining: 1800,

@@ -32,6 +32,7 @@ export const SENSITIVE_STORAGE_KEYS = [
   '119helper-sop-checklist-timestamps',
   '119helper-stress-check',
   '119helper-incident-session',
+  '119helper-incident-case-archive',
   '119helper-mci-board',
   '119helper-timer-session',
 ];

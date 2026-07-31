@@ -11,6 +11,8 @@ interface IncidentCloseReviewDialogProps {
   stamps: LoggedActivityStamp[];
   timers: TimerState[];
   stopwatchRunning: boolean;
+  saving: boolean;
+  saveError: string;
   onClose: () => void;
   onOpenActivity: () => void;
   onOpenTimers: () => void;
@@ -29,6 +31,8 @@ export default function IncidentCloseReviewDialog({
   stamps,
   timers,
   stopwatchRunning,
+  saving,
+  saveError,
   onClose,
   onOpenActivity,
   onOpenTimers,
@@ -60,7 +64,11 @@ export default function IncidentCloseReviewDialog({
 
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center p-2 sm:items-center sm:p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        aria-hidden="true"
+        onClick={saving ? undefined : onClose}
+      />
       <div
         ref={dialogRef}
         role="dialog"
@@ -81,14 +89,22 @@ export default function IncidentCloseReviewDialog({
           <button
             type="button"
             aria-label="출동 종료 점검 닫기"
+            disabled={saving}
             onClick={onClose}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-40"
           >
             <span aria-hidden="true" className="material-symbols-outlined">close</span>
           </button>
         </div>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+          {saveError && (
+            <div role="alert" className="rounded-xl border border-error/30 bg-error/5 p-4 text-sm font-bold text-error">
+              <p>출동 기록을 안전하게 보관하지 못해 종료하지 않았습니다.</p>
+              <p className="mt-1 text-xs font-medium text-on-surface-variant">{saveError}</p>
+            </div>
+          )}
+
           {!review.hasWarnings && (
             <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-700 dark:text-emerald-300">
               <span aria-hidden="true" className="material-symbols-outlined">task_alt</span>
@@ -196,18 +212,19 @@ export default function IncidentCloseReviewDialog({
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-outline-variant/20 bg-surface-container-lowest px-5 py-4">
           <button
             type="button"
+            disabled={saving}
             onClick={onClose}
-            className="rounded-lg px-4 py-2.5 text-sm font-bold text-on-surface-variant hover:bg-surface-container"
+            className="rounded-lg px-4 py-2.5 text-sm font-bold text-on-surface-variant hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-40"
           >
             계속 기록
           </button>
           <button
             type="button"
-            disabled={!canConfirm}
+            disabled={!canConfirm || saving}
             onClick={onConfirm}
             className="rounded-lg bg-error px-4 py-2.5 text-sm font-extrabold text-on-error hover:bg-error/90 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {review.hasWarnings ? '확인 후 출동 종료' : '출동 종료'}
+            {saving ? '기록 보관 중…' : review.hasWarnings ? '확인 후 출동 종료' : '출동 종료'}
           </button>
         </div>
       </div>

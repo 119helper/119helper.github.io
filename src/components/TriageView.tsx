@@ -13,21 +13,17 @@ import { matchHospitals, type MatchedHospital } from '../utils/hospitalMatch';
 import { getERRealTimeBeds, CITY_TO_SIDO } from '../services/erApi';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { useAppFeedback } from '../contexts/FeedbackContext';
+import { useIncidentSession } from '../hooks/useIncidentSession';
+import {
+  TRIAGE_PATIENTS_KEY,
+  normalizeTriagePatients,
+  patientsForIncident,
+  type TriageMode,
+  type TriagePatient,
+  type TriagePatientStatus,
+} from '../services/triageSession';
 
-type Mode = 'adult' | 'child';
 type Answers = Record<string, boolean | undefined>;
-type PatientStatus = 'triaged' | 'treating' | 'waiting' | 'transferred';
-
-interface TriagePatient {
-  id: string;
-  mode: Mode;
-  color: TriageColor;
-  label: string;
-  createdAt: string;
-  status?: PatientStatus;
-  destination?: string;
-  note?: string;
-}
 
 const COLOR_CLASSES: Record<TriageColor, string> = {
   red: 'bg-red-500/15 border-red-500/40 text-red-800 dark:text-red-200',
@@ -37,8 +33,8 @@ const COLOR_CLASSES: Record<TriageColor, string> = {
 };
 
 const COLOR_ORDER: TriageColor[] = ['red', 'yellow', 'green', 'black'];
-const STATUS_ORDER: PatientStatus[] = ['triaged', 'treating', 'waiting', 'transferred'];
-const STATUS_LABEL: Record<PatientStatus, string> = {
+const STATUS_ORDER: TriagePatientStatus[] = ['triaged', 'treating', 'waiting', 'transferred'];
+const STATUS_LABEL: Record<TriagePatientStatus, string> = {
   triaged: '분류',
   treating: '처치 중',
   waiting: '이송 대기',
@@ -47,8 +43,23 @@ const STATUS_LABEL: Record<PatientStatus, string> = {
 
 export default function TriageView({ city = 'seoul' }: { city?: string }) {
   const { showUndo, confirmAction } = useAppFeedback();
-  const [mode, setMode] = useState<Mode>('adult');
-  const [patients, setPatients] = useLocalStorageState<TriagePatient[]>('119helper-triage-patients', []);
+  const [incident] = useIncidentSession();
+  const [mode, setMode] = useState<TriageMode>('adult');
+  const [storedPatients, setStoredPatients] = useLocalStorageState<unknown[]>(TRIAGE_PATIENTS_KEY, []);
+  const allPatients = useMemo(
+    () => normalizeTriagePatients(storedPatients),
+    [storedPatients],
+  );
+  const incidentId = incident.active && incident.incidentId ? incident.incidentId : null;
+  const patients = useMemo(
+    () => patientsForIncident(allPatients, incidentId),
+    [allPatients, incidentId],
+  );
+  const hiddenPatientCount = allPatients.length - patients.length;
+
+  const updateAllPatients = (update: (current: TriagePatient[]) => TriagePatient[]) => {
+    setStoredPatients(current => update(normalizeTriagePatients(current)));
+  };
 
   const counts = useMemo(() => {
     const c: Record<TriageColor, number> = { red: 0, yellow: 0, green: 0, black: 0 };
@@ -57,7 +68,7 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
   }, [patients]);
 
   const statusCounts = useMemo(() => {
-    const c: Record<PatientStatus, number> = { triaged: 0, treating: 0, waiting: 0, transferred: 0 };
+    const c: Record<TriagePatientStatus, number> = { triaged: 0, treating: 0, waiting: 0, transferred: 0 };
     patients.forEach(p => {
       c[p.status ?? 'triaged'] += 1;
     });
@@ -67,6 +78,7 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
   const addPatient = (color: TriageColor, label: string) => {
     const next: TriagePatient = {
       id: Date.now().toString(),
+      incidentId,
       mode,
       color,
       label: label.trim() || `환자 ${patients.length + 1}`,
@@ -75,7 +87,7 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
       destination: '',
       note: '',
     };
-    setPatients(prev => [next, ...prev]);
+    updateAllPatients(prev => [next, ...prev]);
   };
 
   const removePatient = (id: string) => {
@@ -83,11 +95,15 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
     const removed = patients[index];
     if (!removed) return;
 
-    setPatients(current => current.filter(patient => patient.id !== id));
+    updateAllPatients(current => current.filter(patient => (
+      patient.id !== id || patient.incidentId !== incidentId
+    )));
     showUndo({
       message: '환자 기록을 삭제했습니다.',
-      undo: () => setPatients(current => {
-        if (current.some(patient => patient.id === removed.id)) return current;
+      undo: () => updateAllPatients(current => {
+        if (current.some(patient => (
+          patient.id === removed.id && patient.incidentId === removed.incidentId
+        ))) return current;
         const restored = [...current];
         restored.splice(Math.min(index, restored.length), 0, removed);
         return restored;
@@ -95,7 +111,9 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
     });
   };
   const updatePatient = (id: string, patch: Partial<TriagePatient>) =>
-    setPatients(prev => prev.map(p => (p.id === id ? { ...p, ...patch } : p)));
+    updateAllPatients(prev => prev.map(p => (
+      p.id === id && p.incidentId === incidentId ? { ...p, ...patch } : p
+    )));
   const clearAll = async () => {
     const approved = await confirmAction({
       title: '환자 기록 전체 삭제',
@@ -105,13 +123,16 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
     });
     if (!approved) return;
     const removed = patients;
-    setPatients([]);
+    updateAllPatients(current => current.filter(patient => patient.incidentId !== incidentId));
     showUndo({
       message: `환자 기록 ${removed.length}건을 모두 삭제했습니다.`,
       durationMs: 15_000,
-      undo: () => setPatients(current => {
-        const currentIds = new Set(current.map(patient => patient.id));
-        return [...removed.filter(patient => !currentIds.has(patient.id)), ...current];
+      undo: () => updateAllPatients(current => {
+        const currentIds = new Set(current.map(patient => `${patient.incidentId ?? ''}:${patient.id}`));
+        return [
+          ...removed.filter(patient => !currentIds.has(`${patient.incidentId ?? ''}:${patient.id}`)),
+          ...current,
+        ];
       }),
     });
   };
@@ -148,6 +169,18 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
         revisedYear="국내 기관 SOP 대조 미완료"
         note="교육용 참고입니다. 국내 현장의 성인·소아 연령 경계, 검정 태그 정의, 재분류 규칙은 소속 기관 SOP와 의료지도를 우선하십시오."
       />
+
+      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-on-surface">
+        <p className="font-extrabold">
+          {incidentId ? `${incident.title} 출동 환자만 표시 중` : '독립 환자 보드'}
+        </p>
+        <p className="mt-1 text-xs text-on-surface-variant">
+          {incidentId
+            ? '이 출동에서 추가한 환자만 상황판과 보고서에 포함됩니다.'
+            : '출동 상황판을 시작하면 새 출동 전용 환자 보드가 열립니다.'}
+          {hiddenPatientCount > 0 ? ` 다른 범위 기록 ${hiddenPatientCount}건은 안전하게 분리 보관 중입니다.` : ''}
+        </p>
+      </div>
 
       {/* 집계 보드 */}
       <div className="grid grid-cols-4 gap-3">
@@ -217,7 +250,7 @@ export default function TriageView({ city = 'seoul' }: { city?: string }) {
 }
 
 // ── 분류 위저드 ───────────────────────────────────────────────
-function TriageWizard({ mode, onComplete }: { mode: Mode; onComplete: (color: TriageColor, label: string) => void }) {
+function TriageWizard({ mode, onComplete }: { mode: TriageMode; onComplete: (color: TriageColor, label: string) => void }) {
   const [answers, setAnswers] = useState<Answers>({});
   const [label, setLabel] = useState('');
 
@@ -328,7 +361,7 @@ function PatientCard({
       <select
         aria-label="환자 상태"
         value={status}
-        onChange={e => onChange({ status: e.target.value as PatientStatus })}
+        onChange={e => onChange({ status: e.target.value as TriagePatientStatus })}
         className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-lg px-2 py-2 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
       >
         {STATUS_ORDER.map(s => (

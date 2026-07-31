@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   ACTIVITY_SESSION_KEY,
   appendActivityEvent,
+  buildClosedActivitySession,
   loadActivitySession,
   recordActivityStage,
   removeActivityStage,
@@ -61,6 +62,96 @@ describe('activitySession', () => {
 
     expect(appendActivityEvent('이전 출동 변화', 2000, 'incident-old')).toEqual(current);
     expect(loadActivitySession().stamps).toHaveLength(1);
+  });
+
+  it('builds a scoped close record without mutating live activity first', () => {
+    const live = startActivityFromIncident({
+      incidentId: 'incident-current',
+      type: 'ems',
+      title: '환자 이송',
+      startedAt: 1_000,
+    });
+
+    const closed = buildClosedActivitySession({
+      current: live,
+      incidentId: 'incident-current',
+      presetId: 'ems',
+      title: '환자 이송',
+      note: '',
+      startedAt: 1_000,
+      endedAt: 5_000,
+    });
+
+    expect(closed.incidentId).toBe('incident-current');
+    expect(closed.stamps.at(-1)).toEqual(expect.objectContaining({
+      stageId: 'incident-close',
+      label: '상황판 종료',
+      time: 5_000,
+    }));
+    expect(loadActivitySession().stamps).toEqual(live.stamps);
+  });
+
+  it('reconstructs a minimal exact-incident record after an unrelated reset', () => {
+    const closed = buildClosedActivitySession({
+      current: {
+        presetId: 'fire',
+        title: '독립 기록',
+        note: '',
+        stamps: [{ stageId: 'manual', label: '다른 기록', time: 2_000, lat: null, lon: null }],
+      },
+      incidentId: 'incident-current',
+      presetId: 'rescue',
+      title: '구조 출동',
+      note: '진입 주의',
+      startedAt: 1_000,
+      endedAt: 5_000,
+      location: { lat: 37.5, lng: 126.9 },
+    });
+
+    expect(closed).toMatchObject({
+      incidentId: 'incident-current',
+      presetId: 'rescue',
+      title: '구조 출동',
+      note: '진입 주의',
+    });
+    expect(closed.stamps).toEqual([
+      expect.objectContaining({
+        stageId: 'dispatch',
+        time: 1_000,
+        lat: 37.5,
+        lon: 126.9,
+      }),
+      expect.objectContaining({
+        stageId: 'incident-close',
+        time: 5_000,
+      }),
+    ]);
+  });
+
+  it('replaces a failed close attempt with the retry timestamp', () => {
+    const retried = buildClosedActivitySession({
+      current: {
+        incidentId: 'incident-current',
+        presetId: 'fire',
+        title: '상가 화재',
+        note: '',
+        stamps: [
+          { stageId: 'dispatch', label: '출동', time: 1_000, lat: null, lon: null },
+          { stageId: 'incident-close', label: '상황판 종료', time: 3_000, lat: null, lon: null },
+          { stageId: 'auto-3000-2', label: '상황판 종료', time: 3_000, lat: null, lon: null },
+        ],
+      },
+      incidentId: 'incident-current',
+      presetId: 'fire',
+      title: '상가 화재',
+      note: '',
+      startedAt: 1_000,
+      endedAt: 5_000,
+    });
+
+    expect(retried.stamps.filter(stamp => stamp.label === '상황판 종료')).toEqual([
+      expect.objectContaining({ stageId: 'incident-close', time: 5_000 }),
+    ]);
   });
 
   it('records a named activity stage only once', () => {

@@ -15,10 +15,19 @@ import {
 import type { FireFacility } from '../data/mockData';
 import type { NavigateTarget } from '../types/navigation';
 import { loadStoredJson } from '../services/privacySettings';
-import { appendActivityEvent, startActivityFromIncident } from '../services/activitySession';
+import {
+  appendActivityEvent,
+  buildClosedActivitySession,
+  saveActivitySession,
+  startActivityFromIncident,
+} from '../services/activitySession';
 import {
   EMPTY_INCIDENT_SESSION,
+  type IncidentFireWaterSelection,
+  type IncidentHospitalSelection,
   type IncidentLocation,
+  type IncidentRoadSelection,
+  type IncidentSelections,
   type IncidentSession,
   type IncidentType,
 } from '../services/incidentSession';
@@ -29,8 +38,9 @@ import {
 import {
   pickNearbyFireWaterFacilities,
   rankNearbyRoadDisasters,
+  type NearbyRoadDisaster,
 } from '../services/incidentBriefing';
-import { matchHospitals } from '../utils/hospitalMatch';
+import { matchHospitals, type MatchedHospital } from '../utils/hospitalMatch';
 import { isAddressInAppCity } from '../services/administrativeRegions';
 import {
   formatFreshnessSourceDate,
@@ -40,6 +50,13 @@ import {
 } from '../services/dataFreshness';
 import { kakaoRegionToCity } from '../utils/locationResolver';
 import IncidentCloseReviewDialog from './IncidentCloseReviewDialog';
+import {
+  loadTriagePatients,
+  patientsForIncident,
+  removeTriagePatientsForIncident,
+} from '../services/triageSession';
+import { archiveIncidentCase } from '../services/incidentCaseStore';
+import { getIncidentActionOrder } from '../utils/incidentActionOrder';
 
 const INCIDENT_TYPES: Array<{ id: IncidentType; label: string; icon: string }> = [
   { id: 'fire', label: '화재', icon: 'local_fire_department' },
@@ -69,6 +86,53 @@ function createIncidentId(startedAt: number): string {
   return `incident-${startedAt}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function boundedCandidateId(value: string): string {
+  return value.trim().slice(0, 160);
+}
+
+function roadCandidateId(disaster: NearbyRoadDisaster): string {
+  return boundedCandidateId(
+    disaster.eventId
+    || [
+      disaster.eventTypeCode || disaster.eventType,
+      disaster.occurredAt || '',
+      disaster.roadNames[0] || disaster.facilityName || '',
+      disaster.message || '',
+    ].join('|'),
+  );
+}
+
+function hospitalCandidateId(hospital: MatchedHospital): string {
+  return boundedCandidateId(
+    hospital.id
+    || hospital.hpid
+    || hospital.phpid
+    || `${hospital.name}|${hospital.address}`,
+  );
+}
+
+function sameSelectionSnapshot<T extends { selectedAt: number }>(
+  current: T | undefined,
+  next: T,
+): boolean {
+  if (!current) return false;
+  const operationalEntries = (value: T) => Object.entries(value)
+    .filter(([key]) => key !== 'selectedAt' && key !== 'sourceObservedAt')
+    .sort(([left], [right]) => left.localeCompare(right));
+  return JSON.stringify(operationalEntries(current)) === JSON.stringify(operationalEntries(next));
+}
+
+function observedAtOrSelection(value: string | number | null | undefined, selectedAt: number): number {
+  const parsed = typeof value === 'number' ? value : Date.parse(value || '');
+  return Number.isFinite(parsed) && parsed > 0
+    ? Math.min(parsed, selectedAt)
+    : selectedAt;
+}
+
+function currentTimestamp(): number {
+  return Date.now();
+}
+
 export default function IncidentModeView({
   city,
   cityLabel,
@@ -92,11 +156,22 @@ export default function IncidentModeView({
   }, [draft]);
   const [now, setNow] = useState(() => Date.now());
   const [closeReviewOpen, setCloseReviewOpen] = useState(false);
+  const [closingSession, setClosingSession] = useState(false);
+  const [closeSaveError, setCloseSaveError] = useState('');
   const [locationResolving, setLocationResolving] = useState(false);
   const [locationError, setLocationError] = useState('');
   const [offerRegionalFallback, setOfferRegionalFallback] = useState(false);
   const [activitySession] = useActivitySession(session.type);
-  const { timers, stopwatchRunning, stopwatchElapsed } = useTimer();
+  const {
+    timers,
+    allTimers,
+    stopwatchIncidentId,
+    stopwatchRunning,
+    stopwatchStart,
+    stopwatchElapsed,
+    laps,
+    clearIncidentScope,
+  } = useTimer();
   const {
     alerts: changeAlerts,
     acknowledgeAlert,
@@ -191,7 +266,9 @@ export default function IncidentModeView({
     : fireFacilities.filter(f => f.type === '급수탑' || f.type === '저수조').length;
 
   const activeTimers = timers.filter(t => t.isRunning || t.remaining < t.totalSeconds);
-  const triageCount = readCount('119helper-triage-patients');
+  const triageCount = session.incidentId
+    ? patientsForIncident(loadTriagePatients(), session.incidentId).length
+    : 0;
   const preplanCount = readCount('119helper-preplans');
   const elapsed = session.active ? now - session.startedAt : 0;
   const typeMeta = INCIDENT_TYPES.find(t => t.id === session.type) ?? INCIDENT_TYPES[0];
@@ -259,6 +336,145 @@ export default function IncidentModeView({
   const endedRoadDisasters = nearbyRoadDisasters
     .filter(disaster => !disaster.isActive)
     .slice(0, 3);
+
+  const roadSelectionFrom = (
+    disaster: NearbyRoadDisaster,
+    selectedAt: number,
+  ): IncidentRoadSelection => ({
+    id: roadCandidateId(disaster),
+    selectedAt,
+    isActiveAtSelection: true,
+    eventLabel: disaster.eventLabel,
+    controlLabel: disaster.controlLabel,
+    roadName: disaster.roadNames[0] || disaster.facilityName || undefined,
+    distanceKm: disaster.distanceKm,
+    distanceLabel: disaster.distanceLabel,
+    status: '진행 중',
+    sourceObservedAt: observedAtOrSelection(roadDisasters?.retrievedAt, selectedAt),
+  });
+  const fireWaterSelectionFrom = (
+    candidate: (typeof nearbyWater)[number],
+    selectedAt: number,
+  ): IncidentFireWaterSelection => ({
+    id: boundedCandidateId(candidate.facility.id),
+    selectedAt,
+    type: candidate.facility.type,
+    address: candidate.facility.address,
+    distanceKm: candidate.distanceKm,
+    distanceLabel: candidate.distanceLabel,
+    status: candidate.facility.status,
+    sourceDate: incidentFireWaterFreshness?.sourceDate ?? null,
+  });
+  const hospitalSelectionFrom = (
+    hospital: MatchedHospital,
+    selectedAt: number,
+  ): IncidentHospitalSelection => ({
+    id: hospitalCandidateId(hospital),
+    selectedAt,
+    name: hospital.name,
+    address: hospital.address,
+    tel: hospital.tel || undefined,
+    distanceKm: hospital.distanceKm ?? undefined,
+    distanceLabel: hospital.distanceKm === null
+      ? undefined
+      : `${hospital.distanceKm.toFixed(1)}km`,
+    erBeds: hospital.erBeds ?? undefined,
+    wardBeds: hospital.wardBeds ?? undefined,
+    sourceObservedAt: observedAtOrSelection(erStaleAt, selectedAt),
+  });
+
+  const commitIncidentSelection = <Key extends keyof IncidentSelections>(
+    key: Key,
+    selection: NonNullable<IncidentSelections[Key]>,
+    expectedIncidentId: string,
+  ): boolean => {
+    let changed = false;
+    setSession(current => {
+      if (!current.active || current.incidentId !== expectedIncidentId) return current;
+      const existing = current.selections?.[key] as NonNullable<IncidentSelections[Key]> | undefined;
+      if (sameSelectionSnapshot(existing, selection)) return current;
+      changed = true;
+      return {
+        ...current,
+        selections: {
+          ...current.selections,
+          [key]: selection,
+        },
+      };
+    });
+    return changed;
+  };
+
+  const selectRoadCandidate = (disaster: NearbyRoadDisaster) => {
+    if (!disaster.isActive) return;
+    const expectedIncidentId = session.incidentId;
+    const selection = roadSelectionFrom(disaster, currentTimestamp());
+    if (sameSelectionSnapshot(session.selections?.road, selection)) return;
+    if (!commitIncidentSelection('road', selection, expectedIncidentId)) return;
+    appendActivityEvent(
+      `진입 주의 후보 지정 · ${selection.roadName || selection.eventLabel} · ${selection.controlLabel || selection.eventLabel}`,
+      selection.selectedAt,
+      expectedIncidentId,
+    );
+  };
+  const selectFireWaterCandidate = (candidate: (typeof nearbyWater)[number]) => {
+    const expectedIncidentId = session.incidentId;
+    const selection = fireWaterSelectionFrom(candidate, currentTimestamp());
+    if (sameSelectionSnapshot(session.selections?.fireWater, selection)) return;
+    if (!commitIncidentSelection('fireWater', selection, expectedIncidentId)) return;
+    appendActivityEvent(
+      `소방용수 후보 지정 · ${selection.type} · ${selection.distanceLabel || '거리 미확인'}`,
+      selection.selectedAt,
+      expectedIncidentId,
+    );
+  };
+  const selectHospitalCandidate = (hospital: MatchedHospital) => {
+    const expectedIncidentId = session.incidentId;
+    const selection = hospitalSelectionFrom(hospital, currentTimestamp());
+    if (sameSelectionSnapshot(session.selections?.hospital, selection)) return;
+    if (!commitIncidentSelection('hospital', selection, expectedIncidentId)) return;
+    appendActivityEvent(
+      `이송 전화확인 후보 지정 · ${selection.name} · 선택 당시 ${selection.erBeds ?? '미확인'}병상`,
+      selection.selectedAt,
+      expectedIncidentId,
+    );
+  };
+
+  const selectedRoadCandidate = session.selections?.road
+    ? activeRoadDisasters.find(disaster => roadCandidateId(disaster) === session.selections?.road?.id)
+    : undefined;
+  const selectedFireWaterCandidate = session.selections?.fireWater
+    ? nearbyWater.find(candidate => candidate.facility.id === session.selections?.fireWater?.id)
+    : undefined;
+  const selectedHospitalCandidate = session.selections?.hospital
+    ? transportCandidates.find(hospital => hospitalCandidateId(hospital) === session.selections?.hospital?.id)
+    : undefined;
+  const roadNeedsReview = Boolean(session.selections?.road && (
+    !selectedRoadCandidate
+    || !sameSelectionSnapshot(
+      session.selections.road,
+      roadSelectionFrom(selectedRoadCandidate, session.selections.road.selectedAt),
+    )
+  ));
+  const fireWaterNeedsReview = Boolean(session.selections?.fireWater && (
+    !selectedFireWaterCandidate
+    || !sameSelectionSnapshot(
+      session.selections.fireWater,
+      fireWaterSelectionFrom(selectedFireWaterCandidate, session.selections.fireWater.selectedAt),
+    )
+  ));
+  const hospitalNeedsReview = Boolean(session.selections?.hospital && (
+    !selectedHospitalCandidate
+    || !sameSelectionSnapshot(
+      session.selections.hospital,
+      hospitalSelectionFrom(selectedHospitalCandidate, session.selections.hospital.selectedAt),
+    )
+  ));
+  const hasSelectedActions = Boolean(
+    session.selections?.road
+    || session.selections?.fireWater
+    || session.selections?.hospital,
+  );
   const visibleChangeAlerts = showAllChangeAlerts
     ? changeAlerts
     : changeAlerts.slice(0, 4);
@@ -361,21 +577,79 @@ export default function IncidentModeView({
   };
 
   const closeSession = () => {
+    setCloseSaveError('');
     setCloseReviewOpen(true);
   };
 
-  const finalizeSession = () => {
+  const finalizeSession = async () => {
+    if (closingSession || !session.active || !session.incidentId) return;
+
     const endedAt = Date.now();
-    appendActivityEvent('상황판 종료', endedAt);
-    setSession({ ...session, active: false, endedAt });
-    setDraft(EMPTY_INCIDENT_SESSION);
-    setLocationError('');
-    setOfferRegionalFallback(false);
-    setCloseReviewOpen(false);
+    const incidentId = session.incidentId;
+    setClosingSession(true);
+    setCloseSaveError('');
+
+    try {
+      const closedIncident: IncidentSession = {
+        ...session,
+        active: false,
+        endedAt,
+      };
+      const closedActivity = buildClosedActivitySession({
+        current: activitySession,
+        incidentId,
+        presetId: session.type,
+        title: session.title,
+        note: session.note,
+        startedAt: session.startedAt,
+        endedAt,
+        location: session.location
+          ? { lat: session.location.lat, lng: session.location.lng }
+          : undefined,
+      });
+      const archiveResult = archiveIncidentCase({
+        incident: closedIncident,
+        activity: closedActivity,
+        triagePatients: loadTriagePatients(),
+        timers: allTimers,
+        stopwatch: stopwatchIncidentId === incidentId
+          ? {
+              incidentId,
+              running: stopwatchRunning,
+              startedAt: stopwatchStart,
+              elapsedMs: stopwatchElapsed,
+              laps,
+            }
+          : null,
+      }, endedAt);
+      const committedIncident = archiveResult.status === 'skipped-public'
+        ? closedIncident
+        : archiveResult.record.incident;
+      const committedActivity = archiveResult.status === 'skipped-public'
+        ? closedActivity
+        : archiveResult.record.activity;
+
+      saveActivitySession(committedActivity);
+      removeTriagePatientsForIncident(incidentId);
+      clearIncidentScope(incidentId);
+      setSession(committedIncident);
+      setDraft(EMPTY_INCIDENT_SESSION);
+      setLocationError('');
+      setOfferRegionalFallback(false);
+      setCloseReviewOpen(false);
+    } catch (error) {
+      setCloseSaveError(
+        error instanceof Error
+          ? error.message
+          : '종료 기록을 보관하지 못했습니다. 저장 공간을 확인하고 다시 시도해 주세요.',
+      );
+    } finally {
+      setClosingSession(false);
+    }
   };
 
   const openIncidentTool = (tab: NavigateTarget | string, label: string, subId?: string) => {
-    appendActivityEvent(`${label} 열람`);
+    appendActivityEvent(`${label} 열람`, Date.now(), session.incidentId);
     onNavigate(tab, subId);
   };
 
@@ -697,6 +971,80 @@ export default function IncidentModeView({
         </div>
       )}
 
+      {hasSelectedActions && (
+        <section
+          role="region"
+          aria-label="선택한 현장 조치"
+          className="rounded-2xl border border-primary/25 bg-primary/5 p-4"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">원탭 연결</p>
+              <h3 className="mt-1 text-lg font-extrabold text-on-surface">선택한 현장 조치</h3>
+            </div>
+            <p className="text-[11px] font-bold text-on-surface-variant">
+              후보 지정 상태 · 현장·기관 재확인 필수
+            </p>
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+            {session.selections?.road && (
+              <article className="rounded-xl border border-outline-variant/15 bg-surface-container-lowest p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-extrabold text-on-surface">진입 주의 후보</p>
+                  <span className="material-symbols-outlined text-lg text-primary" aria-hidden="true">route</span>
+                </div>
+                <p className="mt-1 truncate text-sm font-black text-on-surface">
+                  {session.selections.road.roadName || session.selections.road.eventLabel}
+                </p>
+                <p className="mt-1 text-[11px] leading-4 text-on-surface-variant">
+                  {session.selections.road.eventLabel}
+                  {session.selections.road.controlLabel ? ` · ${session.selections.road.controlLabel}` : ''}
+                  {session.selections.road.distanceLabel ? ` · ${session.selections.road.distanceLabel}` : ''}
+                </p>
+                <SelectionTimestamp value={session.selections.road.selectedAt} />
+                {roadNeedsReview && <SelectionReviewWarning />}
+              </article>
+            )}
+            {session.selections?.fireWater && (
+              <article className="rounded-xl border border-outline-variant/15 bg-surface-container-lowest p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-extrabold text-on-surface">소방용수 사용 후보</p>
+                  <span className="material-symbols-outlined text-lg text-primary" aria-hidden="true">fire_hydrant</span>
+                </div>
+                <p className="mt-1 truncate text-sm font-black text-on-surface">
+                  {session.selections.fireWater.type} · {session.selections.fireWater.distanceLabel || '거리 미확인'}
+                </p>
+                <p className="mt-1 truncate text-[11px] text-on-surface-variant">
+                  점검상태 {session.selections.fireWater.status}(등록값)
+                  {' · '}기준일 {session.selections.fireWater.sourceDate || '미확인'}
+                  {' · '}실제 사용 가능 여부 미확정
+                </p>
+                <SelectionTimestamp value={session.selections.fireWater.selectedAt} />
+                {fireWaterNeedsReview && <SelectionReviewWarning />}
+              </article>
+            )}
+            {session.selections?.hospital && (
+              <article className="rounded-xl border border-outline-variant/15 bg-surface-container-lowest p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-extrabold text-on-surface">이송 전화확인 후보</p>
+                  <span className="material-symbols-outlined text-lg text-primary" aria-hidden="true">ambulance</span>
+                </div>
+                <p className="mt-1 truncate text-sm font-black text-on-surface">
+                  {session.selections.hospital.name}
+                </p>
+                <p className="mt-1 text-[11px] leading-4 text-on-surface-variant">
+                  선택 당시 {session.selections.hospital.erBeds ?? '미확인'}병상
+                  {session.selections.hospital.distanceLabel ? ` · ${session.selections.hospital.distanceLabel}` : ''}
+                  {' · '}수용 확정 아님
+                </p>
+                <SelectionTimestamp value={session.selections.hospital.selectedAt} />
+                {hospitalNeedsReview && <SelectionReviewWarning />}
+              </article>
+            )}
+          </div>
+        </section>
+      )}
+
       {session.location && changeAlerts.length === 0 && (
         <div
           aria-live="polite"
@@ -797,6 +1145,9 @@ export default function IncidentModeView({
         </div>
 
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+          {getIncidentActionOrder(session.type).map(card => (
+            <div key={card} className="contents" data-incident-action-card={card}>
+              {card === 'road' ? (
           <article className="rounded-xl border border-outline-variant/15 bg-surface-container-lowest p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-2">
@@ -860,6 +1211,22 @@ export default function IncidentModeView({
                         {disaster.message}
                       </p>
                     )}
+                    <button
+                      type="button"
+                      aria-label={`${disaster.roadNames[0] || disaster.facilityName || disaster.eventLabel} 진입 주의로 고정`}
+                      aria-pressed={session.selections?.road?.id === roadCandidateId(disaster)}
+                      onClick={() => selectRoadCandidate(disaster)}
+                      className={`mt-2 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-extrabold ${
+                        session.selections?.road?.id === roadCandidateId(disaster)
+                          ? 'border-primary bg-primary text-on-primary'
+                          : 'border-primary/25 bg-surface-container-lowest text-primary hover:bg-primary/10'
+                      }`}
+                    >
+                      <span aria-hidden="true" className="material-symbols-outlined text-base">
+                        {session.selections?.road?.id === roadCandidateId(disaster) ? 'check' : 'keep'}
+                      </span>
+                      진입 주의로 고정
+                    </button>
                   </div>
                 ))
               ) : endedRoadDisasters.length > 0 ? (
@@ -924,6 +1291,7 @@ export default function IncidentModeView({
               </div>
             )}
           </article>
+              ) : card === 'fireWater' ? (
 
           <article className="rounded-xl border border-outline-variant/15 bg-surface-container-lowest p-4">
             <div className="flex items-start justify-between gap-3">
@@ -966,16 +1334,36 @@ export default function IncidentModeView({
                 />
               ) : nearbyWater.length > 0 ? (
                 nearbyWater.map(({ facility, distanceLabel }) => (
-                  <div key={facility.id} className="flex items-start justify-between gap-3 rounded-lg bg-surface-container px-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-extrabold text-on-surface">
-                        {facility.type} · {facility.status === '미확인'
-                          ? '점검상태 미확인'
-                          : `점검상태 ${facility.status}(등록값)`}
-                      </p>
-                      <p className="mt-0.5 truncate text-[11px] text-on-surface-variant">{facility.address}</p>
+                  <div key={facility.id} className="rounded-lg bg-surface-container px-3 py-2.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-extrabold text-on-surface">
+                          {facility.type} · {facility.status === '미확인'
+                            ? '점검상태 미확인'
+                            : `점검상태 ${facility.status}(등록값)`}
+                        </p>
+                        <p className="mt-0.5 truncate text-[11px] text-on-surface-variant">{facility.address}</p>
+                      </div>
+                      <span className="shrink-0 font-mono text-xs font-extrabold text-primary">{distanceLabel}</span>
                     </div>
-                    <span className="shrink-0 font-mono text-xs font-extrabold text-primary">{distanceLabel}</span>
+                    <button
+                      type="button"
+                      aria-label={`${facility.id} ${facility.type} 사용 후보 지정`}
+                      aria-pressed={session.selections?.fireWater?.id === facility.id}
+                      onClick={() => selectFireWaterCandidate(
+                        nearbyWater.find(candidate => candidate.facility.id === facility.id)!,
+                      )}
+                      className={`mt-2 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-extrabold ${
+                        session.selections?.fireWater?.id === facility.id
+                          ? 'border-primary bg-primary text-on-primary'
+                          : 'border-primary/25 bg-surface-container-lowest text-primary hover:bg-primary/10'
+                      }`}
+                    >
+                      <span aria-hidden="true" className="material-symbols-outlined text-base">
+                        {session.selections?.fireWater?.id === facility.id ? 'check' : 'add_circle'}
+                      </span>
+                      사용 후보 지정
+                    </button>
                   </div>
                 ))
               ) : (
@@ -992,6 +1380,7 @@ export default function IncidentModeView({
               </p>
             )}
           </article>
+              ) : (
 
           <article className="rounded-xl border border-outline-variant/15 bg-surface-container-lowest p-4">
             <div className="flex items-start justify-between gap-3">
@@ -1042,13 +1431,29 @@ export default function IncidentModeView({
                         <a
                           href={`tel:${hospital.tel.replace(/[^\d+]/g, '')}`}
                           aria-label={`${hospital.name} 전화`}
-                          className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-[11px] font-extrabold text-on-primary"
+                          className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-2 text-[11px] font-extrabold text-on-primary"
                         >
                           <span aria-hidden="true" className="material-symbols-outlined text-sm">call</span>
                           전화
                         </a>
                       )}
                     </div>
+                    <button
+                      type="button"
+                      aria-label={`${hospital.name} 전화 확인 후보 지정`}
+                      aria-pressed={session.selections?.hospital?.id === hospitalCandidateId(hospital)}
+                      onClick={() => selectHospitalCandidate(hospital)}
+                      className={`mt-2 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-extrabold ${
+                        session.selections?.hospital?.id === hospitalCandidateId(hospital)
+                          ? 'border-primary bg-primary text-on-primary'
+                          : 'border-primary/25 bg-surface-container-lowest text-primary hover:bg-primary/10'
+                      }`}
+                    >
+                      <span aria-hidden="true" className="material-symbols-outlined text-base">
+                        {session.selections?.hospital?.id === hospitalCandidateId(hospital) ? 'check' : 'phone_in_talk'}
+                      </span>
+                      전화 확인 후보 지정
+                    </button>
                   </div>
                 ))
               ) : (
@@ -1066,6 +1471,9 @@ export default function IncidentModeView({
               </p>
             )}
           </article>
+              )}
+            </div>
+          ))}
         </div>
       </section>
 
@@ -1175,6 +1583,8 @@ export default function IncidentModeView({
         stamps={activitySession.stamps}
         timers={timers}
         stopwatchRunning={stopwatchRunning}
+        saving={closingSession}
+        saveError={closeSaveError}
         onClose={() => setCloseReviewOpen(false)}
         onOpenActivity={() => {
           setCloseReviewOpen(false);
@@ -1187,6 +1597,25 @@ export default function IncidentModeView({
         onConfirm={finalizeSession}
       />
     </div>
+  );
+}
+
+function SelectionTimestamp({ value }: { value: number }) {
+  return (
+    <p className="mt-2 text-[10px] font-bold text-outline">
+      지정 {new Date(value).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+    </p>
+  );
+}
+
+function SelectionReviewWarning() {
+  return (
+    <p
+      role="status"
+      className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[10px] font-extrabold text-amber-800 dark:text-amber-200"
+    >
+      현재 조회값과 달라 재확인 필요
+    </p>
   );
 }
 
