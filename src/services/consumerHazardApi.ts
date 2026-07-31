@@ -34,9 +34,9 @@ export interface ConsumerHazardDataset {
 
 const CACHE_TTL = 1000 * 60 * 60 * 24;
 // 원 API는 1,000건 응답에서 간헐적으로 Worker 제한시간을 넘는다.
-// 250건씩 4페이지를 병렬 수집해 분석 범위를 넓히면서 첫 화면 실패를 피한다.
+// 250건씩 3페이지를 병렬 수집해 분석 범위를 넓히면서 첫 화면 실패를 피한다.
 const PAGE_SIZE = 250;
-const ANALYSIS_PAGE_COUNT = 4;
+const ANALYSIS_PAGE_COUNT = 3;
 const SOURCE_NAME = '한국소비자원 소비자위해감시시스템(CISS)';
 const SOURCE_URL = 'https://www.data.go.kr/data/15142643/openapi.do';
 
