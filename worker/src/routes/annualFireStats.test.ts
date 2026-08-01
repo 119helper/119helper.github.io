@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import nfdsSnapshotDocument from '../data/nfdsAnnualFireSnapshots.json';
-import { handleAnnualFireStats } from './annualFireStats';
+import { ANNUAL_FIRE_CACHE_VERSION, handleAnnualFireStats } from './annualFireStats';
 
 const currentYear = Object.keys(nfdsSnapshotDocument.snapshots)
   .sort((a, b) => Number(b) - Number(a))
@@ -11,6 +11,10 @@ const currentSnapshot = nfdsSnapshotDocument.snapshots[
 ];
 
 describe('handleAnnualFireStats', () => {
+  it('versions the edge cache with the generated snapshot', () => {
+    expect(ANNUAL_FIRE_CACHE_VERSION).toBe(nfdsSnapshotDocument.generatedAt);
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });

@@ -19,7 +19,7 @@ import { handleShelter } from './routes/shelter';
 import { handleEmergencyStats } from './routes/emergencyStats';
 import { handleEmergencyInfo } from './routes/emergencyInfo';
 import { handleFireInfo } from './routes/fireInfo';
-import { handleAnnualFireStats } from './routes/annualFireStats';
+import { ANNUAL_FIRE_CACHE_VERSION, handleAnnualFireStats } from './routes/annualFireStats';
 import { handleFireObject } from './routes/fireObject';
 import { handleFireDamage } from './routes/fireDamage';
 import { handleCivilShelter } from './routes/civilShelter';
@@ -132,7 +132,8 @@ export default {
       cacheUrl.searchParams.set('_ev', '2');
 
       if (path.startsWith('/api/fire-annual/')) {
-        cacheUrl.searchParams.set('_cv', '4'); // NFDS 2025 확정·2026 누계 및 피해액 단위 교정
+        // 스냅샷 동기화마다 자동으로 달라져 배포 직후 이전 24시간 캐시를 사용하지 않는다.
+        cacheUrl.searchParams.set('_cv', ANNUAL_FIRE_CACHE_VERSION);
       }
       if (path === '/api/dam-discharge') {
         cacheUrl.searchParams.set('_cv', '1'); // 승인 대기 응답 캐시 무효화

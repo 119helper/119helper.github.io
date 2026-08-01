@@ -18,6 +18,10 @@ const NFDS_SNAPSHOTS = nfdsSnapshotDocument.snapshots as Record<string, Record<s
 const NFDS_SOURCE_NAME = nfdsSnapshotDocument.source.name;
 const NFDS_SOURCE_URL = nfdsSnapshotDocument.source.url;
 
+// Edge Cache가 새 스냅샷 배포 뒤에도 이전 누계를 24시간 유지하지 않도록
+// 동기화할 때마다 갱신되는 문서 생성 시각을 캐시 버전으로 사용한다.
+export const ANNUAL_FIRE_CACHE_VERSION = nfdsSnapshotDocument.generatedAt;
+
 function hasRegionalMonthlySummary(snapshot: Record<string, unknown> | undefined): boolean {
   return snapshot?.regionalMonthlyGranularity === 'sido-month';
 }
