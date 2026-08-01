@@ -910,3 +910,34 @@ test('현장 가독성 설정을 앱 전역에 적용한다', async ({ page }) =
   const rootFontSize = await page.locator('html').evaluate(element => getComputedStyle(element).fontSize);
   expect(rootFontSize).toBe('18px');
 });
+
+test.describe('배포 전환 복구', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('지연 화면 청크를 한 번 받지 못해도 최신 문서로 자동 복구한다', async ({ page }) => {
+    await page.addInitScript(() => {
+      // 백그라운드 프리페치가 테스트용 첫 실패를 먼저 소비하지 않게 한다.
+      Object.defineProperty(window, 'requestIdleCallback', {
+        configurable: true,
+        value: () => 1,
+      });
+    });
+
+    let dashboardChunkRequests = 0;
+    await page.route('**/assets/DashboardView-*.js', async route => {
+      dashboardChunkRequests += 1;
+      if (dashboardChunkRequests === 1) {
+        await route.abort('failed');
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto('/?tab=incident');
+    await page.getByRole('button', { name: '평시 업무 모드' }).click();
+
+    await expect(page.getByRole('heading', { name: '오늘 업무 브리핑' })).toBeVisible({ timeout: 20_000 });
+    expect(dashboardChunkRequests).toBeGreaterThanOrEqual(2);
+    await expect(page.getByRole('heading', { name: '최신 화면을 연결하지 못했습니다' })).toHaveCount(0);
+  });
+});
