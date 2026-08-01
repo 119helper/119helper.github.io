@@ -74,7 +74,69 @@
       "announcementUrl": "https://www.mois.go.kr/frt/bbs/type010/commonSelectBoardArticle.do?bbsId=BBSMSTR_000000000008&nttId=127924",
       "countDelta": -33,
       "reconciliationStatus": "upstream-mismatch",
-      "reconciliationNote": "행정안전부 발표 관리대장 수와 공개 API 원본 수가 다릅니다. 누락 행을 임의 생성하지 않습니다."
+      "reconciliationNote": "행정안전부 발표 관리대장 수와 공개 API 원본 수가 다릅니다. 누락 행을 임의 생성하지 않습니다.",
+      "publicListCrosscheck": {
+        "method": "official-public-list-coordinate-name-crosscheck-v1",
+        "announcedTotal": 680,
+        "officialApi": {
+          "total": 647,
+          "uniqueComparisonKeys": 647,
+          "duplicateComparisonKeys": 0,
+          "regionCounts": {
+            "강원특별자치도": 185,
+            "경상북도": 361,
+            "부산광역시": 57,
+            "울산광역시": 44
+          }
+        },
+        "safetyPortalStatic": {
+          "total": 636,
+          "uniqueComparisonKeys": 636,
+          "duplicateComparisonKeys": 0,
+          "regionCounts": {
+            "강원특별자치도": 177,
+            "경상북도": 359,
+            "부산광역시": 56,
+            "울산광역시": 44
+          }
+        },
+        "safetyMap": {
+          "total": 636,
+          "activeTotal": 636,
+          "uniqueComparisonKeys": 636,
+          "duplicateComparisonKeys": 0,
+          "latestSourceModifyAt": "2026-03-17T16:00:57.000Z",
+          "regionCounts": {
+            "강원특별자치도": 177,
+            "경상북도": 359,
+            "부산광역시": 56,
+            "울산광역시": 44
+          }
+        },
+        "publicListsAgreement": {
+          "matched": 636,
+          "staticOnly": 0,
+          "mapOnly": 0
+        },
+        "primaryComparison": {
+          "matchedWithSafetyMap": 625,
+          "primaryOnly": 22,
+          "safetyMapOnly": 11,
+          "matchedByAuthorityAndName": 620,
+          "primaryOnlyByAuthorityAndName": 17,
+          "safetyMapOnlyByAuthorityAndName": 7
+        },
+        "countGaps": {
+          "officialApiToAnnouncement": -33,
+          "safetyPortalToAnnouncement": -44
+        },
+        "sourceUrls": {
+          "officialApi": "https://www.safetydata.go.kr/disaster-data/view?dataSn=1340",
+          "safetyPortalStaticTemplate": "https://www.safekorea.go.kr/safekorea-kor/nas-files/tsunamiShelter/{sggCode}.json",
+          "safetyMap": "https://www.safekorea.go.kr/safekorea-kor/flsm/flsm/facilityDataList.do"
+        },
+        "note": "국민안전24 두 목록은 독립 교차검증용이며 공개 API 행을 임의로 대체하거나 합치지 않습니다."
+      }
     },
     "restrooms": {
       "label": "공중화장실",

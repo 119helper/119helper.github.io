@@ -40,6 +40,11 @@ export interface DatasetFreshness {
   countDelta?: number;
   reconciliationStatus?: 'matched' | 'upstream-mismatch';
   reconciliationNote?: string;
+  publicListCrosscheck?: {
+    safetyPortalStatic?: { total?: number };
+    safetyMap?: { total?: number; activeTotal?: number };
+    publicListsAgreement?: { matched?: number; staticOnly?: number; mapOnly?: number };
+  };
 }
 
 export interface RegionalDatasetOverlay {
@@ -215,6 +220,25 @@ export function getDatasetCompletenessNotices(meta: DatasetFreshness): DatasetCo
     notices.push({
       tone: 'warning',
       text: `공개 API ${meta.total.toLocaleString()}곳 / 관리대장 발표 ${meta.announcedTotal.toLocaleString()}곳 · ${difference.toLocaleString()}곳 차이`,
+    });
+  }
+
+  const publicStaticTotal = meta.publicListCrosscheck?.safetyPortalStatic?.total;
+  const publicMapTotal = meta.publicListCrosscheck?.safetyMap?.total;
+  const publicAgreement = meta.publicListCrosscheck?.publicListsAgreement;
+  if (
+    typeof meta.total === 'number'
+    && typeof publicStaticTotal === 'number'
+    && typeof publicMapTotal === 'number'
+  ) {
+    const listsAgree = publicAgreement?.staticOnly === 0
+      && publicAgreement?.mapOnly === 0
+      && publicStaticTotal === publicMapTotal;
+    notices.push({
+      tone: 'warning',
+      text: listsAgree
+        ? `국민안전24 별도 공개목록 ${publicStaticTotal.toLocaleString()}곳 · 안전지도와 상호 일치 · 공개 API보다 ${Math.abs(meta.total - publicStaticTotal).toLocaleString()}곳 적음`
+        : `국민안전24 정적 목록 ${publicStaticTotal.toLocaleString()}곳 / 안전지도 ${publicMapTotal.toLocaleString()}곳 · 출처 간 차이 재확인 필요`,
     });
   }
 

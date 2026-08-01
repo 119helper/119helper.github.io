@@ -195,6 +195,10 @@ function roadResponse(overrides: Record<string, unknown> = {}) {
     totalCount: 0,
     truncated: false,
     items: [],
+    sources: [],
+    messageCandidates: [],
+    messageCandidatesTruncated: false,
+    verificationLinks: [],
     ...overrides,
   };
 }
@@ -439,6 +443,60 @@ describe('IncidentModeView operational flow', () => {
     expect(await within(card as HTMLElement).findByText('조회 결과 보고된 항목 없음')).toBeInTheDocument();
     expect(within(card as HTMLElement).getByText(/미신고 위험이나 현장 통제가 없다는 뜻은 아닙니다/)).toBeInTheDocument();
     expect(within(card as HTMLElement).queryByText(/안전|진입 가능/)).not.toBeInTheDocument();
+  });
+
+  it('shows scoped disaster-message candidates separately when ITS is unavailable', async () => {
+    mocks.session = activeSession();
+    mocks.getRoadDisasters.mockResolvedValue({
+      data: roadResponse({
+        sources: [
+          {
+            id: 'its',
+            label: '국토교통부 국가교통정보센터',
+            kind: 'coordinate-feed',
+            status: 'unavailable',
+            sourceUrl: 'https://its.go.kr/opendata/opendataList?service=disaster',
+            detail: '공개 샘플 키는 실시간 현장 정보가 아니어서 제외했습니다.',
+          },
+          {
+            id: 'disaster-message',
+            label: '행정안전부 재난문자',
+            kind: 'message-feed',
+            status: 'available',
+            sourceUrl: 'https://www.safekorea.go.kr/',
+            detail: '관할 도로 통제 후보 1건',
+          },
+        ],
+        messageCandidates: [{
+          id: 'disaster-message:road-1',
+          occurredAt: '2026/07/30 11:20:00',
+          locationName: '서울특별시 중구',
+          message: '세종대로 전 차로 통제 중이니 우회 바랍니다.',
+          messageType: '안전안내',
+          matchedTerms: ['도로', '통제', '우회'],
+          verification: 'message-only',
+        }],
+        verificationLinks: [{
+          label: '서울 TOPIS',
+          url: 'https://topis.seoul.go.kr/',
+          scope: '서울',
+        }],
+      }),
+      staleAt: null,
+    });
+    renderView();
+
+    const heading = await screen.findByRole('heading', { name: '진입로 재난·통제' });
+    const card = heading.closest('article');
+    expect(card).not.toBeNull();
+    expect(within(card as HTMLElement).getByText('좌표 기반 ITS 조회 불가')).toBeInTheDocument();
+    expect(within(card as HTMLElement).getByText('관할 재난문자 도로 통제 후보')).toBeInTheDocument();
+    expect(within(card as HTMLElement).getByText(/확정 통제나 5km 이내 항목으로 계산하지 않습니다/)).toBeInTheDocument();
+    expect(within(card as HTMLElement).getByText(/세종대로 전 차로 통제/)).toBeInTheDocument();
+    expect(within(card as HTMLElement).getByRole('link', { name: '서울 TOPIS · 서울' })).toHaveAttribute(
+      'href',
+      'https://topis.seoul.go.kr/',
+    );
   });
 
   it('labels registration-only fire-water status as unknown and exposes expired freshness', async () => {

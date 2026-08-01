@@ -175,6 +175,29 @@ export interface RoadDisasterResponse {
   totalCount: number;
   truncated: boolean;
   items: RoadDisasterItem[];
+  sources: Array<{
+    id: 'its' | 'disaster-message';
+    label: string;
+    kind: 'coordinate-feed' | 'message-feed';
+    status: 'available' | 'unavailable';
+    sourceUrl: string;
+    detail: string;
+  }>;
+  messageCandidates: Array<{
+    id: string;
+    occurredAt: string;
+    locationName: string;
+    message: string;
+    messageType: string;
+    matchedTerms: string[];
+    verification: 'message-only';
+  }>;
+  messageCandidatesTruncated: boolean;
+  verificationLinks: Array<{
+    label: string;
+    url: string;
+    scope: string;
+  }>;
 }
 
 const roadDisasterItemSchema = z.object({
@@ -227,6 +250,29 @@ const roadDisasterResponseSchema = z.object({
   totalCount: z.number(),
   truncated: z.boolean(),
   items: z.array(roadDisasterItemSchema),
+  sources: z.array(z.object({
+    id: z.enum(['its', 'disaster-message']),
+    label: z.string(),
+    kind: z.enum(['coordinate-feed', 'message-feed']),
+    status: z.enum(['available', 'unavailable']),
+    sourceUrl: z.string().url(),
+    detail: z.string(),
+  })).default([]),
+  messageCandidates: z.array(z.object({
+    id: z.string(),
+    occurredAt: z.string(),
+    locationName: z.string(),
+    message: z.string(),
+    messageType: z.string(),
+    matchedTerms: z.array(z.string()),
+    verification: z.literal('message-only'),
+  })).default([]),
+  messageCandidatesTruncated: z.boolean().default(false),
+  verificationLinks: z.array(z.object({
+    label: z.string(),
+    url: z.string().url(),
+    scope: z.string(),
+  })).default([]),
 }) satisfies z.ZodType<RoadDisasterResponse>;
 
 export type ApiRecord = z.infer<typeof apiRecordSchema>;
@@ -791,6 +837,7 @@ export async function fetchRoadDisasters(
   lng: number,
   radiusKm = 5,
   forceRefresh = false,
+  scope?: { regionName?: string; districtName?: string },
 ): Promise<RoadDisasterResponse> {
   return apiFetch<RoadDisasterResponse>('/api/road-disasters', {
     lat: String(lat),
@@ -798,6 +845,8 @@ export async function fetchRoadDisasters(
     radiusKm: String(radiusKm),
     eventType: 'all',
     days: '7',
+    regionName: scope?.regionName || '',
+    districtName: scope?.districtName || '',
   }, {
     cacheTtlMs: MINUTE_MS,
     maxStaleMs: 10 * MINUTE_MS,

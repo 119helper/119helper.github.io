@@ -16,6 +16,16 @@ interface DisasterPage {
   totalCount: number;
 }
 
+export interface NormalizedDisasterMessage {
+  create_date: string;
+  location_id: string;
+  location_name: string;
+  md101_sn: string;
+  msg: string;
+  send_platform: 'cbs';
+  msgType: string;
+}
+
 function text(value: unknown): string {
   return value === undefined || value === null ? '' : String(value).trim();
 }
@@ -83,7 +93,7 @@ async function fetchLatestDayItems(
     .slice(0, limit);
 }
 
-function normalizeItem(item: Record<string, unknown>) {
+function normalizeItem(item: Record<string, unknown>): NormalizedDisasterMessage {
   return {
     create_date: text(item.CRT_DT || item.REG_YMD),
     location_id: '',
@@ -95,17 +105,26 @@ function normalizeItem(item: Record<string, unknown>) {
   };
 }
 
-export async function handleDisasterMsg(url: URL, apiKey?: string): Promise<{ data: unknown; cacheTtl: number }> {
+export async function fetchLatestDisasterMessages(
+  apiKey: string | undefined,
+  requestedLimit = 20,
+): Promise<NormalizedDisasterMessage[]> {
   const serviceKey = requireSecret(apiKey, 'DISASTER_API_KEY');
-  const numOfRows = Number(sanitizeNumericParam(url, 'numOfRows', 1, 100, 20));
+  const limit = Math.max(1, Math.min(100, Math.trunc(requestedLimit)));
 
   // 날짜 조건이 없으면 API가 2023년의 첫 페이지부터 반환한다.
   // 오늘 발송분을 최신 페이지부터 읽고, 자정 직후 아직 발송분이 없을 때만 전날로 폴백한다.
-  let items = await fetchLatestDayItems(serviceKey, koreanDateKey(), numOfRows);
+  let items = await fetchLatestDayItems(serviceKey, koreanDateKey(), limit);
   if (items.length === 0) {
-    items = await fetchLatestDayItems(serviceKey, koreanDateKey(-1), numOfRows);
+    items = await fetchLatestDayItems(serviceKey, koreanDateKey(-1), limit);
   }
+  return items.map(normalizeItem);
+}
+
+export async function handleDisasterMsg(url: URL, apiKey?: string): Promise<{ data: unknown; cacheTtl: number }> {
+  const numOfRows = Number(sanitizeNumericParam(url, 'numOfRows', 1, 100, 20));
+  const items = await fetchLatestDisasterMessages(apiKey, numOfRows);
 
   // 캐시: 재난문자는 비교적 실시간성이 중요하지만, API 호출 제한 방지를 위해 3분 캐시
-  return { data: items.map(normalizeItem), cacheTtl: 180 };
+  return { data: items, cacheTtl: 180 };
 }

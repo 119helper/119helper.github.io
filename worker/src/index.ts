@@ -139,7 +139,7 @@ export default {
         cacheUrl.searchParams.set('_cv', '1'); // 승인 대기 응답 캐시 무효화
       }
       if (path === '/api/road-disasters') {
-        cacheUrl.searchParams.set('_cv', '1'); // 출동지 주변 ITS 재난 정규화 계약
+        cacheUrl.searchParams.set('_cv', '2'); // ITS + 관할 재난문자 후보 복수 출처 계약
       }
       if (path === '/api/multiuse') {
         cacheUrl.searchParams.set('_cv', '1'); // 정적 전용 응답에서 승인 API 우선 조회로 전환
@@ -187,7 +187,11 @@ export default {
         env.PUBLIC_DATA_API_KEY || env.ER_API_KEY,
         env.DAM_DISCHARGE_ENABLED === 'true',
       );
-      else if (path === '/api/road-disasters') result = await handleRoadDisasters(url, env.ITS_API_KEY);
+      else if (path === '/api/road-disasters') result = await handleRoadDisasters(
+        url,
+        env.ITS_API_KEY,
+        env.DISASTER_API_KEY,
+      );
       else if (path === '/api/building') result = await handleBuilding(url, env.BUILDING_API_KEY);
       else if (path.startsWith('/api/fire-object/')) result = await handleFireObject(path, url, env.FIRE_OBJECT_API_KEY);
       else if (path === '/api/firewater') result = await handleFireWater(url, env.FIRE_WATER_API_KEY);

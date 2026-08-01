@@ -36,13 +36,16 @@ jobs:
           TSUNAMI_SHELTER_API_KEY: ${{ secrets.TSUNAMI_SHELTER_API_KEY }}
 
       - name: Test tsunami data integrity
-        run: node --test scripts/tsunami-data-integrity.test.mjs
+        run: node --test scripts/tsunami-data-integrity.test.mjs scripts/tsunami-public-crosscheck.test.mjs
 
       - name: Sync tsunami shelter data
         run: node scripts/sync-tsunami-shelters.js
         env:
           TSUNAMI_SHELTER_API_KEY: ${{ secrets.TSUNAMI_SHELTER_API_KEY }}
           TSUNAMI_SOURCE_DATE: ${{ inputs.source_date }}
+
+      - name: Cross-check official public shelter lists
+        run: node scripts/tsunami-public-crosscheck.mjs
 
       - name: Check changes
         id: check

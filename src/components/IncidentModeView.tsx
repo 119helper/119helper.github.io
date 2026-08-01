@@ -362,6 +362,10 @@ export default function IncidentModeView({
   const endedRoadDisasters = nearbyRoadDisasters
     .filter(disaster => !disaster.isActive)
     .slice(0, 3);
+  const roadItsSource = roadDisasters?.sources?.find(source => source.id === 'its');
+  const roadMessageSource = roadDisasters?.sources?.find(source => source.id === 'disaster-message');
+  const roadItsAvailable = !roadItsSource || roadItsSource.status === 'available';
+  const roadMessageCandidates = roadDisasters?.messageCandidates ?? [];
 
   const roadSelectionFrom = (
     disaster: NearbyRoadDisaster,
@@ -1369,11 +1373,20 @@ export default function IncidentModeView({
                     </div>
                   ))}
                 </>
-              ) : roadDisasters?.totalCount === 0 ? (
+              ) : roadDisasters?.totalCount === 0 && roadItsAvailable ? (
                 <BriefingEmpty
                   icon="fact_check"
                   title="조회 결과 보고된 항목 없음"
                   description="ITS 최근 7일·5km 조회 결과입니다. 미신고 위험이나 현장 통제가 없다는 뜻은 아닙니다."
+                />
+              ) : !roadItsAvailable ? (
+                <BriefingEmpty
+                  icon="sync_problem"
+                  title="좌표 기반 ITS 조회 불가"
+                  description={roadMessageCandidates.length > 0
+                    ? '아래 관할 재난문자 후보를 확인하고 현장 지령·교통센터에서 통제 구간과 해제 여부를 재확인하세요.'
+                    : '재난문자에서도 해당 관할의 도로 통제 후보를 찾지 못했습니다. 통제 없음으로 판단하지 말고 현장 지령·교통센터를 확인하세요.'}
+                  tone="error"
                 />
               ) : (
                 <BriefingEmpty
@@ -1381,6 +1394,35 @@ export default function IncidentModeView({
                   title="거리 확인 가능한 항목 없음"
                   description={`ITS 응답 ${roadDisasters?.totalCount ?? 0}건 중 현장 5km 안에서 좌표를 확인한 항목이 없습니다.`}
                 />
+              )}
+
+              {roadMessageCandidates.length > 0 && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                  <div className="flex items-start gap-2">
+                    <span aria-hidden="true" className="material-symbols-outlined text-lg text-amber-700">sms_failed</span>
+                    <div>
+                      <p className="text-xs font-extrabold text-on-surface">관할 재난문자 도로 통제 후보</p>
+                      <p className="mt-0.5 text-[10px] leading-4 text-amber-800">
+                        좌표·통제 구간·해제 여부 미확인 · 확정 통제나 5km 이내 항목으로 계산하지 않습니다.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-2 space-y-2">
+                    {roadMessageCandidates.map(candidate => (
+                      <div key={candidate.id} className="rounded-lg bg-surface-container-lowest px-3 py-2">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-on-surface-variant">
+                          <span className="font-bold text-amber-800">문자 기반 · 재확인 필요</span>
+                          <span>{candidate.locationName || '수신 지역 미상'}</span>
+                          {candidate.occurredAt && <span>{candidate.occurredAt}</span>}
+                        </div>
+                        <p className="mt-1 text-[11px] leading-4 text-on-surface">{candidate.message}</p>
+                      </div>
+                    ))}
+                    {roadDisasters?.messageCandidatesTruncated && (
+                      <p className="text-[10px] font-bold text-amber-800">후보 일부만 표시 중</p>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
 
@@ -1392,15 +1434,47 @@ export default function IncidentModeView({
                       ? `${Math.max(1, Math.round((now - roadDisasterStaleAt) / 60_000))}분 전 성공 캐시 · 변경 가능`
                       : `조회 ${new Date(roadDisasters.retrievedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`}
                   </span>
-                  <a
-                    href={roadDisasters.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-bold text-primary hover:underline"
-                  >
-                    ITS 원문
-                  </a>
+                  <span className="flex flex-wrap justify-end gap-x-2 gap-y-1">
+                    {((roadDisasters.sources?.length ?? 0) > 0
+                      ? roadDisasters.sources
+                      : [{ id: 'its', label: 'ITS', sourceUrl: roadDisasters.sourceUrl }]
+                    ).map(source => (
+                      <a
+                        key={source.id}
+                        href={source.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-bold text-primary hover:underline"
+                      >
+                        {source.id === 'its' ? 'ITS 원문' : '재난문자 원문'}
+                      </a>
+                    ))}
+                  </span>
                 </div>
+                {(roadItsSource || roadMessageSource) && (
+                  <div className="mt-2 space-y-1">
+                    {[roadItsSource, roadMessageSource].filter(Boolean).map(source => (
+                      <p key={source?.id} className={source?.status === 'unavailable' ? 'font-bold text-amber-700' : ''}>
+                        {source?.label}: {source?.detail}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {(roadDisasters.verificationLinks?.length ?? 0) > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {roadDisasters.verificationLinks?.map(link => (
+                      <a
+                        key={link.url}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-md border border-primary/20 px-2 py-1 font-bold text-primary hover:bg-primary/10"
+                      >
+                        {link.label} · {link.scope}
+                      </a>
+                    ))}
+                  </div>
+                )}
                 {roadDisasters.truncated && <p className="mt-1 font-bold text-amber-700">응답 일부만 표시 중</p>}
               </div>
             )}

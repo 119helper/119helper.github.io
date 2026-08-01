@@ -84,7 +84,21 @@ describe('getDatasetCompletenessNotices', () => {
         부산광역시: 57,
         울산광역시: 44,
       },
-    })[0].text).toBe('공개 API 647곳 / 관리대장 발표 680곳 · 33곳 차이');
+      publicListCrosscheck: {
+        safetyPortalStatic: { total: 636 },
+        safetyMap: { total: 636, activeTotal: 636 },
+        publicListsAgreement: { matched: 636, staticOnly: 0, mapOnly: 0 },
+      },
+    })).toEqual([{
+      tone: 'warning',
+      text: '공개 API 647곳 / 관리대장 발표 680곳 · 33곳 차이',
+    }, {
+      tone: 'warning',
+      text: '국민안전24 별도 공개목록 636곳 · 안전지도와 상호 일치 · 공개 API보다 11곳 적음',
+    }, {
+      tone: 'info',
+      text: '공개 API 제공 범위: 강원·경북·부산·울산 4개 시도',
+    }]);
   });
 
   it('shows regional firewater overlay provenance and unresolved source defects', () => {

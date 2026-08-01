@@ -117,6 +117,10 @@ function roadResponse(
       totalCount: items.length,
       truncated: false,
       items,
+      sources: [],
+      messageCandidates: [],
+      messageCandidatesTruncated: false,
+      verificationLinks: [],
       ...overrides,
     },
     staleAt: null,
@@ -315,7 +319,10 @@ describe('IncidentChangeMonitorProvider lifecycle and queue', () => {
     view.rerender(<ProviderTree session={moved} />);
     await settlePromises();
 
-    expect(mocks.getRoadDisasters).toHaveBeenLastCalledWith(37.7, 127.2, 5);
+    expect(mocks.getRoadDisasters).toHaveBeenLastCalledWith(37.7, 127.2, 5, false, {
+      regionName: '서울특별시',
+      districtName: '중구',
+    });
     expect(screen.getByTestId('alert-count')).toHaveTextContent('0');
   });
 

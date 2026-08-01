@@ -65,6 +65,28 @@ function validRoadDisasterResponse() {
       },
       message: null,
     }],
+    sources: [{
+      id: 'its',
+      label: '국토교통부 국가교통정보센터',
+      kind: 'coordinate-feed',
+      status: 'available',
+      sourceUrl: 'https://its.go.kr/opendata/opendataList?service=disaster',
+      detail: '좌표 기반 1건 조회',
+    }, {
+      id: 'disaster-message',
+      label: '행정안전부 재난문자',
+      kind: 'message-feed',
+      status: 'available',
+      sourceUrl: 'https://www.safekorea.go.kr/',
+      detail: '관할 도로 통제 후보 0건',
+    }],
+    messageCandidates: [],
+    messageCandidatesTruncated: false,
+    verificationLinks: [{ label: 'ITS', url: 'https://www.its.go.kr/', scope: '전국' }, {
+      label: 'ROAD PLUS', url: 'https://www.roadplus.co.kr/', scope: '고속도로',
+    }, {
+      label: 'UTIC', url: 'https://www.utic.go.kr/', scope: '도시부 도로',
+    }],
   };
 }
 
@@ -89,6 +111,10 @@ test('road-disaster smoke contract rejects invalid nested frontend fields', () =
     response => { response.items[0].control.type = 'closed'; },
     response => { response.items[0].message = 119; },
     response => { response.totalCount = 2; response.truncated = false; },
+    response => { response.sources[0].status = 'unknown'; },
+    response => { response.sources.forEach(source => { source.status = 'unavailable'; }); },
+    response => { response.messageCandidates = [{ verification: 'confirmed' }]; },
+    response => { response.verificationLinks = []; },
   ];
 
   for (const makeInvalid of invalidCases) {

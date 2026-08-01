@@ -21,9 +21,10 @@ export async function getNearbyRoadDisasters(
   lng: number,
   radiusKm = 5,
   forceRefresh = false,
+  scope?: { regionName?: string; districtName?: string },
 ): Promise<RoadDisasterLoadResult> {
   try {
-    const data = await fetchRoadDisasters(lat, lng, radiusKm, forceRefresh);
+    const data = await fetchRoadDisasters(lat, lng, radiusKm, forceRefresh, scope);
     return { data, staleAt: getStaleAt(data) };
   } catch (error) {
     if (!isStaleDataError(error)) throw error;

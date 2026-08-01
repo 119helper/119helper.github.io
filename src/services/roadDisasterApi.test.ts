@@ -30,6 +30,10 @@ const RESPONSE: RoadDisasterResponse = {
   totalCount: 0,
   truncated: false,
   items: [],
+  sources: [],
+  messageCandidates: [],
+  messageCandidatesTruncated: false,
+  verificationLinks: [],
 };
 
 describe('roadDisasterApi', () => {
@@ -37,9 +41,16 @@ describe('roadDisasterApi', () => {
 
   it('returns fresh data without a stale marker', async () => {
     vi.mocked(fetchRoadDisasters).mockResolvedValue(RESPONSE);
-    await expect(getNearbyRoadDisasters(35.1595, 126.8526)).resolves.toEqual({
+    await expect(getNearbyRoadDisasters(35.1595, 126.8526, 5, false, {
+      regionName: '광주광역시',
+      districtName: '서구',
+    })).resolves.toEqual({
       data: RESPONSE,
       staleAt: null,
+    });
+    expect(fetchRoadDisasters).toHaveBeenCalledWith(35.1595, 126.8526, 5, false, {
+      regionName: '광주광역시',
+      districtName: '서구',
     });
   });
 

@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { handleRoadDisasters } from './roadDisasters';
+import { fetchLatestDisasterMessages } from './disaster';
+
+vi.mock('./disaster', () => ({
+  fetchLatestDisasterMessages: vi.fn(),
+}));
 
 const SUCCESS_XML = `<?xml version='1.0' encoding='UTF-8'?>
 <response>
@@ -53,6 +58,7 @@ const SUCCESS_XML = `<?xml version='1.0' encoding='UTF-8'?>
 describe('ITS road-disaster adapter', () => {
   afterEach(() => {
     vi.useRealTimers();
+    vi.clearAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -203,6 +209,62 @@ describe('ITS road-disaster adapter', () => {
       'test',
     )).rejects.toThrow('DEMO_KEY_NOT_ALLOWED');
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('returns scoped road-control candidates from disaster messages when ITS is unavailable', async () => {
+    vi.mocked(fetchLatestDisasterMessages).mockResolvedValue([
+      {
+        create_date: '2026/07/30 11:20:00',
+        location_id: '',
+        location_name: '서울특별시 중구',
+        md101_sn: 'road-1',
+        msg: '세종대로 전 차로 통제 중이니 우회 바랍니다.',
+        send_platform: 'cbs',
+        msgType: '안전안내',
+      },
+      {
+        create_date: '2026/07/30 11:19:00',
+        location_id: '',
+        location_name: '서울특별시 강남구',
+        md101_sn: 'other-district',
+        msg: '테헤란로 도로 통제 중입니다.',
+        send_platform: 'cbs',
+        msgType: '안전안내',
+      },
+      {
+        create_date: '2026/07/30 11:18:00',
+        location_id: '',
+        location_name: '서울특별시 중구',
+        md101_sn: 'not-road',
+        msg: '폭염에 야외 활동을 자제 바랍니다.',
+        send_platform: 'cbs',
+        msgType: '안전안내',
+      },
+    ]);
+
+    const result = await handleRoadDisasters(
+      new URL(
+        'https://worker.test/api/road-disasters?lat=37.5665&lng=126.978'
+        + '&regionName=%EC%84%9C%EC%9A%B8%ED%8A%B9%EB%B3%84%EC%8B%9C&districtName=%EC%A4%91%EA%B5%AC',
+      ),
+      'test',
+      'disaster-key',
+    );
+
+    expect(result.data).toMatchObject({
+      totalCount: 0,
+      items: [],
+      sources: [
+        { id: 'its', status: 'unavailable' },
+        { id: 'disaster-message', status: 'available' },
+      ],
+      messageCandidates: [{
+        id: 'disaster-message:road-1',
+        locationName: '서울특별시 중구',
+        verification: 'message-only',
+      }],
+    });
+    expect(vi.mocked(fetchLatestDisasterMessages)).toHaveBeenCalledWith('disaster-key', 100);
   });
 
   it('surfaces ITS API-level failures instead of caching an empty result', async () => {

@@ -9,9 +9,14 @@
  */
 
 import { fetchWithTimeout, requireSecret } from './publicData';
+import {
+  fetchLatestDisasterMessages,
+  type NormalizedDisasterMessage,
+} from './disaster';
 
 const ITS_DISASTER_URL = 'https://openapi.its.go.kr:9443/disasterInfo';
 const SOURCE_URL = 'https://its.go.kr/opendata/opendataList?service=disaster';
+const DISASTER_MESSAGE_SOURCE_URL = 'https://www.safekorea.go.kr/idsiSFK/neo/sfk/cs/sfc/dis/disasterMsgList.jsp?menuSeq=679';
 const MAX_XML_BYTES = 1_500_000;
 const MAX_ITEMS = 500;
 const MAX_GEOMETRY_POINTS = 10_000;
@@ -70,6 +75,27 @@ interface RoadDisasterQuery {
   radiusKm: number;
   eventType: EventTypeQuery;
   days: number;
+  regionName: string;
+  districtName: string;
+}
+
+interface RoadDisasterSourceStatus {
+  id: 'its' | 'disaster-message';
+  label: string;
+  kind: 'coordinate-feed' | 'message-feed';
+  status: 'available' | 'unavailable';
+  sourceUrl: string;
+  detail: string;
+}
+
+interface RoadMessageCandidate {
+  id: string;
+  occurredAt: string;
+  locationName: string;
+  message: string;
+  messageType: string;
+  matchedTerms: string[];
+  verification: 'message-only';
 }
 
 interface Bounds {
@@ -118,13 +144,30 @@ function parseQuery(url: URL): RoadDisasterQuery {
     throw new Error('INVALID_PARAMETER: days 값은 1~7 범위여야 합니다');
   }
 
+  const regionName = boundedLocationParam(url.searchParams.get('regionName'), 'regionName');
+  const districtName = boundedLocationParam(url.searchParams.get('districtName'), 'districtName');
+
   return {
     lat,
     lng,
     radiusKm,
     eventType: eventTypeRaw as EventTypeQuery,
     days,
+    regionName,
+    districtName,
   };
+}
+
+function boundedLocationParam(value: string | null, name: string): string {
+  const normalized = value?.trim().replace(/\s+/g, ' ') || '';
+  const hasControlCharacter = [...normalized].some(character => {
+    const code = character.charCodeAt(0);
+    return code < 32 || code === 127;
+  });
+  if (normalized.length > 60 || hasControlCharacter) {
+    throw new Error(`INVALID_PARAMETER: ${name} 값이 올바르지 않습니다`);
+  }
+  return normalized;
 }
 
 function roundedCoordinate(value: number): number {
@@ -399,15 +442,14 @@ function parseItsXml(xml: string): {
   };
 }
 
-export async function handleRoadDisasters(
-  url: URL,
+async function fetchItsRoadDisasters(
+  query: RoadDisasterQuery,
   apiKey: string | undefined,
-): Promise<{ data: unknown; cacheTtl: number }> {
+): Promise<ReturnType<typeof parseItsXml>> {
   const key = requireSecret(apiKey, 'ITS_API_KEY');
   if (key.toLowerCase() === 'test') {
     throw new Error('ITS_ROAD_DISASTERS: DEMO_KEY_NOT_ALLOWED');
   }
-  const query = parseQuery(url);
   const bounds = boundsAround(query.lat, query.lng, query.radiusKm);
   const startDate = kstYmd(query.days - 1);
   const endDate = kstYmd(0);
@@ -433,14 +475,176 @@ export async function handleRoadDisasters(
       Accept: 'application/xml, text/xml;q=0.9',
       'User-Agent': '119-helper-worker/1.0',
     },
-  });
+  }, 4_000);
   if (!response.ok) {
     await response.body?.cancel().catch(() => undefined);
     throw new Error(`ITS_ROAD_DISASTERS: HTTP_${response.status}`);
   }
 
   const xml = await readTextWithLimit(response, MAX_XML_BYTES);
-  const parsed = parseItsXml(xml);
+  return parseItsXml(xml);
+}
+
+function compactLocation(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+function regionAliases(regionName: string): string[] {
+  const normalized = compactLocation(regionName);
+  if (!normalized) return [];
+  const aliases = new Set([normalized]);
+  const short = normalized.replace(/(특별자치시|특별자치도|특별시|광역시|도)$/, '');
+  if (short) aliases.add(short);
+  if (normalized === '전남광주통합특별시' || normalized === '광주광역시' || short === '광주') {
+    aliases.add('전남광주통합특별시');
+    aliases.add('광주광역시');
+    aliases.add('광주');
+  }
+  return [...aliases];
+}
+
+function locationMatchesScope(
+  locationName: string,
+  regionName: string,
+  districtName: string,
+): boolean {
+  const aliases = regionAliases(regionName);
+  if (aliases.length === 0) return false;
+  const district = compactLocation(districtName);
+  const locations = locationName.split(',').map(compactLocation).filter(Boolean);
+
+  return locations.some(location => {
+    if (location === '전국' || location.includes('전국')) return true;
+    const alias = aliases.find(candidate => (
+      location === candidate || location.startsWith(`${candidate} `)
+    ));
+    if (!alias) return false;
+    if (!district || location === alias) return true;
+    if (location.includes(` ${district}`)) return true;
+    return /(?:전체|전 지역|일원)$/.test(location);
+  });
+}
+
+const ROAD_FEATURE_TERMS = [
+  '도로', '교량', '대교', '지하차도', '터널', '고속도로', '국도', '지방도',
+  '차로', '구간', '나들목', 'IC', 'JC',
+] as const;
+const ROAD_ACTION_TERMS = [
+  '통제', '차단', '침수', '우회', '진입 금지', '진입금지', '통행 금지',
+  '통행금지', '통행 제한', '통행제한', '운행 중단', '운행중단',
+] as const;
+
+function roadMatchedTerms(message: string): string[] {
+  const upperMessage = message.toUpperCase();
+  const features = ROAD_FEATURE_TERMS.filter(term => upperMessage.includes(term.toUpperCase()));
+  const actions = ROAD_ACTION_TERMS.filter(term => upperMessage.includes(term.toUpperCase()));
+  if (features.length === 0 || actions.length === 0) return [];
+  return [...new Set([...features, ...actions])].slice(0, 6);
+}
+
+function roadMessageCandidate(
+  message: NormalizedDisasterMessage,
+  query: RoadDisasterQuery,
+): RoadMessageCandidate | null {
+  if (!locationMatchesScope(message.location_name, query.regionName, query.districtName)) return null;
+  const matchedTerms = roadMatchedTerms(message.msg);
+  if (matchedTerms.length === 0) return null;
+  return {
+    id: `disaster-message:${message.md101_sn}`,
+    occurredAt: message.create_date,
+    locationName: message.location_name,
+    message: message.msg,
+    messageType: message.msgType,
+    matchedTerms,
+    verification: 'message-only',
+  };
+}
+
+function failureDetail(error: unknown, provider: 'its' | 'disaster-message'): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (provider === 'its' && message.includes('DEMO_KEY_NOT_ALLOWED')) {
+    return '공개 샘플 키는 실시간 현장 정보가 아니어서 제외했습니다.';
+  }
+  if (message.includes('API_KEY_NOT_CONFIGURED')) {
+    return '운영 인증키가 없어 현재 조회할 수 없습니다.';
+  }
+  if (message === 'REGION_REQUIRED') {
+    return '현장 관할을 확인하지 못해 문자를 섞지 않았습니다.';
+  }
+  return '공식 원문 조회가 일시적으로 실패했습니다.';
+}
+
+function verificationLinks(regionName: string) {
+  const links = [
+    { label: '국가교통정보센터', url: 'https://www.its.go.kr/', scope: '전국 도로' },
+    { label: 'ROAD PLUS', url: 'https://www.roadplus.co.kr/', scope: '고속도로' },
+    { label: '도시교통정보센터', url: 'https://www.utic.go.kr/', scope: '도시부 도로' },
+  ];
+  if (regionName.includes('서울')) {
+    links.push({ label: '서울 TOPIS', url: 'https://topis.seoul.go.kr/', scope: '서울' });
+  } else if (regionName.includes('경기')) {
+    links.push({ label: '경기도 교통정보센터', url: 'https://gits.gg.go.kr/', scope: '경기' });
+  }
+  return links;
+}
+
+export async function handleRoadDisasters(
+  url: URL,
+  apiKey: string | undefined,
+  disasterApiKey?: string,
+): Promise<{ data: unknown; cacheTtl: number }> {
+  const query = parseQuery(url);
+  const bounds = boundsAround(query.lat, query.lng, query.radiusKm);
+  const startDate = kstYmd(query.days - 1);
+  const endDate = kstYmd(0);
+  const [itsResult, messageResult] = await Promise.allSettled([
+    fetchItsRoadDisasters(query, apiKey),
+    query.regionName
+      ? fetchLatestDisasterMessages(disasterApiKey, 100)
+      : Promise.reject(new Error('REGION_REQUIRED')),
+  ]);
+
+  if (itsResult.status === 'rejected' && messageResult.status === 'rejected') {
+    if (
+      messageResult.reason instanceof Error
+      && messageResult.reason.message === 'REGION_REQUIRED'
+    ) {
+      throw itsResult.reason;
+    }
+    throw new Error('ROAD_DISASTER_SOURCES_UNAVAILABLE');
+  }
+
+  const parsed = itsResult.status === 'fulfilled'
+    ? itsResult.value
+    : { totalCount: 0, items: [], truncated: false };
+  const allMessageCandidates = messageResult.status === 'fulfilled'
+    ? messageResult.value
+      .map(message => roadMessageCandidate(message, query))
+      .filter((candidate): candidate is RoadMessageCandidate => candidate !== null)
+    : [];
+  const messageCandidates = allMessageCandidates.slice(0, 20);
+  const sources: RoadDisasterSourceStatus[] = [
+    {
+      id: 'its',
+      label: '국토교통부 국가교통정보센터',
+      kind: 'coordinate-feed',
+      status: itsResult.status === 'fulfilled' ? 'available' : 'unavailable',
+      sourceUrl: SOURCE_URL,
+      detail: itsResult.status === 'fulfilled'
+        ? `좌표 기반 ${parsed.totalCount}건 조회`
+        : failureDetail(itsResult.reason, 'its'),
+    },
+    {
+      id: 'disaster-message',
+      label: '행정안전부 재난문자',
+      kind: 'message-feed',
+      status: messageResult.status === 'fulfilled' ? 'available' : 'unavailable',
+      sourceUrl: DISASTER_MESSAGE_SOURCE_URL,
+      detail: messageResult.status === 'fulfilled'
+        ? `관할 도로 통제 후보 ${allMessageCandidates.length}건`
+        : failureDetail(messageResult.reason, 'disaster-message'),
+    },
+  ];
 
   return {
     data: {
@@ -459,6 +663,10 @@ export async function handleRoadDisasters(
       totalCount: parsed.totalCount,
       truncated: parsed.truncated,
       items: parsed.items,
+      sources,
+      messageCandidates,
+      messageCandidatesTruncated: allMessageCandidates.length > messageCandidates.length,
+      verificationLinks: verificationLinks(query.regionName),
     },
     cacheTtl: 60,
   };

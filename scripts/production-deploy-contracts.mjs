@@ -76,6 +76,34 @@ function isRoadDisasterItem(item) {
     && isNullableString(item.message);
 }
 
+function isRoadDisasterSource(source) {
+  return isRecord(source)
+    && ['its', 'disaster-message'].includes(source.id)
+    && typeof source.label === 'string'
+    && ['coordinate-feed', 'message-feed'].includes(source.kind)
+    && ['available', 'unavailable'].includes(source.status)
+    && typeof source.sourceUrl === 'string'
+    && typeof source.detail === 'string';
+}
+
+function isRoadMessageCandidate(candidate) {
+  return isRecord(candidate)
+    && typeof candidate.id === 'string'
+    && typeof candidate.occurredAt === 'string'
+    && typeof candidate.locationName === 'string'
+    && typeof candidate.message === 'string'
+    && typeof candidate.messageType === 'string'
+    && isStringArray(candidate.matchedTerms)
+    && candidate.verification === 'message-only';
+}
+
+function isVerificationLink(link) {
+  return isRecord(link)
+    && typeof link.label === 'string'
+    && typeof link.url === 'string'
+    && typeof link.scope === 'string';
+}
+
 export function isRoadDisasterResponse(data) {
   if (!isRecord(data)
     || data.source !== '국토교통부 국가교통정보센터'
@@ -106,7 +134,18 @@ export function isRoadDisasterResponse(data) {
     || !Array.isArray(data.items)
     || data.items.length > data.totalCount
     || (!data.truncated && data.items.length !== data.totalCount)
-    || (data.totalCount > 0 && data.items.length === 0)) {
+    || (data.totalCount > 0 && data.items.length === 0)
+    || !Array.isArray(data.sources)
+    || data.sources.length !== 2
+    || !data.sources.every(isRoadDisasterSource)
+    || new Set(data.sources.map(source => source.id)).size !== 2
+    || !data.sources.some(source => source.status === 'available')
+    || !Array.isArray(data.messageCandidates)
+    || !data.messageCandidates.every(isRoadMessageCandidate)
+    || typeof data.messageCandidatesTruncated !== 'boolean'
+    || !Array.isArray(data.verificationLinks)
+    || data.verificationLinks.length < 3
+    || !data.verificationLinks.every(isVerificationLink)) {
     return false;
   }
 

@@ -122,6 +122,7 @@ export function IncidentChangeMonitorProvider({
   const incidentLat = finiteCoordinate(session.location?.lat);
   const incidentLng = finiteCoordinate(session.location?.lng);
   const incidentRegionName = session.location?.regionName || '';
+  const incidentDistrictName = session.location?.districtName || '';
   const monitoringContextKey = monitorContextKey(session);
   const shouldLoadOperational = sessionActive || enabledWhenIdle;
   const shouldPoll = Boolean(sessionActive && incidentLat !== null && incidentLng !== null);
@@ -398,7 +399,10 @@ export function IncidentChangeMonitorProvider({
       setRoadDisasterLoading(true);
       setRoadDisasterError('');
       try {
-        const result = await getNearbyRoadDisasters(incidentLat, incidentLng, 5);
+        const result = await getNearbyRoadDisasters(incidentLat, incidentLng, 5, false, {
+          regionName: incidentRegionName,
+          districtName: incidentDistrictName,
+        });
         if (!alive) return;
         setRoadDisasters(result.data);
         roadDisastersRef.current = result.data;
@@ -483,6 +487,8 @@ export function IncidentChangeMonitorProvider({
     advanceMonitoringSnapshot,
     incidentLat,
     incidentLng,
+    incidentRegionName,
+    incidentDistrictName,
     monitoringContextKey,
     sessionIncidentId,
   ]);

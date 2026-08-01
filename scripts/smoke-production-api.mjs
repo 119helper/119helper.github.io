@@ -170,6 +170,8 @@ const checks = [
       radiusKm: 5,
       eventType: 'all',
       days: 7,
+      regionName: '전남광주통합특별시',
+      districtName: '서구',
     }),
     validate: isRoadDisasterResponse,
   },
