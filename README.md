@@ -145,7 +145,7 @@ node scripts/sync-restrooms.js
 RESTROOM_LEGACY_COORDINATE_GIT_REF=HEAD node scripts/sync-restrooms.js
 CIVIL_SHELTER_SYNC_API_KEY=... node scripts/sync-civil-shelters.js
 TSUNAMI_SHELTER_API_KEY=... node scripts/sync-tsunami-shelters.js
-npm run sync:fire-stats -- --complete-years 2024,2025 --partial-through 2026-07-28
+npm run sync:fire-stats -- --complete-years 2024,2025
 npm run test:data-scripts
 ```
 

@@ -5,6 +5,7 @@ import {
   fingerprintTsunamiShelters,
   TSUNAMI_CONTENT_HASH_ALGORITHM,
 } from './tsunami-data-integrity.mjs';
+import { fetchJsonWithRetry } from './fetch-json-with-retry.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_PATH = path.join(__dirname, '..', 'public', 'data', 'tsunami.json');
@@ -14,6 +15,7 @@ const SOURCE_DATE_OVERRIDE = process.env.TSUNAMI_SOURCE_DATE?.trim() || '';
 const ALLOW_SHRINK = process.env.TSUNAMI_ALLOW_SHRINK === '1';
 const SOURCE_URL = 'https://www.safetydata.go.kr/disaster-data/view?dataSn=1340';
 const SOURCE_METADATA_URL = 'https://www.safetydata.go.kr/disaster-data/getApiView?dataSn=1340';
+const SOURCE_METADATA_PATH = '/disaster-data/getApiView?dataSn=1340';
 const LEGACY_CATALOG_URL = 'https://www.data.go.kr/data/15138870/openapi.do';
 const ANNOUNCEMENT_URL = 'https://www.mois.go.kr/frt/bbs/type010/commonSelectBoardArticle.do?bbsId=BBSMSTR_000000000008&nttId=127924';
 const ANNOUNCED_TOTAL = 680;
@@ -84,16 +86,19 @@ function kstDateFromMilliseconds(value) {
 }
 
 async function fetchSourceMetadata() {
-  const response = await fetch(SOURCE_METADATA_URL, {
-    headers: {
-      Accept: 'application/json',
-      'Cache-Control': 'no-cache',
-      'User-Agent': '119-helper-data-sync/1.0',
+  const metadata = await fetchJsonWithRetry(
+    HOSTS.map(host => `${host}${SOURCE_METADATA_PATH}`),
+    {
+      attempts: 3,
+      timeoutMs: 20_000,
+      label: '지진해일 메타데이터',
+      headers: {
+        Accept: 'application/json',
+        'Cache-Control': 'no-cache',
+        'User-Agent': '119-helper-data-sync/1.0',
+      },
     },
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (!response.ok) throw new Error(`지진해일 메타데이터 HTTP ${response.status}`);
-  const metadata = await response.json();
+  );
   const officialSourceDate = kstDateFromMilliseconds(metadata.updtymd);
   const sourceDate = SOURCE_DATE_OVERRIDE || officialSourceDate;
   if (!sourceDate) throw new Error('안전데이터 상세에서 데이터 갱신일(updtymd)을 읽지 못했습니다.');

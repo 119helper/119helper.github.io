@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import document from './nfdsAnnualFireSnapshots.json';
 
 interface Snapshot {
+  year: string;
   coverageType: 'complete' | 'partial';
   dataThrough: string;
   propertyDamageUnit: string;
@@ -52,7 +53,7 @@ describe('NFDS annual fire snapshots', () => {
     });
   });
 
-  it('keeps 2024 and 2025 complete while distinguishing the 2026 year-to-date snapshot', () => {
+  it('keeps verified completed years while accepting a newer internally consistent partial snapshot', () => {
     expect(snapshots['2024']).toMatchObject({
       coverageType: 'complete',
       dataThrough: '2024-12-31',
@@ -63,14 +64,22 @@ describe('NFDS annual fire snapshots', () => {
       dataThrough: '2025-12-31',
       summary: { totalFires: 38_344 },
     });
-    expect(snapshots['2026']).toMatchObject({
-      coverageType: 'partial',
-      dataThrough: '2026-07-28',
-      summary: { totalFires: 24_260 },
-      regionalClassification: {
-        classifiedCount: 24_229,
-        unclassifiedCount: 31,
-      },
-    });
+    const partialEntries = Object.entries(snapshots)
+      .filter(([, snapshot]) => snapshot.coverageType === 'partial');
+    expect(partialEntries).toHaveLength(1);
+    const [partialYear, current] = partialEntries[0];
+    expect(current.coverageType).toBe('partial');
+    expect(current.year).toBe(partialYear);
+    expect(current.dataThrough).toMatch(new RegExp(`^${partialYear}-\\d{2}-\\d{2}$`));
+    if (partialYear === '2026') {
+      expect(Date.parse(current.dataThrough)).toBeGreaterThanOrEqual(Date.parse('2026-07-28'));
+      expect(current.summary.totalFires).toBeGreaterThanOrEqual(24_260);
+    }
+    expect(current.regionalClassification.classifiedCount).toBeGreaterThanOrEqual(0);
+    expect(current.regionalClassification.unclassifiedCount).toBeGreaterThanOrEqual(0);
+    expect(
+      current.regionalClassification.classifiedCount
+        + current.regionalClassification.unclassifiedCount,
+    ).toBe(current.summary.totalFires);
   });
 });

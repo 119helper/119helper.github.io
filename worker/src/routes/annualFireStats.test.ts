@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import nfdsSnapshotDocument from '../data/nfdsAnnualFireSnapshots.json';
 import { handleAnnualFireStats } from './annualFireStats';
+
+const currentYear = Object.keys(nfdsSnapshotDocument.snapshots)
+  .sort((a, b) => Number(b) - Number(a))
+  .find(year => nfdsSnapshotDocument.snapshots[year as keyof typeof nfdsSnapshotDocument.snapshots].coverageType === 'partial');
+if (!currentYear) throw new Error('NFDS partial snapshot is missing');
+const currentSnapshot = nfdsSnapshotDocument.snapshots[
+  currentYear as keyof typeof nfdsSnapshotDocument.snapshots
+];
 
 describe('handleAnnualFireStats', () => {
   afterEach(() => {
@@ -15,9 +24,9 @@ describe('handleAnnualFireStats', () => {
 
     expect(result.cacheTtl).toBe(86400);
     expect(result.data).toMatchObject({
-      latestYear: '2026',
-      latestCompleteYear: '2025',
-      latestDataThrough: '2026-07-28',
+      latestYear: currentYear,
+      latestCompleteYear: nfdsSnapshotDocument.latestCompleteYear,
+      latestDataThrough: currentSnapshot.dataThrough,
     });
     expect((result.data as { years: string[] }).years).toContain('2015');
     expect((result.data as { years: string[] }).years).toContain('2024');
@@ -63,23 +72,23 @@ describe('handleAnnualFireStats', () => {
     });
   });
 
-  it('labels the 2026 NFDS snapshot as year-to-date and preserves unclassified regions', async () => {
+  it('labels the latest NFDS snapshot as year-to-date and preserves unclassified regions', async () => {
     const result = await handleAnnualFireStats(
-      '/api/fire-annual/2026',
-      new URL('https://api.example.test/api/fire-annual/2026'),
+      `/api/fire-annual/${currentYear}`,
+      new URL(`https://api.example.test/api/fire-annual/${currentYear}`),
       '',
     );
 
     expect(result.data).toMatchObject({
-      year: '2026',
+      year: currentYear,
       coverageType: 'partial',
-      dataThrough: '2026-07-28',
+      dataThrough: currentSnapshot.dataThrough,
       regionalClassification: {
-        classifiedCount: 24_229,
-        unclassifiedCount: 31,
+        classifiedCount: currentSnapshot.regionalClassification.classifiedCount,
+        unclassifiedCount: currentSnapshot.regionalClassification.unclassifiedCount,
       },
       summary: {
-        totalFires: 24_260,
+        totalFires: currentSnapshot.summary.totalFires,
       },
     });
   });
