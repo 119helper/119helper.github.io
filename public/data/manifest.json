@@ -1,39 +1,39 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-02T05:03:45.855Z",
+  "generatedAt": "2026-08-03T04:41:11.256Z",
   "datasets": {
     "civil": {
       "label": "민방위 대피시설",
       "path": "/data/civil/{city}.json",
       "sourceUrl": "https://www.data.go.kr/data/15155067/openapi.do",
       "apiUrl": "https://apis.data.go.kr/1741000/civil_defense_shelter_info/info",
-      "sourceDate": "2026-07-27",
+      "sourceDate": "2026-08-02",
       "sourceDateLabel": "원본 행 최신 갱신일",
       "sourceDateSource": "원본 행 날짜 필드 최신값",
-      "generatedAt": "2026-07-28T08:09:01.197Z",
+      "generatedAt": "2026-08-03T04:41:11.256Z",
       "maxAgeDays": 14,
       "coverageScope": "supported-cities",
       "supportedCityCount": 9,
       "completenessStatus": "scoped",
-      "total": 8127,
-      "upstreamTotal": 18819,
-      "uniqueUpstreamTotal": 18819,
+      "total": 8129,
+      "upstreamTotal": 18821,
+      "uniqueUpstreamTotal": 18821,
       "activeUpstreamTotal": 17229,
       "latestStatusCounts": {
         "사용중": 17229,
-        "사용중지": 1574,
+        "사용중지": 1576,
         "일시중지": 16
       },
       "cities": {
         "seoul": 2902,
-        "busan": 1313,
+        "busan": 1314,
         "daegu": 777,
         "incheon": 790,
         "gwangju": 588,
         "daejeon": 626,
         "ulsan": 499,
         "sejong": 178,
-        "jeju": 454
+        "jeju": 455
       }
     },
     "tsunami": {
