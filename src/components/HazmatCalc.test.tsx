@@ -101,6 +101,14 @@ describe('HazmatCalc', () => {
 });
 
 describe('Calculators hazmat tab', () => {
+  it('starts with field tools in the response workspace context', () => {
+    render(<FeedbackProvider><Calculators preferFieldTools /></FeedbackProvider>);
+
+    expect(screen.getByRole('button', { name: /현장계산/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('송수압력 계산기')).toBeInTheDocument();
+    expect(screen.queryByText('초과근무 수당 계산기')).not.toBeInTheDocument();
+  });
+
   it('renders HazmatCalc from the calculators tab and keeps the calculation path interactive', () => {
     render(<FeedbackProvider><Calculators /></FeedbackProvider>);
 

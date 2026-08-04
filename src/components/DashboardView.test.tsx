@@ -302,7 +302,7 @@ describe('DashboardView routine-first layout', () => {
 
     expect(within(quickTools).getByRole('button', { name: '대응 매뉴얼' })).toBeVisible();
     expect(within(quickTools).getByRole('button', { name: '오프라인 점검' })).toBeVisible();
-    expect(within(quickTools).getByRole('button', { name: '장비 인증' })).toBeVisible();
+    expect(within(quickTools).getByRole('button', { name: '장비 인증 조회' })).toBeVisible();
     expect(within(quickTools).getByRole('button', { name: /^소화전/ })).toBeVisible();
     expect(within(quickTools).getByRole('button', { name: /^급수탑/ })).toBeVisible();
     expect(within(quickTools).getByRole('button', { name: '수압 계산' })).toBeVisible();
@@ -315,6 +315,18 @@ describe('DashboardView routine-first layout', () => {
       .not.toBeInTheDocument();
     expect(within(quickTools).queryByRole('button', { name: '현장 타이머' }))
       .not.toBeInTheDocument();
+    expect(within(quickTools).getByTestId('quick-tools-grid')).toHaveClass(
+      'grid-cols-2',
+      'sm:grid-cols-3',
+      'md:grid-cols-4',
+      '2xl:grid-cols-7',
+    );
+    expect(within(quickTools).getByRole('button', { name: '법률 방어망' })).toHaveClass(
+      'last:col-span-2',
+      'sm:last:col-start-2',
+      'md:last:col-start-auto',
+      '2xl:last:col-start-auto',
+    );
   });
 
   it('migrates only a known former default and preserves a custom response set', () => {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import FieldAssessment from './FieldAssessment';
 import RadioCodes from './RadioCodes';
 import SOPChecklist from './SOPChecklist';
+import ResponsiveTabs from './ResponsiveTabs';
 
 type SubTab = 'assessment' | 'radio' | 'sop';
 interface ManualRouteTarget {
@@ -44,33 +45,15 @@ export default function ManualView({ subId }: { subId?: string }) {
         <p className="text-sm text-on-surface-variant mt-1">현장 활동 가이드라인 및 필수 참조 자료</p>
       </div>
 
-      {/* Sub-Tab Bar */}
-      <div className="flex gap-2 bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-1.5 overflow-x-auto">
-        {SUB_TABS.map(tab => (
-          <button
-            key={tab.id}
-            type="button"
-            aria-pressed={activeSubTab === tab.id}
-            onClick={() => {
-              setActiveSubTab(tab.id);
-              if (tab.id === 'sop' && activeSubTab !== 'sop') setInitialSopId(undefined);
-            }}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
-              activeSubTab === tab.id
-                ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
-                : 'text-on-surface-variant hover:bg-surface-container-high/50'
-            }`}
-          >
-            <span
-              className="material-symbols-outlined text-lg"
-              style={activeSubTab === tab.id ? { fontVariationSettings: "'FILL' 1" } : undefined}
-            >
-              {tab.icon}
-            </span>
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <ResponsiveTabs
+        items={SUB_TABS}
+        activeId={activeSubTab}
+        ariaLabel="대응 매뉴얼 분류"
+        onChange={tabId => {
+          setActiveSubTab(tabId);
+          if (tabId === 'sop' && activeSubTab !== 'sop') setInitialSopId(undefined);
+        }}
+      />
 
       {/* Tab Content */}
       <div className="mt-6">

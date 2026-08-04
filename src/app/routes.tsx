@@ -5,6 +5,7 @@ import type { FireFacility } from '../data/mockData';
 import type { FacilityFilterState, FacilityViewState, ShelterCategory, TabId, NavigateTarget } from '../types/navigation';
 import type { IncidentSession } from '../services/incidentSession';
 import type { BuildingWorkspaceState } from '../types/buildingWorkspace';
+import type { WorkspaceMode } from './navigation';
 
 const DashboardView = lazy(() => import('../components/DashboardView'));
 const WeatherDashboard = lazy(() => import('../components/WeatherDashboard'));
@@ -39,6 +40,7 @@ const OfflineReadinessView = lazy(() => import('../components/OfflineReadinessVi
 
 export interface RouteContext {
   activeSubId?: string;
+  workspaceMode: WorkspaceMode;
   city: string;
   cityLabel: string;
   fireFacilities: FireFacility[];
@@ -131,7 +133,14 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
   hazmat: { render: () => <HazmatView /> },
   'annual-fire': { render: () => <AnnualFireView /> },
   manual: { render: ctx => <ManualView subId={ctx.activeSubId} /> },
-  calculator: { render: ctx => <Calculators subId={ctx.activeSubId} /> },
+  calculator: {
+    render: ctx => (
+      <Calculators
+        subId={ctx.activeSubId}
+        preferFieldTools={ctx.workspaceMode === 'response'}
+      />
+    ),
+  },
   'field-timer': { render: () => <FieldTimer /> },
   calendar: { render: () => <Calendar /> },
   news: { render: ctx => <NewsDashboard city={ctx.city} /> },
@@ -164,6 +173,7 @@ export const TAB_ROUTES: Record<TabId, TabRoute> = {
         isLoadingFacilities={ctx.isLoadingFacilities}
         facilityLoadError={ctx.facilityLoadError}
         cityIndex={ctx.cityIndex}
+        subId={ctx.activeSubId}
         onNavigate={ctx.onNavigate}
       />
     ),

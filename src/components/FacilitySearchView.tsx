@@ -26,6 +26,7 @@ import type { BuildingWorkspaceState } from '../types/buildingWorkspace';
 import type { IncidentLocation } from '../services/incidentSession';
 import { formatDatasetDate, formatFreshnessSourceDate, getDatasetFreshness, isFreshnessExpired, type DatasetFreshness } from '../services/dataFreshness';
 import DatasetCompletenessNotice from './DatasetCompletenessNotice';
+import ResponsiveTabs from './ResponsiveTabs';
 import {
   CITY_TO_STATIC_PROVINCE,
   districtFromAddress,
@@ -963,27 +964,13 @@ export default function FacilitySearchView({
           </div>
         )}
 
-        {/* 통합 카테고리 선택 */}
-        <div className="flex gap-2 mt-4 flex-wrap">
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat.id}
-              type="button"
-              aria-pressed={activeCategory === cat.id}
-              onClick={() => onCategoryChange(cat.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                activeCategory === cat.id
-                  ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
-                  : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface'
-              }`}
-            >
-              <span className="material-symbols-outlined text-lg"
-                style={activeCategory === cat.id ? { fontVariationSettings: "'FILL' 1" } : undefined}
-              >{cat.icon}</span>
-              {cat.label}
-            </button>
-          ))}
-        </div>
+        <ResponsiveTabs
+          items={CATEGORIES}
+          activeId={activeCategory}
+          ariaLabel="시설 분류"
+          className="mt-4"
+          onChange={onCategoryChange}
+        />
       </div>
 
       {/* ═══ 소방용수 카테고리: FacilityList 임베드 ═══ */}
@@ -1142,21 +1129,24 @@ export default function FacilitySearchView({
 
           {/* Warning */}
           {!loading && warning && (
-            <div role="status" className="mt-4 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-              <span aria-hidden="true" className="material-symbols-outlined text-amber-700 dark:text-amber-300">warning</span>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-amber-800 dark:text-amber-300">최신 데이터 갱신 실패</p>
-                <p className="mt-1 text-xs text-amber-900/80 dark:text-amber-200/80">{warning} 마지막으로 성공한 데이터를 표시 중입니다.</p>
-              </div>
-            </div>
+            <DataStatePanel
+              tone="guidance"
+              icon="history"
+              title="최신 데이터 갱신 실패"
+              description={`${warning} 마지막으로 성공한 데이터를 표시 중입니다.`}
+              className="mt-4"
+            />
           )}
 
           {/* 로딩 오버레이 (지도 위에 띄움) */}
           {loading && (
-            <div role="status" aria-live="polite" className="mt-4 flex items-center justify-center gap-3 rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-12">
-              <div aria-hidden="true" className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              <span className="text-sm text-on-surface-variant">{currentCat.label} 데이터 로딩 중...</span>
-            </div>
+            <DataStatePanel
+              tone="loading"
+              icon="progress_activity"
+              title={`${currentCat.label} 데이터 확인 중`}
+              description="공개 데이터와 저장된 최신 정보를 함께 확인하고 있습니다."
+              className="mt-4"
+            />
           )}
 
           {/* 같은 컨텍스트의 갱신 실패는 직전 성공 목록을 유지한다. */}

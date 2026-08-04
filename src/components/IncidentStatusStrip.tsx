@@ -8,6 +8,7 @@ import type { IncidentSession, IncidentType } from '../services/incidentSession'
 import type { TabId } from '../types/navigation';
 import { findActivityOrderIssues } from '../utils/activityOrder';
 import { formatDuration } from '../utils/activityReport';
+import { isIncidentSessionStale } from '../utils/incidentStale';
 
 const TYPE_META: Record<IncidentType, { icon: string; label: string }> = {
   fire: { icon: 'local_fire_department', label: '화재' },
@@ -20,6 +21,7 @@ interface IncidentStatusStripProps {
   session: IncidentSession;
   activeTab: TabId;
   onNavigate: (tab: TabId) => void;
+  onRequestCloseReview: () => void;
   fieldModeActive: boolean;
   onFieldModeChange: (enabled: boolean) => void;
 }
@@ -28,20 +30,28 @@ export default function IncidentStatusStrip({
   session,
   activeTab,
   onNavigate,
+  onRequestCloseReview,
   fieldModeActive,
   onFieldModeChange,
 }: IncidentStatusStripProps) {
   const [now, setNow] = useState(() => Date.now());
   const [feedback, setFeedback] = useState('');
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
+  const [quickActionsExpanded, setQuickActionsExpanded] = useState(false);
+  const [acknowledgedStaleIncidentId, setAcknowledgedStaleIncidentId] = useState('');
   const { timers, formatTime } = useTimer();
   const [activitySession] = useActivitySession(session.type);
 
   useEffect(() => {
     if (!session.active) return;
+    setNow(Date.now());
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(interval);
-  }, [session.active]);
+  }, [session.active, session.incidentId]);
+
+  useEffect(() => {
+    if (activeTab !== 'incident') setQuickActionsExpanded(false);
+  }, [activeTab]);
 
   const nearestTimer = useMemo(() => (
     timers
@@ -82,12 +92,18 @@ export default function IncidentStatusStrip({
 
   if (!session.active) return null;
   const type = TYPE_META[session.type];
+  const incidentView = activeTab === 'incident';
+  const showQuickActions = incidentView || quickActionsExpanded;
+  const showStaleNotice = isIncidentSessionStale(session, now)
+    && acknowledgedStaleIncidentId !== session.incidentId;
 
   return (
     <>
       <section
         aria-label="진행 중인 출동"
-        className="shrink-0 border-b border-error/30 bg-error-container/95 px-3 py-2 text-on-error-container shadow-sm backdrop-blur-md sm:px-5"
+        className={`shrink-0 border-b border-error/30 bg-error-container/95 px-3 text-on-error-container shadow-sm backdrop-blur-md sm:px-5 ${
+          incidentView ? 'py-2' : 'py-1.5 sm:py-2'
+        }`}
       >
       <div className="mx-auto max-w-[1600px]">
         <div className="flex items-center gap-2">
@@ -96,13 +112,13 @@ export default function IncidentStatusStrip({
             aria-current={activeTab === 'incident' ? 'page' : undefined}
             aria-label={`진행 중인 ${type.label} 출동 상황판 열기`}
             onClick={() => onNavigate('incident')}
-            className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left hover:bg-error/10 focus:outline-none focus:ring-2 focus:ring-error/30"
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left hover:bg-error/10 focus:outline-none focus:ring-2 focus:ring-error/30"
           >
             <span className="relative flex h-3 w-3 shrink-0" aria-hidden="true">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-error opacity-60" />
               <span className="relative inline-flex h-3 w-3 rounded-full bg-error" />
             </span>
-            <span aria-hidden="true" className="material-symbols-outlined text-xl text-error">{type.icon}</span>
+            <span aria-hidden="true" className="material-symbols-outlined hidden text-xl text-error sm:inline">{type.icon}</span>
             <span className="min-w-0 flex-1">
               <span className="flex items-baseline gap-2">
                 <span className="truncate text-sm font-extrabold text-on-surface">{session.title}</span>
@@ -120,12 +136,34 @@ export default function IncidentStatusStrip({
             aria-current={activeTab === 'field-timer' ? 'page' : undefined}
             aria-label={nearestTimer ? `${nearestTimer.label} ${formatTime(nearestTimer.remaining)} 남음, 현장 타이머 열기` : '현장 타이머 열기'}
             onClick={() => onNavigate('field-timer')}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-error/20 bg-surface-container-lowest/80 px-2.5 py-2 text-xs font-bold text-on-surface shadow-sm hover:bg-surface-container"
+            className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-error/20 bg-surface-container-lowest/80 px-2.5 py-2 text-xs font-bold text-on-surface shadow-sm hover:bg-surface-container"
           >
             <span aria-hidden="true" className="material-symbols-outlined text-base text-error">timer</span>
             <span className="hidden sm:inline">{nearestTimer?.label ?? '타이머'}</span>
             {nearestTimer && <span className="font-mono tabular-nums">{formatTime(nearestTimer.remaining)}</span>}
           </button>
+
+          {!incidentView && (
+            <button
+              type="button"
+              aria-controls="incident-quick-records"
+              aria-expanded={quickActionsExpanded}
+              aria-label={`빠른 기록 ${quickActionsExpanded ? '접기' : '펼치기'}`}
+              title={`빠른 기록 ${quickActionsExpanded ? '접기' : '펼치기'}`}
+              onClick={() => setQuickActionsExpanded(expanded => !expanded)}
+              className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-extrabold shadow-sm transition-colors ${
+                quickActionsExpanded
+                  ? 'border-error bg-error text-on-error'
+                  : 'border-error/20 bg-surface-container-lowest/80 text-on-surface hover:bg-surface-container'
+              }`}
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-base">history</span>
+              <span className="hidden xl:inline">빠른 기록</span>
+              <span aria-hidden="true" className="material-symbols-outlined hidden text-sm sm:inline">
+                {quickActionsExpanded ? 'expand_less' : 'expand_more'}
+              </span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -144,7 +182,39 @@ export default function IncidentStatusStrip({
           </button>
         </div>
 
-        <div className="mt-2 flex items-center gap-2 border-t border-error/15 pt-2">
+        {showStaleNotice && (
+          <div
+            role="alert"
+            className="mt-2 flex flex-col gap-2 rounded-lg border border-amber-600/35 bg-amber-100/90 px-3 py-2 text-amber-950 sm:flex-row sm:items-center"
+          >
+            <div className="flex min-w-0 flex-1 items-start gap-2">
+              <span aria-hidden="true" className="material-symbols-outlined mt-0.5 shrink-0 text-lg">schedule</span>
+              <p className="min-w-0 text-xs leading-5">
+                <strong className="font-extrabold">12시간 이상 진행 중인 출동입니다.</strong>
+                <span className="ml-1">현재 상황을 확인하고 계속 진행하거나 종료 기록을 점검해 주세요.</span>
+              </p>
+            </div>
+            <div className="flex shrink-0 justify-end gap-1.5">
+              <button
+                type="button"
+                onClick={() => setAcknowledgedStaleIncidentId(session.incidentId)}
+                className="min-h-9 rounded-lg border border-amber-700/30 bg-white/70 px-3 py-1.5 text-xs font-extrabold hover:bg-white"
+              >
+                계속 진행
+              </button>
+              <button
+                type="button"
+                onClick={onRequestCloseReview}
+                className="min-h-9 rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-extrabold text-white hover:bg-amber-800"
+              >
+                종료 점검
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showQuickActions && (
+          <div id="incident-quick-records" className="mt-2 flex items-center gap-2 border-t border-error/15 pt-2">
           <span className="hidden shrink-0 items-center gap-1 text-[11px] font-extrabold text-error sm:flex">
             <span aria-hidden="true" className="material-symbols-outlined text-base">history</span>
             빠른 기록
@@ -193,7 +263,8 @@ export default function IncidentStatusStrip({
             </button>
           )}
           <span className="sr-only" role="status" aria-live="polite">{feedback}</span>
-        </div>
+          </div>
+        )}
       </div>
       </section>
       <ActivityStageEditorDialog

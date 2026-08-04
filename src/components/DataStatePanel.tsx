@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-type DataStateTone = 'empty' | 'error' | 'guidance';
+type DataStateTone = 'loading' | 'empty' | 'error' | 'guidance';
 
 interface DataStateAction {
   label: string;
@@ -19,6 +19,11 @@ interface DataStatePanelProps {
 }
 
 const toneStyles: Record<DataStateTone, { panel: string; icon: string; action: string }> = {
+  loading: {
+    panel: 'border-primary/20 bg-primary/5',
+    icon: 'bg-primary/10 text-primary',
+    action: 'bg-primary text-on-primary hover:bg-primary/90',
+  },
   empty: {
     panel: 'border-outline-variant/20 bg-surface-container-lowest',
     icon: 'bg-surface-container-high text-on-surface-variant',
@@ -59,14 +64,16 @@ export default function DataStatePanel({
   className = '',
 }: DataStatePanelProps) {
   const styles = toneStyles[tone];
+  const loading = tone === 'loading';
 
   return (
     <div
       role={tone === 'error' ? 'alert' : 'status'}
       aria-live={tone === 'error' ? 'assertive' : 'polite'}
+      aria-busy={loading || undefined}
       className={`rounded-2xl border p-6 text-center ${styles.panel} ${className}`}
     >
-      <span aria-hidden="true" className={`material-symbols-outlined inline-flex h-12 w-12 items-center justify-center rounded-2xl text-3xl ${styles.icon}`}>
+      <span aria-hidden="true" className={`material-symbols-outlined inline-flex h-12 w-12 items-center justify-center rounded-2xl text-3xl ${styles.icon} ${loading ? 'animate-spin' : ''}`}>
         {icon}
       </span>
       <h3 className="mt-3 text-base font-extrabold text-on-surface">{title}</h3>

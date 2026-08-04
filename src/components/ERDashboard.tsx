@@ -3,6 +3,7 @@ import { getERRealTimeBeds, getERMessages, getERSevereIllness, CITY_TO_SIDO, typ
 import { CITY_TO_DISPLAY_PROVINCE } from '../services/administrativeRegions';
 import { getStaleAt } from '../services/apiClient';
 import StaleBadge from './StaleBadge';
+import DataStatePanel from './DataStatePanel';
 
 import PrivateAmbulanceView from './PrivateAmbulanceView';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
@@ -211,25 +212,17 @@ export default function ERDashboard({
             </button>
           </div>
 
-          {loadError && (
-            <div role="alert" className="rounded-xl border border-error/30 bg-error/10 px-4 py-3 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-error">응급실 현황을 불러오지 못했습니다.</p>
-                <p className="text-xs text-on-surface-variant mt-1 truncate">{loadError}</p>
-              </div>
-              <button type="button" onClick={() => { void fetchER(true); }} className="shrink-0 rounded-lg bg-error/15 px-3 py-2 text-sm font-bold text-error hover:bg-error/20">
-                다시 시도
-              </button>
-            </div>
-          )}
-
           {supplementalWarning && (
-            <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-on-surface">
-              {supplementalWarning}
-            </div>
+            <DataStatePanel
+              tone="guidance"
+              icon="info"
+              title="일부 부가 정보를 확인하지 못했습니다"
+              description={supplementalWarning}
+            />
           )}
 
           {/* Summary Cards */}
+          {!loading && !loadError && erData.length > 0 && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 text-center">
           <p className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">조회 병원</p>
@@ -248,24 +241,35 @@ export default function ERDashboard({
           <p className={`text-3xl font-extrabold mt-1 ${totalAvailable > 10 ? 'text-secondary' : totalAvailable > 0 ? 'text-amber-400' : 'text-error'}`}>{totalAvailable}</p>
         </div>
       </div>
+          )}
 
       {/* Table */}
       <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl overflow-hidden">
         {loading && erData.length === 0 ? (
-          <div className="flex items-center justify-center py-20">
-            <span className="material-symbols-outlined animate-spin text-primary text-2xl mr-3">refresh</span>
-            <span className="text-on-surface-variant">응급실 데이터 로딩 중...</span>
-          </div>
+          <DataStatePanel
+            tone="loading"
+            icon="progress_activity"
+            title="응급실 현황 확인 중"
+            description="가용 병상과 기관 공지사항을 함께 불러오고 있습니다."
+            className="m-4"
+          />
         ) : loadError ? (
-          <div className="text-center py-20 text-on-surface-variant">
-            <span className="material-symbols-outlined text-4xl mb-2 block text-error">cloud_off</span>
-            위의 다시 시도 버튼을 눌러 주세요.
-          </div>
+          <DataStatePanel
+            tone="error"
+            icon="cloud_off"
+            title="응급실 현황을 불러오지 못했습니다."
+            description={loadError}
+            action={{ label: '다시 시도', icon: 'refresh', onClick: () => { void fetchER(true); } }}
+            className="m-4"
+          />
         ) : erData.length === 0 ? (
-          <div className="text-center py-20 text-on-surface-variant">
-            <span className="material-symbols-outlined text-4xl mb-2 block">local_hospital</span>
-            현재 선택한 지역에서 제공되는 응급실 데이터가 없습니다.
-          </div>
+          <DataStatePanel
+            icon="local_hospital"
+            title="제공되는 응급실 데이터가 없습니다"
+            description="현재 선택한 지역의 공개 응급실 정보를 확인하지 못했습니다. 지역을 확인하거나 다시 조회해 주세요."
+            action={{ label: '다시 확인', icon: 'refresh', onClick: () => { void fetchER(true); } }}
+            className="m-4"
+          />
         ) : (
           <table className="w-full">
             <thead>

@@ -650,6 +650,7 @@ export default function App() {
 
   const routeContext: RouteContext = {
     activeSubId,
+    workspaceMode,
     city,
     cityLabel: cityNames[city],
     fireFacilities,
@@ -1083,6 +1084,7 @@ export default function App() {
           session={incidentSession}
           activeTab={activeTab}
           onNavigate={handleNavigate}
+          onRequestCloseReview={() => handleNavigate('incident', 'close-review')}
           fieldModeActive={fieldReadabilityMode}
           onFieldModeChange={handleFieldModeChange}
         />
@@ -1125,7 +1127,7 @@ export default function App() {
               </ErrorBoundary>
             </div>
             {/* Mobile Nav Spacer - Guaranteed to add scroll space at the bottom */}
-            <div className="h-[72px] lg:hidden w-full shrink-0" />
+            <div className="h-[4.25rem] lg:hidden w-full shrink-0" />
             <div className="safe-area-bottom w-full shrink-0" />
           </div>
         </div>
@@ -1133,7 +1135,7 @@ export default function App() {
         {/* Scroll To Top FAB */}
         <button
           onClick={() => scrollToTop()}
-          className={`fixed right-5 bottom-24 lg:right-10 lg:bottom-12 z-[9999] w-14 h-14 rounded-full bg-primary text-on-primary shadow-2xl hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all duration-300 transform flex items-center justify-center ${
+          className={`fixed right-5 bottom-24 lg:right-10 lg:bottom-12 z-[9999] hidden h-14 w-14 items-center justify-center rounded-full bg-primary text-on-primary shadow-2xl transition-all duration-300 transform hover:scale-105 hover:bg-primary/90 active:scale-95 sm:flex ${
             showScrollTop ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-16 opacity-0 scale-75 pointer-events-none'
           }`}
           aria-label="맨 위로 가기"

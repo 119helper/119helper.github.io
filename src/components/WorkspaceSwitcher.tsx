@@ -21,9 +21,9 @@ export default function WorkspaceSwitcher({
   return (
     <nav
       aria-label="업무 공간 전환"
-      className="shrink-0 border-b border-outline-variant/60 bg-surface-container-lowest px-3 py-2 sm:px-5"
+      className="shrink-0 border-b border-outline-variant/60 bg-surface-container-lowest px-3 py-1 sm:px-5 sm:py-2"
     >
-      <div className="mx-auto flex max-w-[1600px] rounded-xl bg-surface-container p-1">
+      <div className="mx-auto flex max-w-[1600px] rounded-xl bg-surface-container p-0.5 sm:p-1">
         {WORKSPACES.map(item => {
           const meta = WORKSPACE_META[item];
           const selected = workspace === item;

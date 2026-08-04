@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import type { NavigateTarget } from '../types/navigation';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 import { loadStoredJson } from '../services/privacySettings';
+import { TAB_LABELS } from '../app/navigation';
 
 interface SearchResultPresentation {
   id: string;
@@ -34,33 +35,42 @@ const PREPLAN_STORAGE_KEY = '119helper-preplans';
 const SEARCH_HISTORY_STATE_KEY = '__119helperGlobalSearchOverlay';
 
 const MENU_ITEMS: { keyword: string[]; tab: NavigateTarget; subId?: string; label: string; subtitle: string; icon: string; color: string }[] = [
-  { keyword: ['대시보드', 'dashboard', '홈', '메인', '평시', '업무'], tab: 'dashboard', label: '평시 대시보드', subtitle: '근무 준비·지역 모니터링·빠른 도구', icon: 'dashboard', color: 'text-primary' },
-  { keyword: ['출동', '상황판', '현장 대응', '지휘', 'incident'], tab: 'incident', label: '출동 상황판', subtitle: '출동 시작·현장 브리핑·활동 기록', icon: 'assignment', color: 'text-red-500' },
-  { keyword: ['날씨', '기상', '온도', '비', '눈', '바람', '습도', 'weather', '풍속', '예보'], tab: 'weather', label: '기상 정보', subtitle: '실시간 날씨·예보·특보', icon: 'cloud', color: 'text-blue-400' },
+  { keyword: ['대시보드', 'dashboard', '홈', '메인', '평시', '업무'], tab: 'dashboard', label: TAB_LABELS.dashboard, subtitle: '근무 준비·지역 모니터링·빠른 도구', icon: 'dashboard', color: 'text-primary' },
+  { keyword: ['출동', '상황판', '현장 대응', '지휘', 'incident'], tab: 'incident', label: TAB_LABELS.incident, subtitle: '출동 시작·현장 브리핑·활동 기록', icon: 'assignment', color: 'text-red-500' },
+  { keyword: ['날씨', '기상', '온도', '비', '눈', '바람', '습도', 'weather', '풍속', '예보'], tab: 'weather', label: TAB_LABELS.weather, subtitle: '실시간 날씨·예보·특보', icon: 'cloud', color: 'text-blue-400' },
+  { keyword: ['시설', '조회', '소방용수', '대피소', 'AED', '화장실'], tab: 'shelter', label: TAB_LABELS.shelter, subtitle: '건축물·소방용수·대피시설 통합 조회', icon: 'location_city', color: 'text-yellow-500' },
   { keyword: ['소화전', '수도', 'hydrant', '소방용수'], tab: 'hydrants', label: '소화전', subtitle: '소화전 위치·현황', icon: 'fire_hydrant', color: 'text-red-400' },
   { keyword: ['급수탑', '저수조', '비상소화', 'water', '수원', '탱크'], tab: 'waterTowers', label: '급수탑/저수조', subtitle: '급수탑·저수조·비상소화장치', icon: 'water_pump', color: 'text-cyan-400' },
-  { keyword: ['응급', '응급실', '병원', '병상', 'er', '이송'], tab: 'er', label: '응급실 현황', subtitle: '실시간 가용 병상 조회', icon: 'local_hospital', color: 'text-green-400' },
+  { keyword: ['응급', '응급실', '병원', '병상', 'er', '이송'], tab: 'er', label: TAB_LABELS.er, subtitle: '실시간 가용 병상 조회', icon: 'local_hospital', color: 'text-green-400' },
   { keyword: ['건축', '건물', '대장', 'building', '층수', '구조', '면적', '용도'], tab: 'building', label: '건축물대장', subtitle: '주소 입력 → 건물 정보 즉시 조회', icon: 'apartment', color: 'text-purple-400' },
-  { keyword: ['달력', '일정', '교대', '근무', 'calendar', '공휴일', '스케줄'], tab: 'calendar', label: '달력/일정', subtitle: '교대 근무·공휴일', icon: 'calendar_month', color: 'text-orange-400' },
-  { keyword: ['계산기', '계산', 'calculator', 'calc'], tab: 'calculator', label: '119 계산기', subtitle: '수압·호스·공기호흡기·유해화학·단위변환', icon: 'calculate', color: 'text-amber-400' },
+  { keyword: ['달력', '일정', '교대', '근무', 'calendar', '공휴일', '스케줄'], tab: 'calendar', label: TAB_LABELS.calendar, subtitle: '교대 근무·공휴일', icon: 'calendar_month', color: 'text-orange-400' },
+  { keyword: ['계산기', '계산', 'calculator', 'calc'], tab: 'calculator', label: TAB_LABELS.calculator, subtitle: '수압·호스·공기호흡기·유해화학·단위변환', icon: 'calculate', color: 'text-amber-400' },
   { keyword: ['수압', '송수압력', '압력', '계산', 'calculator', 'calc'], tab: 'calculator', subId: 'water_pressure_calc', label: '송수압력 계산기', subtitle: '층수 입력 → 필요 송수압력 계산', icon: 'water_drop', color: 'text-blue-400' },
   { keyword: ['호스', '전개', '거리', '계산', 'calculator', 'calc'], tab: 'calculator', subId: 'hose_length_calc', label: '호스 전개 계산기', subtitle: '거리·층수 입력 → 필요 호스 본수 계산', icon: 'straighten', color: 'text-green-400' },
   { keyword: ['공기호흡기', '공기', '타이머', '잔압', '계산', 'calculator', 'calc'], tab: 'calculator', subId: 'air_tank_timer', label: '공기호흡기 타이머', subtitle: '충전 압력 기반 참고 타이머', icon: 'timer', color: 'text-amber-400' },
   { keyword: ['단위', '변환', '계산', 'calculator', 'calc'], tab: 'calculator', subId: 'unit_converter', label: '단위 변환기', subtitle: '압력·길이·온도 단위 변환', icon: 'sync_alt', color: 'text-emerald-400' },
   { keyword: ['유해', '화학', '물질', 'hazmat', '방호', '구역', '계산', 'calculator', 'calc'], tab: 'calculator', subId: 'hazmat_calc', label: '유해화학물질 계산기', subtitle: '초기 방호·이격 거리 계산', icon: 'science', color: 'text-amber-500' },
-  { keyword: ['산불', 'wildfire', '화재', '진화'], tab: 'wildfire', label: '산불 현황', subtitle: '실시간 산불 발생·진화 현황', icon: 'local_fire_department', color: 'text-red-500' },
-  { keyword: ['타이머', '현장', '출동', '스톱워치', '교대'], tab: 'field-timer', label: '현장 타이머', subtitle: '공기호흡기·교대·출동 시간 기록', icon: 'timer', color: 'text-orange-400' },
-  { keyword: ['장비', '점검', '체크리스트', '개인안전장비'], tab: 'checklist', label: '장비점검', subtitle: '개인안전장비 체크리스트', icon: 'check_circle', color: 'text-orange-400' },
-  { keyword: ['법률', '방어', '면책', '소송', '진술'], tab: 'law', subId: 'DEFENSE', label: '실전 법률방어', subtitle: '현장 대응 법률 보호 도구', icon: 'gavel', color: 'text-rose-500' },
-  { keyword: ['대응', '매뉴얼', 'manual', '지침', '표준'], tab: 'manual', label: '대응 매뉴얼', subtitle: '표준작전절차(SOP) 및 지침', icon: 'book', color: 'text-indigo-400' },
-  { keyword: ['정책', '지침', '법안', 'policy', '소방청'], tab: 'policy', label: '정책/지침', subtitle: '최신 소방 정책 및 법안', icon: 'gavel', color: 'text-blue-500' },
-  { keyword: ['뉴스', 'news', '언론', '보도'], tab: 'news', label: '소방 뉴스', subtitle: '소방 관련 최신 언론 보도', icon: 'newspaper', color: 'text-teal-500' },
-  { keyword: ['연간', '화재', '통계', 'annual'], tab: 'annual-fire', label: '연간 화재통계', subtitle: '연도별 화재 발생 현황 분석', icon: 'bar_chart', color: 'text-cyan-500' },
-  { keyword: ['화재', '분석', 'analysis', '피해'], tab: 'fire-analysis', label: '화재 분석', subtitle: '지역별/원인별 심층 분석', icon: 'insights', color: 'text-purple-500' },
-  { keyword: ['지역', '화재', '피해', 'damage'], tab: 'fire-damage', label: '지역별 화재피해', subtitle: '시도별 화재 피해 규모', icon: 'map', color: 'text-red-400' },
-  { keyword: ['위험물', '시설', 'hazmat', '제조소', '저장소', '취급소'], tab: 'hazmat', label: '위험물시설', subtitle: '관내 위험물 제조소등 현황', icon: 'warning', color: 'text-orange-500' },
-  { keyword: ['생활', '위해', '사고', 'consumer', 'hazards', '안전사고'], tab: 'hazards', label: '생활위해사고', subtitle: '생활 안전사고 통계 및 분석', icon: 'health_and_safety', color: 'text-pink-500' },
-  { keyword: ['다중', '이용', '업소', 'multiuse', '안전'], tab: 'multiuse', label: '다중이용업소', subtitle: '다중이용업소 안전관리 현황', icon: 'storefront', color: 'text-green-500' },
+  { keyword: ['산불', 'wildfire', '화재', '진화'], tab: 'wildfire', label: TAB_LABELS.wildfire, subtitle: '실시간 산불 발생·진화 현황', icon: 'local_fire_department', color: 'text-red-500' },
+  { keyword: ['타이머', '현장', '출동', '스톱워치', '교대'], tab: 'field-timer', label: TAB_LABELS['field-timer'], subtitle: '공기호흡기·교대·출동 시간 기록', icon: 'timer', color: 'text-orange-400' },
+  { keyword: ['장비', '점검', '체크리스트', '개인안전장비'], tab: 'checklist', label: TAB_LABELS.checklist, subtitle: '개인안전장비 체크리스트', icon: 'check_circle', color: 'text-orange-400' },
+  { keyword: ['인증', 'KFI', '소방용품', '장비 인증'], tab: 'equipment-cert', label: TAB_LABELS['equipment-cert'], subtitle: '소방장비·소방용품 인증 정보 조회', icon: 'verified', color: 'text-emerald-500' },
+  { keyword: ['법률', '방어', '면책', '소송', '진술'], tab: 'law', subId: 'DEFENSE', label: TAB_LABELS.law, subtitle: '현장 대응 법률 보호 도구', icon: 'gavel', color: 'text-rose-500' },
+  { keyword: ['대응', '매뉴얼', 'manual', '지침', '표준'], tab: 'manual', label: TAB_LABELS.manual, subtitle: '표준작전절차(SOP) 및 지침', icon: 'book', color: 'text-indigo-400' },
+  { keyword: ['정책', '지침', '법안', 'policy', '소방청'], tab: 'policy', label: TAB_LABELS.policy, subtitle: '최신 소방 정책 및 법안', icon: 'gavel', color: 'text-blue-500' },
+  { keyword: ['뉴스', 'news', '언론', '보도'], tab: 'news', label: TAB_LABELS.news, subtitle: '소방 관련 최신 언론 보도', icon: 'newspaper', color: 'text-teal-500' },
+  { keyword: ['연간', '화재', '통계', 'annual'], tab: 'annual-fire', label: TAB_LABELS['annual-fire'], subtitle: '연도별 화재 발생 현황 분석', icon: 'bar_chart', color: 'text-cyan-500' },
+  { keyword: ['화재', '분석', 'analysis', '피해'], tab: 'fire-analysis', label: TAB_LABELS['fire-analysis'], subtitle: '지역별/원인별 심층 분석', icon: 'insights', color: 'text-purple-500' },
+  { keyword: ['지역', '화재', '피해', 'damage'], tab: 'fire-damage', label: TAB_LABELS['fire-damage'], subtitle: '시도별 화재 피해 규모', icon: 'map', color: 'text-red-400' },
+  { keyword: ['위험물', '시설', 'hazmat', '제조소', '저장소', '취급소'], tab: 'hazmat', label: TAB_LABELS.hazmat, subtitle: '관내 위험물 제조소등 현황', icon: 'warning', color: 'text-orange-500' },
+  { keyword: ['생활', '위해', '사고', 'consumer', 'hazards', '안전사고'], tab: 'hazards', label: TAB_LABELS.hazards, subtitle: '생활 안전사고 통계 및 분석', icon: 'health_and_safety', color: 'text-pink-500' },
+  { keyword: ['다중', '이용', '업소', 'multiuse', '안전'], tab: 'multiuse', label: TAB_LABELS.multiuse, subtitle: '다중이용업소 안전관리 현황', icon: 'storefront', color: 'text-green-500' },
+  { keyword: ['댐', '방류', '수문', '홍수'], tab: 'dam-discharge', label: TAB_LABELS['dam-discharge'], subtitle: '댐 방류 현황과 하류 영향 확인', icon: 'water', color: 'text-blue-500' },
+  { keyword: ['항공', '드론', '헬기', '운항'], tab: 'aviation', label: TAB_LABELS.aviation, subtitle: '항공·드론 운항 안전 정보', icon: 'flight', color: 'text-cyan-500' },
+  { keyword: ['대상물', '사전계획', '현장 정보', '위험요인'], tab: 'preplan', label: TAB_LABELS.preplan, subtitle: '대상물 사전계획과 현장 정보', icon: 'domain', color: 'text-violet-500' },
+  { keyword: ['오프라인', 'offline', '통신', '데이터 저장'], tab: 'offline-readiness', label: TAB_LABELS['offline-readiness'], subtitle: '출동 전 오프라인 데이터 준비 상태', icon: 'offline_bolt', color: 'text-lime-600' },
+  { keyword: ['환자', '분류', 'START', '트리아지'], tab: 'triage', label: TAB_LABELS.triage, subtitle: '현장 환자 분류와 이송 우선순위', icon: 'health_and_safety', color: 'text-red-500' },
+  { keyword: ['활동', '타임라인', '기록', '시각'], tab: 'activity-log', label: TAB_LABELS['activity-log'], subtitle: '출동 활동 시각과 기록 확인', icon: 'history', color: 'text-slate-500' },
+  { keyword: ['대원', '안전', '인원', 'PAR'], tab: 'safety-monitor', label: TAB_LABELS['safety-monitor'], subtitle: '현장 대원 안전 상태 확인', icon: 'shield', color: 'text-orange-500' },
 ];
 
 function toSearchResult(item: (typeof MENU_ITEMS)[number]): SearchResult {

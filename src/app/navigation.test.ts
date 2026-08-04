@@ -3,6 +3,7 @@ import {
   getDefaultWorkspaceForTab,
   getWorkspaceNavItems,
   getWorkspaceTabIds,
+  TAB_LABELS,
 } from './navigation';
 import { ALL_TAB_IDS, isTabId } from '../types/navigation';
 
@@ -46,6 +47,22 @@ describe('workspace navigation', () => {
 
     expect(fieldInfo?.subItems).toContainEqual({ id: 'weather', label: '기상 정보' });
     expect(fieldInfo?.subItems).not.toContainEqual({ id: 'weather', label: '현장 기상' });
+  });
+
+  it('uses the canonical tool names in every workspace', () => {
+    for (const workspace of ['routine', 'response'] as const) {
+      for (const item of getWorkspaceNavItems(workspace)) {
+        item.subItems?.forEach(subItem => {
+          expect(subItem.label).toBe(TAB_LABELS[subItem.id]);
+        });
+      }
+    }
+
+    expect(TAB_LABELS.weather).toBe('기상 정보');
+    expect(TAB_LABELS.wildfire).toBe('산불 현황');
+    expect(TAB_LABELS.news).toBe('소방 뉴스');
+    expect(TAB_LABELS.law).toBe('법률 방어망');
+    expect(TAB_LABELS.policy).toBe('법안·지침');
   });
 
   it('keeps every route reachable and every standalone menu id valid', () => {

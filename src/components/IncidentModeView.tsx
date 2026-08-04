@@ -77,6 +77,7 @@ interface IncidentModeViewProps {
   isLoadingFacilities: boolean;
   facilityLoadError?: string;
   cityIndex: CityIndex | null;
+  subId?: string;
   onNavigate: (tab: NavigateTarget | string, subId?: string) => void;
 }
 
@@ -145,6 +146,7 @@ export default function IncidentModeView({
   isLoadingFacilities,
   facilityLoadError = '',
   cityIndex,
+  subId,
   onNavigate,
 }: IncidentModeViewProps) {
   const [session, setSession] = useIncidentSession();
@@ -167,6 +169,12 @@ export default function IncidentModeView({
   const [locationError, setLocationError] = useState('');
   const [offerRegionalFallback, setOfferRegionalFallback] = useState(false);
   const [activitySession] = useActivitySession(session.type);
+
+  useEffect(() => {
+    if (subId !== 'close-review' || !session.active) return;
+    setCloseSaveError('');
+    setCloseReviewOpen(true);
+  }, [session.active, subId]);
   const {
     timers,
     allTimers,
@@ -609,6 +617,11 @@ export default function IncidentModeView({
   const closeSession = () => {
     setCloseSaveError('');
     setCloseReviewOpen(true);
+  };
+
+  const dismissCloseReview = () => {
+    setCloseReviewOpen(false);
+    if (subId === 'close-review') onNavigate('incident');
   };
 
   const finalizeSession = async () => {
@@ -1774,7 +1787,7 @@ export default function IncidentModeView({
         stopwatchRunning={stopwatchRunning}
         saving={closingSession}
         saveError={closeSaveError}
-        onClose={() => setCloseReviewOpen(false)}
+        onClose={dismissCloseReview}
         onOpenActivity={() => {
           setCloseReviewOpen(false);
           openIncidentTool('activity-log', '활동기록');

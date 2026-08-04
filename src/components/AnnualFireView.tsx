@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { fetchAnnualFireStats, fetchAnnualFireYears, isStaleDataError } from '../services/apiClient';
 import type { AnnualFireStatsResponse, AnnualFireYearsResponse } from '../services/apiClient';
+import DataStatePanel from './DataStatePanel';
 
 const FALLBACK_YEARS = Array.from({ length: 12 }, (_, i) => String(new Date().getFullYear() - i));
 
@@ -204,44 +205,33 @@ export default function AnnualFireView() {
 
       {/* Loading */}
       {loading && (
-        <div className="flex flex-col items-center gap-4 py-16">
-          <div className="w-10 h-10 border-[3px] border-primary/30 border-t-primary rounded-full animate-spin" />
-          <div className="text-sm text-on-surface-variant">
-            <span className="font-bold text-primary">{year}년</span> 화재통계 데이터 집계 중...
-          </div>
-          <p className="text-xs text-on-surface-variant/60">대량 데이터 처리로 최대 30초 소요될 수 있습니다</p>
-        </div>
+        <DataStatePanel
+          tone="loading"
+          icon="progress_activity"
+          title={`${year}년 화재통계 집계 중`}
+          description="공식 원본 데이터가 큰 경우 최대 30초 정도 걸릴 수 있습니다."
+        />
       )}
 
       {/* Error */}
       {error && !loading && !data && (
-        <div className="p-6 rounded-2xl bg-error/10 border border-error/30">
-          <div className="flex items-start gap-3">
-            <span className="material-symbols-outlined text-error text-2xl mt-0.5">cloud_off</span>
-            <div className="flex-1">
-              <h3 className="font-bold text-error text-lg">연간화재통계 API 연결 실패</h3>
-              <p className="text-sm text-on-surface-variant mt-1">{error}</p>
-              <button
-                onClick={() => loadStats(true)}
-                className="mt-4 flex items-center gap-2 px-4 py-2 bg-error/20 text-error rounded-xl text-sm font-bold hover:bg-error/30 transition-colors"
-              >
-                <span className="material-symbols-outlined text-base">refresh</span>
-                다시 시도
-              </button>
-            </div>
-          </div>
-        </div>
+        <DataStatePanel
+          tone="error"
+          icon="cloud_off"
+          title="연간 화재통계를 불러오지 못했습니다"
+          description={error}
+          action={{ label: '다시 시도', icon: 'refresh', onClick: () => loadStats(true) }}
+        />
       )}
 
       {/* Warning */}
       {!loading && warning && (
-        <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-xl p-4 flex items-start gap-3">
-          <span className="material-symbols-outlined text-yellow-400">warning</span>
-          <div className="flex-1">
-            <p className="text-sm font-bold text-yellow-300">최신 데이터 갱신 실패</p>
-            <p className="text-xs text-yellow-200/80 mt-1">{warning} 마지막으로 성공한 통계를 표시 중입니다.</p>
-          </div>
-        </div>
+        <DataStatePanel
+          tone="guidance"
+          icon="history"
+          title="저장된 최근 통계를 표시 중입니다"
+          description={`${warning} 마지막으로 성공한 통계를 계속 표시합니다.`}
+        />
       )}
 
       {/* Data Display */}

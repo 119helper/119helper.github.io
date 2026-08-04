@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import OvertimeCalc from './OvertimeCalc';
 import HazmatCalc from './HazmatCalc';
 import UnitConverter from './UnitConverter';
+import ResponsiveTabs from './ResponsiveTabs';
 import {
   calculateAirTankSeconds,
   calculateHoseDeployment,
@@ -245,16 +246,27 @@ const TABS: { id: CalcTab; label: string; icon: string }[] = [
   { id: 'unit', label: '단위변환', icon: 'sync_alt' },
 ];
 
-export default function Calculators({ subId }: { subId?: string }) {
-  const [activeTab, setActiveTab] = useState<CalcTab>('overtime');
+function calculatorTabForSubId(subId?: string): CalcTab | null {
+  if (subId === 'hazmat_calc') return 'hazmat';
+  if (subId === 'water_pressure_calc' || subId === 'hose_length_calc') return 'field';
+  if (subId === 'air_tank_timer') return 'air_tank';
+  if (subId === 'unit_converter') return 'unit';
+  return null;
+}
+
+interface CalculatorsProps {
+  subId?: string;
+  preferFieldTools?: boolean;
+}
+
+export default function Calculators({ subId, preferFieldTools = false }: CalculatorsProps) {
+  const [activeTab, setActiveTab] = useState<CalcTab>(() => (
+    calculatorTabForSubId(subId) ?? (preferFieldTools ? 'field' : 'overtime')
+  ));
 
   useEffect(() => {
-    // subId mapper
+    setActiveTab(calculatorTabForSubId(subId) ?? (preferFieldTools ? 'field' : 'overtime'));
     if (!subId) return;
-    if (subId === 'hazmat_calc') setActiveTab('hazmat');
-    else if (subId === 'water_pressure_calc' || subId === 'hose_length_calc') setActiveTab('field');
-    else if (subId === 'air_tank_timer') setActiveTab('air_tank');
-    else if (subId === 'unit_converter') setActiveTab('unit');
 
     requestAnimationFrame(() => {
       document.getElementById(subId)?.scrollIntoView({
@@ -262,7 +274,7 @@ export default function Calculators({ subId }: { subId?: string }) {
         block: 'start',
       });
     });
-  }, [subId]);
+  }, [preferFieldTools, subId]);
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -274,23 +286,12 @@ export default function Calculators({ subId }: { subId?: string }) {
         <p className="text-sm text-on-surface-variant mt-1">현장 활동 및 행정에 필요한 계산 · 변환 도구 목록</p>
       </div>
 
-      <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold whitespace-nowrap transition-colors ${
-              activeTab === tab.id
-                ? 'bg-primary text-on-primary shadow-md'
-                : 'bg-surface-container text-on-surface-variant hover:bg-surface-variant/80'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[18px]">{tab.icon}</span>
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <ResponsiveTabs
+        items={TABS}
+        activeId={activeTab}
+        ariaLabel="계산기 분류"
+        onChange={setActiveTab}
+      />
 
       <div className="flex-1 w-full relative">
         {activeTab === 'overtime' && (
