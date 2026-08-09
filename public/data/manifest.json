@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-08T03:12:35.201Z",
+  "generatedAt": "2026-08-09T03:19:50.123Z",
   "datasets": {
     "civil": {
       "label": "민방위 대피시설",
@@ -43,15 +43,15 @@
       "sourceMetadataUrl": "https://www.safetydata.go.kr/disaster-data/getApiView?dataSn=1340",
       "legacyCatalogUrl": "https://www.data.go.kr/data/15138870/openapi.do",
       "apiUrl": "https://www.safetydata.go.kr/V2/api/DSSP-IF-10944",
-      "sourceDate": "2026-08-08",
+      "sourceDate": "2026-08-09",
       "sourceDateLabel": "안전데이터 원본 갱신일",
       "sourceDateSource": "재난안전데이터공유플랫폼 상세 메타데이터 updtymd",
       "updateInterval": "1일",
       "sourceDepartment": "지진방재관리과",
       "sourceContact": "044-205-5192",
       "interfaceId": "DSSP-IF-10944",
-      "generatedAt": "2026-08-08T03:12:35.201Z",
-      "verifiedAt": "2026-08-08T03:12:35.201Z",
+      "generatedAt": "2026-08-09T03:19:50.123Z",
+      "verifiedAt": "2026-08-09T03:19:50.123Z",
       "verificationMethod": "official-api-full-row-scan",
       "contentHashAlgorithm": "sha256:stable-id+canonical-json-v1",
       "contentSha256": "cdebceb9ae06daec3be4ed1b24f8ebab54daa53d5ba667f58dcba3781fdf7ecc",
