@@ -10,6 +10,12 @@ const CONCURRENCY = 4;
 const REQUEST_TIMEOUT_MS = 25_000;
 const DEPLOY_READINESS_ATTEMPTS = 18;
 const DEPLOY_READINESS_DELAY_MS = 5_000;
+// The public Emergency Statistics API rejects short request bursts. Keep the
+// regional contract probes below its per-second limit while still running the
+// rest of the smoke suite concurrently.
+const EMERGENCY_STATS_CONTRACT_PACING_MS = 1_100;
+const EMERGENCY_STATS_CONTRACT_ATTEMPTS = 4;
+const EMERGENCY_STATS_CONTRACT_RETRY_DELAY_MS = 1_500;
 
 const apiBase = process.env.VITE_API_BASE || process.env.API_BASE || DEFAULT_API_BASE;
 const appToken = process.env.VITE_APP_TOKEN || process.env.APP_ACCESS_TOKEN || '';
@@ -341,6 +347,10 @@ const checks = [
   },
 ];
 
+function isEmergencyStatsContractCheck(check) {
+  return check.name.startsWith('emergency-stats-') && check.name.endsWith('-contract');
+}
+
 async function readJson(response) {
   const text = await response.text();
   try {
@@ -386,7 +396,10 @@ async function requestOnce(check) {
 }
 
 async function runCheck(check) {
-  const attempts = check.severity === 'critical' ? 3 : 2;
+  const isRateLimitedProbe = isEmergencyStatsContractCheck(check);
+  const attempts = isRateLimitedProbe
+    ? EMERGENCY_STATS_CONTRACT_ATTEMPTS
+    : check.severity === 'critical' ? 3 : 2;
   let lastError;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -402,7 +415,10 @@ async function runCheck(check) {
     } catch (error) {
       lastError = error;
       if (attempt < attempts) {
-        await delay(500 * attempt);
+        const retryDelay = isRateLimitedProbe
+          ? EMERGENCY_STATS_CONTRACT_RETRY_DELAY_MS * attempt
+          : 500 * attempt;
+        await delay(retryDelay);
       }
     }
   }
@@ -425,6 +441,19 @@ async function runWithConcurrency(items, concurrency, task) {
   }
 
   await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
+  return results;
+}
+
+async function runWithPacing(items, pacingMs, task) {
+  const results = [];
+
+  for (let index = 0; index < items.length; index += 1) {
+    results.push(await task(items[index]));
+    if (index < items.length - 1) {
+      await delay(pacingMs);
+    }
+  }
+
   return results;
 }
 
@@ -465,7 +494,19 @@ try {
   process.exit(1);
 }
 
-const results = await runWithConcurrency(checks, CONCURRENCY, runCheck);
+const emergencyStatsChecks = checks.filter(isEmergencyStatsContractCheck);
+const otherChecks = checks.filter(check => !isEmergencyStatsContractCheck(check));
+const otherResults = await runWithConcurrency(otherChecks, CONCURRENCY, runCheck);
+console.log(
+  `Pacing ${emergencyStatsChecks.length} regional emergency-stat checks `
+    + `by ${EMERGENCY_STATS_CONTRACT_PACING_MS}ms to respect the upstream API limit.`,
+);
+const emergencyStatsResults = await runWithPacing(
+  emergencyStatsChecks,
+  EMERGENCY_STATS_CONTRACT_PACING_MS,
+  runCheck,
+);
+const results = [...otherResults, ...emergencyStatsResults];
 const failures = results.filter(result => result.status === 'failed');
 const degraded = results.filter(result => result.status === 'degraded');
 const blockingFailures = mode === 'deploy'
