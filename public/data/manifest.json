@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-17T02:24:16.754Z",
+  "generatedAt": "2026-08-18T02:40:47.275Z",
   "datasets": {
     "civil": {
       "label": "민방위 대피시설",
@@ -43,18 +43,18 @@
       "sourceMetadataUrl": "https://www.safetydata.go.kr/disaster-data/getApiView?dataSn=1340",
       "legacyCatalogUrl": "https://www.data.go.kr/data/15138870/openapi.do",
       "apiUrl": "https://www.safetydata.go.kr/V2/api/DSSP-IF-10944",
-      "sourceDate": "2026-08-16",
+      "sourceDate": "2026-08-18",
       "sourceDateLabel": "안전데이터 원본 갱신일",
       "sourceDateSource": "재난안전데이터공유플랫폼 상세 메타데이터 updtymd",
       "updateInterval": "1일",
       "sourceDepartment": "지진방재관리과",
       "sourceContact": "044-205-5192",
       "interfaceId": "DSSP-IF-10944",
-      "generatedAt": "2026-08-16T02:46:04.213Z",
-      "verifiedAt": "2026-08-16T02:46:04.213Z",
+      "generatedAt": "2026-08-18T02:40:47.275Z",
+      "verifiedAt": "2026-08-18T02:40:47.275Z",
       "verificationMethod": "official-api-full-row-scan",
       "contentHashAlgorithm": "sha256:stable-id+canonical-json-v1",
-      "contentSha256": "cdebceb9ae06daec3be4ed1b24f8ebab54daa53d5ba667f58dcba3781fdf7ecc",
+      "contentSha256": "7a1c9169c270633f222c5340cd7161daeef5d2ffb8bce8ff238a345ed503daf4",
       "maxAgeDays": 90,
       "coverageScope": "covered-regions-official-api",
       "completenessStatus": "upstream-mismatch",
@@ -119,9 +119,9 @@
           "mapOnly": 0
         },
         "primaryComparison": {
-          "matchedWithSafetyMap": 625,
-          "primaryOnly": 22,
-          "safetyMapOnly": 11,
+          "matchedWithSafetyMap": 624,
+          "primaryOnly": 23,
+          "safetyMapOnly": 12,
           "matchedByAuthorityAndName": 620,
           "primaryOnlyByAuthorityAndName": 17,
           "safetyMapOnlyByAuthorityAndName": 7
