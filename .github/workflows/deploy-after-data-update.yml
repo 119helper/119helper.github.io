@@ -45,11 +45,12 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
           SOURCE_WORKFLOW: ${{ github.event.workflow_run.name }}
         run: |
           skip_worker_deploy=true
           if [[ "$SOURCE_WORKFLOW" == *"NFDS"* ]]; then
             skip_worker_deploy=false
           fi
-          gh workflow run deploy.yml --ref master -f "skip_worker_deploy=$skip_worker_deploy"
+          gh workflow run deploy.yml --repo "$REPOSITORY" --ref master -f "skip_worker_deploy=$skip_worker_deploy"
           echo "Dispatched deploy.yml for master (skip_worker_deploy=$skip_worker_deploy)"
