@@ -2,6 +2,12 @@ function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function errorMessage(error) {
+  if (!(error instanceof Error)) return String(error);
+  const cause = error.cause ? `; 원인: ${errorMessage(error.cause)}` : '';
+  return `${error.name}: ${error.message}${cause}`;
+}
+
 /**
  * 동일한 공식 원천의 HTTPS/HTTP 대체 주소를 순서대로 시도하고, 연결·HTTP·JSON
  * 오류가 있으면 제한된 횟수만 재시도한다.
@@ -15,6 +21,7 @@ export async function fetchJsonWithRetry(urls, options = {}) {
   const label = options.label || 'JSON 조회';
   const fetchImpl = options.fetchImpl || fetch;
   const delayImpl = options.delayImpl || wait;
+  const baseDelayMs = Math.max(0, Number(options.baseDelayMs) || 1_000);
   let lastMessage = '';
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -31,11 +38,13 @@ export async function fetchJsonWithRetry(urls, options = {}) {
         }
         return JSON.parse(text);
       } catch (error) {
-        lastMessage = error instanceof Error ? error.message : String(error);
+        lastMessage = errorMessage(error);
       }
     }
 
-    if (attempt < attempts) await delayImpl(300 * attempt);
+    if (attempt < attempts) {
+      await delayImpl(Math.min(8_000, baseDelayMs * (2 ** (attempt - 1))));
+    }
   }
 
   throw new Error(`${label}: ${lastMessage || '응답 없음'}`);

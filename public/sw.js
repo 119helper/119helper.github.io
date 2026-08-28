@@ -16,7 +16,7 @@
  * 영영 갱신되지 않는다 (소화전 데이터는 매달 갱신됨). 반드시 SWR로.
  */
 
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const SHELL_CACHE = `119-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `119-assets-${CACHE_VERSION}`;
 const DATA_CACHE = '119-data-v2'; // 좌표 정밀도 계약 v2 — 이전 무표시 JSON과 분리
@@ -48,6 +48,7 @@ async function removeLegacyImagesFromDataCache() {
 const PRECACHE_URLS = [
   '/favicon.svg',
   '/manifest.json',
+  '/theme-init.js',
   '/fonts/material-symbols-outlined.woff2',
   '/fonts/inter-latin.woff2',
   '/fonts/manrope-latin.woff2',
@@ -96,9 +97,49 @@ self.addEventListener('activate', (event) => {
 });
 
 // 페이지가 즉시 갱신을 요청하면 대기 중인 SW를 활성화
+function loadedAssetUrl(value) {
+  try {
+    const url = new URL(value, self.location.origin);
+    return url.origin === self.location.origin && url.pathname.startsWith('/assets/')
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+async function cacheLoadedAssets(values) {
+  const urls = [...new Set(values.map(loadedAssetUrl).filter(Boolean))];
+  const cache = await caches.open(ASSET_CACHE);
+  const results = await Promise.allSettled(urls.map(async (url) => {
+    const request = new Request(url, { credentials: 'same-origin' });
+    if (await cache.match(request, { ignoreVary: true })) return;
+    const response = await fetch(request);
+    if (!response.ok) throw new Error(`${new URL(url).pathname}: HTTP ${response.status}`);
+    await cache.put(request, response);
+  }));
+  const failures = results.filter(result => result.status === 'rejected');
+  if (failures.length > 0) {
+    throw new Error(`핵심 자산 ${failures.length}/${urls.length}개 캐시 실패`);
+  }
+}
+
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
+  }
+  if (event.data?.type === 'CACHE_LOADED_ASSETS' && Array.isArray(event.data.urls)) {
+    const caching = cacheLoadedAssets(event.data.urls)
+      .then(() => event.ports[0]?.postMessage({ ok: true }))
+      .catch(error => {
+        console.warn('[SW] loaded asset cache failed:', error);
+        event.ports[0]?.postMessage({
+          ok: false,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      });
+    event.waitUntil(caching);
   }
 });
 
@@ -206,7 +247,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       (async () => {
         const cache = await caches.open(DATA_CACHE);
-        const cached = await cache.match(request, { ignoreVary: true });
+        const cached = await caches.match(request, { ignoreVary: true });
 
         const revalidate = fetch(request)
           .then(async (fresh) => {

@@ -89,8 +89,8 @@ async function fetchSourceMetadata() {
   const metadata = await fetchJsonWithRetry(
     HOSTS.map(host => `${host}${SOURCE_METADATA_PATH}`),
     {
-      attempts: 3,
-      timeoutMs: 20_000,
+      attempts: 4,
+      timeoutMs: 30_000,
       label: '지진해일 메타데이터',
       headers: {
         Accept: 'application/json',

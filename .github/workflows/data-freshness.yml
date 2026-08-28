@@ -1,0 +1,28 @@
+name: Official Data Freshness Audit
+
+on:
+  schedule:
+    - cron: '53 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install data audit dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Detect newly published official datasets
+        run: npm run audit:data-freshness

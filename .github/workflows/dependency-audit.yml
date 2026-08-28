@@ -1,0 +1,36 @@
+name: Dependency Security Audit
+
+on:
+  schedule:
+    - cron: '41 0 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Audit all frontend dependencies
+        run: npm audit --audit-level=high
+
+      - name: Install Worker dependencies
+        working-directory: worker
+        run: npm ci --ignore-scripts
+
+      - name: Audit all Worker dependencies
+        working-directory: worker
+        run: npm audit --audit-level=high

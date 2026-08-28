@@ -339,15 +339,15 @@ test('모바일: 즐겨찾기를 보존하고 데이터 상태를 화면 안에 
   await expect(favorites).toContainText('이 업무 공간 메뉴의 별표를 눌러 기능을 추가하세요.');
 
   await sidebar.getByRole('button', { name: '모니터링' }).click();
-  await sidebar.getByRole('button', { name: '날씨 즐겨찾기 추가' }).click();
-  await expect(favorites.getByRole('button', { name: '날씨', exact: true })).toBeVisible();
+  await sidebar.getByRole('button', { name: '기상 정보 즐겨찾기 추가' }).click();
+  await expect(favorites.getByRole('button', { name: '기상 정보', exact: true })).toBeVisible();
   await expect(favorites.getByText('최근 사용', { exact: true })).toHaveCount(0);
 
   await page.reload();
   await page.getByRole('button', { name: '전체 메뉴 열기' }).click();
-  await expect(favorites.getByRole('button', { name: '날씨', exact: true })).toBeVisible();
+  await expect(favorites.getByRole('button', { name: '기상 정보', exact: true })).toBeVisible();
   await sidebar.getByRole('button', { name: '모니터링' }).click();
-  await expect(sidebar.getByRole('button', { name: '날씨 즐겨찾기 해제' })).toBeVisible();
+  await expect(sidebar.getByRole('button', { name: '기상 정보 즐겨찾기 해제' })).toBeVisible();
   await sidebar.getByRole('button', { name: '전체 메뉴 닫기' }).click();
 
   await page.getByRole('button', { name: /최근 알림/ }).click();

@@ -41,7 +41,7 @@ test('모든 호스트가 실패하면 다음 시도에서 다시 조회한다',
 
   assert.deepEqual(result, { recovered: true });
   assert.equal(callCount, 3);
-  assert.deepEqual(delays, [300, 600]);
+  assert.deepEqual(delays, [1_000, 2_000]);
 });
 
 test('최종 실패에는 원천 이름과 마지막 오류를 남긴다', async () => {
@@ -52,6 +52,6 @@ test('최종 실패에는 원천 이름과 마지막 오류를 남긴다', async
       fetchImpl: async () => { throw new Error('connect timeout'); },
       delayImpl: async () => undefined,
     }),
-    /지진해일 메타데이터: connect timeout/,
+    /지진해일 메타데이터: Error: connect timeout/,
   );
 });

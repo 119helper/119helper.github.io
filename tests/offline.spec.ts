@@ -48,19 +48,28 @@ async function waitForServiceWorkerControl(page: Page) {
 }
 
 async function waitForCriticalChunksCached(page: Page, chunks: string[]) {
-  // prefetchCriticalViews가 유휴 시간(requestIdleCallback timeout 10초)에 실행되므로 여유를 둔다
-  await page.waitForFunction(
-    async (names: string[]) => {
+  // 핵심 화면과 이들이 실제로 불러온 공용 청크가 모두 SW 캐시에 들어갈 때까지 기다린다.
+  await expect.poll(
+    () => page.evaluate(async (names: string[]) => {
       const cacheNames = await caches.keys();
       const assetCacheName = cacheNames.find((k) => k.startsWith('119-assets-'));
       if (!assetCacheName) return false;
       const cache = await caches.open(assetCacheName);
       const urls = (await cache.keys()).map((r) => r.url);
-      return names.every((name) => urls.some((u) => u.includes(name)));
-    },
-    chunks,
-    { timeout: 45_000, polling: 1_000 },
-  );
+      const namedChunksCached = names.every((name) => urls.some((u) => u.includes(name)));
+      const loadedAssetUrls = [...new Set(
+        performance.getEntriesByType('resource')
+          .map(entry => entry.name)
+          .filter(value => new URL(value).pathname.startsWith('/assets/')),
+      )];
+      const loadedAssetsCached = (await Promise.all(
+        loadedAssetUrls.map(url => cache.match(url, { ignoreVary: true })),
+      )).every(Boolean);
+      const prefetchFinished = document.documentElement.dataset.offlinePrefetchReady === 'true';
+      return namedChunksCached && loadedAssetsCached && prefetchFinished;
+    }, chunks),
+    { timeout: 45_000, intervals: [250, 500, 1_000] },
+  ).toBe(true);
 }
 
 test('오프라인: 앱 셸과 핵심 현장 도구(A등급)가 전부 동작한다', async ({ page, context }) => {
@@ -124,11 +133,35 @@ test('오프라인: 앱 셸과 핵심 현장 도구(A등급)가 전부 동작한
     throw error;
   }
 
-  // 오프라인 배지 표시
-  await expect(
-    page.getByLabel('오프라인. 실시간 정보는 마지막 저장값으로 표시됩니다', { exact: true }),
-    '오프라인 배지가 표시되어야 함',
-  ).toBeVisible({ timeout: 10_000 });
+  // 브라우저가 새 문서에서 offline 이벤트를 재발행하지 않는 경우에도 API 연속 실패를
+  // 감지한 연결 불안정 배지가 표시되어야 한다.
+  try {
+    await expect(
+      page.getByLabel(/^(?:오프라인\. 실시간 정보는 마지막 저장값으로 표시됩니다|연결 불안정\. 일부 정보가 마지막 저장값일 수 있습니다)$/),
+      '오프라인 또는 연결 불안정 배지가 표시되어야 함',
+    ).toBeVisible({ timeout: 10_000 });
+  } catch (error) {
+    const cacheDiagnostics = await page.evaluate(async () => {
+      const cacheNames = await caches.keys();
+      const entries = Object.fromEntries(await Promise.all(cacheNames.map(async name => [
+        name,
+        (await (await caches.open(name)).keys()).map(request => new URL(request.url).pathname),
+      ])));
+      return {
+        controller: navigator.serviceWorker.controller?.state ?? null,
+        entries,
+        resources: performance.getEntriesByType('resource')
+          .map(entry => new URL(entry.name).pathname)
+          .filter(pathname => pathname.startsWith('/assets/')),
+      };
+    });
+    console.error('Offline runtime diagnostics', JSON.stringify({
+      pageErrors,
+      failedRequests,
+      cacheDiagnostics,
+    }, null, 2));
+    throw error;
+  }
 
   // 연결 상태 배너가 모바일 하단 메뉴를 가리지 않아야 한다.
   const mobileNav = page.getByRole('navigation', { name: '주요 기능' });
