@@ -10,7 +10,7 @@ const OUTPUT_PATH = path.resolve(
   '../worker/src/data/nfdsAnnualFireSnapshots.json',
 );
 const REQUEST_TIMEOUT_MS = 60_000;
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 4;
 
 function argumentValue(name) {
   const index = process.argv.indexOf(name);
@@ -58,6 +58,12 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function errorMessage(error) {
+  if (!(error instanceof Error)) return String(error);
+  const cause = error.cause ? `; 원인: ${errorMessage(error.cause)}` : '';
+  return `${error.name}: ${error.message}${cause}`;
+}
+
 async function fetchNfds(params, label) {
   let lastError;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
@@ -97,12 +103,21 @@ async function fetchNfds(params, label) {
       return json;
     } catch (error) {
       lastError = error;
-      if (attempt < MAX_ATTEMPTS) await delay(400 * attempt);
+      if (attempt < MAX_ATTEMPTS) {
+        const retryDelayMs = Math.min(8_000, 1_000 * (2 ** (attempt - 1)));
+        console.warn(
+          `${label}: ${attempt}/${MAX_ATTEMPTS}회 시도 실패 `
+          + `(${errorMessage(error)}), ${retryDelayMs}ms 후 재시도`,
+        );
+        await delay(retryDelayMs);
+      }
     } finally {
       clearTimeout(timeout);
     }
   }
-  throw new Error(`${label}: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+  throw new Error(`${label}: ${MAX_ATTEMPTS}회 시도 후 실패 (${errorMessage(lastError)})`, {
+    cause: lastError,
+  });
 }
 
 function namedCounts(response) {

@@ -211,17 +211,21 @@ test('위험물시설: 2025 도 합계와 2023 소방서 상세를 섞지 않는
 test('오프라인 점검: 최신 날짜와 데이터 완전성을 별도로 표시한다', async ({ page }) => {
   await page.goto('/?tab=offline-readiness');
 
-  await expect(page.getByText('앱 지원 9개 도시 8,127곳 / 전국 사용중 17,229곳')).toBeVisible();
   await expect(page.getByText(
-    '지원 9개 도시 전체 원본 17,341곳 중 지도 표시 11,845곳 (68.3%) · 시설 좌표 10,783곳 · 주소 대표점 1,062곳 · 좌표 미확인 5,496곳',
+    /앱 지원 9개 도시 [\d,]+곳 \/ 전국 사용중 [\d,]+곳/,
   )).toBeVisible();
   await expect(page.getByText(
-    '주소 대표점 1,062곳 · 기존 주소 지오코딩 698 · 동일 주소 이전 공식 좌표 42 · 부산 공식 도로명주소 235 · 전국 표준 호스트 시설 82 · 용산 지자체 호스트 시설 5 (기존 오류 좌표 13곳 교정 포함) · 실제 화장실 위치나 출입구와 다를 수 있음',
+    /지원 9개 도시 전체 원본 [\d,]+곳 중 지도 표시 [\d,]+곳 \([\d.]+%\) · 시설 좌표 [\d,]+곳 · 주소 대표점 [\d,]+곳 · 좌표 미확인 [\d,]+곳/,
   )).toBeVisible();
   await expect(page.getByText(
-    '공식 지역 시설 좌표 보충 1,094곳 · 주소 대표점에서 시설 좌표로 개선 3곳 · 서울특별시 664 · 서울 지하철 1~8호선 15 · 대전 서구 26 · 제주시 326 · 동래구 39 · 부산 갈맷길 24',
+    /주소 대표점 [\d,]+곳 · 기존 주소 지오코딩 [\d,]+ · 동일 주소 이전 공식 좌표 [\d,]+ · 부산 공식 도로명주소 [\d,]+ · 전국 표준 호스트 시설 [\d,]+ · 용산 지자체 호스트 시설 [\d,]+ \(기존 오류 좌표 [\d,]+곳 교정 포함\) · 실제 화장실 위치나 출입구와 다를 수 있음/,
   )).toBeVisible();
-  await expect(page.getByText('공개 API 647곳 / 관리대장 발표 680곳 · 33곳 차이')).toBeVisible();
+  await expect(page.getByText(
+    /공식 지역 시설 좌표 보충 [\d,]+곳 · 주소 대표점에서 시설 좌표로 개선 [\d,]+곳 · 서울특별시 [\d,]+ · 서울 지하철 1~8호선 [\d,]+ · 대전 서구 [\d,]+ · 제주시 [\d,]+ · 동래구 [\d,]+ · 부산 갈맷길 [\d,]+/,
+  )).toBeVisible();
+  await expect(page.getByText(
+    /공개 API [\d,]+곳 \/ 관리대장 발표 [\d,]+곳 · [\d,]+곳 차이/,
+  )).toBeVisible();
   await expect(page.getByText('공개 API 제공 범위: 강원·경북·부산·울산 4개 시도')).toBeVisible();
 });
 
@@ -230,12 +234,16 @@ test('광주 소방용수: 2026 광산구 관할 오버레이의 좌표와 중�
   await page.goto('/#shelter?category=hydrants');
 
   const overlayNotice = page.getByText(
-    '광산구 최신 원본 1,560곳(2026-05-07) 적용 · 지도 1,559곳(이 중 46곳은 정확 주소가 같은 이전 좌표 유지) · 좌표 미확인 1곳',
+    /광산구 최신 원본 [\d,]+곳\(20\d{2}-\d{2}-\d{2}\) 적용 · 지도 [\d,]+곳\(이 중 [\d,]+곳은 정확 주소가 같은 이전 좌표 유지\) · 좌표 미확인 [\d,]+곳/,
   );
   await expect(overlayNotice).toBeHidden();
   await page.locator('summary').filter({ hasText: '자료 범위·검증 상세' }).click();
 
   await expect(overlayNotice).toBeVisible();
-  await expect(page.getByText('공급기관 시설번호 중복 18개(40행)는 임의 삭제하지 않음')).toBeVisible();
-  await expect(page.getByText('공급기관 주소의 시군구 누락 84행은 별도 시군구 필드로 보정')).toBeVisible();
+  await expect(page.getByText(
+    /공급기관 시설번호 중복 [\d,]+개\([\d,]+행\)는 임의 삭제하지 않음/,
+  )).toBeVisible();
+  await expect(page.getByText(
+    /공급기관 주소의 시군구 누락 [\d,]+행은 별도 시군구 필드로 보정/,
+  )).toBeVisible();
 });

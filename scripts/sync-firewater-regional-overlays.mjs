@@ -3,6 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fetchWithRetry } from './fetch-with-retry.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -10,7 +11,7 @@ const OUTPUT_DIR = path.join(ROOT, 'public', 'firewater');
 const MANIFEST_PATH = path.join(OUTPUT_DIR, 'manifest.json');
 const REGISTRY_PATH = path.join(__dirname, 'firewater-regional-sources.json');
 const DOWNLOAD_INFO_URL = 'https://www.data.go.kr/tcs/dss/selectFileDataDownload.do';
-const REQUEST_TIMEOUT_MS = 30_000;
+const REQUEST_TIMEOUT_MS = 60_000;
 
 const FACILITY_TYPE_BY_CODE = {
   '1': '소화전',
@@ -141,15 +142,11 @@ export function assertCurrentPortalSource(html, source) {
 }
 
 async function checkedFetch(url, init = {}) {
-  const response = await fetch(url, {
-    ...init,
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  return fetchWithRetry(url, init, {
+    attempts: 3,
+    timeoutMs: REQUEST_TIMEOUT_MS,
+    label: '지역 소방용수 원천 조회',
   });
-  if (!response.ok) {
-    const detail = (await response.text()).replace(/\s+/g, ' ').slice(0, 180);
-    throw new Error(`${url}: HTTP ${response.status} ${detail}`.trim());
-  }
-  return response;
 }
 
 async function downloadPublicDataFile(source) {

@@ -8,9 +8,9 @@
     "tail": "wrangler tail"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260702.1",
+    "@cloudflare/workers-types": "^5.20260828.1",
     "typescript": "^5.7.0",
-    "wrangler": "^4.107.0"
+    "wrangler": "^4.127.0"
   },
   "dependencies": {
     "zod": "^4.4.3"

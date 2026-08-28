@@ -11,6 +11,7 @@ import {
   fingerprintCorroborationItems,
   fingerprintFirewaterTargetBody,
 } from './sync-firewater-regional-overlays.mjs';
+import { fetchWithRetry } from './fetch-with-retry.mjs';
 
 const REQUEST_TIMEOUT_MS = 20_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -38,18 +39,14 @@ const ALLOWED_ADDRESS_POINT_MATCH_METHODS = new Set([
 ]);
 
 async function fetchText(url) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, {
-      headers: { 'User-Agent': '119-helper-data-freshness-audit/1.0' },
-      signal: controller.signal,
-    });
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-    return await response.text();
-  } finally {
-    clearTimeout(timeout);
-  }
+  const response = await fetchWithRetry(url, {
+    headers: { 'User-Agent': '119-helper-data-freshness-audit/1.0' },
+  }, {
+    attempts: 3,
+    timeoutMs: REQUEST_TIMEOUT_MS,
+    label: '공식 데이터 최신성 원천 조회',
+  });
+  return response.text();
 }
 
 function maxMatch(text, pattern, label) {

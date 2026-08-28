@@ -28,6 +28,63 @@ const CRITICAL_VIEW_LOADERS: Array<() => Promise<unknown>> = [
 
 let started = false;
 
+function waitForServiceWorkerController(): Promise<ServiceWorker | null> {
+  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) {
+    return Promise.resolve(null);
+  }
+  if (navigator.serviceWorker.controller) {
+    return Promise.resolve(navigator.serviceWorker.controller);
+  }
+
+  return new Promise(resolve => {
+    const timeout = window.setTimeout(() => {
+      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+      resolve(null);
+    }, 10_000);
+    const handleControllerChange = () => {
+      const controller = navigator.serviceWorker.controller;
+      if (!controller) return;
+      window.clearTimeout(timeout);
+      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+      resolve(controller);
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+  });
+}
+
+async function cacheLoadedBuildAssets() {
+  const controller = await waitForServiceWorkerController();
+  if (!controller) return;
+
+  const urls = [...new Set(
+    performance.getEntriesByType('resource')
+      .map(entry => entry.name)
+      .filter(value => {
+        const url = new URL(value, window.location.href);
+        return url.origin === window.location.origin && url.pathname.startsWith('/assets/');
+      }),
+  )];
+  if (urls.length === 0) return;
+
+  await new Promise<void>((resolve, reject) => {
+    const channel = new MessageChannel();
+    const timeout = window.setTimeout(() => {
+      channel.port1.close();
+      reject(new Error('서비스 워커 핵심 자산 캐시 확인 시간이 초과됐습니다.'));
+    }, 15_000);
+    channel.port1.onmessage = event => {
+      window.clearTimeout(timeout);
+      channel.port1.close();
+      if (event.data?.ok === true) {
+        resolve();
+      } else {
+        reject(new Error(event.data?.message || '서비스 워커 핵심 자산 캐시에 실패했습니다.'));
+      }
+    };
+    controller.postMessage({ type: 'CACHE_LOADED_ASSETS', urls }, [channel.port2]);
+  });
+}
+
 export function prefetchCriticalViews() {
   if (started) return;
   started = true;
@@ -38,16 +95,19 @@ export function prefetchCriticalViews() {
       window.addEventListener('online', () => { started = false; prefetchCriticalViews(); }, { once: true });
       return;
     }
-    // 순차 로드: 초기 렌더링/실데이터 요청과 대역폭 경쟁 최소화
-    for (const load of CRITICAL_VIEW_LOADERS) {
-      try {
+    try {
+      // 순차 로드: 초기 렌더링/실데이터 요청과 대역폭 경쟁 최소화
+      for (const load of CRITICAL_VIEW_LOADERS) {
         await load();
-      } catch (err) {
-        console.warn('[prefetch] 핵심 화면 사전 로드 실패 (다음 온라인 시 재시도):', err);
-        started = false;
-        window.addEventListener('online', () => prefetchCriticalViews(), { once: true });
-        return;
       }
+      // 최초 페이지가 SW 제어 전에 받은 공용 청크도 명시적으로 ASSET_CACHE에 넣는다.
+      await cacheLoadedBuildAssets();
+      document.documentElement.dataset.offlinePrefetchReady = 'true';
+    } catch (err) {
+      delete document.documentElement.dataset.offlinePrefetchReady;
+      console.warn('[prefetch] 핵심 화면 사전 로드 실패 (다음 온라인 시 재시도):', err);
+      started = false;
+      window.addEventListener('online', () => prefetchCriticalViews(), { once: true });
     }
   };
 

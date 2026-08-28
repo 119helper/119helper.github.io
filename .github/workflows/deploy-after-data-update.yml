@@ -1,0 +1,55 @@
+name: Deploy After Data Update
+
+on:
+  workflow_run:
+    workflows:
+      - Update Civil Shelter Data
+      - 🔄 NFDS 화재통계 업데이트
+      - Update Regional Firewater Overlays
+      - 🔄 소방용수시설 데이터 업데이트
+      - Update Restroom Data
+      - Update Tsunami Shelter Data
+    types: [completed]
+    branches: [master]
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: deploy-after-data-update
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check whether the data workflow pushed a commit
+        id: changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          START_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          current_sha="$(gh api "repos/$REPOSITORY/commits/master" --jq .sha)"
+          echo "start_sha=$START_SHA"
+          echo "current_sha=$current_sha"
+          if [[ "$current_sha" == "$START_SHA" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch production deployment for the latest master
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_WORKFLOW: ${{ github.event.workflow_run.name }}
+        run: |
+          skip_worker_deploy=true
+          if [[ "$SOURCE_WORKFLOW" == *"NFDS"* ]]; then
+            skip_worker_deploy=false
+          fi
+          gh workflow run deploy.yml --ref master -f "skip_worker_deploy=$skip_worker_deploy"
+          echo "Dispatched deploy.yml for master (skip_worker_deploy=$skip_worker_deploy)"

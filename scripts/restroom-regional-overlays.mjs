@@ -2,11 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import shp from 'shpjs';
+import { fetchWithRetry } from './fetch-with-retry.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_REGISTRY_PATH = path.join(__dirname, 'restroom-regional-sources.json');
 const DATA_GO_DOWNLOAD_INFO_URL = 'https://www.data.go.kr/tcs/dss/selectFileDataDownload.do';
-const REQUEST_TIMEOUT_MS = 30_000;
+const REQUEST_TIMEOUT_MS = 60_000;
 
 function asText(value) {
   return String(value ?? '').normalize('NFKC').trim();
@@ -238,15 +239,12 @@ function appendCookies(current, response) {
 }
 
 async function checkedFetch(fetchImpl, url, init = {}) {
-  const response = await fetchImpl(url, {
-    ...init,
-    signal: init.signal || AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  return fetchWithRetry(url, init, {
+    fetchImpl,
+    attempts: 3,
+    timeoutMs: REQUEST_TIMEOUT_MS,
+    label: '공중화장실 지역 원천 조회',
   });
-  if (!response.ok) {
-    const detail = (await response.text()).replace(/\s+/g, ' ').slice(0, 180);
-    throw new Error(`${url}: HTTP ${response.status} ${detail}`.trim());
-  }
-  return response;
 }
 
 async function downloadPublicJsonApi(source, fetchImpl) {

@@ -20,6 +20,7 @@ concurrency:
 jobs:
   update-fire-statistics:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
 
@@ -43,7 +44,7 @@ jobs:
           fi
 
       - name: 스냅샷 합계 검증
-        run: npm run test:worker -- worker/src/data/nfdsAnnualFireSnapshots.test.ts
+        run: npm exec -- vitest run worker/src/data/nfdsAnnualFireSnapshots.test.ts worker/src/routes/annualFireStats.test.ts
 
       - name: 변경 사항 확인
         id: check

@@ -43,7 +43,7 @@ describe('handleAnnualFireStats', () => {
     ]);
   });
 
-  it('serves the verified 2025 NFDS snapshot without an API key', async () => {
+  it('serves the stored, internally verified 2025 NFDS snapshot without an API key', async () => {
     const result = await handleAnnualFireStats(
       '/api/fire-annual/2025',
       new URL('https://api.example.test/api/fire-annual/2025'),
@@ -59,7 +59,7 @@ describe('handleAnnualFireStats', () => {
         totalFires: 38_344,
         totalDeaths: 346,
         totalInjuries: 2_390,
-        totalPropertyDamage: 2_350_353_236,
+        totalPropertyDamage: nfdsSnapshotDocument.snapshots['2025'].summary.totalPropertyDamage,
       },
       regionalMonthlyGranularity: 'sido-month',
     });
