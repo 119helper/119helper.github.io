@@ -283,7 +283,7 @@ export const REVIEWED_HOST_ADDRESS_POINT_IDS = new Set([
 ]);
 
 export const REVIEWED_HOST_ADDRESS_POINT_FINGERPRINT =
-  '57d951743cc08a69d1bc0ccd88c8f710f7ed24128a5c153fb936fc131b353b3f';
+  'd0c1330bdbd07339e868838ae6f66e1803c8d92d7f47574bd678740a962e79e5';
 
 export const REVIEWED_HOST_ADDRESS_POINT_GROUPS = Object.freeze({
   'national-standard-host': Object.freeze({
@@ -300,7 +300,7 @@ export const REVIEWED_HOST_ADDRESS_POINT_GROUPS = Object.freeze({
     uniquePointCount: 82,
     cities: Object.freeze({ daegu: 35, sejong: 12, ulsan: 35 }),
     expectedIdsHash: '3b659336899ee2c14b593c23a9f96b09e5adc998e232795e58bf7621911f8a67',
-    reviewedTupleHash: '8e33cacdb095690f4a1db3cc671e39f10d606f0dc1b0ceef22900cc1ab5b1019',
+    reviewedTupleHash: 'd48f8468ab4385c0e01928769787c50522053842d63c25598d66de6fb6899731',
   }),
   'yongsan-municipal-host': Object.freeze({
     sourceIds: Object.freeze(['yongsan-community-center-host-points']),

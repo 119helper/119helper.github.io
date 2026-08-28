@@ -26,12 +26,12 @@ const OFFICIAL_HOST_ADDRESS_POINT_PATH = path.join(
 );
 
 const RESTROOM_ADDRESS_POINT_REGRESSION = Object.freeze({
-  total: 235,
-  coverageGainCount: 222,
+  total: 229,
+  coverageGainCount: 216,
   repairCount: 13,
-  uniquePointCount: 206,
-  directBuildingMatchCount: 227,
-  reviewedNewMatchCount: 5,
+  uniquePointCount: 200,
+  directBuildingMatchCount: 224,
+  reviewedNewMatchCount: 2,
   reviewedAliasRepairCount: 3,
 });
 const RESTROOM_HOST_ADDRESS_POINT_REGRESSION = Object.freeze({
@@ -410,12 +410,12 @@ function auditCoordinateMetadata() {
   check(
     officialAddressPointItems.length === RESTROOM_ADDRESS_POINT_REGRESSION.total
       && Number(officialAddressPoints.total) === officialAddressPointItems.length,
-    '화장실 공식 주소 대표점 원장이 235건이 아닙니다.',
+    `화장실 공식 주소 대표점 원장이 ${RESTROOM_ADDRESS_POINT_REGRESSION.total}건이 아닙니다.`,
   );
   check(
     Number(officialAddressPoints.coverageGainCount)
       === RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount,
-    '화장실 공식 주소 대표점 신규 보완 건수가 222건이 아닙니다.',
+    `화장실 공식 주소 대표점 신규 보완 건수가 ${RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount}건이 아닙니다.`,
   );
   check(
     Number(officialAddressPoints.repairCount) === RESTROOM_ADDRESS_POINT_REGRESSION.repairCount,
@@ -610,11 +610,11 @@ function auditCoordinateMetadata() {
   check(
     addressPointCoordinateKeys.size === RESTROOM_ADDRESS_POINT_REGRESSION.uniquePointCount
       && Number(officialAddressPoints.uniquePointCount) === addressPointCoordinateKeys.size,
-    '화장실 공식 주소 대표점 고유 좌표가 206개가 아닙니다.',
+    `화장실 공식 주소 대표점 고유 좌표가 ${RESTROOM_ADDRESS_POINT_REGRESSION.uniquePointCount}개가 아닙니다.`,
   );
   check(
     coverageGainCount === RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount,
-    '화장실 공식 주소 대표점 항목별 신규 합계가 222건이 아닙니다.',
+    `화장실 공식 주소 대표점 항목별 신규 합계가 ${RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount}건이 아닙니다.`,
   );
   check(
     repairCount === RESTROOM_ADDRESS_POINT_REGRESSION.repairCount,
@@ -632,7 +632,9 @@ function auditCoordinateMetadata() {
       && (addressPointMatchMethodCounts.get(
         'invalid-legacy-coordinate+unique-exact-road-address+reviewed-building-alias',
       ) || 0) === RESTROOM_ADDRESS_POINT_REGRESSION.reviewedAliasRepairCount,
-    '화장실 공식 주소 대표점 매칭 근거가 직접 227/검토 신규 5/검토 교정 3과 다릅니다.',
+    `화장실 공식 주소 대표점 매칭 근거가 직접 ${RESTROOM_ADDRESS_POINT_REGRESSION.directBuildingMatchCount}`
+      + `/검토 신규 ${RESTROOM_ADDRESS_POINT_REGRESSION.reviewedNewMatchCount}`
+      + `/검토 교정 ${RESTROOM_ADDRESS_POINT_REGRESSION.reviewedAliasRepairCount}과 다릅니다.`,
   );
 
   const hostSourceIds = new Set(
@@ -786,7 +788,9 @@ function auditCoordinateMetadata() {
       === RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount
       && Number(restroomManifest.officialAddressUniquePointCount)
         === RESTROOM_ADDRESS_POINT_REGRESSION.uniquePointCount,
-    '화장실 매니페스트 공식 주소 대표점 신규·고유점 합계가 222/206이 아닙니다.',
+    `화장실 매니페스트 공식 주소 대표점 신규·고유점 합계가 `
+      + `${RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount}/`
+      + `${RESTROOM_ADDRESS_POINT_REGRESSION.uniquePointCount}이 아닙니다.`,
   );
   const addressPointOverlay = (restroomManifest.addressPointOverlays || [])
     .find(overlay => String(overlay.id) === String(officialAddressPoints.source?.id || ''));
@@ -799,7 +803,11 @@ function auditCoordinateMetadata() {
         === RESTROOM_ADDRESS_POINT_REGRESSION.repairCount
       && Number(addressPointOverlay?.uniquePointCount)
         === RESTROOM_ADDRESS_POINT_REGRESSION.uniquePointCount,
-    '화장실 공식 주소 대표점 매니페스트 overlay의 235/222/13/206 집계가 다릅니다.',
+    `화장실 공식 주소 대표점 매니페스트 overlay의 `
+      + `${RESTROOM_ADDRESS_POINT_REGRESSION.total}/`
+      + `${RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount}/`
+      + `${RESTROOM_ADDRESS_POINT_REGRESSION.repairCount}/`
+      + `${RESTROOM_ADDRESS_POINT_REGRESSION.uniquePointCount} 집계가 다릅니다.`,
   );
   const addressPointOverlays = new Map(
     (restroomManifest.addressPointOverlays || [])

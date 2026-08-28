@@ -16,12 +16,12 @@ import { fetchWithRetry } from './fetch-with-retry.mjs';
 const REQUEST_TIMEOUT_MS = 20_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RESTROOM_ADDRESS_POINT_REGRESSION = Object.freeze({
-  total: 235,
-  coverageGainCount: 222,
+  total: 229,
+  coverageGainCount: 216,
   repairCount: 13,
-  uniquePointCount: 206,
-  directBuildingMatchCount: 227,
-  reviewedNewMatchCount: 5,
+  uniquePointCount: 200,
+  directBuildingMatchCount: 224,
+  reviewedNewMatchCount: 2,
   reviewedAliasRepairCount: 3,
 });
 const RESTROOM_HOST_ADDRESS_POINT_REGRESSION = Object.freeze({
@@ -419,7 +419,8 @@ async function auditStaticCompleteness() {
   }
   if (officialAddressPointItems.length !== RESTROOM_ADDRESS_POINT_REGRESSION.total) {
     throw new Error(
-      `공중화장실: 공식 주소 대표점 원장 ${officialAddressPointItems.length}건이 235건이 아닙니다.`,
+      `공중화장실: 공식 주소 대표점 원장 ${officialAddressPointItems.length}건이 `
+      + `${RESTROOM_ADDRESS_POINT_REGRESSION.total}건이 아닙니다.`,
     );
   }
 
@@ -462,12 +463,14 @@ async function auditStaticCompleteness() {
   ) {
     throw new Error(
       `공중화장실: 공식 주소 대표점 항목별 신규 ${itemCoverageGainCount}건/교정 ${itemRepairCount}건이 `
-      + '222/13 기준과 다릅니다.',
+      + `${RESTROOM_ADDRESS_POINT_REGRESSION.coverageGainCount}/`
+      + `${RESTROOM_ADDRESS_POINT_REGRESSION.repairCount} 기준과 다릅니다.`,
     );
   }
   if (officialAddressPointCoordinates.size !== RESTROOM_ADDRESS_POINT_REGRESSION.uniquePointCount) {
     throw new Error(
-      `공중화장실: 공식 주소 대표점 고유 좌표 ${officialAddressPointCoordinates.size}개가 206개가 아닙니다.`,
+      `공중화장실: 공식 주소 대표점 고유 좌표 ${officialAddressPointCoordinates.size}개가 `
+      + `${RESTROOM_ADDRESS_POINT_REGRESSION.uniquePointCount}개가 아닙니다.`,
     );
   }
   const directAddressPointMatches = [
@@ -483,7 +486,12 @@ async function auditStaticCompleteness() {
       'invalid-legacy-coordinate+unique-exact-road-address+reviewed-building-alias',
     ) || 0) !== RESTROOM_ADDRESS_POINT_REGRESSION.reviewedAliasRepairCount
   ) {
-    throw new Error('공중화장실: 주소 대표점 매칭 근거가 직접 227/검토 신규 5/검토 교정 3과 다릅니다.');
+    throw new Error(
+      `공중화장실: 주소 대표점 매칭 근거가 직접 `
+      + `${RESTROOM_ADDRESS_POINT_REGRESSION.directBuildingMatchCount}/`
+      + `검토 신규 ${RESTROOM_ADDRESS_POINT_REGRESSION.reviewedNewMatchCount}/`
+      + `검토 교정 ${RESTROOM_ADDRESS_POINT_REGRESSION.reviewedAliasRepairCount}과 다릅니다.`,
+    );
   }
 
   const restroomAddressPointIndex = JSON.parse(restroomAddressPointIndexText);

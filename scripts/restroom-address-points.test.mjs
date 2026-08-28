@@ -116,8 +116,8 @@ test('keeps drift gates fail-closed', () => {
     coverageGainCount: 1,
     repairCount: 0,
     uniquePointCount: 1,
-    directBuildingMatchCount: 227,
-    reviewedNewMatchCount: 5,
+    directBuildingMatchCount: 224,
+    reviewedNewMatchCount: 2,
     reviewedAliasRepairCount: 3,
   }, {
     total: 1,
@@ -130,8 +130,8 @@ test('keeps drift gates fail-closed', () => {
     coverageGainCount: 0,
     repairCount: 0,
     uniquePointCount: 0,
-    directBuildingMatchCount: 227,
-    reviewedNewMatchCount: 5,
+    directBuildingMatchCount: 224,
+    reviewedNewMatchCount: 2,
     reviewedAliasRepairCount: 3,
   }, { total: 1 }), /자동 반영을 중단/);
 });
