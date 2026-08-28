@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-28T09:15:54.231Z",
+  "generatedAt": "2026-08-28T09:27:00.120Z",
   "datasets": {
     "civil": {
       "label": "민방위 대피시설",
@@ -146,7 +146,7 @@
       "sourceDate": "2026-08-24",
       "sourceDateLabel": "원본 행 최신 기준일",
       "sourceDateSource": "LOCALDATA 원본 행 데이터기준일자 최신값",
-      "generatedAt": "2026-08-28T09:15:54.231Z",
+      "generatedAt": "2026-08-28T09:27:00.120Z",
       "maxAgeDays": 30,
       "coverageScope": "supported-cities-with-verified-coordinates",
       "supportedCityCount": 9,
