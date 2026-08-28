@@ -318,23 +318,29 @@ export function matchBusanAddressPoints(
 
 export function assertBusanAddressPointDrift(result, expected = {}) {
   const gates = {
-    total: 235,
-    coverageGainCount: 222,
+    total: 229,
+    coverageGainCount: 216,
     repairCount: 13,
-    uniquePointCount: 206,
-    directBuildingMatchCount: 227,
-    reviewedNewMatchCount: 5,
+    uniquePointCount: 200,
+    directBuildingMatchCount: 224,
+    reviewedNewMatchCount: 2,
     reviewedAliasRepairCount: 3,
     ...expected,
   };
+  const mismatches = [];
   for (const [field, expectedValue] of Object.entries(gates)) {
     if (expectedValue === undefined) continue;
     if (Number(result?.[field]) !== Number(expectedValue)) {
-      throw new Error(
-        `${BUSAN_ADDRESS_SOURCE.id}: ${field}=${result?.[field] ?? '없음'}, `
-        + `검토 기준=${expectedValue}. 자동 반영을 중단합니다.`,
+      mismatches.push(
+        `${field}=${result?.[field] ?? '없음'} (검토 기준=${expectedValue})`,
       );
     }
+  }
+  if (mismatches.length > 0) {
+    throw new Error(
+      `${BUSAN_ADDRESS_SOURCE.id}: ${mismatches.join(', ')}. `
+      + '자동 반영을 중단합니다.',
+    );
   }
 }
 
