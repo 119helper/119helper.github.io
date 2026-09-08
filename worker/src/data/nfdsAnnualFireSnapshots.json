@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "generatedAt": "2026-09-07T20:00:01.192Z",
+  "generatedAt": "2026-09-08T19:27:41.796Z",
   "latestCompleteYear": "2025",
-  "latestDataThrough": "2026-09-07",
+  "latestDataThrough": "2026-09-08",
   "source": {
     "name": "소방청 국가화재정보시스템(NFDS)",
     "url": "https://www.nfds.go.kr/stat/general.do",
@@ -2078,7 +2078,7 @@
           "injuries": 16
         }
       ],
-      "collectedAt": "2026-09-07T20:00:01.192Z"
+      "collectedAt": "2026-09-08T19:27:41.796Z"
     },
     "2025": {
       "year": "2025",
@@ -4143,83 +4143,83 @@
           "injuries": 17
         }
       ],
-      "collectedAt": "2026-09-07T20:00:01.192Z"
+      "collectedAt": "2026-09-08T19:27:41.796Z"
     },
     "2026": {
       "year": "2026",
       "coverageType": "partial",
       "periodStart": "2026-01-01",
-      "dataThrough": "2026-09-07",
-      "totalRecords": 28620,
+      "dataThrough": "2026-09-08",
+      "totalRecords": 28726,
       "propertyDamageUnit": "thousandWon",
       "regionalMonthlyGranularity": "sido-month",
       "regionalClassification": {
-        "classifiedCount": 28518,
-        "unclassifiedCount": 102
+        "classifiedCount": 28622,
+        "unclassifiedCount": 104
       },
       "summary": {
-        "totalFires": 28620,
-        "totalDeaths": 231,
-        "totalInjuries": 1707,
-        "totalCasualties": 1938,
-        "totalPropertyDamage": 814651033
+        "totalFires": 28726,
+        "totalDeaths": 233,
+        "totalInjuries": 1718,
+        "totalCasualties": 1951,
+        "totalPropertyDamage": 817793703
       },
       "bySido": [
         {
           "name": "경기도",
-          "count": 6170,
+          "count": 6183,
           "deaths": 38,
-          "injuries": 369,
-          "propertyDamage": 351056806
+          "injuries": 371,
+          "propertyDamage": 353634473
         },
         {
           "name": "서울특별시",
-          "count": 4367,
+          "count": 4387,
           "deaths": 31,
-          "injuries": 246,
-          "propertyDamage": 11923445
+          "injuries": 247,
+          "propertyDamage": 11981991
         },
         {
           "name": "경상남도",
-          "count": 2714,
+          "count": 2730,
           "deaths": 12,
           "injuries": 127,
-          "propertyDamage": 29392848
+          "propertyDamage": 29593813
         },
         {
           "name": "경상북도",
-          "count": 2250,
-          "deaths": 32,
-          "injuries": 176,
-          "propertyDamage": 53682072
+          "count": 2255,
+          "deaths": 33,
+          "injuries": 178,
+          "propertyDamage": 53694152
         },
         {
           "name": "부산광역시",
-          "count": 1678,
+          "count": 1687,
           "deaths": 9,
           "injuries": 49,
-          "propertyDamage": 6387241
+          "propertyDamage": 6417490
         },
         {
           "name": "전라북도",
-          "count": 1538,
+          "count": 1545,
           "deaths": 8,
           "injuries": 67,
-          "propertyDamage": 18735478
+          "propertyDamage": 18798060
         },
         {
           "name": "충청남도",
-          "count": 1489,
+          "count": 1491,
           "deaths": 18,
           "injuries": 65,
-          "propertyDamage": 27172024
+          "propertyDamage": 27174326
         },
         {
           "name": "강원특별자치도",
-          "count": 1325,
+          "count": 1328,
           "deaths": 8,
           "injuries": 81,
-          "propertyDamage": 18438273
+          "propertyDamage": 18440326
         },
         {
           "name": "전라남도",
@@ -4230,52 +4230,52 @@
         },
         {
           "name": "충청북도",
-          "count": 1063,
+          "count": 1066,
           "deaths": 9,
-          "injuries": 98,
-          "propertyDamage": 67083325
+          "injuries": 102,
+          "propertyDamage": 67131329
         },
         {
           "name": "인천광역시",
-          "count": 907,
+          "count": 912,
           "deaths": 7,
           "injuries": 68,
-          "propertyDamage": 37065285
+          "propertyDamage": 37067194
         },
         {
           "name": "대구광역시",
-          "count": 900,
-          "deaths": 7,
-          "injuries": 79,
-          "propertyDamage": 8952205
+          "count": 904,
+          "deaths": 8,
+          "injuries": 80,
+          "propertyDamage": 8961191
         },
         {
           "name": "울산광역시",
-          "count": 716,
+          "count": 720,
           "deaths": 5,
           "injuries": 41,
-          "propertyDamage": 27216571
+          "propertyDamage": 27217533
         },
         {
           "name": "전남광주통합특별시",
-          "count": 670,
+          "count": 680,
           "deaths": 6,
-          "injuries": 26,
-          "propertyDamage": 9103034
+          "injuries": 27,
+          "propertyDamage": 9227087
         },
         {
           "name": "대전광역시",
-          "count": 653,
+          "count": 654,
           "deaths": 22,
           "injuries": 108,
-          "propertyDamage": 3577476
+          "propertyDamage": 3579126
         },
         {
           "name": "제주특별자치도",
-          "count": 389,
+          "count": 390,
           "deaths": 4,
-          "injuries": 19,
-          "propertyDamage": 9899735
+          "injuries": 18,
+          "propertyDamage": 9910444
         },
         {
           "name": "광주광역시",
@@ -4286,39 +4286,39 @@
         },
         {
           "name": "세종특별자치시",
-          "count": 159,
+          "count": 160,
           "deaths": 0,
-          "injuries": 8,
-          "propertyDamage": 4850249
+          "injuries": 9,
+          "propertyDamage": 4853549
         },
         {
           "name": "지역 미분류",
-          "count": 102,
+          "count": 104,
           "deaths": 2,
           "injuries": 8,
-          "propertyDamage": 114293756
+          "propertyDamage": 114290409
         }
       ],
       "byFireType": [
         {
           "name": "건축,구조물",
-          "count": 17543
+          "count": 17605
         },
         {
           "name": "기타(쓰레기 화재등)",
-          "count": 6589
+          "count": 6616
         },
         {
           "name": "자동차,철도차량",
-          "count": 3470
+          "count": 3485
         },
         {
           "name": "임야",
-          "count": 941
+          "count": 942
         },
         {
           "name": "선박,항공기",
-          "count": 60
+          "count": 61
         },
         {
           "name": "위험물,가스제조소등",
@@ -4328,47 +4328,47 @@
       "byPlace": [
         {
           "name": "야외",
-          "count": 6389
+          "count": 6414
         },
         {
           "name": "공동주택",
-          "count": 3638
+          "count": 3651
         },
         {
           "name": "단독주택",
-          "count": 3598
+          "count": 3608
         },
         {
           "name": "자동차",
-          "count": 3124
+          "count": 3137
         },
         {
           "name": "음식점",
-          "count": 1698
+          "count": 1702
         },
         {
           "name": "공장시설",
-          "count": 1490
+          "count": 1499
         },
         {
           "name": "기타건축물",
-          "count": 1289
+          "count": 1296
         },
         {
           "name": "창고시설",
-          "count": 989
+          "count": 992
         },
         {
           "name": "일반업무",
-          "count": 758
+          "count": 759
         },
         {
           "name": "판매시설",
-          "count": 721
+          "count": 723
         },
         {
           "name": "동식물시설",
-          "count": 642
+          "count": 647
         },
         {
           "name": "들불",
@@ -4376,15 +4376,15 @@
         },
         {
           "name": "일상서비스",
-          "count": 487
+          "count": 489
         },
         {
           "name": "산불",
-          "count": 362
+          "count": 363
         },
         {
           "name": "기타주택",
-          "count": 359
+          "count": 360
         },
         {
           "name": "숙박시설",
@@ -4392,15 +4392,15 @@
         },
         {
           "name": "건설기계",
-          "count": 226
+          "count": 227
         },
         {
           "name": "작업장",
-          "count": 203
+          "count": 204
         },
         {
           "name": "도로",
-          "count": 200
+          "count": 202
         },
         {
           "name": "자동차시설",
@@ -4416,7 +4416,7 @@
         },
         {
           "name": "의료시설",
-          "count": 130
+          "count": 131
         },
         {
           "name": "노유자시설",
@@ -4428,11 +4428,15 @@
         },
         {
           "name": "농업기계",
-          "count": 111
+          "count": 112
         },
         {
           "name": "연구,학원",
           "count": 110
+        },
+        {
+          "name": "운동시설",
+          "count": 91
         },
         {
           "name": "위락시설",
@@ -4443,12 +4447,8 @@
           "count": 89
         },
         {
-          "name": "운동시설",
-          "count": 89
-        },
-        {
           "name": "선박",
-          "count": 57
+          "count": 58
         },
         {
           "name": "건강시설",
@@ -4460,7 +4460,7 @@
         },
         {
           "name": "발전시설",
-          "count": 48
+          "count": 49
         },
         {
           "name": "군사시설",
@@ -4530,43 +4530,43 @@
       "byCause": [
         {
           "name": "부주의",
-          "count": 13368
+          "count": 13425
         },
         {
           "name": "전기적 요인",
-          "count": 8119
+          "count": 8142
         },
         {
           "name": "기계적 요인",
-          "count": 2437
+          "count": 2447
         },
         {
           "name": "미상",
-          "count": 2434
+          "count": 2442
         },
         {
           "name": "화학적 요인",
-          "count": 997
+          "count": 1002
         },
         {
           "name": "기타",
-          "count": 295
+          "count": 293
         },
         {
           "name": "교통사고",
-          "count": 274
+          "count": 276
         },
         {
           "name": "방화",
-          "count": 191
+          "count": 192
         },
         {
           "name": "방화의심",
-          "count": 177
+          "count": 178
         },
         {
           "name": "자연적인 요인",
-          "count": 157
+          "count": 158
         },
         {
           "name": "제품결함",
@@ -5414,14 +5414,14 @@
           "count": 3048,
           "deaths": 24,
           "injuries": 170,
-          "propertyDamage": 154945093,
+          "propertyDamage": 154945599,
           "bySido": [
             {
               "name": "경기도",
               "count": 657,
               "deaths": 5,
               "injuries": 42,
-              "propertyDamage": 19955804
+              "propertyDamage": 19956310
             },
             {
               "name": "서울특별시",
@@ -5543,15 +5543,15 @@
           "dataThrough": "2026-08-31",
           "count": 3309,
           "deaths": 17,
-          "injuries": 178,
-          "propertyDamage": 60190063,
+          "injuries": 180,
+          "propertyDamage": 60755628,
           "bySido": [
             {
               "name": "경기도",
               "count": 633,
               "deaths": 3,
               "injuries": 48,
-              "propertyDamage": 37827904
+              "propertyDamage": 38354800
             },
             {
               "name": "서울특별시",
@@ -5565,14 +5565,14 @@
               "count": 371,
               "deaths": 1,
               "injuries": 8,
-              "propertyDamage": 1607629
+              "propertyDamage": 1605346
             },
             {
               "name": "전남광주통합특별시",
               "count": 264,
               "deaths": 0,
-              "injuries": 8,
-              "propertyDamage": 1768790
+              "injuries": 9,
+              "propertyDamage": 1786821
             },
             {
               "name": "경상북도",
@@ -5586,14 +5586,14 @@
               "count": 225,
               "deaths": 0,
               "injuries": 6,
-              "propertyDamage": 471470
+              "propertyDamage": 477733
             },
             {
               "name": "전라북도",
               "count": 192,
               "deaths": 0,
               "injuries": 9,
-              "propertyDamage": 3256652
+              "propertyDamage": 3257210
             },
             {
               "name": "충청남도",
@@ -5607,7 +5607,7 @@
               "count": 135,
               "deaths": 0,
               "injuries": 12,
-              "propertyDamage": 2596785
+              "propertyDamage": 2597884
             },
             {
               "name": "대구광역시",
@@ -5620,8 +5620,8 @@
               "name": "충청북도",
               "count": 105,
               "deaths": 0,
-              "injuries": 8,
-              "propertyDamage": 3161826
+              "injuries": 9,
+              "propertyDamage": 3169856
             },
             {
               "name": "인천광역시",
@@ -5635,7 +5635,7 @@
               "count": 75,
               "deaths": 1,
               "injuries": 6,
-              "propertyDamage": 742732
+              "propertyDamage": 743612
             },
             {
               "name": "대전광역시",
@@ -5649,7 +5649,7 @@
               "count": 47,
               "deaths": 0,
               "injuries": 1,
-              "propertyDamage": 574112
+              "propertyDamage": 583580
             },
             {
               "name": "세종특별자치시",
@@ -5663,137 +5663,137 @@
               "count": 49,
               "deaths": 2,
               "injuries": 4,
-              "propertyDamage": 164786
+              "propertyDamage": 161409
             }
           ]
         },
         {
           "month": "9월",
           "periodStart": "2026-09-01",
-          "dataThrough": "2026-09-07",
-          "count": 633,
-          "deaths": 3,
-          "injuries": 30,
-          "propertyDamage": 6270069,
+          "dataThrough": "2026-09-08",
+          "count": 739,
+          "deaths": 5,
+          "injuries": 39,
+          "propertyDamage": 8846668,
           "bySido": [
             {
               "name": "경기도",
-              "count": 142,
+              "count": 155,
               "deaths": 0,
-              "injuries": 9,
-              "propertyDamage": 3107675
+              "injuries": 11,
+              "propertyDamage": 5157940
             },
             {
               "name": "서울특별시",
-              "count": 119,
+              "count": 139,
               "deaths": 0,
-              "injuries": 2,
-              "propertyDamage": 172467
+              "injuries": 3,
+              "propertyDamage": 231013
             },
             {
               "name": "경상남도",
-              "count": 51,
+              "count": 67,
               "deaths": 0,
               "injuries": 2,
-              "propertyDamage": 157793
+              "propertyDamage": 361041
             },
             {
               "name": "전남광주통합특별시",
-              "count": 43,
+              "count": 53,
               "deaths": 0,
               "injuries": 1,
-              "propertyDamage": 125845
-            },
-            {
-              "name": "경상북도",
-              "count": 39,
-              "deaths": 0,
-              "injuries": 6,
-              "propertyDamage": 1321751
+              "propertyDamage": 231867
             },
             {
               "name": "부산광역시",
-              "count": 37,
+              "count": 46,
               "deaths": 0,
               "injuries": 3,
-              "propertyDamage": 33101
+              "propertyDamage": 57087
+            },
+            {
+              "name": "경상북도",
+              "count": 44,
+              "deaths": 1,
+              "injuries": 8,
+              "propertyDamage": 1333831
             },
             {
               "name": "전라북도",
-              "count": 37,
+              "count": 44,
               "deaths": 0,
               "injuries": 0,
-              "propertyDamage": 274100
+              "propertyDamage": 336124
             },
             {
               "name": "충청남도",
-              "count": 27,
+              "count": 29,
               "deaths": 1,
               "injuries": 0,
-              "propertyDamage": 187284
-            },
-            {
-              "name": "강원특별자치도",
-              "count": 22,
-              "deaths": 0,
-              "injuries": 0,
-              "propertyDamage": 218667
+              "propertyDamage": 189586
             },
             {
               "name": "대구광역시",
-              "count": 22,
-              "deaths": 0,
-              "injuries": 0,
-              "propertyDamage": 152998
+              "count": 26,
+              "deaths": 1,
+              "injuries": 1,
+              "propertyDamage": 161984
             },
             {
-              "name": "울산광역시",
-              "count": 19,
-              "deaths": 1,
+              "name": "강원특별자치도",
+              "count": 25,
+              "deaths": 0,
               "injuries": 0,
-              "propertyDamage": 62296
+              "propertyDamage": 219621
             },
             {
               "name": "인천광역시",
-              "count": 19,
+              "count": 24,
               "deaths": 1,
               "injuries": 2,
-              "propertyDamage": 108399
+              "propertyDamage": 110308
+            },
+            {
+              "name": "울산광역시",
+              "count": 23,
+              "deaths": 1,
+              "injuries": 0,
+              "propertyDamage": 62378
             },
             {
               "name": "충청북도",
-              "count": 19,
+              "count": 22,
               "deaths": 0,
-              "injuries": 2,
-              "propertyDamage": 181340
+              "injuries": 5,
+              "propertyDamage": 221314
             },
             {
               "name": "대전광역시",
-              "count": 15,
+              "count": 16,
               "deaths": 0,
               "injuries": 1,
-              "propertyDamage": 39058
+              "propertyDamage": 40708
             },
             {
               "name": "제주특별자치도",
-              "count": 11,
+              "count": 12,
               "deaths": 0,
-              "injuries": 1,
-              "propertyDamage": 49871
+              "injuries": 0,
+              "propertyDamage": 51112
             },
             {
               "name": "세종특별자치시",
-              "count": 3,
+              "count": 4,
               "deaths": 0,
-              "injuries": 1,
-              "propertyDamage": 2947
+              "injuries": 2,
+              "propertyDamage": 6247
             },
             {
               "name": "지역 미분류",
-              "count": 8,
+              "count": 10,
               "deaths": 0,
               "injuries": 0,
-              "propertyDamage": 74477
+              "propertyDamage": 74507
             }
           ]
         }
@@ -5802,17 +5802,17 @@
         {
           "name": "경기도",
           "deaths": 38,
-          "injuries": 369
+          "injuries": 371
         },
         {
           "name": "서울특별시",
           "deaths": 31,
-          "injuries": 246
+          "injuries": 247
         },
         {
           "name": "경상북도",
-          "deaths": 32,
-          "injuries": 176
+          "deaths": 33,
+          "injuries": 178
         },
         {
           "name": "경상남도",
@@ -5827,7 +5827,7 @@
         {
           "name": "충청북도",
           "deaths": 9,
-          "injuries": 98
+          "injuries": 102
         },
         {
           "name": "강원특별자치도",
@@ -5836,8 +5836,8 @@
         },
         {
           "name": "대구광역시",
-          "deaths": 7,
-          "injuries": 79
+          "deaths": 8,
+          "injuries": 80
         },
         {
           "name": "충청남도",
@@ -5872,12 +5872,12 @@
         {
           "name": "전남광주통합특별시",
           "deaths": 6,
-          "injuries": 26
+          "injuries": 27
         },
         {
           "name": "제주특별자치도",
           "deaths": 4,
-          "injuries": 19
+          "injuries": 18
         },
         {
           "name": "광주광역시",
@@ -5892,10 +5892,10 @@
         {
           "name": "세종특별자치시",
           "deaths": 0,
-          "injuries": 8
+          "injuries": 9
         }
       ],
-      "collectedAt": "2026-09-07T20:00:01.192Z"
+      "collectedAt": "2026-09-08T19:27:41.796Z"
     }
   }
 }
