@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "generatedAt": "2026-09-11T19:11:10.088Z",
+  "generatedAt": "2026-09-12T18:27:17.892Z",
   "latestCompleteYear": "2025",
-  "latestDataThrough": "2026-09-11",
+  "latestDataThrough": "2026-09-12",
   "source": {
     "name": "소방청 국가화재정보시스템(NFDS)",
     "url": "https://www.nfds.go.kr/stat/general.do",
@@ -2078,7 +2078,7 @@
           "injuries": 16
         }
       ],
-      "collectedAt": "2026-09-11T19:11:10.088Z"
+      "collectedAt": "2026-09-12T18:27:17.892Z"
     },
     "2025": {
       "year": "2025",
@@ -4143,13 +4143,13 @@
           "injuries": 17
         }
       ],
-      "collectedAt": "2026-09-11T19:11:10.088Z"
+      "collectedAt": "2026-09-12T18:27:17.892Z"
     },
     "2026": {
       "year": "2026",
       "coverageType": "partial",
       "periodStart": "2026-01-01",
-      "dataThrough": "2026-09-11",
+      "dataThrough": "2026-09-12",
       "totalRecords": 29053,
       "propertyDamageUnit": "thousandWon",
       "regionalMonthlyGranularity": "sido-month",
@@ -4162,7 +4162,7 @@
         "totalDeaths": 236,
         "totalInjuries": 1733,
         "totalCasualties": 1969,
-        "totalPropertyDamage": 820057681
+        "totalPropertyDamage": 820057643
       },
       "bySido": [
         {
@@ -4184,7 +4184,7 @@
           "count": 2758,
           "deaths": 12,
           "injuries": 127,
-          "propertyDamage": 29697085
+          "propertyDamage": 29697047
         },
         {
           "name": "경상북도",
@@ -5544,7 +5544,7 @@
           "count": 3310,
           "deaths": 17,
           "injuries": 180,
-          "propertyDamage": 61752560,
+          "propertyDamage": 61752522,
           "bySido": [
             {
               "name": "경기도",
@@ -5565,7 +5565,7 @@
               "count": 371,
               "deaths": 1,
               "injuries": 8,
-              "propertyDamage": 1608751
+              "propertyDamage": 1608713
             },
             {
               "name": "전남광주통합특별시",
@@ -5670,7 +5670,7 @@
         {
           "month": "9월",
           "periodStart": "2026-09-01",
-          "dataThrough": "2026-09-11",
+          "dataThrough": "2026-09-12",
           "count": 1065,
           "deaths": 8,
           "injuries": 54,
@@ -5895,7 +5895,7 @@
           "injuries": 9
         }
       ],
-      "collectedAt": "2026-09-11T19:11:10.088Z"
+      "collectedAt": "2026-09-12T18:27:17.892Z"
     }
   }
 }
