@@ -50,4 +50,29 @@ describe('last-known-good reference cache', () => {
       data: { xml: '<ok />' },
     });
   });
+
+  it('never replaces a good copy with an upstream error payload', async () => {
+    const { binding, values } = memoryKv();
+    const url = new URL('https://worker.test/api/civil-shelter?ctprvnNm=서울');
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    await saveLastKnownGood(binding, url, [{ FCLT_NM: '정상 대피소' }]);
+
+    await saveLastKnownGood(binding, url, { error: 'API_HTTP_503', message: 'Service Unavailable' });
+
+    expect(values.size).toBe(1);
+    await expect(readLastKnownGood(binding, url)).resolves.toEqual({
+      cachedAt: 1_000,
+      data: [{ FCLT_NM: '정상 대피소' }],
+    });
+  });
+
+  it('ignores error payloads that an older worker version already stored', async () => {
+    const { binding, values } = memoryKv();
+    const url = new URL('https://worker.test/api/tsunami-shelter');
+    await saveLastKnownGood(binding, url, [{ name: 'seed' }]);
+    const [key] = [...values.keys()];
+    values.set(key, JSON.stringify({ version: 1, cachedAt: Date.now(), data: { error: 'WORKER_FETCH_ERROR' } }));
+
+    await expect(readLastKnownGood(binding, url)).resolves.toBeNull();
+  });
 });

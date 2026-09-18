@@ -52,6 +52,11 @@ function cacheKey(requestUrl: URL): string {
   return `${CACHE_PREFIX}${normalized.pathname}${normalized.search}`;
 }
 
+/** 일부 라우트는 업스트림 오류를 HTTP 200 + `{ error }`로 돌려준다. 이런 값은 '정상값'이 아니다. */
+export function isErrorPayload(data: unknown): boolean {
+  return !!data && typeof data === 'object' && !Array.isArray(data) && 'error' in data;
+}
+
 function isEntry(value: unknown): value is ReferenceCacheEntry {
   if (!value || typeof value !== 'object') return false;
   const entry = value as Partial<ReferenceCacheEntry>;
@@ -67,7 +72,7 @@ export async function saveLastKnownGood(
   data: unknown,
 ): Promise<void> {
   const policy = referenceCachePolicy(requestUrl.pathname);
-  if (!kv || !policy) return;
+  if (!kv || !policy || isErrorPayload(data)) return;
 
   const entry: ReferenceCacheEntry = {
     version: 1,
@@ -93,7 +98,8 @@ export async function readLastKnownGood(
 
   try {
     const value = await kv.get<unknown>(cacheKey(requestUrl), 'json');
-    if (!isEntry(value)) return null;
+    // 이전 버전이 오류 객체를 저장했을 수 있으므로 읽을 때도 거른다.
+    if (!isEntry(value) || isErrorPayload(value.data)) return null;
     if (Date.now() - value.cachedAt > policy.maxAgeSeconds * 1000) return null;
     return { cachedAt: value.cachedAt, data: value.data };
   } catch (error) {
