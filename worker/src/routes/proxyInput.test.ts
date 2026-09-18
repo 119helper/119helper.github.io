@@ -6,6 +6,7 @@ import { handleFireInfo } from './fireInfo';
 import { handleBuilding } from './building';
 import { handleER } from './er';
 import { handleAir } from './air';
+import { handleForestFireRisk } from './forestFireRisk';
 import type { Env } from '../index';
 
 function jsonResponse(body: unknown): Response {
@@ -197,5 +198,21 @@ describe('proxy input sanitization', () => {
     const upstream = new URL(upstreamUrl);
     expect(upstream.searchParams.get('serviceKey')).toBe('air+key/value');
     expect(upstreamUrl).not.toContain('%252B');
+  });
+
+  it.each([
+    ['raw', 'forest+key/value=='],
+    ['pre-encoded', 'forest%2Bkey%2Fvalue%3D%3D'],
+  ])('sends a %s forest fire risk service key encoded exactly once', async (_label, apiKey) => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => jsonResponse({
+      response: { header: { resultCode: '00' }, body: { items: { item: [] }, totalCount: 0 } },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await handleForestFireRisk(new URL('https://api.example.test/api/forest-fire-risk'), apiKey);
+
+    const upstreamUrl = String(fetchMock.mock.calls[0][0]);
+    expect(new URL(upstreamUrl).searchParams.get('ServiceKey')).toBe('forest+key/value==');
+    expect(upstreamUrl).not.toContain('%25');
   });
 });
