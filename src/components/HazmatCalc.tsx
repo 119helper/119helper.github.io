@@ -7,6 +7,7 @@ import {
 } from '../utils/fieldCalculations';
 import type { KakaoLatLng, KakaoMapInstance, KakaoOverlay } from '../types/kakao';
 import { useAppFeedback } from '../contexts/FeedbackContext';
+import { loadKakaoMapSDK } from '../utils/kakaoLoader';
 
 interface KakaoMouseEvent {
   latLng: KakaoLatLng;
@@ -40,23 +41,14 @@ export default function HazmatCalc() {
 
   // Initialize Kakao Map
   useEffect(() => {
-    let retryCount = 0;
+    let cancelled = false;
 
-    const initMap = () => {
-      const mapContainer = mapRef.current;
-      if (!mapContainer) return;
+    // SDK는 필요할 때만 로드되므로 이 화면에서 직접 로드를 요청한다.
+    loadKakaoMapSDK()
+      .then(() => {
+        const mapContainer = mapRef.current;
+        if (cancelled || !mapContainer || !window.kakao?.maps) return;
 
-      if (!window.kakao?.maps) {
-        retryCount += 1;
-        if (retryCount > 20) {
-          setMapError('카카오 지도를 불러오지 못했습니다. 네트워크 또는 API 키를 확인하세요.');
-          return;
-        }
-        setTimeout(initMap, 300);
-        return;
-      }
-
-      window.kakao.maps.load(() => {
         const options = {
           center: new window.kakao.maps.LatLng(DEFAULT_ORIGIN.lat, DEFAULT_ORIGIN.lng),
           level: 4,
@@ -72,10 +64,14 @@ export default function HazmatCalc() {
           setOriginPoint({ lat: latlng.getLat(), lng: latlng.getLng() });
           setIsSelectingOrigin(false);
         });
+      })
+      .catch(() => {
+        if (!cancelled) setMapError('카카오 지도를 불러오지 못했습니다. 네트워크 또는 API 키를 확인하세요.');
       });
-    };
 
-    initMap();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Set cursor when selecting

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useRef, type FormEvent } from 'react'
 import { fetchBuildingRegister, type BuildingRegisterInfo } from '../services/buildingApi';
 import { fetchFireObjectAccom, fetchFireObjectFireSys, isStaleDataError, type PaginatedItemsResponse } from '../services/apiClient';
 import { loadStoredJson, removeStoredJson, saveStoredJson } from '../services/privacySettings';
+import { loadKakaoMapSDK } from '../utils/kakaoLoader';
 import type { BuildingWorkspaceState, FireObjectAccom, FireObjectFireSys } from '../types/buildingWorkspace';
 
 interface RecentSearchItem {
@@ -217,7 +218,7 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
     }
   };
 
-  const runSearch = (target: string | RecentSearchItem, forceRefresh = false) => {
+  const runSearch = async (target: string | RecentSearchItem, forceRefresh = false) => {
     const isObj = typeof target === 'object';
     const targetAddress = isObj ? target.address : target;
     const targetParams = isObj ? target.params : undefined;
@@ -300,9 +301,16 @@ export default function BuildingView({ initialAddress = '', workspace, onWorkspa
       return;
     }
 
+    // SDK는 지도 화면에서만 로드되므로, 이 화면으로 바로 들어온 경우를 위해 직접 로드한다.
+    try {
+      await loadKakaoMapSDK();
+    } catch {
+      // 키 누락·네트워크 오류는 아래 services 부재 안내로 처리한다.
+    }
+    if (seq !== requestSeqRef.current) return;
+
     const services = window.kakao?.maps?.services;
     if (!services) {
-      if (seq !== requestSeqRef.current) return;
       updateWorkspace({ errorMsg: '카카오 주소검색(Geocoder) 서비스 로드 실패. [새로고침] 해주세요.' });
       setIsLoading(false);
       return;

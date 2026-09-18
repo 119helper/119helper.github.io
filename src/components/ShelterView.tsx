@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { getShelters, type ShelterData } from '../services/shelterApi';
 import type { KakaoInfoWindow, KakaoMapInstance, KakaoMarker } from '../types/kakao';
+import { loadKakaoMapSDK } from '../utils/kakaoLoader';
 
 interface ShelterViewProps {
   city: string;
@@ -41,6 +42,7 @@ export default function ShelterView({ city }: ShelterViewProps) {
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [mapError, setMapError] = useState('');
+  const [mapReady, setMapReady] = useState(false);
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
   const [filter, setFilter] = useState('');
   const [selectedShelter, setSelectedShelter] = useState<ShelterData | null>(null);
@@ -87,30 +89,33 @@ export default function ShelterView({ city }: ShelterViewProps) {
     loadData();
   }, [loadData]);
 
-  // 카카오맵 1회 초기화
+  // 카카오맵 1회 초기화 — SDK는 필요할 때만 로드되므로 직접 로드를 요청한다.
   useEffect(() => {
-    const mapContainer = mapRef.current;
-    if (!window.kakao?.maps || !mapContainer) {
-      if (!window.kakao) {
-        setMapError('카카오 지도를 불러오지 못했습니다.');
-      }
-      return;
-    }
-    if (mapInstanceRef.current) return;
+    let cancelled = false;
 
-    window.kakao.maps.load(() => {
-      const map = new window.kakao.maps.Map(mapContainer, {
-        center: new window.kakao.maps.LatLng(37.5665, 126.978),
-        level: 8,
+    loadKakaoMapSDK()
+      .then(() => {
+        const mapContainer = mapRef.current;
+        if (cancelled || !mapContainer || !window.kakao?.maps || mapInstanceRef.current) return;
+        mapInstanceRef.current = new window.kakao.maps.Map(mapContainer, {
+          center: new window.kakao.maps.LatLng(37.5665, 126.978),
+          level: 8,
+        });
+        setMapReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) setMapError('카카오 지도를 불러오지 못했습니다.');
       });
-      mapInstanceRef.current = map;
-    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // GPS 위치 연동
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || !window.kakao?.maps || !userPos) return;
+    if (!mapReady || !map || !window.kakao?.maps || !userPos) return;
 
     const pos = new window.kakao.maps.LatLng(userPos.lat, userPos.lng);
     map.panTo(pos);
@@ -128,7 +133,7 @@ export default function ShelterView({ city }: ShelterViewProps) {
       });
       myInfoWindowRef.current.open(map, myMarkerRef.current);
     }
-  }, [userPos]);
+  }, [mapReady, userPos]);
 
   const normalizedFilter = normalize(filter);
   const filteredShelters = useMemo(() => shelters.filter(s => {
@@ -142,7 +147,7 @@ export default function ShelterView({ city }: ShelterViewProps) {
   // 마커 업데이트
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || !window.kakao?.maps) return;
+    if (!mapReady || !map || !window.kakao?.maps) return;
 
     // 기존 마커 및 정보창 제거
     markersRef.current.forEach(m => m.setMap(null));
@@ -188,7 +193,7 @@ export default function ShelterView({ city }: ShelterViewProps) {
       markersRef.current.push(marker);
       infoWindowsRef.current.push(infoWindow);
     });
-  }, [filteredShelters]);
+  }, [filteredShelters, mapReady]);
 
   // 리스트 클릭 시 지도 이동
   const handleSelectShelter = (shelter: ShelterData) => {
