@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertCompleteFetch, assertNoCityShrink } from './civil-shelter-integrity.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = path.join(__dirname, '..', 'public', 'data', 'civil');
@@ -10,6 +11,7 @@ const API_KEY = process.env.CIVIL_SHELTER_SYNC_API_KEY
   || process.env.FIRE_WATER_API_KEY
   || process.env.PUBLIC_DATA_API_KEY;
 const SOURCE_DATE_OVERRIDE = process.env.CIVIL_SOURCE_DATE || '';
+const ALLOW_SHRINK = process.env.CIVIL_ALLOW_SHRINK === '1';
 const API_URL = 'https://apis.data.go.kr/1741000/civil_defense_shelter_info/info';
 const SOURCE_URL = 'https://www.data.go.kr/data/15155067/openapi.do';
 // 이 API는 더 큰 값을 요청해도 현재 최대 100행만 반환한다.
@@ -177,6 +179,12 @@ function resetOutputDirectory() {
   fs.mkdirSync(resolvedTarget, { recursive: true });
 }
 
+function previousCityCounts() {
+  if (!fs.existsSync(MANIFEST_PATH)) return undefined;
+  const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+  return manifest.datasets?.civil?.cities;
+}
+
 function updateManifest(metadata) {
   const manifest = fs.existsSync(MANIFEST_PATH)
     ? JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'))
@@ -228,6 +236,8 @@ async function main() {
     await delay(100);
   }
 
+  assertCompleteFetch({ totalCount: first.totalCount, receivedCount: allItems.length });
+
   const uniqueItems = latestRecords(allItems);
   const latestStatusCounts = statusCounts(uniqueItems);
   const activeItems = uniqueItems.filter(isActive);
@@ -239,6 +249,12 @@ async function main() {
     const cityKey = cityKeyOf(item);
     if (cityKey) byCity[cityKey].push(optimize(item));
   }
+
+  assertNoCityShrink(
+    previousCityCounts(),
+    Object.fromEntries(Object.entries(byCity).map(([cityKey, items]) => [cityKey, items.length])),
+    { allowShrink: ALLOW_SHRINK },
+  );
 
   resetOutputDirectory();
   const cities = {};
