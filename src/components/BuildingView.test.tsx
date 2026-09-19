@@ -25,6 +25,12 @@ vi.mock('../services/apiClient', () => ({
   isStaleDataError: () => false,
 }));
 
+const loadKakaoMapSDK = vi.hoisted(() => vi.fn(() => (
+  window.kakao?.maps ? Promise.resolve() : Promise.reject(new Error('SDK unavailable'))
+)));
+
+vi.mock('../utils/kakaoLoader', () => ({ loadKakaoMapSDK }));
+
 import BuildingView from './BuildingView';
 
 function installSuccessfulGeocoder() {
@@ -158,14 +164,30 @@ describe('BuildingView', () => {
     expect(screen.queryByText('이전 소방대상물')).not.toBeInTheDocument();
   });
 
-  it('restores the entered address and lookup error after the view is remounted', () => {
+  it('loads the Kakao SDK on demand when the view is opened before any map screen', async () => {
+    loadKakaoMapSDK.mockImplementationOnce(async () => {
+      installSuccessfulGeocoder();
+    });
+    mockBuildingResult();
+    apiMocks.fetchFireObjectAccom.mockResolvedValue({ items: [] });
+    apiMocks.fetchFireObjectFireSys.mockResolvedValue({ items: [] });
+
+    render(<Harness />);
+    submitBuildingLookup();
+
+    expect(await screen.findByText('테스트센터')).toBeInTheDocument();
+    expect(loadKakaoMapSDK).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/Geocoder\) 서비스 로드 실패/)).not.toBeInTheDocument();
+  });
+
+  it('restores the entered address and lookup error after the view is remounted', async () => {
     render(<Harness />);
 
     const addressInput = screen.getByRole('textbox', { name: '건축물 주소' });
     fireEvent.change(addressInput, { target: { value: '서울특별시 종로구 세종대로 209' } });
     fireEvent.click(screen.getByRole('button', { name: '검색' }));
 
-    expect(screen.getByRole('alert')).toHaveTextContent('카카오 주소검색(Geocoder) 서비스 로드 실패');
+    expect(await screen.findByRole('alert')).toHaveTextContent('카카오 주소검색(Geocoder) 서비스 로드 실패');
     fireEvent.click(screen.getByRole('button', { name: '다른 화면' }));
     fireEvent.click(screen.getByRole('button', { name: '건축물 화면' }));
 
@@ -244,8 +266,10 @@ describe('BuildingView', () => {
     submitBuildingLookup();
 
     const resultHeading = await screen.findByRole('heading', { name: '테스트센터' });
-    expect(resultHeading).toHaveFocus();
-    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    await waitFor(() => {
+      expect(resultHeading).toHaveFocus();
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    });
   });
 
   it('offers other recent lookups from a completed result', async () => {
