@@ -266,8 +266,10 @@ describe('BuildingView', () => {
     submitBuildingLookup();
 
     const resultHeading = await screen.findByRole('heading', { name: '테스트센터' });
-    expect(resultHeading).toHaveFocus();
-    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    await waitFor(() => {
+      expect(resultHeading).toHaveFocus();
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    });
   });
 
   it('offers other recent lookups from a completed result', async () => {

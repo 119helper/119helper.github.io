@@ -22,6 +22,13 @@ test('도시별 10% 이내 감소는 허용한다', () => {
   assert.doesNotThrow(() => assertNoCityShrink({ seoul: 2_900, sejong: 178 }, { seoul: 2_700, sejong: 161 }));
 });
 
+test('도시별 10%를 조금이라도 초과한 감소는 차단한다', () => {
+  assert.throws(
+    () => assertNoCityShrink({ sejong: 178 }, { sejong: 160 }),
+    /sejong 178→160/,
+  );
+});
+
 test('한 도시라도 급감하면 실패한다', () => {
   assert.throws(
     () => assertNoCityShrink({ seoul: 2_900, busan: 1_314 }, { seoul: 2_900, busan: 0 }),

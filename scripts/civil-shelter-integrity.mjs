@@ -24,7 +24,7 @@ export function assertNoCityShrink(previousCities, nextCities, { allowShrink = f
   const shrunk = Object.entries(previousCities)
     .filter(([, previous]) => Number.isFinite(previous) && previous > 0)
     .map(([city, previous]) => ({ city, previous, next: nextCities[city] ?? 0 }))
-    .filter(({ previous, next }) => next < Math.floor(previous * (1 - maxShrinkRatio)));
+    .filter(({ previous, next }) => next < previous * (1 - maxShrinkRatio));
 
   if (shrunk.length > 0) {
     const detail = shrunk.map(({ city, previous, next }) => `${city} ${previous}→${next}`).join(', ');
