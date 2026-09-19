@@ -16,6 +16,9 @@ export interface WildfireItem {
 let cachedWildfires: WildfireItem[] | null = null;
 let lastFetchTime = 0;
 const CACHE_TTL = 3 * 60 * 1000; // 3분 캐시
+// IndexedDB 캐시도 폴링(5분)보다 짧게 둬야 목록이 하루 동안 고정되지 않는다.
+const API_CACHE_TTL_MS = 2 * 60 * 1000;
+const API_MAX_STALE_MS = 60 * 60 * 1000;
 const wildfireResponseSchema = z.object({
   body: z.array(z.record(z.string(), z.unknown())),
   totalCount: z.coerce.number().optional(),
@@ -41,7 +44,12 @@ export async function fetchWildfires(numOfRows = '200', pageNo = '1', forceRefre
   }
 
   try {
-    const data = await apiFetch<z.infer<typeof wildfireResponseSchema>>('/api/wildfire', { numOfRows, pageNo }, { schema: wildfireResponseSchema });
+    const data = await apiFetch<z.infer<typeof wildfireResponseSchema>>('/api/wildfire', { numOfRows, pageNo }, {
+      schema: wildfireResponseSchema,
+      cacheTtlMs: API_CACHE_TTL_MS,
+      maxStaleMs: API_MAX_STALE_MS,
+      forceRefresh,
+    });
     if (!data || !data.body || data.body.length === 0) {
       if (retryCount < 3) {
         console.warn(`산불 데이터 빈 응답. 1초 뒤 재시도... (${retryCount + 1}/3)`);

@@ -9,6 +9,11 @@ on:
         description: '원본 데이터 기준일(선택, 예: 2026-07-28)'
         required: false
         type: string
+      allow_shrink:
+        description: '공식 축소를 확인한 경우에만 도시별 10% 초과 감소 허용'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -39,6 +44,7 @@ jobs:
         env:
           CIVIL_SHELTER_SYNC_API_KEY: ${{ secrets.RESTROOM_API_KEY || secrets.FIRE_WATER_API_KEY || secrets.PUBLIC_DATA_API_KEY }}
           CIVIL_SOURCE_DATE: ${{ inputs.source_date }}
+          CIVIL_ALLOW_SHRINK: ${{ inputs.allow_shrink && '1' || '' }}
 
       - name: Check changes
         id: check

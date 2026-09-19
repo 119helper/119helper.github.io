@@ -12,16 +12,16 @@ const BASE = 'https://apis.data.go.kr/1400377/forestPointV2';
 const OPERATION = 'forestPointListGeongugSearchV2';
 
 export async function handleForestFireRisk(url: URL, apiKey: string): Promise<{ data: unknown; cacheTtl: number }> {
+  // encodeServiceKey가 이미 인코딩한 값이므로 URLSearchParams에 넣지 않는다(이중 인코딩 방지).
   const serviceKey = encodeServiceKey(apiKey, 'FOREST_FIRE_API_KEY');
   const params = new URLSearchParams({
-    ServiceKey: serviceKey,
     pageNo: sanitizeNumericParam(url, 'pageNo', 1, 1000, 1),
     numOfRows: sanitizeNumericParam(url, 'numOfRows', 1, 1000, 1000),
     _type: 'json',
     excludeForecast: sanitizeNumericParam(url, 'excludeForecast', 0, 1, 0),
   });
 
-  const text = await fetchPublicDataText(`${BASE}/${OPERATION}?${params}`, 'ForestFireRisk');
+  const text = await fetchPublicDataText(`${BASE}/${OPERATION}?ServiceKey=${serviceKey}&${params}`, 'ForestFireRisk');
   const data = parsePublicDataJson(text, 'ForestFireRisk');
   const { items, totalCount } = pickItemsAndCount(data);
 

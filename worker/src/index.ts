@@ -36,7 +36,7 @@ import { handleAmbulance } from './routes/ambulance';
 import { handleAed } from './routes/aed';
 import { handleDamDischarge } from './routes/damDischarge';
 import { handleRoadDisasters } from './routes/roadDisasters';
-import { readLastKnownGood, saveLastKnownGood } from './referenceCache';
+import { isErrorPayload, readLastKnownGood, saveLastKnownGood, type ReferenceCacheHit } from './referenceCache';
 
 export interface Env {
   KMA_API_KEY: string;
@@ -81,6 +81,14 @@ async function cachePutBestEffort(cache: Cache, request: Request, response: Resp
   } catch (error) {
     console.warn('[Worker cache] put failed', error);
   }
+}
+
+function staleResponse(fallback: ReferenceCacheHit, request: Request, environment?: string): Response {
+  const response = jsonResponse(fallback.data, request, 200, 0, environment);
+  response.headers.set('X-119-Data-Stale', 'true');
+  response.headers.set('X-119-Data-Cached-At', new Date(fallback.cachedAt).toISOString());
+  response.headers.set('Warning', '110 119-helper-api "Response is stale"');
+  return response;
 }
 
 export default {
@@ -241,11 +249,17 @@ export default {
           ctx.waitUntil(cachePutBestEffort(cache, cacheKey, cacheableResponse));
         }
       } else if (result) {
-        ctx.waitUntil(saveLastKnownGood(env.NEWS_CACHE, url, result.data));
+        const isErrorData = isErrorPayload(result.data);
+        if (isErrorData) {
+          // 오류를 200 + { error }로 돌려주는 라우트도 마지막 정상값 폴백을 쓰게 한다.
+          const fallback = await readLastKnownGood(env.NEWS_CACHE, url);
+          if (fallback) return applyCors(staleResponse(fallback, request, env.ENVIRONMENT), request, env.ENVIRONMENT);
+        } else {
+          ctx.waitUntil(saveLastKnownGood(env.NEWS_CACHE, url, result.data));
+        }
         response = jsonResponse(result.data, request, 200, result.cacheTtl, env.ENVIRONMENT);
-        
-        // ?상 ?답(?이????error ?성 ?음)???만 Edge ?경??캐싱
-        const isErrorData = result.data && typeof result.data === 'object' && 'error' in result.data;
+
+        // 정상 응답(error 필드 없음)만 Edge 캐시에 저장
         if (result.cacheTtl > 0 && !isErrorData) {
           const cacheableResponse = response.clone();
           cacheableResponse.headers.set('Cache-Control', `public, max-age=${result.cacheTtl}`);
@@ -264,11 +278,7 @@ export default {
       const fallback = await readLastKnownGood(env.NEWS_CACHE, url);
       if (fallback) {
         console.warn(`[119-helper-api] ${path} serving last-known-good data from ${new Date(fallback.cachedAt).toISOString()}`);
-        const staleResponse = jsonResponse(fallback.data, request, 200, 0, env.ENVIRONMENT);
-        staleResponse.headers.set('X-119-Data-Stale', 'true');
-        staleResponse.headers.set('X-119-Data-Cached-At', new Date(fallback.cachedAt).toISOString());
-        staleResponse.headers.set('Warning', '110 119-helper-api "Response is stale"');
-        return applyCors(staleResponse, request, env.ENVIRONMENT);
+        return applyCors(staleResponse(fallback, request, env.ENVIRONMENT), request, env.ENVIRONMENT);
       }
       // API ??관???러 메시지 ??
       const safeMessage = message.includes('authKey') || message.includes('serviceKey')

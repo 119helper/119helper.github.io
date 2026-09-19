@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import Calculators from './Calculators';
 import HazmatCalc from './HazmatCalc';
 import { FeedbackProvider } from '../contexts/FeedbackContext';
@@ -85,6 +85,7 @@ describe('HazmatCalc', () => {
     const kakao = installKakaoMock();
 
     render(<FeedbackProvider><HazmatCalc /></FeedbackProvider>);
+    await waitFor(() => expect(kakao.maps.Map).toHaveBeenCalled());
 
     const resultPanel = screen.getByText('계산 결과').closest('div');
     expect(resultPanel).not.toBeNull();
