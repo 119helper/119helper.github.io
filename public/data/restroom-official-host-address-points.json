@@ -58,7 +58,7 @@
       "sourceDate": "2026-07-23",
       "license": "개별 제공기관 이용허락범위 적용",
       "termsUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do",
-      "rawCount": 18202,
+      "rawCount": 18295,
       "scopedRowCount": 1354,
       "validCoordinateCount": 1354,
       "validScopedRowsByCity": {
@@ -97,7 +97,7 @@
       "sourceDate": "2026-07-16",
       "license": "개별 제공기관 이용허락범위 적용",
       "termsUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do",
-      "rawCount": 18878,
+      "rawCount": 18883,
       "scopedRowCount": 1594,
       "validCoordinateCount": 1571,
       "validScopedRowsByCity": {
@@ -180,15 +180,15 @@
       "sourceGroupId": "national-standard-host",
       "name": "전국도서관표준데이터",
       "sourceUrl": "https://www.data.go.kr/data/15013109/standard.do",
-      "sourceDate": "2026-06-01",
+      "sourceDate": "2026-08-03",
       "license": "개별 제공기관 이용허락범위 적용",
       "termsUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do",
-      "rawCount": 3554,
-      "scopedRowCount": 419,
-      "validCoordinateCount": 392,
+      "rawCount": 3601,
+      "scopedRowCount": 418,
+      "validCoordinateCount": 416,
       "validScopedRowsByCity": {
-        "daegu": 240,
-        "ulsan": 127,
+        "ulsan": 152,
+        "daegu": 239,
         "sejong": 24
       },
       "minimumValidScopedRowsByCity": {
@@ -198,15 +198,15 @@
       },
       "minimumLatestSourceDate": "2026-06-01",
       "staleOrMissingDateCount": 0,
-      "invalidCoordinateCount": 27,
+      "invalidCoordinateCount": 2,
       "missingIdentityCount": 0,
       "outOfDistrictCount": 0,
       "ineligibleHostCount": 0,
       "duplicateRecordKeyCount": 1,
       "externalRecordIdCollisionCount": 0,
-      "matchableRecordCount": 391,
+      "matchableRecordCount": 415,
       "eligibilityRules": [],
-      "unmatchedCount": 351,
+      "unmatchedCount": 375,
       "ambiguousAddressCount": 2,
       "nameMismatchCount": 21,
       "proposalCount": 17,
@@ -219,15 +219,15 @@
       "sourceGroupId": "national-standard-host",
       "name": "전국박물관미술관정보표준데이터",
       "sourceUrl": "https://www.data.go.kr/data/15017323/standard.do",
-      "sourceDate": "2026-06-24",
+      "sourceDate": "2026-07-27",
       "license": "개별 제공기관 이용허락범위 적용",
       "termsUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do",
-      "rawCount": 1074,
+      "rawCount": 1076,
       "scopedRowCount": 54,
       "validCoordinateCount": 43,
       "validScopedRowsByCity": {
-        "ulsan": 4,
         "daegu": 38,
+        "ulsan": 4,
         "sejong": 1
       },
       "minimumValidScopedRowsByCity": {
@@ -258,15 +258,15 @@
       "sourceGroupId": "national-standard-host",
       "name": "전국공공시설개방정보표준데이터",
       "sourceUrl": "https://www.data.go.kr/data/15013117/standard.do",
-      "sourceDate": "2026-06-24",
+      "sourceDate": "2026-08-28",
       "license": "개별 제공기관 이용허락범위 적용",
       "termsUrl": "https://www.data.go.kr/ugs/selectPortalPolicyView.do",
-      "rawCount": 7329,
-      "scopedRowCount": 459,
-      "validCoordinateCount": 371,
+      "rawCount": 7334,
+      "scopedRowCount": 457,
+      "validCoordinateCount": 411,
       "validScopedRowsByCity": {
+        "ulsan": 79,
         "daegu": 257,
-        "ulsan": 54,
         "sejong": 58
       },
       "minimumValidScopedRowsByCity": {
@@ -275,16 +275,16 @@
         "ulsan": 48
       },
       "minimumLatestSourceDate": "2026-06-01",
-      "staleOrMissingDateCount": 88,
+      "staleOrMissingDateCount": 46,
       "invalidCoordinateCount": 0,
       "missingIdentityCount": 0,
       "outOfDistrictCount": 0,
       "ineligibleHostCount": 0,
-      "duplicateRecordKeyCount": 2,
+      "duplicateRecordKeyCount": 17,
       "externalRecordIdCollisionCount": 0,
-      "matchableRecordCount": 369,
+      "matchableRecordCount": 394,
       "eligibilityRules": [],
-      "unmatchedCount": 312,
+      "unmatchedCount": 337,
       "ambiguousAddressCount": 15,
       "nameMismatchCount": 12,
       "proposalCount": 30,
@@ -829,7 +829,7 @@
       "sourceFacilityName": "구영선사공원",
       "sourceProviderCode": "3730000",
       "sourceProviderName": "울산광역시 울주군",
-      "sourceRowNumber": 4654,
+      "sourceRowNumber": 6583,
       "sourceRecordKey": "2ec754f639dc5fdd1709ecae5477a302f692188321b933554ddf8bb4c389fe7a",
       "sourceExternalRecordId": "31710-00001",
       "recordFingerprint": "d472f424dd18c6b95fcc8bcda19360c7750f208f475a691f6b1ee26b827ae593",
@@ -849,7 +849,7 @@
           "sourceRecordKey": "2ec754f639dc5fdd1709ecae5477a302f692188321b933554ddf8bb4c389fe7a",
           "externalRecordId": "31710-00001",
           "recordFingerprint": "d472f424dd18c6b95fcc8bcda19360c7750f208f475a691f6b1ee26b827ae593",
-          "sourceRowNumber": 4654,
+          "sourceRowNumber": 6583,
           "sourceFacilityName": "구영선사공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -881,7 +881,7 @@
           "sourceRecordKey": "2ec754f639dc5fdd1709ecae5477a302f692188321b933554ddf8bb4c389fe7a",
           "externalRecordId": "31710-00001",
           "recordFingerprint": "d472f424dd18c6b95fcc8bcda19360c7750f208f475a691f6b1ee26b827ae593",
-          "sourceRowNumber": 4654,
+          "sourceRowNumber": 6583,
           "sourceFacilityName": "구영선사공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -924,7 +924,7 @@
       "sourceFacilityName": "온덕공영주차장",
       "sourceProviderCode": "B552147",
       "sourceProviderName": "울주군시설관리공단",
-      "sourceRowNumber": 12094,
+      "sourceRowNumber": 12358,
       "sourceRecordKey": "c6ec8fece793c786e1726e06d563367942972aa2ff29101c32a827800ef5c45b",
       "sourceExternalRecordId": "196-2-000004",
       "recordFingerprint": "caf3cacbf64e15bd481ae9547ca86e60689c6761f9b5fad5e786a180060ec962",
@@ -944,7 +944,7 @@
           "sourceRecordKey": "c6ec8fece793c786e1726e06d563367942972aa2ff29101c32a827800ef5c45b",
           "externalRecordId": "196-2-000004",
           "recordFingerprint": "caf3cacbf64e15bd481ae9547ca86e60689c6761f9b5fad5e786a180060ec962",
-          "sourceRowNumber": 12094,
+          "sourceRowNumber": 12358,
           "sourceFacilityName": "온덕공영주차장",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -976,7 +976,7 @@
           "sourceRecordKey": "c6ec8fece793c786e1726e06d563367942972aa2ff29101c32a827800ef5c45b",
           "externalRecordId": "196-2-000004",
           "recordFingerprint": "caf3cacbf64e15bd481ae9547ca86e60689c6761f9b5fad5e786a180060ec962",
-          "sourceRowNumber": 12094,
+          "sourceRowNumber": 12358,
           "sourceFacilityName": "온덕공영주차장",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -1019,7 +1019,7 @@
       "sourceFacilityName": "도래공원171",
       "sourceProviderCode": "3730000",
       "sourceProviderName": "울산광역시 울주군",
-      "sourceRowNumber": 4561,
+      "sourceRowNumber": 6490,
       "sourceRecordKey": "a7f37a6911fdba048317bf69549ff4e02fdda639be85bc741ebe2212e360618f",
       "sourceExternalRecordId": "31710-00123",
       "recordFingerprint": "f3cabd1523d04146b9dd9587531152abfe0df875713c243015dde5f157552e99",
@@ -1039,7 +1039,7 @@
           "sourceRecordKey": "a7f37a6911fdba048317bf69549ff4e02fdda639be85bc741ebe2212e360618f",
           "externalRecordId": "31710-00123",
           "recordFingerprint": "f3cabd1523d04146b9dd9587531152abfe0df875713c243015dde5f157552e99",
-          "sourceRowNumber": 4561,
+          "sourceRowNumber": 6490,
           "sourceFacilityName": "도래공원171",
           "sourceRoadAddresses": [
             "울산광역시 울주군 청량읍 상남길 15-14"
@@ -1073,7 +1073,7 @@
           "sourceRecordKey": "a7f37a6911fdba048317bf69549ff4e02fdda639be85bc741ebe2212e360618f",
           "externalRecordId": "31710-00123",
           "recordFingerprint": "f3cabd1523d04146b9dd9587531152abfe0df875713c243015dde5f157552e99",
-          "sourceRowNumber": 4561,
+          "sourceRowNumber": 6490,
           "sourceFacilityName": "도래공원171",
           "sourceRoadAddresses": [
             "울산광역시 울주군 청량읍 상남길 15-14"
@@ -1118,7 +1118,7 @@
       "sourceFacilityName": "감삼못공원",
       "sourceProviderCode": "3430000",
       "sourceProviderName": "대구광역시 서구",
-      "sourceRowNumber": 1949,
+      "sourceRowNumber": 3895,
       "sourceRecordKey": "444028077668a97bbe702b29854522603617dd9ad2e6a54ff87ebf13cf36f7d3",
       "sourceExternalRecordId": "27170-00004",
       "recordFingerprint": "ee8e0ef87fe10a668a1c1fd99003525b8b69960a4068e477ba96a9342dd71f26",
@@ -1138,7 +1138,7 @@
           "sourceRecordKey": "444028077668a97bbe702b29854522603617dd9ad2e6a54ff87ebf13cf36f7d3",
           "externalRecordId": "27170-00004",
           "recordFingerprint": "ee8e0ef87fe10a668a1c1fd99003525b8b69960a4068e477ba96a9342dd71f26",
-          "sourceRowNumber": 1949,
+          "sourceRowNumber": 3895,
           "sourceFacilityName": "감삼못공원",
           "sourceRoadAddresses": [
             "대구광역시 서구 서대구로3길 43 (내당동)"
@@ -1172,7 +1172,7 @@
           "sourceRecordKey": "444028077668a97bbe702b29854522603617dd9ad2e6a54ff87ebf13cf36f7d3",
           "externalRecordId": "27170-00004",
           "recordFingerprint": "ee8e0ef87fe10a668a1c1fd99003525b8b69960a4068e477ba96a9342dd71f26",
-          "sourceRowNumber": 1949,
+          "sourceRowNumber": 3895,
           "sourceFacilityName": "감삼못공원",
           "sourceRoadAddresses": [
             "대구광역시 서구 서대구로3길 43 (내당동)"
@@ -1217,7 +1217,7 @@
       "sourceFacilityName": "수성구립범어도서관",
       "sourceProviderCode": "3460000",
       "sourceProviderName": "대구광역시 수성구",
-      "sourceRowNumber": 622,
+      "sourceRowNumber": 1241,
       "sourceRecordKey": "3e32bceb3ccd7c8baf5b03c79bfd57a0ffaad284a756ded9aa94f9c7ce95e083",
       "sourceExternalRecordId": "",
       "recordFingerprint": "19de2d35ebd816b3e7491ae51f1ddd9510dafe9e13e20e7ce3cc020e61253f3a",
@@ -1237,7 +1237,7 @@
           "sourceRecordKey": "3e32bceb3ccd7c8baf5b03c79bfd57a0ffaad284a756ded9aa94f9c7ce95e083",
           "externalRecordId": "",
           "recordFingerprint": "19de2d35ebd816b3e7491ae51f1ddd9510dafe9e13e20e7ce3cc020e61253f3a",
-          "sourceRowNumber": 622,
+          "sourceRowNumber": 1241,
           "sourceFacilityName": "수성구립범어도서관",
           "sourceRoadAddresses": [
             "대구광역시 수성구 달구벌대로 2451(범어동)"
@@ -1269,7 +1269,7 @@
           "sourceRecordKey": "3e32bceb3ccd7c8baf5b03c79bfd57a0ffaad284a756ded9aa94f9c7ce95e083",
           "externalRecordId": "",
           "recordFingerprint": "19de2d35ebd816b3e7491ae51f1ddd9510dafe9e13e20e7ce3cc020e61253f3a",
-          "sourceRowNumber": 622,
+          "sourceRowNumber": 1241,
           "sourceFacilityName": "수성구립범어도서관",
           "sourceRoadAddresses": [
             "대구광역시 수성구 달구벌대로 2451(범어동)"
@@ -1312,7 +1312,7 @@
       "sourceFacilityName": "수성구립용학도서관",
       "sourceProviderCode": "3460000",
       "sourceProviderName": "대구광역시 수성구",
-      "sourceRowNumber": 619,
+      "sourceRowNumber": 1238,
       "sourceRecordKey": "82b787f9c5dfe5803dee9e37a0f4decd4e7f944afafbbddf17dc87a75a6d5442",
       "sourceExternalRecordId": "",
       "recordFingerprint": "11bf5d91ca05060d1879571ca432e978ce4e5ea2cd649f96119afcad6ed515da",
@@ -1332,7 +1332,7 @@
           "sourceRecordKey": "82b787f9c5dfe5803dee9e37a0f4decd4e7f944afafbbddf17dc87a75a6d5442",
           "externalRecordId": "",
           "recordFingerprint": "11bf5d91ca05060d1879571ca432e978ce4e5ea2cd649f96119afcad6ed515da",
-          "sourceRowNumber": 619,
+          "sourceRowNumber": 1238,
           "sourceFacilityName": "수성구립용학도서관",
           "sourceRoadAddresses": [
             "대구광역시 수성구 지범로41길 36(범물동)"
@@ -1364,7 +1364,7 @@
           "sourceRecordKey": "82b787f9c5dfe5803dee9e37a0f4decd4e7f944afafbbddf17dc87a75a6d5442",
           "externalRecordId": "",
           "recordFingerprint": "11bf5d91ca05060d1879571ca432e978ce4e5ea2cd649f96119afcad6ed515da",
-          "sourceRowNumber": 619,
+          "sourceRowNumber": 1238,
           "sourceFacilityName": "수성구립용학도서관",
           "sourceRoadAddresses": [
             "대구광역시 수성구 지범로41길 36(범물동)"
@@ -1407,7 +1407,7 @@
       "sourceFacilityName": "수성구립무학숲도서관",
       "sourceProviderCode": "3460000",
       "sourceProviderName": "대구광역시 수성구",
-      "sourceRowNumber": 617,
+      "sourceRowNumber": 1236,
       "sourceRecordKey": "451edaa5c22fd1df59189d7b232265c69aaf58cab1c89423277fa490cf08790b",
       "sourceExternalRecordId": "",
       "recordFingerprint": "bc63b7a186adc24a703d920154f4f6347b5f9afe16ee8dbbb4bae24db774494e",
@@ -1427,7 +1427,7 @@
           "sourceRecordKey": "451edaa5c22fd1df59189d7b232265c69aaf58cab1c89423277fa490cf08790b",
           "externalRecordId": "",
           "recordFingerprint": "bc63b7a186adc24a703d920154f4f6347b5f9afe16ee8dbbb4bae24db774494e",
-          "sourceRowNumber": 617,
+          "sourceRowNumber": 1236,
           "sourceFacilityName": "수성구립무학숲도서관",
           "sourceRoadAddresses": [
             "대구광역시 수성구 청수로40길 73-10"
@@ -1459,7 +1459,7 @@
           "sourceRecordKey": "451edaa5c22fd1df59189d7b232265c69aaf58cab1c89423277fa490cf08790b",
           "externalRecordId": "",
           "recordFingerprint": "bc63b7a186adc24a703d920154f4f6347b5f9afe16ee8dbbb4bae24db774494e",
-          "sourceRowNumber": 617,
+          "sourceRowNumber": 1236,
           "sourceFacilityName": "수성구립무학숲도서관",
           "sourceRoadAddresses": [
             "대구광역시 수성구 청수로40길 73-10"
@@ -1502,7 +1502,7 @@
       "sourceFacilityName": "범물공원",
       "sourceProviderCode": "3460000",
       "sourceProviderName": "대구광역시 수성구",
-      "sourceRowNumber": 1864,
+      "sourceRowNumber": 3810,
       "sourceRecordKey": "c3fd1a4d0024cd75a7c9d4fea326da97b3acde8fbd0eeb1c01eac04c967c9e5e",
       "sourceExternalRecordId": "27260-00007",
       "recordFingerprint": "0703dbc25d90205c036d358a830959655e33f522886c96ef1bc6a59f46a1acc9",
@@ -1522,7 +1522,7 @@
           "sourceRecordKey": "c3fd1a4d0024cd75a7c9d4fea326da97b3acde8fbd0eeb1c01eac04c967c9e5e",
           "externalRecordId": "27260-00007",
           "recordFingerprint": "0703dbc25d90205c036d358a830959655e33f522886c96ef1bc6a59f46a1acc9",
-          "sourceRowNumber": 1864,
+          "sourceRowNumber": 3810,
           "sourceFacilityName": "범물공원",
           "sourceRoadAddresses": [
             "대구광역시 수성구 지범로 232"
@@ -1556,7 +1556,7 @@
           "sourceRecordKey": "c3fd1a4d0024cd75a7c9d4fea326da97b3acde8fbd0eeb1c01eac04c967c9e5e",
           "externalRecordId": "27260-00007",
           "recordFingerprint": "0703dbc25d90205c036d358a830959655e33f522886c96ef1bc6a59f46a1acc9",
-          "sourceRowNumber": 1864,
+          "sourceRowNumber": 3810,
           "sourceFacilityName": "범물공원",
           "sourceRoadAddresses": [
             "대구광역시 수성구 지범로 232"
@@ -1601,7 +1601,7 @@
       "sourceFacilityName": "고산평생학습센터",
       "sourceProviderCode": "3460000",
       "sourceProviderName": "대구광역시 수성구",
-      "sourceRowNumber": 2243,
+      "sourceRowNumber": 3257,
       "sourceRecordKey": "173972844648237d28d6f028bd0b29f15adbd868557565c1895af05c436c3e54",
       "sourceExternalRecordId": "",
       "recordFingerprint": "123327e1b1aef634511cc26aa548146ab745cc9a7d6c7e20988699fc2c1b6dff",
@@ -1621,7 +1621,7 @@
           "sourceRecordKey": "173972844648237d28d6f028bd0b29f15adbd868557565c1895af05c436c3e54",
           "externalRecordId": "",
           "recordFingerprint": "123327e1b1aef634511cc26aa548146ab745cc9a7d6c7e20988699fc2c1b6dff",
-          "sourceRowNumber": 2243,
+          "sourceRowNumber": 3257,
           "sourceFacilityName": "고산평생학습센터",
           "sourceRoadAddresses": [
             "대구광역시 수성구 달구벌대로 3091"
@@ -1655,7 +1655,7 @@
           "sourceRecordKey": "173972844648237d28d6f028bd0b29f15adbd868557565c1895af05c436c3e54",
           "externalRecordId": "",
           "recordFingerprint": "123327e1b1aef634511cc26aa548146ab745cc9a7d6c7e20988699fc2c1b6dff",
-          "sourceRowNumber": 2243,
+          "sourceRowNumber": 3257,
           "sourceFacilityName": "고산평생학습센터",
           "sourceRoadAddresses": [
             "대구광역시 수성구 달구벌대로 3091"
@@ -1700,7 +1700,7 @@
       "sourceFacilityName": "두산평생학습센터",
       "sourceProviderCode": "3460000",
       "sourceProviderName": "대구광역시 수성구",
-      "sourceRowNumber": 2242,
+      "sourceRowNumber": 3256,
       "sourceRecordKey": "b5987d61c0424a101e1f8e2b2fdb5d2f2ee065c5a7a3c016c2591ad3a41c6445",
       "sourceExternalRecordId": "",
       "recordFingerprint": "ce4129039f5789c2152b3dc8ff24e863ade6041642fb33a201c75948283c46a7",
@@ -1720,7 +1720,7 @@
           "sourceRecordKey": "b5987d61c0424a101e1f8e2b2fdb5d2f2ee065c5a7a3c016c2591ad3a41c6445",
           "externalRecordId": "",
           "recordFingerprint": "ce4129039f5789c2152b3dc8ff24e863ade6041642fb33a201c75948283c46a7",
-          "sourceRowNumber": 2242,
+          "sourceRowNumber": 3256,
           "sourceFacilityName": "두산평생학습센터",
           "sourceRoadAddresses": [
             "대구광역시 수성구 들안로16길 78"
@@ -1754,7 +1754,7 @@
           "sourceRecordKey": "b5987d61c0424a101e1f8e2b2fdb5d2f2ee065c5a7a3c016c2591ad3a41c6445",
           "externalRecordId": "",
           "recordFingerprint": "ce4129039f5789c2152b3dc8ff24e863ade6041642fb33a201c75948283c46a7",
-          "sourceRowNumber": 2242,
+          "sourceRowNumber": 3256,
           "sourceFacilityName": "두산평생학습센터",
           "sourceRoadAddresses": [
             "대구광역시 수성구 들안로16길 78"
@@ -1799,7 +1799,7 @@
       "sourceFacilityName": "파동평생학습센터",
       "sourceProviderCode": "3460000",
       "sourceProviderName": "대구광역시 수성구",
-      "sourceRowNumber": 2241,
+      "sourceRowNumber": 3255,
       "sourceRecordKey": "2f790420ec95c29b001ef4345777e46b3eec7e95fb0deb82d2f6f56366850818",
       "sourceExternalRecordId": "",
       "recordFingerprint": "ffaa2b5a9b7fce7533200e550ce52cbd2ea9696d91575c0a64bc200463ca1567",
@@ -1819,7 +1819,7 @@
           "sourceRecordKey": "2f790420ec95c29b001ef4345777e46b3eec7e95fb0deb82d2f6f56366850818",
           "externalRecordId": "",
           "recordFingerprint": "ffaa2b5a9b7fce7533200e550ce52cbd2ea9696d91575c0a64bc200463ca1567",
-          "sourceRowNumber": 2241,
+          "sourceRowNumber": 3255,
           "sourceFacilityName": "파동평생학습센터",
           "sourceRoadAddresses": [
             "대구광역시 수성구 파동로3길 62"
@@ -1853,7 +1853,7 @@
           "sourceRecordKey": "2f790420ec95c29b001ef4345777e46b3eec7e95fb0deb82d2f6f56366850818",
           "externalRecordId": "",
           "recordFingerprint": "ffaa2b5a9b7fce7533200e550ce52cbd2ea9696d91575c0a64bc200463ca1567",
-          "sourceRowNumber": 2241,
+          "sourceRowNumber": 3255,
           "sourceFacilityName": "파동평생학습센터",
           "sourceRoadAddresses": [
             "대구광역시 수성구 파동로3길 62"
@@ -1898,7 +1898,7 @@
       "sourceFacilityName": "수성구립고산도서관",
       "sourceProviderCode": "3460000",
       "sourceProviderName": "대구광역시 수성구",
-      "sourceRowNumber": 616,
+      "sourceRowNumber": 1235,
       "sourceRecordKey": "e9a7b24260d5897b1e3d1953ca328acf8758cb924737693b72b7dec34d2306e6",
       "sourceExternalRecordId": "",
       "recordFingerprint": "4a00591e3e4e17e863e359f4e72d9455d6af7d71bca15327ca4bbf2dcab16244",
@@ -1918,7 +1918,7 @@
           "sourceRecordKey": "e9a7b24260d5897b1e3d1953ca328acf8758cb924737693b72b7dec34d2306e6",
           "externalRecordId": "",
           "recordFingerprint": "4a00591e3e4e17e863e359f4e72d9455d6af7d71bca15327ca4bbf2dcab16244",
-          "sourceRowNumber": 616,
+          "sourceRowNumber": 1235,
           "sourceFacilityName": "수성구립고산도서관",
           "sourceRoadAddresses": [
             "대구광역시 수성구 달구벌대로650길 6(신매동)"
@@ -1950,7 +1950,7 @@
           "sourceRecordKey": "e9a7b24260d5897b1e3d1953ca328acf8758cb924737693b72b7dec34d2306e6",
           "externalRecordId": "",
           "recordFingerprint": "4a00591e3e4e17e863e359f4e72d9455d6af7d71bca15327ca4bbf2dcab16244",
-          "sourceRowNumber": 616,
+          "sourceRowNumber": 1235,
           "sourceFacilityName": "수성구립고산도서관",
           "sourceRoadAddresses": [
             "대구광역시 수성구 달구벌대로650길 6(신매동)"
@@ -1993,7 +1993,7 @@
       "sourceFacilityName": "농수산물도매시장",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 11162,
+      "sourceRowNumber": 11571,
       "sourceRecordKey": "930026b0293d0da5f4da1aaf6e94add686eeef08630d77cbcb1d9d1302b2ef4d",
       "sourceExternalRecordId": "193-1-000040",
       "recordFingerprint": "d3ebaca1903a63615ef3346fbd56e93d524c193f83718c1c2a4428a62cfeb609",
@@ -2013,7 +2013,7 @@
           "sourceRecordKey": "930026b0293d0da5f4da1aaf6e94add686eeef08630d77cbcb1d9d1302b2ef4d",
           "externalRecordId": "193-1-000040",
           "recordFingerprint": "d3ebaca1903a63615ef3346fbd56e93d524c193f83718c1c2a4428a62cfeb609",
-          "sourceRowNumber": 11162,
+          "sourceRowNumber": 11571,
           "sourceFacilityName": "농수산물도매시장",
           "sourceRoadAddresses": [
             "울산광역시 남구 삼산로 324"
@@ -2047,7 +2047,7 @@
           "sourceRecordKey": "930026b0293d0da5f4da1aaf6e94add686eeef08630d77cbcb1d9d1302b2ef4d",
           "externalRecordId": "193-1-000040",
           "recordFingerprint": "d3ebaca1903a63615ef3346fbd56e93d524c193f83718c1c2a4428a62cfeb609",
-          "sourceRowNumber": 11162,
+          "sourceRowNumber": 11571,
           "sourceFacilityName": "농수산물도매시장",
           "sourceRoadAddresses": [
             "울산광역시 남구 삼산로 324"
@@ -2932,7 +2932,7 @@
       "sourceFacilityName": "삼호공원",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 15888,
+      "sourceRowNumber": 16609,
       "sourceRecordKey": "5bb7abfff7a022fb73cd23c05764ebc4a92f5e744d482bb142298a9343512bbe",
       "sourceExternalRecordId": "31140-00062",
       "recordFingerprint": "dd988caacd9bba54c56922b0503951c6cee8121ada9e24e9ffd7523b38ccb592",
@@ -2952,7 +2952,7 @@
           "sourceRecordKey": "5bb7abfff7a022fb73cd23c05764ebc4a92f5e744d482bb142298a9343512bbe",
           "externalRecordId": "31140-00062",
           "recordFingerprint": "dd988caacd9bba54c56922b0503951c6cee8121ada9e24e9ffd7523b38ccb592",
-          "sourceRowNumber": 15888,
+          "sourceRowNumber": 16609,
           "sourceFacilityName": "삼호공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -2984,7 +2984,7 @@
           "sourceRecordKey": "5bb7abfff7a022fb73cd23c05764ebc4a92f5e744d482bb142298a9343512bbe",
           "externalRecordId": "31140-00062",
           "recordFingerprint": "dd988caacd9bba54c56922b0503951c6cee8121ada9e24e9ffd7523b38ccb592",
-          "sourceRowNumber": 15888,
+          "sourceRowNumber": 16609,
           "sourceFacilityName": "삼호공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -3027,7 +3027,7 @@
       "sourceFacilityName": "한마음공원",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 15444,
+      "sourceRowNumber": 16165,
       "sourceRecordKey": "11efc2c015def506c7756b51c79db3db8504e8741afdd57d4fb57a4a28fbcac5",
       "sourceExternalRecordId": "31140-00052",
       "recordFingerprint": "f431b887f42430add8dcd510bfff71403bd3ae31f5ee643b1d6e78d27d6ae8bc",
@@ -3047,7 +3047,7 @@
           "sourceRecordKey": "11efc2c015def506c7756b51c79db3db8504e8741afdd57d4fb57a4a28fbcac5",
           "externalRecordId": "31140-00052",
           "recordFingerprint": "f431b887f42430add8dcd510bfff71403bd3ae31f5ee643b1d6e78d27d6ae8bc",
-          "sourceRowNumber": 15444,
+          "sourceRowNumber": 16165,
           "sourceFacilityName": "한마음공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -3074,7 +3074,7 @@
           "sourceRecordKey": "2937ad5873e78649c020fcffb3867da6c2d23e5325c15bb751a377c77f339863",
           "externalRecordId": "",
           "recordFingerprint": "12ea45df207366d84d890cb253a842e26242f2aeaa65d509150448ace6fe1afb",
-          "sourceRowNumber": 2041,
+          "sourceRowNumber": 3175,
           "sourceFacilityName": "삼산풋살경기장",
           "sourceRoadAddresses": [
             "울산광역시 남구 화합로224번길 27"
@@ -3109,7 +3109,7 @@
           "sourceRecordKey": "11efc2c015def506c7756b51c79db3db8504e8741afdd57d4fb57a4a28fbcac5",
           "externalRecordId": "31140-00052",
           "recordFingerprint": "f431b887f42430add8dcd510bfff71403bd3ae31f5ee643b1d6e78d27d6ae8bc",
-          "sourceRowNumber": 15444,
+          "sourceRowNumber": 16165,
           "sourceFacilityName": "한마음공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -3136,7 +3136,7 @@
           "sourceRecordKey": "2937ad5873e78649c020fcffb3867da6c2d23e5325c15bb751a377c77f339863",
           "externalRecordId": "",
           "recordFingerprint": "12ea45df207366d84d890cb253a842e26242f2aeaa65d509150448ace6fe1afb",
-          "sourceRowNumber": 2041,
+          "sourceRowNumber": 3175,
           "sourceFacilityName": "삼산풋살경기장",
           "sourceRoadAddresses": [
             "울산광역시 남구 화합로224번길 27"
@@ -3165,7 +3165,7 @@
           "sourceRecordKey": "91f4707e39b4914a537c076b561fa1ec781090eb75666fb0f022dfdb431286a8",
           "externalRecordId": "",
           "recordFingerprint": "336f757cadf47d394a11b267a5cafbfbe0f024bd0b44a66c908b1170c4746865",
-          "sourceRowNumber": 2042,
+          "sourceRowNumber": 3176,
           "sourceFacilityName": "삼산풋살경기장",
           "sourceRoadAddresses": [
             "울산광역시 남구 화합로224번길 27"
@@ -3210,7 +3210,7 @@
       "sourceFacilityName": "봉월공원",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 15895,
+      "sourceRowNumber": 16616,
       "sourceRecordKey": "57b883119d37882902f71806752f38e19691a7e432414ad1544d8da94f26128b",
       "sourceExternalRecordId": "31140-00005",
       "recordFingerprint": "21fa53310dd3044fb5116ba4f8e86a2db731df2179eda91c2d5202d2a1d3e81e",
@@ -3230,7 +3230,7 @@
           "sourceRecordKey": "57b883119d37882902f71806752f38e19691a7e432414ad1544d8da94f26128b",
           "externalRecordId": "31140-00005",
           "recordFingerprint": "21fa53310dd3044fb5116ba4f8e86a2db731df2179eda91c2d5202d2a1d3e81e",
-          "sourceRowNumber": 15895,
+          "sourceRowNumber": 16616,
           "sourceFacilityName": "봉월공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -3262,7 +3262,7 @@
           "sourceRecordKey": "57b883119d37882902f71806752f38e19691a7e432414ad1544d8da94f26128b",
           "externalRecordId": "31140-00005",
           "recordFingerprint": "21fa53310dd3044fb5116ba4f8e86a2db731df2179eda91c2d5202d2a1d3e81e",
-          "sourceRowNumber": 15895,
+          "sourceRowNumber": 16616,
           "sourceFacilityName": "봉월공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -3305,7 +3305,7 @@
       "sourceFacilityName": "강변공원",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 15875,
+      "sourceRowNumber": 16596,
       "sourceRecordKey": "acb651ee7c120a3b2b11196aed74dffe7efa0841023803393ae02c720b57a8f4",
       "sourceExternalRecordId": "31140-00029",
       "recordFingerprint": "d78dc186fed3146779dde7602b5db9201fbe71b96221f38be43035f497fd0452",
@@ -3325,7 +3325,7 @@
           "sourceRecordKey": "acb651ee7c120a3b2b11196aed74dffe7efa0841023803393ae02c720b57a8f4",
           "externalRecordId": "31140-00029",
           "recordFingerprint": "d78dc186fed3146779dde7602b5db9201fbe71b96221f38be43035f497fd0452",
-          "sourceRowNumber": 15875,
+          "sourceRowNumber": 16596,
           "sourceFacilityName": "강변공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -3357,7 +3357,7 @@
           "sourceRecordKey": "acb651ee7c120a3b2b11196aed74dffe7efa0841023803393ae02c720b57a8f4",
           "externalRecordId": "31140-00029",
           "recordFingerprint": "d78dc186fed3146779dde7602b5db9201fbe71b96221f38be43035f497fd0452",
-          "sourceRowNumber": 15875,
+          "sourceRowNumber": 16596,
           "sourceFacilityName": "강변공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -3400,7 +3400,7 @@
       "sourceFacilityName": "태화강역 제1주차장",
       "sourceProviderCode": "B553560",
       "sourceProviderName": "울산시설공단",
-      "sourceRowNumber": 511,
+      "sourceRowNumber": 1267,
       "sourceRecordKey": "6531605caf8a04dd4fe1c94c6b9f5df19c980608358248fd3f8abc241093bdea",
       "sourceExternalRecordId": "193-2-000035",
       "recordFingerprint": "c570bfba13f849d6cdfac89dedd7728504d08b9b34fe9046017070e369439186",
@@ -3420,7 +3420,7 @@
           "sourceRecordKey": "6531605caf8a04dd4fe1c94c6b9f5df19c980608358248fd3f8abc241093bdea",
           "externalRecordId": "193-2-000035",
           "recordFingerprint": "c570bfba13f849d6cdfac89dedd7728504d08b9b34fe9046017070e369439186",
-          "sourceRowNumber": 511,
+          "sourceRowNumber": 1267,
           "sourceFacilityName": "태화강역 제1주차장",
           "sourceRoadAddresses": [
             "울산광역시 남구 산업로 654"
@@ -3454,7 +3454,7 @@
           "sourceRecordKey": "6531605caf8a04dd4fe1c94c6b9f5df19c980608358248fd3f8abc241093bdea",
           "externalRecordId": "193-2-000035",
           "recordFingerprint": "c570bfba13f849d6cdfac89dedd7728504d08b9b34fe9046017070e369439186",
-          "sourceRowNumber": 511,
+          "sourceRowNumber": 1267,
           "sourceFacilityName": "태화강역 제1주차장",
           "sourceRoadAddresses": [
             "울산광역시 남구 산업로 654"
@@ -3499,7 +3499,7 @@
       "sourceFacilityName": "문수체육관",
       "sourceProviderCode": "B553560",
       "sourceProviderName": "울산시설공단",
-      "sourceRowNumber": 501,
+      "sourceRowNumber": 1257,
       "sourceRecordKey": "674b70e4a2b4b67b36514ae75c506689a92310c680f311d11f4003c97327be41",
       "sourceExternalRecordId": "193-3-000034",
       "recordFingerprint": "570044b8f5492037dfdf87b7857c4d2c4c259ef5aafc578cefdd2c63d175c38d",
@@ -3519,7 +3519,7 @@
           "sourceRecordKey": "674b70e4a2b4b67b36514ae75c506689a92310c680f311d11f4003c97327be41",
           "externalRecordId": "193-3-000034",
           "recordFingerprint": "570044b8f5492037dfdf87b7857c4d2c4c259ef5aafc578cefdd2c63d175c38d",
-          "sourceRowNumber": 501,
+          "sourceRowNumber": 1257,
           "sourceFacilityName": "문수체육관",
           "sourceRoadAddresses": [
             "울산광역시 남구 웅촌로 1342"
@@ -3553,7 +3553,7 @@
           "sourceRecordKey": "674b70e4a2b4b67b36514ae75c506689a92310c680f311d11f4003c97327be41",
           "externalRecordId": "193-3-000034",
           "recordFingerprint": "570044b8f5492037dfdf87b7857c4d2c4c259ef5aafc578cefdd2c63d175c38d",
-          "sourceRowNumber": 501,
+          "sourceRowNumber": 1257,
           "sourceFacilityName": "문수체육관",
           "sourceRoadAddresses": [
             "울산광역시 남구 웅촌로 1342"
@@ -3598,7 +3598,7 @@
       "sourceFacilityName": "남산레포츠공원",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 2026,
+      "sourceRowNumber": 3160,
       "sourceRecordKey": "11a16d274417e9bc56ee67961a5984b2458b4d02371cb72b96bfabfd41935a6d",
       "sourceExternalRecordId": "",
       "recordFingerprint": "1c09b59a9be2d03ebde1ea9e9712992c2900128fa01f0f0175aa715d8c496a60",
@@ -3618,7 +3618,7 @@
           "sourceRecordKey": "11a16d274417e9bc56ee67961a5984b2458b4d02371cb72b96bfabfd41935a6d",
           "externalRecordId": "",
           "recordFingerprint": "1c09b59a9be2d03ebde1ea9e9712992c2900128fa01f0f0175aa715d8c496a60",
-          "sourceRowNumber": 2026,
+          "sourceRowNumber": 3160,
           "sourceFacilityName": "남산레포츠공원",
           "sourceRoadAddresses": [
             "울산광역시 남구 은월로 74-21"
@@ -3652,7 +3652,7 @@
           "sourceRecordKey": "11a16d274417e9bc56ee67961a5984b2458b4d02371cb72b96bfabfd41935a6d",
           "externalRecordId": "",
           "recordFingerprint": "1c09b59a9be2d03ebde1ea9e9712992c2900128fa01f0f0175aa715d8c496a60",
-          "sourceRowNumber": 2026,
+          "sourceRowNumber": 3160,
           "sourceFacilityName": "남산레포츠공원",
           "sourceRoadAddresses": [
             "울산광역시 남구 은월로 74-21"
@@ -3681,7 +3681,7 @@
           "sourceRecordKey": "48a24ebdb94fbf63f5821ec369343922684aa911c883bab86e6ce081e800095f",
           "externalRecordId": "",
           "recordFingerprint": "389ebedb4e0abd41e809606d4bdef74a7bae055d53dcef7ce557f15e4740c475",
-          "sourceRowNumber": 2027,
+          "sourceRowNumber": 3161,
           "sourceFacilityName": "남산레포츠공원",
           "sourceRoadAddresses": [
             "울산광역시 남구 은월로 74-21"
@@ -3726,7 +3726,7 @@
       "sourceFacilityName": "야음테니스장",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 2033,
+      "sourceRowNumber": 3167,
       "sourceRecordKey": "2fa766ef430a8be2c52f46644a88327dda2d0f2dd2d3be9972cbe7753dc62e6c",
       "sourceExternalRecordId": "",
       "recordFingerprint": "7fa14462786247b448e0969b53ae9ca5a006acff3273e3971393d30fbc833b5f",
@@ -3746,7 +3746,7 @@
           "sourceRecordKey": "2fa766ef430a8be2c52f46644a88327dda2d0f2dd2d3be9972cbe7753dc62e6c",
           "externalRecordId": "",
           "recordFingerprint": "7fa14462786247b448e0969b53ae9ca5a006acff3273e3971393d30fbc833b5f",
-          "sourceRowNumber": 2033,
+          "sourceRowNumber": 3167,
           "sourceFacilityName": "야음테니스장",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -3778,7 +3778,7 @@
           "sourceRecordKey": "2fa766ef430a8be2c52f46644a88327dda2d0f2dd2d3be9972cbe7753dc62e6c",
           "externalRecordId": "",
           "recordFingerprint": "7fa14462786247b448e0969b53ae9ca5a006acff3273e3971393d30fbc833b5f",
-          "sourceRowNumber": 2033,
+          "sourceRowNumber": 3167,
           "sourceFacilityName": "야음테니스장",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -3805,7 +3805,7 @@
           "sourceRecordKey": "f8302cbea7409e5f56b3e25f24b495562fbbd0441bea64157e375bfe859eda36",
           "externalRecordId": "",
           "recordFingerprint": "c011c2f2d993c96652f5b0f154001e5ec3c06d1e9ae66de709252c58843bb31c",
-          "sourceRowNumber": 2032,
+          "sourceRowNumber": 3166,
           "sourceFacilityName": "야음테니스장",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -3848,7 +3848,7 @@
       "sourceFacilityName": "신정1동 작은도서관",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 1737,
+      "sourceRowNumber": 2269,
       "sourceRecordKey": "d36a09a0716e32a58ab37a82241f401f04f34ae44cc06c3b93d3eacc12ade6c3",
       "sourceExternalRecordId": "",
       "recordFingerprint": "db16ef64a6de5b8a707864d5523558ff34c5b6c730b4e90254cef6a1c5c6c3b9",
@@ -3868,7 +3868,7 @@
           "sourceRecordKey": "d36a09a0716e32a58ab37a82241f401f04f34ae44cc06c3b93d3eacc12ade6c3",
           "externalRecordId": "",
           "recordFingerprint": "db16ef64a6de5b8a707864d5523558ff34c5b6c730b4e90254cef6a1c5c6c3b9",
-          "sourceRowNumber": 1737,
+          "sourceRowNumber": 2269,
           "sourceFacilityName": "신정1동 작은도서관",
           "sourceRoadAddresses": [
             "울산광역시 남구 월평로21번길 19"
@@ -3900,7 +3900,7 @@
           "sourceRecordKey": "d36a09a0716e32a58ab37a82241f401f04f34ae44cc06c3b93d3eacc12ade6c3",
           "externalRecordId": "",
           "recordFingerprint": "db16ef64a6de5b8a707864d5523558ff34c5b6c730b4e90254cef6a1c5c6c3b9",
-          "sourceRowNumber": 1737,
+          "sourceRowNumber": 2269,
           "sourceFacilityName": "신정1동 작은도서관",
           "sourceRoadAddresses": [
             "울산광역시 남구 월평로21번길 19"
@@ -3943,7 +3943,7 @@
       "sourceFacilityName": "신정1동",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 11170,
+      "sourceRowNumber": 11579,
       "sourceRecordKey": "212dfa9aa21126de67c5c2b28d568c117729f0808ed281d53ed0895f9a7ef55b",
       "sourceExternalRecordId": "193-2-000010",
       "recordFingerprint": "db52eeb74a45d3a4fb555ec198b4fd811a7c0e69d8e7774a5c48bc79a9cac979",
@@ -3963,7 +3963,7 @@
           "sourceRecordKey": "212dfa9aa21126de67c5c2b28d568c117729f0808ed281d53ed0895f9a7ef55b",
           "externalRecordId": "193-2-000010",
           "recordFingerprint": "db52eeb74a45d3a4fb555ec198b4fd811a7c0e69d8e7774a5c48bc79a9cac979",
-          "sourceRowNumber": 11170,
+          "sourceRowNumber": 11579,
           "sourceFacilityName": "신정1동",
           "sourceRoadAddresses": [
             "울산광역시 남구 월평로25"
@@ -3997,7 +3997,7 @@
           "sourceRecordKey": "212dfa9aa21126de67c5c2b28d568c117729f0808ed281d53ed0895f9a7ef55b",
           "externalRecordId": "193-2-000010",
           "recordFingerprint": "db52eeb74a45d3a4fb555ec198b4fd811a7c0e69d8e7774a5c48bc79a9cac979",
-          "sourceRowNumber": 11170,
+          "sourceRowNumber": 11579,
           "sourceFacilityName": "신정1동",
           "sourceRoadAddresses": [
             "울산광역시 남구 월평로25"
@@ -4042,7 +4042,7 @@
       "sourceFacilityName": "수암공영주차장",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 11198,
+      "sourceRowNumber": 11607,
       "sourceRecordKey": "194be81035c52892b29fac1ee682677d0e937235d58e2999f77b32925820c7ba",
       "sourceExternalRecordId": "193-2-000001",
       "recordFingerprint": "885c6b10920edbe7a922a42aee3751433ba5e8e6c5ffadc3044db364dd5c6d25",
@@ -4062,7 +4062,7 @@
           "sourceRecordKey": "194be81035c52892b29fac1ee682677d0e937235d58e2999f77b32925820c7ba",
           "externalRecordId": "193-2-000001",
           "recordFingerprint": "885c6b10920edbe7a922a42aee3751433ba5e8e6c5ffadc3044db364dd5c6d25",
-          "sourceRowNumber": 11198,
+          "sourceRowNumber": 11607,
           "sourceFacilityName": "수암공영주차장",
           "sourceRoadAddresses": [
             "울산광역시 남구 수암로 116번길 15"
@@ -4096,7 +4096,7 @@
           "sourceRecordKey": "194be81035c52892b29fac1ee682677d0e937235d58e2999f77b32925820c7ba",
           "externalRecordId": "193-2-000001",
           "recordFingerprint": "885c6b10920edbe7a922a42aee3751433ba5e8e6c5ffadc3044db364dd5c6d25",
-          "sourceRowNumber": 11198,
+          "sourceRowNumber": 11607,
           "sourceFacilityName": "수암공영주차장",
           "sourceRoadAddresses": [
             "울산광역시 남구 수암로 116번길 15"
@@ -4141,7 +4141,7 @@
       "sourceFacilityName": "삼호동 공영주차장",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 11195,
+      "sourceRowNumber": 11604,
       "sourceRecordKey": "e657589d144adabda42bbf4b584cd3e644460c35d1a99ee8f228b08729f29228",
       "sourceExternalRecordId": "193-2-000035",
       "recordFingerprint": "c7f71475abb95dc615175926e7db41262bcb0bb2fec7065e0c3b4049fb07b921",
@@ -4161,7 +4161,7 @@
           "sourceRecordKey": "e657589d144adabda42bbf4b584cd3e644460c35d1a99ee8f228b08729f29228",
           "externalRecordId": "193-2-000035",
           "recordFingerprint": "c7f71475abb95dc615175926e7db41262bcb0bb2fec7065e0c3b4049fb07b921",
-          "sourceRowNumber": 11195,
+          "sourceRowNumber": 11604,
           "sourceFacilityName": "삼호동 공영주차장",
           "sourceRoadAddresses": [
             "울산광역시 남구 정광로 8"
@@ -4195,7 +4195,7 @@
           "sourceRecordKey": "e657589d144adabda42bbf4b584cd3e644460c35d1a99ee8f228b08729f29228",
           "externalRecordId": "193-2-000035",
           "recordFingerprint": "c7f71475abb95dc615175926e7db41262bcb0bb2fec7065e0c3b4049fb07b921",
-          "sourceRowNumber": 11195,
+          "sourceRowNumber": 11604,
           "sourceFacilityName": "삼호동 공영주차장",
           "sourceRoadAddresses": [
             "울산광역시 남구 정광로 8"
@@ -4240,7 +4240,7 @@
       "sourceFacilityName": "울산도서관",
       "sourceProviderCode": "6310000",
       "sourceProviderName": "울산광역시",
-      "sourceRowNumber": 1880,
+      "sourceRowNumber": 2380,
       "sourceRecordKey": "cdf41b5cbda37be6feaa5894582387d46747eae0feb41eb1ba09254619e08683",
       "sourceExternalRecordId": "",
       "recordFingerprint": "f9abf2c2e7cbe82e36e6dcd9bd5dec676d41c485300101da96d73bc306fd5212",
@@ -4260,7 +4260,7 @@
           "sourceRecordKey": "cdf41b5cbda37be6feaa5894582387d46747eae0feb41eb1ba09254619e08683",
           "externalRecordId": "",
           "recordFingerprint": "f9abf2c2e7cbe82e36e6dcd9bd5dec676d41c485300101da96d73bc306fd5212",
-          "sourceRowNumber": 1880,
+          "sourceRowNumber": 2380,
           "sourceFacilityName": "울산도서관",
           "sourceRoadAddresses": [
             "울산광역시 남구 꽃대나리로 140(여천동)"
@@ -4292,7 +4292,7 @@
           "sourceRecordKey": "cdf41b5cbda37be6feaa5894582387d46747eae0feb41eb1ba09254619e08683",
           "externalRecordId": "",
           "recordFingerprint": "f9abf2c2e7cbe82e36e6dcd9bd5dec676d41c485300101da96d73bc306fd5212",
-          "sourceRowNumber": 1880,
+          "sourceRowNumber": 2380,
           "sourceFacilityName": "울산도서관",
           "sourceRoadAddresses": [
             "울산광역시 남구 꽃대나리로 140(여천동)"
@@ -4335,7 +4335,7 @@
       "sourceFacilityName": "신복도서관",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 1670,
+      "sourceRowNumber": 2219,
       "sourceRecordKey": "9917fac0fd69a0b23ef006434919df514fcf7685755419037f9f2d4e2932ccd3",
       "sourceExternalRecordId": "",
       "recordFingerprint": "0ac6b64948b9051823a2fcb30c469c4f02c9cba37d78c6e1b1049e359d37185e",
@@ -4355,7 +4355,7 @@
           "sourceRecordKey": "9917fac0fd69a0b23ef006434919df514fcf7685755419037f9f2d4e2932ccd3",
           "externalRecordId": "",
           "recordFingerprint": "0ac6b64948b9051823a2fcb30c469c4f02c9cba37d78c6e1b1049e359d37185e",
-          "sourceRowNumber": 1670,
+          "sourceRowNumber": 2219,
           "sourceFacilityName": "신복도서관",
           "sourceRoadAddresses": [
             "울산광역시 남구 신복로72번길 18-13(무거동)"
@@ -4387,7 +4387,7 @@
           "sourceRecordKey": "9917fac0fd69a0b23ef006434919df514fcf7685755419037f9f2d4e2932ccd3",
           "externalRecordId": "",
           "recordFingerprint": "0ac6b64948b9051823a2fcb30c469c4f02c9cba37d78c6e1b1049e359d37185e",
-          "sourceRowNumber": 1670,
+          "sourceRowNumber": 2219,
           "sourceFacilityName": "신복도서관",
           "sourceRoadAddresses": [
             "울산광역시 남구 신복로72번길 18-13(무거동)"
@@ -4430,7 +4430,7 @@
       "sourceFacilityName": "도산도서관",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 1671,
+      "sourceRowNumber": 2220,
       "sourceRecordKey": "74a870ea487e7c865fc70107aa4acb3be4db51ee3c873bb5e8a0ec88b1f3bcae",
       "sourceExternalRecordId": "",
       "recordFingerprint": "d0c743208d74add206a20dc5f482cb159c03793d7938abc8aa6684b6d3954b64",
@@ -4450,7 +4450,7 @@
           "sourceRecordKey": "74a870ea487e7c865fc70107aa4acb3be4db51ee3c873bb5e8a0ec88b1f3bcae",
           "externalRecordId": "",
           "recordFingerprint": "d0c743208d74add206a20dc5f482cb159c03793d7938abc8aa6684b6d3954b64",
-          "sourceRowNumber": 1671,
+          "sourceRowNumber": 2220,
           "sourceFacilityName": "도산도서관",
           "sourceRoadAddresses": [
             "울산광역시 남구 번영로54번길 6"
@@ -4482,7 +4482,7 @@
           "sourceRecordKey": "74a870ea487e7c865fc70107aa4acb3be4db51ee3c873bb5e8a0ec88b1f3bcae",
           "externalRecordId": "",
           "recordFingerprint": "d0c743208d74add206a20dc5f482cb159c03793d7938abc8aa6684b6d3954b64",
-          "sourceRowNumber": 1671,
+          "sourceRowNumber": 2220,
           "sourceFacilityName": "도산도서관",
           "sourceRoadAddresses": [
             "울산광역시 남구 번영로54번길 6"
@@ -4525,7 +4525,7 @@
       "sourceFacilityName": "옥현어린이도서관",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 1669,
+      "sourceRowNumber": 2218,
       "sourceRecordKey": "df1ca35132dfac62d32597f9bd5679ca018200024a18b6fbd2f6144e83a503c6",
       "sourceExternalRecordId": "",
       "recordFingerprint": "e028b297cfe322f8d36ec0c19380c059e29cae139df5def4beee16571e69d863",
@@ -4545,7 +4545,7 @@
           "sourceRecordKey": "df1ca35132dfac62d32597f9bd5679ca018200024a18b6fbd2f6144e83a503c6",
           "externalRecordId": "",
           "recordFingerprint": "e028b297cfe322f8d36ec0c19380c059e29cae139df5def4beee16571e69d863",
-          "sourceRowNumber": 1669,
+          "sourceRowNumber": 2218,
           "sourceFacilityName": "옥현어린이도서관",
           "sourceRoadAddresses": [
             "울산광역시 남구 옥현로58번길 40(무거동)"
@@ -4577,7 +4577,7 @@
           "sourceRecordKey": "df1ca35132dfac62d32597f9bd5679ca018200024a18b6fbd2f6144e83a503c6",
           "externalRecordId": "",
           "recordFingerprint": "e028b297cfe322f8d36ec0c19380c059e29cae139df5def4beee16571e69d863",
-          "sourceRowNumber": 1669,
+          "sourceRowNumber": 2218,
           "sourceFacilityName": "옥현어린이도서관",
           "sourceRoadAddresses": [
             "울산광역시 남구 옥현로58번길 40(무거동)"
@@ -4620,7 +4620,7 @@
       "sourceFacilityName": "월봉도서관",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 1668,
+      "sourceRowNumber": 2217,
       "sourceRecordKey": "8041d5f9d834ec80d2470c2ab48a6e9361f44e3cf52c8768bbc6156face6c2f5",
       "sourceExternalRecordId": "",
       "recordFingerprint": "669985ea73a21c40a8dedfa553929c7293adb8882a373e40a7a538663430cddf",
@@ -4640,7 +4640,7 @@
           "sourceRecordKey": "8041d5f9d834ec80d2470c2ab48a6e9361f44e3cf52c8768bbc6156face6c2f5",
           "externalRecordId": "",
           "recordFingerprint": "669985ea73a21c40a8dedfa553929c7293adb8882a373e40a7a538663430cddf",
-          "sourceRowNumber": 1668,
+          "sourceRowNumber": 2217,
           "sourceFacilityName": "월봉도서관",
           "sourceRoadAddresses": [
             "울산광역시 남구 돋질로139번길 23"
@@ -4672,7 +4672,7 @@
           "sourceRecordKey": "8041d5f9d834ec80d2470c2ab48a6e9361f44e3cf52c8768bbc6156face6c2f5",
           "externalRecordId": "",
           "recordFingerprint": "669985ea73a21c40a8dedfa553929c7293adb8882a373e40a7a538663430cddf",
-          "sourceRowNumber": 1668,
+          "sourceRowNumber": 2217,
           "sourceFacilityName": "월봉도서관",
           "sourceRoadAddresses": [
             "울산광역시 남구 돋질로139번길 23"
@@ -4715,7 +4715,7 @@
       "sourceFacilityName": "노동자종합복지회관 주차장",
       "sourceProviderCode": "B553560",
       "sourceProviderName": "울산시설공단",
-      "sourceRowNumber": 494,
+      "sourceRowNumber": 1250,
       "sourceRecordKey": "1dae0e8c76dc314e22cfbbd746dec338cca5256ce271d313b92c3ae2ba0c6a79",
       "sourceExternalRecordId": "193-3-000034",
       "recordFingerprint": "b4e4da53d005fef8b386cfd60cc5a99cdcd6b48a0b79859e772d4e622f5f7692",
@@ -4735,7 +4735,7 @@
           "sourceRecordKey": "1dae0e8c76dc314e22cfbbd746dec338cca5256ce271d313b92c3ae2ba0c6a79",
           "externalRecordId": "193-3-000034",
           "recordFingerprint": "b4e4da53d005fef8b386cfd60cc5a99cdcd6b48a0b79859e772d4e622f5f7692",
-          "sourceRowNumber": 494,
+          "sourceRowNumber": 1250,
           "sourceFacilityName": "노동자종합복지회관 주차장",
           "sourceRoadAddresses": [
             "울산광역시 남구 삼산중로 144"
@@ -4769,7 +4769,7 @@
           "sourceRecordKey": "1dae0e8c76dc314e22cfbbd746dec338cca5256ce271d313b92c3ae2ba0c6a79",
           "externalRecordId": "193-3-000034",
           "recordFingerprint": "b4e4da53d005fef8b386cfd60cc5a99cdcd6b48a0b79859e772d4e622f5f7692",
-          "sourceRowNumber": 494,
+          "sourceRowNumber": 1250,
           "sourceFacilityName": "노동자종합복지회관 주차장",
           "sourceRoadAddresses": [
             "울산광역시 남구 삼산중로 144"
@@ -4814,7 +4814,7 @@
       "sourceFacilityName": "울산남구종합사회복지관 작은도서관",
       "sourceProviderCode": "3700000",
       "sourceProviderName": "울산광역시 남구",
-      "sourceRowNumber": 1839,
+      "sourceRowNumber": 2363,
       "sourceRecordKey": "42231ffa46f62005156dc8692df91a406fc201dee8a45d7c9ebdf7bf3bee6576",
       "sourceExternalRecordId": "",
       "recordFingerprint": "eb6ffe1011342a4cc158ce8a53b4b911b7fb8c6ea58cd79b046d2897526bd62c",
@@ -4834,7 +4834,7 @@
           "sourceRecordKey": "42231ffa46f62005156dc8692df91a406fc201dee8a45d7c9ebdf7bf3bee6576",
           "externalRecordId": "",
           "recordFingerprint": "eb6ffe1011342a4cc158ce8a53b4b911b7fb8c6ea58cd79b046d2897526bd62c",
-          "sourceRowNumber": 1839,
+          "sourceRowNumber": 2363,
           "sourceFacilityName": "울산남구종합사회복지관 작은도서관",
           "sourceRoadAddresses": [
             "울산광역시 남구 번영로 107번길 13(달동)"
@@ -4866,7 +4866,7 @@
           "sourceRecordKey": "42231ffa46f62005156dc8692df91a406fc201dee8a45d7c9ebdf7bf3bee6576",
           "externalRecordId": "",
           "recordFingerprint": "eb6ffe1011342a4cc158ce8a53b4b911b7fb8c6ea58cd79b046d2897526bd62c",
-          "sourceRowNumber": 1839,
+          "sourceRowNumber": 2363,
           "sourceFacilityName": "울산남구종합사회복지관 작은도서관",
           "sourceRoadAddresses": [
             "울산광역시 남구 번영로 107번길 13(달동)"
@@ -4909,7 +4909,7 @@
       "sourceFacilityName": "나슬공원169",
       "sourceProviderCode": "3730000",
       "sourceProviderName": "울산광역시 울주군",
-      "sourceRowNumber": 4562,
+      "sourceRowNumber": 6491,
       "sourceRecordKey": "5900f558b25f248b0bdc43318cc346167be5523b95b4e65d0d811e14f19ed106",
       "sourceExternalRecordId": "31710-00122",
       "recordFingerprint": "8907e3c49c1268c275ea11528712c0cc8593c6d91009635426be5705842c2aa3",
@@ -4929,7 +4929,7 @@
           "sourceRecordKey": "5900f558b25f248b0bdc43318cc346167be5523b95b4e65d0d811e14f19ed106",
           "externalRecordId": "31710-00122",
           "recordFingerprint": "8907e3c49c1268c275ea11528712c0cc8593c6d91009635426be5705842c2aa3",
-          "sourceRowNumber": 4562,
+          "sourceRowNumber": 6491,
           "sourceFacilityName": "나슬공원169",
           "sourceRoadAddresses": [
             "울산광역시 울주군 청량읍 상남2길 13-16"
@@ -4963,7 +4963,7 @@
           "sourceRecordKey": "5900f558b25f248b0bdc43318cc346167be5523b95b4e65d0d811e14f19ed106",
           "externalRecordId": "31710-00122",
           "recordFingerprint": "8907e3c49c1268c275ea11528712c0cc8593c6d91009635426be5705842c2aa3",
-          "sourceRowNumber": 4562,
+          "sourceRowNumber": 6491,
           "sourceFacilityName": "나슬공원169",
           "sourceRoadAddresses": [
             "울산광역시 울주군 청량읍 상남2길 13-16"
@@ -5008,7 +5008,7 @@
       "sourceFacilityName": "방기공원",
       "sourceProviderCode": "3730000",
       "sourceProviderName": "울산광역시 울주군",
-      "sourceRowNumber": 4650,
+      "sourceRowNumber": 6579,
       "sourceRecordKey": "031651efe4e1e0bb0b2cf4f8662b4e3f2bfa150da068363919f58f6b7452cfe7",
       "sourceExternalRecordId": "31710-00005",
       "recordFingerprint": "92899bc3a0ddd70039312204e39908fe0e5512080138ee31ba70453e9932fefb",
@@ -5028,7 +5028,7 @@
           "sourceRecordKey": "031651efe4e1e0bb0b2cf4f8662b4e3f2bfa150da068363919f58f6b7452cfe7",
           "externalRecordId": "31710-00005",
           "recordFingerprint": "92899bc3a0ddd70039312204e39908fe0e5512080138ee31ba70453e9932fefb",
-          "sourceRowNumber": 4650,
+          "sourceRowNumber": 6579,
           "sourceFacilityName": "방기공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -5060,7 +5060,7 @@
           "sourceRecordKey": "031651efe4e1e0bb0b2cf4f8662b4e3f2bfa150da068363919f58f6b7452cfe7",
           "externalRecordId": "31710-00005",
           "recordFingerprint": "92899bc3a0ddd70039312204e39908fe0e5512080138ee31ba70453e9932fefb",
-          "sourceRowNumber": 4650,
+          "sourceRowNumber": 6579,
           "sourceFacilityName": "방기공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -5208,7 +5208,7 @@
       "sourceFacilityName": "천상공원",
       "sourceProviderCode": "3730000",
       "sourceProviderName": "울산광역시 울주군",
-      "sourceRowNumber": 4651,
+      "sourceRowNumber": 6580,
       "sourceRecordKey": "234ebd82679c4ac7ef9bd38a976ceadb655ff0061d103443f0d320aa70a5d707",
       "sourceExternalRecordId": "31710-00004",
       "recordFingerprint": "f407d288224ebacb8f8930d63c0382e01d747b967d7a88440c7c2e2a3d1d413b",
@@ -5228,7 +5228,7 @@
           "sourceRecordKey": "234ebd82679c4ac7ef9bd38a976ceadb655ff0061d103443f0d320aa70a5d707",
           "externalRecordId": "31710-00004",
           "recordFingerprint": "f407d288224ebacb8f8930d63c0382e01d747b967d7a88440c7c2e2a3d1d413b",
-          "sourceRowNumber": 4651,
+          "sourceRowNumber": 6580,
           "sourceFacilityName": "천상공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -5260,7 +5260,7 @@
           "sourceRecordKey": "234ebd82679c4ac7ef9bd38a976ceadb655ff0061d103443f0d320aa70a5d707",
           "externalRecordId": "31710-00004",
           "recordFingerprint": "f407d288224ebacb8f8930d63c0382e01d747b967d7a88440c7c2e2a3d1d413b",
-          "sourceRowNumber": 4651,
+          "sourceRowNumber": 6580,
           "sourceFacilityName": "천상공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -5303,7 +5303,7 @@
       "sourceFacilityName": "가득뜰근린공원",
       "sourceProviderCode": "5690000",
       "sourceProviderName": "세종특별자치시",
-      "sourceRowNumber": 11156,
+      "sourceRowNumber": 12240,
       "sourceRecordKey": "03d764f68aae662942bcb8769263e490105851e8e3278821dca5609dc216671e",
       "sourceExternalRecordId": "36110-00133",
       "recordFingerprint": "56269a4459d1d97c6db21628cd0057ed489710e1202cbfa6a75c2d6554763d25",
@@ -5323,7 +5323,7 @@
           "sourceRecordKey": "03d764f68aae662942bcb8769263e490105851e8e3278821dca5609dc216671e",
           "externalRecordId": "36110-00133",
           "recordFingerprint": "56269a4459d1d97c6db21628cd0057ed489710e1202cbfa6a75c2d6554763d25",
-          "sourceRowNumber": 11156,
+          "sourceRowNumber": 12240,
           "sourceFacilityName": "가득뜰근린공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -5355,7 +5355,7 @@
           "sourceRecordKey": "03d764f68aae662942bcb8769263e490105851e8e3278821dca5609dc216671e",
           "externalRecordId": "36110-00133",
           "recordFingerprint": "56269a4459d1d97c6db21628cd0057ed489710e1202cbfa6a75c2d6554763d25",
-          "sourceRowNumber": 11156,
+          "sourceRowNumber": 12240,
           "sourceFacilityName": "가득뜰근린공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -5398,7 +5398,7 @@
       "sourceFacilityName": "고운뜰근린공원(근1-4)",
       "sourceProviderCode": "5690000",
       "sourceProviderName": "세종특별자치시",
-      "sourceRowNumber": 11577,
+      "sourceRowNumber": 12611,
       "sourceRecordKey": "3b5126101bda02f20327b9d9cead22fb2034f7f6bb6b0d821bf5b327a8b80249",
       "sourceExternalRecordId": "36110-00122",
       "recordFingerprint": "76c85da1dae9eb31d210b19e914deefd27e7e49c0146ac8b2fb2d9ea7fe3b842",
@@ -5418,7 +5418,7 @@
           "sourceRecordKey": "3b5126101bda02f20327b9d9cead22fb2034f7f6bb6b0d821bf5b327a8b80249",
           "externalRecordId": "36110-00122",
           "recordFingerprint": "76c85da1dae9eb31d210b19e914deefd27e7e49c0146ac8b2fb2d9ea7fe3b842",
-          "sourceRowNumber": 11577,
+          "sourceRowNumber": 12611,
           "sourceFacilityName": "고운뜰근린공원(근1-4)",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -5450,7 +5450,7 @@
           "sourceRecordKey": "3b5126101bda02f20327b9d9cead22fb2034f7f6bb6b0d821bf5b327a8b80249",
           "externalRecordId": "36110-00122",
           "recordFingerprint": "76c85da1dae9eb31d210b19e914deefd27e7e49c0146ac8b2fb2d9ea7fe3b842",
-          "sourceRowNumber": 11577,
+          "sourceRowNumber": 12611,
           "sourceFacilityName": "고운뜰근린공원(근1-4)",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -5493,7 +5493,7 @@
       "sourceFacilityName": "기쁨뜰근린공원",
       "sourceProviderCode": "5690000",
       "sourceProviderName": "세종특별자치시",
-      "sourceRowNumber": 3826,
+      "sourceRowNumber": 4592,
       "sourceRecordKey": "d887d17a7385a155728718eabd1f2f0964726ada3da456252b2a6de4de086cff",
       "sourceExternalRecordId": "",
       "recordFingerprint": "e5173bf83918863cc6defae3dad8ae1eee8b26647ec44404e3191f7fd6c14532",
@@ -5513,7 +5513,7 @@
           "sourceRecordKey": "d887d17a7385a155728718eabd1f2f0964726ada3da456252b2a6de4de086cff",
           "externalRecordId": "",
           "recordFingerprint": "e5173bf83918863cc6defae3dad8ae1eee8b26647ec44404e3191f7fd6c14532",
-          "sourceRowNumber": 3826,
+          "sourceRowNumber": 4592,
           "sourceFacilityName": "기쁨뜰근린공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -5545,7 +5545,7 @@
           "sourceRecordKey": "d887d17a7385a155728718eabd1f2f0964726ada3da456252b2a6de4de086cff",
           "externalRecordId": "",
           "recordFingerprint": "e5173bf83918863cc6defae3dad8ae1eee8b26647ec44404e3191f7fd6c14532",
-          "sourceRowNumber": 3826,
+          "sourceRowNumber": 4592,
           "sourceFacilityName": "기쁨뜰근린공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -5588,7 +5588,7 @@
       "sourceFacilityName": "반곡새싹문화공원(문화4-6)",
       "sourceProviderCode": "5690000",
       "sourceProviderName": "세종특별자치시",
-      "sourceRowNumber": 12997,
+      "sourceRowNumber": 13799,
       "sourceRecordKey": "26bea3774e26031b36655d81d554f7ef80e6a4d718aa9e25f83efe3657b08317",
       "sourceExternalRecordId": "36110-00116",
       "recordFingerprint": "6c820f6fe738892d9ddc08ac63bca8cc1390e1feee69492afad029426f2f88de",
@@ -5608,7 +5608,7 @@
           "sourceRecordKey": "26bea3774e26031b36655d81d554f7ef80e6a4d718aa9e25f83efe3657b08317",
           "externalRecordId": "36110-00116",
           "recordFingerprint": "6c820f6fe738892d9ddc08ac63bca8cc1390e1feee69492afad029426f2f88de",
-          "sourceRowNumber": 12997,
+          "sourceRowNumber": 13799,
           "sourceFacilityName": "반곡새싹문화공원(문화4-6)",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -5640,7 +5640,7 @@
           "sourceRecordKey": "26bea3774e26031b36655d81d554f7ef80e6a4d718aa9e25f83efe3657b08317",
           "externalRecordId": "36110-00116",
           "recordFingerprint": "6c820f6fe738892d9ddc08ac63bca8cc1390e1feee69492afad029426f2f88de",
-          "sourceRowNumber": 12997,
+          "sourceRowNumber": 13799,
           "sourceFacilityName": "반곡새싹문화공원(문화4-6)",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -5683,7 +5683,7 @@
       "sourceFacilityName": "세종시민체육관",
       "sourceProviderCode": "5690000",
       "sourceProviderName": "세종특별자치시",
-      "sourceRowNumber": 3855,
+      "sourceRowNumber": 4621,
       "sourceRecordKey": "4570434530fe8d99bb6032996a38681de6e911754c495d2bd85e49eb97f8141b",
       "sourceExternalRecordId": "",
       "recordFingerprint": "f0b5a467074ca581ddfd49baa8b329c4e9ac2160a17bcf81692e006af843413f",
@@ -5703,7 +5703,7 @@
           "sourceRecordKey": "4570434530fe8d99bb6032996a38681de6e911754c495d2bd85e49eb97f8141b",
           "externalRecordId": "",
           "recordFingerprint": "f0b5a467074ca581ddfd49baa8b329c4e9ac2160a17bcf81692e006af843413f",
-          "sourceRowNumber": 3855,
+          "sourceRowNumber": 4621,
           "sourceFacilityName": "세종시민체육관",
           "sourceRoadAddresses": [
             "세종특별자치시 조치원읍 대첩로 116"
@@ -5737,7 +5737,7 @@
           "sourceRecordKey": "4570434530fe8d99bb6032996a38681de6e911754c495d2bd85e49eb97f8141b",
           "externalRecordId": "",
           "recordFingerprint": "f0b5a467074ca581ddfd49baa8b329c4e9ac2160a17bcf81692e006af843413f",
-          "sourceRowNumber": 3855,
+          "sourceRowNumber": 4621,
           "sourceFacilityName": "세종시민체육관",
           "sourceRoadAddresses": [
             "세종특별자치시 조치원읍 대첩로 116"
@@ -5782,7 +5782,7 @@
       "sourceFacilityName": "세종전통시장 제2공영주차장",
       "sourceProviderCode": "B553695",
       "sourceProviderName": "세종특별자치시시설관리공단",
-      "sourceRowNumber": 2862,
+      "sourceRowNumber": 3416,
       "sourceRecordKey": "7ab7b66e6726b99c54db359d950eadcdb5518aea87adcc960dd252d53dc2901e",
       "sourceExternalRecordId": "413-2-000059",
       "recordFingerprint": "f71fc30a23ca7a6b5f1e98aa408b3ff4008df1a511c607a869d21a925a9fcdf1",
@@ -5802,7 +5802,7 @@
           "sourceRecordKey": "7ab7b66e6726b99c54db359d950eadcdb5518aea87adcc960dd252d53dc2901e",
           "externalRecordId": "413-2-000059",
           "recordFingerprint": "f71fc30a23ca7a6b5f1e98aa408b3ff4008df1a511c607a869d21a925a9fcdf1",
-          "sourceRowNumber": 2862,
+          "sourceRowNumber": 3416,
           "sourceFacilityName": "세종전통시장 제2공영주차장",
           "sourceRoadAddresses": [
             "세종특별자치시 조치원읍 조치원6길 38"
@@ -5834,7 +5834,7 @@
           "sourceRecordKey": "7ab7b66e6726b99c54db359d950eadcdb5518aea87adcc960dd252d53dc2901e",
           "externalRecordId": "413-2-000059",
           "recordFingerprint": "f71fc30a23ca7a6b5f1e98aa408b3ff4008df1a511c607a869d21a925a9fcdf1",
-          "sourceRowNumber": 2862,
+          "sourceRowNumber": 3416,
           "sourceFacilityName": "세종전통시장 제2공영주차장",
           "sourceRoadAddresses": [
             "세종특별자치시 조치원읍 조치원6길 38"
@@ -5877,7 +5877,7 @@
       "sourceFacilityName": "재께뜰근린공원",
       "sourceProviderCode": "5690000",
       "sourceProviderName": "세종특별자치시",
-      "sourceRowNumber": 11133,
+      "sourceRowNumber": 12217,
       "sourceRecordKey": "47170dabf41740830e353bb8eee6eb6466803cf704218dfdd37dd6d362d2c98a",
       "sourceExternalRecordId": "36110-00146",
       "recordFingerprint": "58c2d29481f8bff1f4f13011bb86f721e729eb955f060a2eb28704295569b604",
@@ -5897,7 +5897,7 @@
           "sourceRecordKey": "47170dabf41740830e353bb8eee6eb6466803cf704218dfdd37dd6d362d2c98a",
           "externalRecordId": "36110-00146",
           "recordFingerprint": "58c2d29481f8bff1f4f13011bb86f721e729eb955f060a2eb28704295569b604",
-          "sourceRowNumber": 11133,
+          "sourceRowNumber": 12217,
           "sourceFacilityName": "재께뜰근린공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -5929,7 +5929,7 @@
           "sourceRecordKey": "47170dabf41740830e353bb8eee6eb6466803cf704218dfdd37dd6d362d2c98a",
           "externalRecordId": "36110-00146",
           "recordFingerprint": "58c2d29481f8bff1f4f13011bb86f721e729eb955f060a2eb28704295569b604",
-          "sourceRowNumber": 11133,
+          "sourceRowNumber": 12217,
           "sourceFacilityName": "재께뜰근린공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -5972,7 +5972,7 @@
       "sourceFacilityName": "세종전통시장 제1공영주차장",
       "sourceProviderCode": "B553695",
       "sourceProviderName": "세종특별자치시시설관리공단",
-      "sourceRowNumber": 2863,
+      "sourceRowNumber": 3417,
       "sourceRecordKey": "32568a1b7887839551925c40ba63e1a9a362cd9577839f991ac9ef688917131e",
       "sourceExternalRecordId": "413-2-000058",
       "recordFingerprint": "a4db8eceec80ec098499f3ce0b50f92f9b1cbc2c2b1849c98eac74819f10c227",
@@ -5992,7 +5992,7 @@
           "sourceRecordKey": "32568a1b7887839551925c40ba63e1a9a362cd9577839f991ac9ef688917131e",
           "externalRecordId": "413-2-000058",
           "recordFingerprint": "a4db8eceec80ec098499f3ce0b50f92f9b1cbc2c2b1849c98eac74819f10c227",
-          "sourceRowNumber": 2863,
+          "sourceRowNumber": 3417,
           "sourceFacilityName": "세종전통시장 제1공영주차장",
           "sourceRoadAddresses": [
             "세종특별자치시 조치원읍 새내로 99"
@@ -6024,7 +6024,7 @@
           "sourceRecordKey": "32568a1b7887839551925c40ba63e1a9a362cd9577839f991ac9ef688917131e",
           "externalRecordId": "413-2-000058",
           "recordFingerprint": "a4db8eceec80ec098499f3ce0b50f92f9b1cbc2c2b1849c98eac74819f10c227",
-          "sourceRowNumber": 2863,
+          "sourceRowNumber": 3417,
           "sourceFacilityName": "세종전통시장 제1공영주차장",
           "sourceRoadAddresses": [
             "세종특별자치시 조치원읍 새내로 99"
@@ -6067,7 +6067,7 @@
       "sourceFacilityName": "품안뜰근린공원",
       "sourceProviderCode": "5690000",
       "sourceProviderName": "세종특별자치시",
-      "sourceRowNumber": 11160,
+      "sourceRowNumber": 12244,
       "sourceRecordKey": "c3629fa7c48ea0720d6b1e3ddc8db338d6a3cc96aaefa3b762c08d6404483ae6",
       "sourceExternalRecordId": "36110-00129",
       "recordFingerprint": "71166fe459b0fc2c4a3c73b61617c010eceee2d7089f8da28b22e61f0f3c5dec",
@@ -6087,7 +6087,7 @@
           "sourceRecordKey": "c3629fa7c48ea0720d6b1e3ddc8db338d6a3cc96aaefa3b762c08d6404483ae6",
           "externalRecordId": "36110-00129",
           "recordFingerprint": "71166fe459b0fc2c4a3c73b61617c010eceee2d7089f8da28b22e61f0f3c5dec",
-          "sourceRowNumber": 11160,
+          "sourceRowNumber": 12244,
           "sourceFacilityName": "품안뜰근린공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -6119,7 +6119,7 @@
           "sourceRecordKey": "c3629fa7c48ea0720d6b1e3ddc8db338d6a3cc96aaefa3b762c08d6404483ae6",
           "externalRecordId": "36110-00129",
           "recordFingerprint": "71166fe459b0fc2c4a3c73b61617c010eceee2d7089f8da28b22e61f0f3c5dec",
-          "sourceRowNumber": 11160,
+          "sourceRowNumber": 12244,
           "sourceFacilityName": "품안뜰근린공원",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -6162,7 +6162,7 @@
       "sourceFacilityName": "도시상징광장주차장",
       "sourceProviderCode": "B553695",
       "sourceProviderName": "세종특별자치시시설관리공단",
-      "sourceRowNumber": 2854,
+      "sourceRowNumber": 3408,
       "sourceRecordKey": "d6ef897d86b6c273b39cbec3b781978a76e94fa9ba2086a943241002951f7315",
       "sourceExternalRecordId": "413-2-000066",
       "recordFingerprint": "757c546663e0bb3a4af61ae8ede45b86104716b46945e6fe5eb7197ae66c5d9f",
@@ -6182,7 +6182,7 @@
           "sourceRecordKey": "d6ef897d86b6c273b39cbec3b781978a76e94fa9ba2086a943241002951f7315",
           "externalRecordId": "413-2-000066",
           "recordFingerprint": "757c546663e0bb3a4af61ae8ede45b86104716b46945e6fe5eb7197ae66c5d9f",
-          "sourceRowNumber": 2854,
+          "sourceRowNumber": 3408,
           "sourceFacilityName": "도시상징광장주차장",
           "sourceRoadAddresses": [
             "세종특별자치시 어울누리로 30"
@@ -6216,7 +6216,7 @@
           "sourceRecordKey": "d6ef897d86b6c273b39cbec3b781978a76e94fa9ba2086a943241002951f7315",
           "externalRecordId": "413-2-000066",
           "recordFingerprint": "757c546663e0bb3a4af61ae8ede45b86104716b46945e6fe5eb7197ae66c5d9f",
-          "sourceRowNumber": 2854,
+          "sourceRowNumber": 3408,
           "sourceFacilityName": "도시상징광장주차장",
           "sourceRoadAddresses": [
             "세종특별자치시 어울누리로 30"
@@ -6245,7 +6245,7 @@
           "sourceRecordKey": "4ed03a18e4eafaab53c0be0ac1b858693f6a0701d5b6b5bc2cc56c95aeaae026",
           "externalRecordId": "413-2-000066",
           "recordFingerprint": "52a04416e5d7ddd4dd5df7dd83e73ddf2d5f4751a737dcbf42a2b3d71f0fafda",
-          "sourceRowNumber": 8480,
+          "sourceRowNumber": 8982,
           "sourceFacilityName": "도시상징광장주차장",
           "sourceRoadAddresses": [
             "세종특별자치시 어울누리로 30"
@@ -6290,7 +6290,7 @@
       "sourceFacilityName": "시울문화공원(문화4-2)",
       "sourceProviderCode": "5690000",
       "sourceProviderName": "세종특별자치시",
-      "sourceRowNumber": 11559,
+      "sourceRowNumber": 12593,
       "sourceRecordKey": "681cb6bacfef91de61371ac051478662ee79c6272944f2c7bb01d5ebf6012329",
       "sourceExternalRecordId": "36110-00171",
       "recordFingerprint": "2bb23627f4c89361c094819735f4bbf1a98cf78531482a01891e795e1509ed07",
@@ -6310,7 +6310,7 @@
           "sourceRecordKey": "681cb6bacfef91de61371ac051478662ee79c6272944f2c7bb01d5ebf6012329",
           "externalRecordId": "36110-00171",
           "recordFingerprint": "2bb23627f4c89361c094819735f4bbf1a98cf78531482a01891e795e1509ed07",
-          "sourceRowNumber": 11559,
+          "sourceRowNumber": 12593,
           "sourceFacilityName": "시울문화공원(문화4-2)",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -6342,7 +6342,7 @@
           "sourceRecordKey": "681cb6bacfef91de61371ac051478662ee79c6272944f2c7bb01d5ebf6012329",
           "externalRecordId": "36110-00171",
           "recordFingerprint": "2bb23627f4c89361c094819735f4bbf1a98cf78531482a01891e795e1509ed07",
-          "sourceRowNumber": 11559,
+          "sourceRowNumber": 12593,
           "sourceFacilityName": "시울문화공원(문화4-2)",
           "sourceRoadAddresses": [],
           "sourceLotAddresses": [
@@ -6385,7 +6385,7 @@
       "sourceFacilityName": "대구근대역사관",
       "sourceProviderCode": "6270000",
       "sourceProviderName": "대구광역시",
-      "sourceRowNumber": 435,
+      "sourceRowNumber": 481,
       "sourceRecordKey": "2e213ffd6870295a59dd9b5daa5d81ac0f24250ec0de738a11ed5175804d02be",
       "sourceExternalRecordId": "",
       "recordFingerprint": "9e4be599b3375bc71bed10f17916126a04edeaec104310d72bc24f925fb91f07",
@@ -6405,7 +6405,7 @@
           "sourceRecordKey": "2e213ffd6870295a59dd9b5daa5d81ac0f24250ec0de738a11ed5175804d02be",
           "externalRecordId": "",
           "recordFingerprint": "9e4be599b3375bc71bed10f17916126a04edeaec104310d72bc24f925fb91f07",
-          "sourceRowNumber": 435,
+          "sourceRowNumber": 481,
           "sourceFacilityName": "대구근대역사관",
           "sourceRoadAddresses": [
             "대구광역시 중구 경상감영길 67"
@@ -6439,7 +6439,7 @@
           "sourceRecordKey": "2e213ffd6870295a59dd9b5daa5d81ac0f24250ec0de738a11ed5175804d02be",
           "externalRecordId": "",
           "recordFingerprint": "9e4be599b3375bc71bed10f17916126a04edeaec104310d72bc24f925fb91f07",
-          "sourceRowNumber": 435,
+          "sourceRowNumber": 481,
           "sourceFacilityName": "대구근대역사관",
           "sourceRoadAddresses": [
             "대구광역시 중구 경상감영길 67"
@@ -6484,7 +6484,7 @@
       "sourceFacilityName": "국채보상운동기념도서관",
       "sourceProviderCode": "6270000",
       "sourceProviderName": "대구광역시",
-      "sourceRowNumber": 2797,
+      "sourceRowNumber": 3102,
       "sourceRecordKey": "596535c402f4c0814cf5823d9c27537e95acfaa61eb87ba17c662b1d72f1cffa",
       "sourceExternalRecordId": "",
       "recordFingerprint": "eaa626b5f185551bfaf88f283b935a4964bef2f880404860b207646385d1ffd4",
@@ -6504,7 +6504,7 @@
           "sourceRecordKey": "596535c402f4c0814cf5823d9c27537e95acfaa61eb87ba17c662b1d72f1cffa",
           "externalRecordId": "",
           "recordFingerprint": "eaa626b5f185551bfaf88f283b935a4964bef2f880404860b207646385d1ffd4",
-          "sourceRowNumber": 2797,
+          "sourceRowNumber": 3102,
           "sourceFacilityName": "국채보상운동기념도서관",
           "sourceRoadAddresses": [
             "대구광역시 중구 공평로 10길 25"
@@ -6536,7 +6536,7 @@
           "sourceRecordKey": "596535c402f4c0814cf5823d9c27537e95acfaa61eb87ba17c662b1d72f1cffa",
           "externalRecordId": "",
           "recordFingerprint": "eaa626b5f185551bfaf88f283b935a4964bef2f880404860b207646385d1ffd4",
-          "sourceRowNumber": 2797,
+          "sourceRowNumber": 3102,
           "sourceFacilityName": "국채보상운동기념도서관",
           "sourceRoadAddresses": [
             "대구광역시 중구 공평로 10길 25"
@@ -6579,7 +6579,7 @@
       "sourceFacilityName": "남산2동행정복지센터",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 4200,
+      "sourceRowNumber": 4939,
       "sourceRecordKey": "aa7ed3998076c4a97e6b538da8bec20a3efbb91ef0953cd0251f76e5d74ee9cd",
       "sourceExternalRecordId": "",
       "recordFingerprint": "4574ddb81f06d5b379508d13411e8337d91df8f9cbfd0eb0d822f8a1e62b8ac8",
@@ -6599,7 +6599,7 @@
           "sourceRecordKey": "aa7ed3998076c4a97e6b538da8bec20a3efbb91ef0953cd0251f76e5d74ee9cd",
           "externalRecordId": "",
           "recordFingerprint": "4574ddb81f06d5b379508d13411e8337d91df8f9cbfd0eb0d822f8a1e62b8ac8",
-          "sourceRowNumber": 4200,
+          "sourceRowNumber": 4939,
           "sourceFacilityName": "남산2동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 명륜로 27-1"
@@ -6631,7 +6631,7 @@
           "sourceRecordKey": "aa7ed3998076c4a97e6b538da8bec20a3efbb91ef0953cd0251f76e5d74ee9cd",
           "externalRecordId": "",
           "recordFingerprint": "4574ddb81f06d5b379508d13411e8337d91df8f9cbfd0eb0d822f8a1e62b8ac8",
-          "sourceRowNumber": 4200,
+          "sourceRowNumber": 4939,
           "sourceFacilityName": "남산2동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 명륜로 27-1"
@@ -6674,7 +6674,7 @@
       "sourceFacilityName": "삼덕동행정복지센터",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 4207,
+      "sourceRowNumber": 4946,
       "sourceRecordKey": "bd88bc9da28233c3b69c689683c79da21ec90ce6bd18676eba2edeca7b4dc2ea",
       "sourceExternalRecordId": "",
       "recordFingerprint": "5f7fe8917596877d17d6358a63f96be4be84271fedfbec56a4230ac6883c2437",
@@ -6694,7 +6694,7 @@
           "sourceRecordKey": "bd88bc9da28233c3b69c689683c79da21ec90ce6bd18676eba2edeca7b4dc2ea",
           "externalRecordId": "",
           "recordFingerprint": "5f7fe8917596877d17d6358a63f96be4be84271fedfbec56a4230ac6883c2437",
-          "sourceRowNumber": 4207,
+          "sourceRowNumber": 4946,
           "sourceFacilityName": "삼덕동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 달구벌대로447길 72-11"
@@ -6726,7 +6726,7 @@
           "sourceRecordKey": "bd88bc9da28233c3b69c689683c79da21ec90ce6bd18676eba2edeca7b4dc2ea",
           "externalRecordId": "",
           "recordFingerprint": "5f7fe8917596877d17d6358a63f96be4be84271fedfbec56a4230ac6883c2437",
-          "sourceRowNumber": 4207,
+          "sourceRowNumber": 4946,
           "sourceFacilityName": "삼덕동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 달구벌대로447길 72-11"
@@ -6769,7 +6769,7 @@
       "sourceFacilityName": "동인느티나무도서관",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 1265,
+      "sourceRowNumber": 1876,
       "sourceRecordKey": "c51ced1e2b83eada4642770d9df0f625dbe8861af393fd980933e38f1387b0a6",
       "sourceExternalRecordId": "",
       "recordFingerprint": "2f24222bbce8eb5c011765d4335dff61bed6554170ad17fcd14822ab849ed5b6",
@@ -6789,7 +6789,7 @@
           "sourceRecordKey": "c51ced1e2b83eada4642770d9df0f625dbe8861af393fd980933e38f1387b0a6",
           "externalRecordId": "",
           "recordFingerprint": "2f24222bbce8eb5c011765d4335dff61bed6554170ad17fcd14822ab849ed5b6",
-          "sourceRowNumber": 1265,
+          "sourceRowNumber": 1876,
           "sourceFacilityName": "동인느티나무도서관",
           "sourceRoadAddresses": [
             "대구광역시 중구 동덕로38길 47"
@@ -6821,7 +6821,7 @@
           "sourceRecordKey": "c51ced1e2b83eada4642770d9df0f625dbe8861af393fd980933e38f1387b0a6",
           "externalRecordId": "",
           "recordFingerprint": "2f24222bbce8eb5c011765d4335dff61bed6554170ad17fcd14822ab849ed5b6",
-          "sourceRowNumber": 1265,
+          "sourceRowNumber": 1876,
           "sourceFacilityName": "동인느티나무도서관",
           "sourceRoadAddresses": [
             "대구광역시 중구 동덕로38길 47"
@@ -6864,7 +6864,7 @@
       "sourceFacilityName": "동인동행정복지센터",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 4208,
+      "sourceRowNumber": 4947,
       "sourceRecordKey": "07b13dc234d940043dafef68bda66285fc23bec6a5a242a15bbbbdd49a1bb014",
       "sourceExternalRecordId": "",
       "recordFingerprint": "10032987487b697cb39cf4c613f0120e4780bbe10fc43d54510dd632a3e29744",
@@ -6884,7 +6884,7 @@
           "sourceRecordKey": "07b13dc234d940043dafef68bda66285fc23bec6a5a242a15bbbbdd49a1bb014",
           "externalRecordId": "",
           "recordFingerprint": "10032987487b697cb39cf4c613f0120e4780bbe10fc43d54510dd632a3e29744",
-          "sourceRowNumber": 4208,
+          "sourceRowNumber": 4947,
           "sourceFacilityName": "동인동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 국채보상로142길 19-5"
@@ -6916,7 +6916,7 @@
           "sourceRecordKey": "07b13dc234d940043dafef68bda66285fc23bec6a5a242a15bbbbdd49a1bb014",
           "externalRecordId": "",
           "recordFingerprint": "10032987487b697cb39cf4c613f0120e4780bbe10fc43d54510dd632a3e29744",
-          "sourceRowNumber": 4208,
+          "sourceRowNumber": 4947,
           "sourceFacilityName": "동인동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 국채보상로142길 19-5"
@@ -6943,7 +6943,7 @@
           "sourceRecordKey": "7b47341bcc26d7607db272c2d6e0d40f2a41318225f10bab8621cf1124dd1af1",
           "externalRecordId": "",
           "recordFingerprint": "9cd67c238fdc720d030ccdabdc727190228a1992f0d308e6127c3b6316360fcc",
-          "sourceRowNumber": 4210,
+          "sourceRowNumber": 4949,
           "sourceFacilityName": "동인동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 국채보상로142길 19-5"
@@ -6970,7 +6970,7 @@
           "sourceRecordKey": "bda7a618a9dce4387d383dd01b1d520f66cec654404d6f07606df1a8e3f39602",
           "externalRecordId": "",
           "recordFingerprint": "512fa1319465d228efa2cfbe9694401ef2dab1f30622dfb19e0cc547c843371d",
-          "sourceRowNumber": 4209,
+          "sourceRowNumber": 4948,
           "sourceFacilityName": "동인동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 국채보상로142길 19-5"
@@ -7013,7 +7013,7 @@
       "sourceFacilityName": "경상감영공원",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 1990,
+      "sourceRowNumber": 3936,
       "sourceRecordKey": "deb7edde524f2b4605132f42dc20543cdf8d9b17072089f52bbf26a555c93740",
       "sourceExternalRecordId": "27110-00002",
       "recordFingerprint": "30a0d0a101b384208246374e2d06d101978947510ac6cc9475f21ed0b0a1d509",
@@ -7033,7 +7033,7 @@
           "sourceRecordKey": "deb7edde524f2b4605132f42dc20543cdf8d9b17072089f52bbf26a555c93740",
           "externalRecordId": "27110-00002",
           "recordFingerprint": "30a0d0a101b384208246374e2d06d101978947510ac6cc9475f21ed0b0a1d509",
-          "sourceRowNumber": 1990,
+          "sourceRowNumber": 3936,
           "sourceFacilityName": "경상감영공원",
           "sourceRoadAddresses": [
             "대구광역시 중구 경상감영길 99(포정동)"
@@ -7067,7 +7067,7 @@
           "sourceRecordKey": "deb7edde524f2b4605132f42dc20543cdf8d9b17072089f52bbf26a555c93740",
           "externalRecordId": "27110-00002",
           "recordFingerprint": "30a0d0a101b384208246374e2d06d101978947510ac6cc9475f21ed0b0a1d509",
-          "sourceRowNumber": 1990,
+          "sourceRowNumber": 3936,
           "sourceFacilityName": "경상감영공원",
           "sourceRoadAddresses": [
             "대구광역시 중구 경상감영길 99(포정동)"
@@ -7096,7 +7096,7 @@
           "sourceRecordKey": "e471110259664ff42ca28511d40962b54e5bc5aca83557e8f46b2f48a8a0d431",
           "externalRecordId": "27110-00002",
           "recordFingerprint": "1aca6c1c6bc6bcc7e4168bd83211ce6c031d93b5d2462c5d87347c735116bc3e",
-          "sourceRowNumber": 12456,
+          "sourceRowNumber": 13409,
           "sourceFacilityName": "경상감영공원",
           "sourceRoadAddresses": [
             "대구광역시 중구 경상감영길 99(포정동)"
@@ -7141,7 +7141,7 @@
       "sourceFacilityName": "2.28기념 중앙공원",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 1988,
+      "sourceRowNumber": 3934,
       "sourceRecordKey": "e252c41a73d58f0d49d4f0f2f423393b97d1a131094c3bb06fe105fb7664c76b",
       "sourceExternalRecordId": "27110-00005",
       "recordFingerprint": "59b070247819dcc1361618af929f2be212c1762cb849ffac79059124e451cd3e",
@@ -7161,7 +7161,7 @@
           "sourceRecordKey": "e252c41a73d58f0d49d4f0f2f423393b97d1a131094c3bb06fe105fb7664c76b",
           "externalRecordId": "27110-00005",
           "recordFingerprint": "59b070247819dcc1361618af929f2be212c1762cb849ffac79059124e451cd3e",
-          "sourceRowNumber": 1988,
+          "sourceRowNumber": 3934,
           "sourceFacilityName": "2.28기념 중앙공원",
           "sourceRoadAddresses": [
             "대구광역시 중구 동성로2길 80(공평동)"
@@ -7195,7 +7195,7 @@
           "sourceRecordKey": "e252c41a73d58f0d49d4f0f2f423393b97d1a131094c3bb06fe105fb7664c76b",
           "externalRecordId": "27110-00005",
           "recordFingerprint": "59b070247819dcc1361618af929f2be212c1762cb849ffac79059124e451cd3e",
-          "sourceRowNumber": 1988,
+          "sourceRowNumber": 3934,
           "sourceFacilityName": "2.28기념 중앙공원",
           "sourceRoadAddresses": [
             "대구광역시 중구 동성로2길 80(공평동)"
@@ -7224,7 +7224,7 @@
           "sourceRecordKey": "35eabe8dfe2bc2a7fa7cbffacad662f03b5a60a8f7f6f70d82bbebf1384aa593",
           "externalRecordId": "27110-00005",
           "recordFingerprint": "2cf7ba74ca58fd0e6dfc1eba84e05ee964e1ec96517fdd8ec6d2a1452a3d9a00",
-          "sourceRowNumber": 12454,
+          "sourceRowNumber": 13407,
           "sourceFacilityName": "2.28기념 중앙공원",
           "sourceRoadAddresses": [
             "대구광역시 중구 동성로2길 80(공평동)"
@@ -7269,7 +7269,7 @@
       "sourceFacilityName": "대구약령시한의약박물관",
       "sourceProviderCode": "6270000",
       "sourceProviderName": "대구광역시",
-      "sourceRowNumber": 432,
+      "sourceRowNumber": 478,
       "sourceRecordKey": "a9c0c8290dd07044ff4fc229de250aec51802cd1f55e1b7b1c9e4e29523dd21c",
       "sourceExternalRecordId": "",
       "recordFingerprint": "9557bd8e98609c08638b45f53b10021ae3b5646ebaabc243e87982de816158c9",
@@ -7289,7 +7289,7 @@
           "sourceRecordKey": "a9c0c8290dd07044ff4fc229de250aec51802cd1f55e1b7b1c9e4e29523dd21c",
           "externalRecordId": "",
           "recordFingerprint": "9557bd8e98609c08638b45f53b10021ae3b5646ebaabc243e87982de816158c9",
-          "sourceRowNumber": 432,
+          "sourceRowNumber": 478,
           "sourceFacilityName": "대구약령시한의약박물관",
           "sourceRoadAddresses": [
             "대구광역시 중구 남성로 51-1"
@@ -7323,7 +7323,7 @@
           "sourceRecordKey": "a9c0c8290dd07044ff4fc229de250aec51802cd1f55e1b7b1c9e4e29523dd21c",
           "externalRecordId": "",
           "recordFingerprint": "9557bd8e98609c08638b45f53b10021ae3b5646ebaabc243e87982de816158c9",
-          "sourceRowNumber": 432,
+          "sourceRowNumber": 478,
           "sourceFacilityName": "대구약령시한의약박물관",
           "sourceRoadAddresses": [
             "대구광역시 중구 남성로 51-1"
@@ -7368,7 +7368,7 @@
       "sourceFacilityName": "남산3동행정복지센터",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 4156,
+      "sourceRowNumber": 4895,
       "sourceRecordKey": "72ebeb61e6e397755aaa1fde2cbaf3311287aaa2d9c66f1129a7c204cbda2c8a",
       "sourceExternalRecordId": "",
       "recordFingerprint": "2e35df4688fe1ebfaeeba00242182a27c47e565f5786a6c0e8e25b15ac2fa63f",
@@ -7388,7 +7388,7 @@
           "sourceRecordKey": "72ebeb61e6e397755aaa1fde2cbaf3311287aaa2d9c66f1129a7c204cbda2c8a",
           "externalRecordId": "",
           "recordFingerprint": "2e35df4688fe1ebfaeeba00242182a27c47e565f5786a6c0e8e25b15ac2fa63f",
-          "sourceRowNumber": 4156,
+          "sourceRowNumber": 4895,
           "sourceFacilityName": "남산3동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 남산로4길 70"
@@ -7420,7 +7420,7 @@
           "sourceRecordKey": "72ebeb61e6e397755aaa1fde2cbaf3311287aaa2d9c66f1129a7c204cbda2c8a",
           "externalRecordId": "",
           "recordFingerprint": "2e35df4688fe1ebfaeeba00242182a27c47e565f5786a6c0e8e25b15ac2fa63f",
-          "sourceRowNumber": 4156,
+          "sourceRowNumber": 4895,
           "sourceFacilityName": "남산3동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 남산로4길 70"
@@ -7447,7 +7447,7 @@
           "sourceRecordKey": "e1505ada1d481c102b7a13d5d1fe07774d4d9f211b44567fc493977a01ba79c9",
           "externalRecordId": "",
           "recordFingerprint": "62d56c62126a1d687f79f2629ff8b3eb80ee896356a5e4ea658396e109ea4e12",
-          "sourceRowNumber": 4172,
+          "sourceRowNumber": 4911,
           "sourceFacilityName": "남산3동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 남산로4길 70"
@@ -7490,7 +7490,7 @@
       "sourceFacilityName": "남산4동행정복지센터",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 4137,
+      "sourceRowNumber": 4876,
       "sourceRecordKey": "2b0bbc897c6fb3481a524e593a66750f26ccbd84a46f807094410378f6b2ce77",
       "sourceExternalRecordId": "",
       "recordFingerprint": "be8015a0db78f661d8086437f78011c98a5b84429690f3aaa47d9ef97b8d9f80",
@@ -7510,7 +7510,7 @@
           "sourceRecordKey": "2b0bbc897c6fb3481a524e593a66750f26ccbd84a46f807094410378f6b2ce77",
           "externalRecordId": "",
           "recordFingerprint": "be8015a0db78f661d8086437f78011c98a5b84429690f3aaa47d9ef97b8d9f80",
-          "sourceRowNumber": 4137,
+          "sourceRowNumber": 4876,
           "sourceFacilityName": "남산4동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 남산로1길 42"
@@ -7542,7 +7542,7 @@
           "sourceRecordKey": "2b0bbc897c6fb3481a524e593a66750f26ccbd84a46f807094410378f6b2ce77",
           "externalRecordId": "",
           "recordFingerprint": "be8015a0db78f661d8086437f78011c98a5b84429690f3aaa47d9ef97b8d9f80",
-          "sourceRowNumber": 4137,
+          "sourceRowNumber": 4876,
           "sourceFacilityName": "남산4동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 남산로1길 42"
@@ -7569,7 +7569,7 @@
           "sourceRecordKey": "4c6395ce873767d3b52f6faf7b4b04648784803982544aa0eb1c0c9449cf7981",
           "externalRecordId": "",
           "recordFingerprint": "c76f5f7a4b8affd6e865444de7678e4f935cad07e8cb4db2609082108ac64868",
-          "sourceRowNumber": 6646,
+          "sourceRowNumber": 6752,
           "sourceFacilityName": "남산4동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 남산로1길 42"
@@ -7596,7 +7596,7 @@
           "sourceRecordKey": "586fefa68778dfa333e4cd0757bb31befa8a11e4624e14337dba4c2909268f44",
           "externalRecordId": "",
           "recordFingerprint": "5e8c7cde132f0fff80ce95a0355fadb14ba0d4ad16d30af33492824e8b413b20",
-          "sourceRowNumber": 6624,
+          "sourceRowNumber": 6730,
           "sourceFacilityName": "남산4동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 남산로1길 42"
@@ -7639,7 +7639,7 @@
       "sourceFacilityName": "교동공영주차장",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 15489,
+      "sourceRowNumber": 15564,
       "sourceRecordKey": "024e5737166183fc7a7de705624a02a8fcfa5046812ed991d35a9451b9c0d83a",
       "sourceExternalRecordId": "150-2-000011",
       "recordFingerprint": "a1acde39aa0648504a9efed833b8c61f7ed1350628bec5fc04d746965d81b0a2",
@@ -7659,7 +7659,7 @@
           "sourceRecordKey": "024e5737166183fc7a7de705624a02a8fcfa5046812ed991d35a9451b9c0d83a",
           "externalRecordId": "150-2-000011",
           "recordFingerprint": "a1acde39aa0648504a9efed833b8c61f7ed1350628bec5fc04d746965d81b0a2",
-          "sourceRowNumber": 15489,
+          "sourceRowNumber": 15564,
           "sourceFacilityName": "교동공영주차장",
           "sourceRoadAddresses": [
             "대구광역시 중구 교동2길 11"
@@ -7693,7 +7693,7 @@
           "sourceRecordKey": "024e5737166183fc7a7de705624a02a8fcfa5046812ed991d35a9451b9c0d83a",
           "externalRecordId": "150-2-000011",
           "recordFingerprint": "a1acde39aa0648504a9efed833b8c61f7ed1350628bec5fc04d746965d81b0a2",
-          "sourceRowNumber": 15489,
+          "sourceRowNumber": 15564,
           "sourceFacilityName": "교동공영주차장",
           "sourceRoadAddresses": [
             "대구광역시 중구 교동2길 11"
@@ -7738,7 +7738,7 @@
       "sourceFacilityName": "대봉1동행정복지센터",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 6623,
+      "sourceRowNumber": 6729,
       "sourceRecordKey": "7b41ca152d8c923ae61dfe92bad448b309de8fb00e8dca47ab244bb176c8f741",
       "sourceExternalRecordId": "",
       "recordFingerprint": "6d1add4401325e22eea7940a8837a5e22fa5a8ada51821306de5c582730c9072",
@@ -7758,7 +7758,7 @@
           "sourceRecordKey": "7b41ca152d8c923ae61dfe92bad448b309de8fb00e8dca47ab244bb176c8f741",
           "externalRecordId": "",
           "recordFingerprint": "6d1add4401325e22eea7940a8837a5e22fa5a8ada51821306de5c582730c9072",
-          "sourceRowNumber": 6623,
+          "sourceRowNumber": 6729,
           "sourceFacilityName": "대봉1동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 달구벌대로440길 27"
@@ -7790,7 +7790,7 @@
           "sourceRecordKey": "7b41ca152d8c923ae61dfe92bad448b309de8fb00e8dca47ab244bb176c8f741",
           "externalRecordId": "",
           "recordFingerprint": "6d1add4401325e22eea7940a8837a5e22fa5a8ada51821306de5c582730c9072",
-          "sourceRowNumber": 6623,
+          "sourceRowNumber": 6729,
           "sourceFacilityName": "대봉1동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 달구벌대로440길 27"
@@ -7833,7 +7833,7 @@
       "sourceFacilityName": "2.28민주운동 기념회관",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 1269,
+      "sourceRowNumber": 1880,
       "sourceRecordKey": "edd7439a446395542e80baabe55183a77cf47f1391adcf1e7014f1bc49015cdd",
       "sourceExternalRecordId": "",
       "recordFingerprint": "386d5c68085f15ee193fce28f0e99e3a9fca0715179f3b12a8f6f5fb505c4182",
@@ -7853,7 +7853,7 @@
           "sourceRecordKey": "edd7439a446395542e80baabe55183a77cf47f1391adcf1e7014f1bc49015cdd",
           "externalRecordId": "",
           "recordFingerprint": "386d5c68085f15ee193fce28f0e99e3a9fca0715179f3b12a8f6f5fb505c4182",
-          "sourceRowNumber": 1269,
+          "sourceRowNumber": 1880,
           "sourceFacilityName": "2.28민주운동 기념회관",
           "sourceRoadAddresses": [
             "대구광역시 중구 2·28길 9"
@@ -7885,7 +7885,7 @@
           "sourceRecordKey": "edd7439a446395542e80baabe55183a77cf47f1391adcf1e7014f1bc49015cdd",
           "externalRecordId": "",
           "recordFingerprint": "386d5c68085f15ee193fce28f0e99e3a9fca0715179f3b12a8f6f5fb505c4182",
-          "sourceRowNumber": 1269,
+          "sourceRowNumber": 1880,
           "sourceFacilityName": "2.28민주운동 기념회관",
           "sourceRoadAddresses": [
             "대구광역시 중구 2·28길 9"
@@ -7928,7 +7928,7 @@
       "sourceFacilityName": "대신동행정복지센터",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 4202,
+      "sourceRowNumber": 4941,
       "sourceRecordKey": "4ff333ee1590259009a1b773094a133255eefc3b0365f74e051a91bbe09b16d6",
       "sourceExternalRecordId": "",
       "recordFingerprint": "0ec0d5884711903d7a2dd60569be8134e40399bf2e3aa2c3cb12f976ed34b716",
@@ -7948,7 +7948,7 @@
           "sourceRecordKey": "4ff333ee1590259009a1b773094a133255eefc3b0365f74e051a91bbe09b16d6",
           "externalRecordId": "",
           "recordFingerprint": "0ec0d5884711903d7a2dd60569be8134e40399bf2e3aa2c3cb12f976ed34b716",
-          "sourceRowNumber": 4202,
+          "sourceRowNumber": 4941,
           "sourceFacilityName": "대신동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 달구벌대로389길 50"
@@ -7980,7 +7980,7 @@
           "sourceRecordKey": "4ff333ee1590259009a1b773094a133255eefc3b0365f74e051a91bbe09b16d6",
           "externalRecordId": "",
           "recordFingerprint": "0ec0d5884711903d7a2dd60569be8134e40399bf2e3aa2c3cb12f976ed34b716",
-          "sourceRowNumber": 4202,
+          "sourceRowNumber": 4941,
           "sourceFacilityName": "대신동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 달구벌대로389길 50"
@@ -8007,7 +8007,7 @@
           "sourceRecordKey": "918ca68a4bfc300ee022557bc12581dc1a857d5eda90163ec2cf51a4b2d28923",
           "externalRecordId": "",
           "recordFingerprint": "6456036b5ef42d01a4f12f55bbe485e86a8ecbae7d68399368b762da751d6b51",
-          "sourceRowNumber": 4203,
+          "sourceRowNumber": 4942,
           "sourceFacilityName": "대신동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 달구벌대로389길 50"
@@ -8034,7 +8034,7 @@
           "sourceRecordKey": "a59c869272d582febe8ded47bec4cf4510db34121b51bf20d10f3b7a4f6f7701",
           "externalRecordId": "",
           "recordFingerprint": "6fd4f1e5990f15fbfc80a3abe2fa39406d16c2fc7c5bd5abcb8484eb3652f8fa",
-          "sourceRowNumber": 4204,
+          "sourceRowNumber": 4943,
           "sourceFacilityName": "대신동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 달구벌대로389길 50"
@@ -8061,7 +8061,7 @@
           "sourceRecordKey": "f5288aee07057b5706e06e1db3fb951c0b24ba99adf60d66308bbe9e05805953",
           "externalRecordId": "",
           "recordFingerprint": "78339145526507cddb0f517626ce5afbb20b2c0596309ad27654b935720d5e33",
-          "sourceRowNumber": 4201,
+          "sourceRowNumber": 4940,
           "sourceFacilityName": "대신동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 달구벌대로389길 50"
@@ -8104,7 +8104,7 @@
       "sourceFacilityName": "중앙로관광버스전용주차장",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 15396,
+      "sourceRowNumber": 15471,
       "sourceRecordKey": "81f6dfd98950b46858151a46d44f0d7491216032b31cdc8b25e2246b728850ad",
       "sourceExternalRecordId": "150-2-000016",
       "recordFingerprint": "5a8db85c1983c165da15b58611ef3086cd43660576ec81c02d55b4842141c090",
@@ -8124,7 +8124,7 @@
           "sourceRecordKey": "81f6dfd98950b46858151a46d44f0d7491216032b31cdc8b25e2246b728850ad",
           "externalRecordId": "150-2-000016",
           "recordFingerprint": "5a8db85c1983c165da15b58611ef3086cd43660576ec81c02d55b4842141c090",
-          "sourceRowNumber": 15396,
+          "sourceRowNumber": 15471,
           "sourceFacilityName": "중앙로관광버스전용주차장",
           "sourceRoadAddresses": [
             "대구광역시 중구 중앙대로 456-3(화전동)"
@@ -8158,7 +8158,7 @@
           "sourceRecordKey": "81f6dfd98950b46858151a46d44f0d7491216032b31cdc8b25e2246b728850ad",
           "externalRecordId": "150-2-000016",
           "recordFingerprint": "5a8db85c1983c165da15b58611ef3086cd43660576ec81c02d55b4842141c090",
-          "sourceRowNumber": 15396,
+          "sourceRowNumber": 15471,
           "sourceFacilityName": "중앙로관광버스전용주차장",
           "sourceRoadAddresses": [
             "대구광역시 중구 중앙대로 456-3(화전동)"
@@ -8203,7 +8203,7 @@
       "sourceFacilityName": "수창공원",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 1987,
+      "sourceRowNumber": 3933,
       "sourceRecordKey": "bcfbdef5c00db74db82112111a94ab93a0f022c32eb6c78c753cbcb559a8afa5",
       "sourceExternalRecordId": "27110-00006",
       "recordFingerprint": "b73907b7e0f2f9103a13c299d33681d0afe89bb30da705704a9387aab5229cd2",
@@ -8223,7 +8223,7 @@
           "sourceRecordKey": "bcfbdef5c00db74db82112111a94ab93a0f022c32eb6c78c753cbcb559a8afa5",
           "externalRecordId": "27110-00006",
           "recordFingerprint": "b73907b7e0f2f9103a13c299d33681d0afe89bb30da705704a9387aab5229cd2",
-          "sourceRowNumber": 1987,
+          "sourceRowNumber": 3933,
           "sourceFacilityName": "수창공원",
           "sourceRoadAddresses": [
             "대구광역시 중구 달성로 26길 32"
@@ -8257,7 +8257,7 @@
           "sourceRecordKey": "bcfbdef5c00db74db82112111a94ab93a0f022c32eb6c78c753cbcb559a8afa5",
           "externalRecordId": "27110-00006",
           "recordFingerprint": "b73907b7e0f2f9103a13c299d33681d0afe89bb30da705704a9387aab5229cd2",
-          "sourceRowNumber": 1987,
+          "sourceRowNumber": 3933,
           "sourceFacilityName": "수창공원",
           "sourceRoadAddresses": [
             "대구광역시 중구 달성로 26길 32"
@@ -8302,7 +8302,7 @@
       "sourceFacilityName": "삼덕마루",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 1262,
+      "sourceRowNumber": 1873,
       "sourceRecordKey": "d19d18790508541d6d6249e51a3d8b677e59f85f9af1178c8e7c85a0dfca1e81",
       "sourceExternalRecordId": "",
       "recordFingerprint": "18d78c6255f0c9df9d915c4edd3f86d4030c43dd9b9d6ef1c179db3ad1727e91",
@@ -8322,7 +8322,7 @@
           "sourceRecordKey": "d19d18790508541d6d6249e51a3d8b677e59f85f9af1178c8e7c85a0dfca1e81",
           "externalRecordId": "",
           "recordFingerprint": "18d78c6255f0c9df9d915c4edd3f86d4030c43dd9b9d6ef1c179db3ad1727e91",
-          "sourceRowNumber": 1262,
+          "sourceRowNumber": 1873,
           "sourceFacilityName": "삼덕마루",
           "sourceRoadAddresses": [
             "대구광역시 중구 동덕로26길 103"
@@ -8354,7 +8354,7 @@
           "sourceRecordKey": "d19d18790508541d6d6249e51a3d8b677e59f85f9af1178c8e7c85a0dfca1e81",
           "externalRecordId": "",
           "recordFingerprint": "18d78c6255f0c9df9d915c4edd3f86d4030c43dd9b9d6ef1c179db3ad1727e91",
-          "sourceRowNumber": 1262,
+          "sourceRowNumber": 1873,
           "sourceFacilityName": "삼덕마루",
           "sourceRoadAddresses": [
             "대구광역시 중구 동덕로26길 103"
@@ -8397,7 +8397,7 @@
       "sourceFacilityName": "대봉2동행정복지센터",
       "sourceProviderCode": "3410000",
       "sourceProviderName": "대구광역시 중구",
-      "sourceRowNumber": 6622,
+      "sourceRowNumber": 6728,
       "sourceRecordKey": "237e5a77d652217e1d3925ae78ee666000cd3cc479d31e4bd40d8df3e1faf65c",
       "sourceExternalRecordId": "",
       "recordFingerprint": "cee644fb83c75956d54b1edf75ee511b47756d4608b30220c3cb841a2931acbf",
@@ -8417,7 +8417,7 @@
           "sourceRecordKey": "237e5a77d652217e1d3925ae78ee666000cd3cc479d31e4bd40d8df3e1faf65c",
           "externalRecordId": "",
           "recordFingerprint": "cee644fb83c75956d54b1edf75ee511b47756d4608b30220c3cb841a2931acbf",
-          "sourceRowNumber": 6622,
+          "sourceRowNumber": 6728,
           "sourceFacilityName": "대봉2동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 대봉로47길 31"
@@ -8449,7 +8449,7 @@
           "sourceRecordKey": "237e5a77d652217e1d3925ae78ee666000cd3cc479d31e4bd40d8df3e1faf65c",
           "externalRecordId": "",
           "recordFingerprint": "cee644fb83c75956d54b1edf75ee511b47756d4608b30220c3cb841a2931acbf",
-          "sourceRowNumber": 6622,
+          "sourceRowNumber": 6728,
           "sourceFacilityName": "대봉2동행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 중구 대봉로47길 31"
@@ -8492,7 +8492,7 @@
       "sourceFacilityName": "상인공영주차장",
       "sourceProviderCode": "6270000",
       "sourceProviderName": "대구광역시",
-      "sourceRowNumber": 18155,
+      "sourceRowNumber": 18160,
       "sourceRecordKey": "b2163afbaa9c3194876a44a8b726e3e7f1df2a119a66c7b158ee665507356463",
       "sourceExternalRecordId": "156-2-000031",
       "recordFingerprint": "6ef721146c3696ae82a4db5198d830669a7ddc9ceaff41615d53920e616eb4fc",
@@ -8512,7 +8512,7 @@
           "sourceRecordKey": "b2163afbaa9c3194876a44a8b726e3e7f1df2a119a66c7b158ee665507356463",
           "externalRecordId": "156-2-000031",
           "recordFingerprint": "6ef721146c3696ae82a4db5198d830669a7ddc9ceaff41615d53920e616eb4fc",
-          "sourceRowNumber": 18155,
+          "sourceRowNumber": 18160,
           "sourceFacilityName": "상인공영주차장",
           "sourceRoadAddresses": [
             "대구광역시 달서구 상인서로 103-5"
@@ -8546,7 +8546,7 @@
           "sourceRecordKey": "b2163afbaa9c3194876a44a8b726e3e7f1df2a119a66c7b158ee665507356463",
           "externalRecordId": "156-2-000031",
           "recordFingerprint": "6ef721146c3696ae82a4db5198d830669a7ddc9ceaff41615d53920e616eb4fc",
-          "sourceRowNumber": 18155,
+          "sourceRowNumber": 18160,
           "sourceFacilityName": "상인공영주차장",
           "sourceRoadAddresses": [
             "대구광역시 달서구 상인서로 103-5"
@@ -8591,7 +8591,7 @@
       "sourceFacilityName": "도원공원",
       "sourceProviderCode": "3470000",
       "sourceProviderName": "대구광역시 달서구",
-      "sourceRowNumber": 14537,
+      "sourceRowNumber": 15289,
       "sourceRecordKey": "e5a7c86ca1cfa5a44478e7661d8c4b86c8b7123806e611463eedc4d1a510846c",
       "sourceExternalRecordId": "27290-00006",
       "recordFingerprint": "01c0c9ca5825524ef65649aafa747aba993ff17cc598d527170cb8322fb6172b",
@@ -8611,7 +8611,7 @@
           "sourceRecordKey": "e5a7c86ca1cfa5a44478e7661d8c4b86c8b7123806e611463eedc4d1a510846c",
           "externalRecordId": "27290-00006",
           "recordFingerprint": "01c0c9ca5825524ef65649aafa747aba993ff17cc598d527170cb8322fb6172b",
-          "sourceRowNumber": 14537,
+          "sourceRowNumber": 15289,
           "sourceFacilityName": "도원공원",
           "sourceRoadAddresses": [
             "대구광역시 달서구 미리샘길 26"
@@ -8645,7 +8645,7 @@
           "sourceRecordKey": "e5a7c86ca1cfa5a44478e7661d8c4b86c8b7123806e611463eedc4d1a510846c",
           "externalRecordId": "27290-00006",
           "recordFingerprint": "01c0c9ca5825524ef65649aafa747aba993ff17cc598d527170cb8322fb6172b",
-          "sourceRowNumber": 14537,
+          "sourceRowNumber": 15289,
           "sourceFacilityName": "도원공원",
           "sourceRoadAddresses": [
             "대구광역시 달서구 미리샘길 26"
@@ -8690,7 +8690,7 @@
       "sourceFacilityName": "봉덕1동 행정복지센터",
       "sourceProviderCode": "3440000",
       "sourceProviderName": "대구광역시 남구",
-      "sourceRowNumber": 956,
+      "sourceRowNumber": 2401,
       "sourceRecordKey": "270c245c6c63412c8c4395d3c066b6b9fbab0e0c36b884fe087ed020ae4a1768",
       "sourceExternalRecordId": "",
       "recordFingerprint": "7960aa4ebf9143425c0cdff0d754cc69fc720186a4a5131c3c6810f1ce74c13a",
@@ -8710,7 +8710,7 @@
           "sourceRecordKey": "270c245c6c63412c8c4395d3c066b6b9fbab0e0c36b884fe087ed020ae4a1768",
           "externalRecordId": "",
           "recordFingerprint": "7960aa4ebf9143425c0cdff0d754cc69fc720186a4a5131c3c6810f1ce74c13a",
-          "sourceRowNumber": 956,
+          "sourceRowNumber": 2401,
           "sourceFacilityName": "봉덕1동 행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 남구 봉덕로 51-2"
@@ -8744,7 +8744,7 @@
           "sourceRecordKey": "270c245c6c63412c8c4395d3c066b6b9fbab0e0c36b884fe087ed020ae4a1768",
           "externalRecordId": "",
           "recordFingerprint": "7960aa4ebf9143425c0cdff0d754cc69fc720186a4a5131c3c6810f1ce74c13a",
-          "sourceRowNumber": 956,
+          "sourceRowNumber": 2401,
           "sourceFacilityName": "봉덕1동 행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 남구 봉덕로 51-2"
@@ -8773,7 +8773,7 @@
           "sourceRecordKey": "4a7a198d49ea2604c3a9e6a5eccc7c626df0e4c6da8d9c3a768b2464471074eb",
           "externalRecordId": "",
           "recordFingerprint": "f3e3012052f5ebfeb6d560159b91968a2041a01047916a1bbc51bc564df1502b",
-          "sourceRowNumber": 955,
+          "sourceRowNumber": 2400,
           "sourceFacilityName": "봉덕1동 행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 남구 봉덕로 51-2"
@@ -8802,7 +8802,7 @@
           "sourceRecordKey": "b761a5cb8cf843a42843ed16a89f1cf1e4d4f5dcf5a61c8c33570da81302c6f9",
           "externalRecordId": "",
           "recordFingerprint": "9e4b1a76e2b70ea8e437cda53eaef082516b4fa7673ae956bca4d321fbbca40d",
-          "sourceRowNumber": 954,
+          "sourceRowNumber": 2399,
           "sourceFacilityName": "봉덕1동 행정복지센터",
           "sourceRoadAddresses": [
             "대구광역시 남구 봉덕로 51-2"
@@ -8847,7 +8847,7 @@
       "sourceFacilityName": "빨래터공원",
       "sourceProviderCode": "3440000",
       "sourceProviderName": "대구광역시 남구",
-      "sourceRowNumber": 4127,
+      "sourceRowNumber": 6058,
       "sourceRecordKey": "97cc812d52511d9ac14b535248290f12dc62acb5ca35c4bbc7ede18725e1421a",
       "sourceExternalRecordId": "27200-00019",
       "recordFingerprint": "41ab854c1b5f4a47b1276dcbe6944c37906b1d2762986da49af0f297175d59a7",
@@ -8867,7 +8867,7 @@
           "sourceRecordKey": "97cc812d52511d9ac14b535248290f12dc62acb5ca35c4bbc7ede18725e1421a",
           "externalRecordId": "27200-00019",
           "recordFingerprint": "41ab854c1b5f4a47b1276dcbe6944c37906b1d2762986da49af0f297175d59a7",
-          "sourceRowNumber": 4127,
+          "sourceRowNumber": 6058,
           "sourceFacilityName": "빨래터공원",
           "sourceRoadAddresses": [
             "대구광역시 남구 앞산순환로 365"
@@ -8901,7 +8901,7 @@
           "sourceRecordKey": "97cc812d52511d9ac14b535248290f12dc62acb5ca35c4bbc7ede18725e1421a",
           "externalRecordId": "27200-00019",
           "recordFingerprint": "41ab854c1b5f4a47b1276dcbe6944c37906b1d2762986da49af0f297175d59a7",
-          "sourceRowNumber": 4127,
+          "sourceRowNumber": 6058,
           "sourceFacilityName": "빨래터공원",
           "sourceRoadAddresses": [
             "대구광역시 남구 앞산순환로 365"
@@ -8946,7 +8946,7 @@
       "sourceFacilityName": "이천어울림도서관",
       "sourceProviderCode": "3440000",
       "sourceProviderName": "대구광역시 남구",
-      "sourceRowNumber": 2244,
+      "sourceRowNumber": 2682,
       "sourceRecordKey": "16aaf92074872a2aed34d93b8253c55fff448acde347fc9b83e7686dcd7b41b4",
       "sourceExternalRecordId": "",
       "recordFingerprint": "c1f6bc67b1fe5812765ab44f65415c0ea2254f86e6d3b684f2db635203cb0643",
@@ -8966,7 +8966,7 @@
           "sourceRecordKey": "16aaf92074872a2aed34d93b8253c55fff448acde347fc9b83e7686dcd7b41b4",
           "externalRecordId": "",
           "recordFingerprint": "c1f6bc67b1fe5812765ab44f65415c0ea2254f86e6d3b684f2db635203cb0643",
-          "sourceRowNumber": 2244,
+          "sourceRowNumber": 2682,
           "sourceFacilityName": "이천어울림도서관",
           "sourceRoadAddresses": [
             "대구광역시 남구 이천로 124"
@@ -8998,7 +8998,7 @@
           "sourceRecordKey": "16aaf92074872a2aed34d93b8253c55fff448acde347fc9b83e7686dcd7b41b4",
           "externalRecordId": "",
           "recordFingerprint": "c1f6bc67b1fe5812765ab44f65415c0ea2254f86e6d3b684f2db635203cb0643",
-          "sourceRowNumber": 2244,
+          "sourceRowNumber": 2682,
           "sourceFacilityName": "이천어울림도서관",
           "sourceRoadAddresses": [
             "대구광역시 남구 이천로 124"
@@ -9041,7 +9041,7 @@
       "sourceFacilityName": "대구간송미술관",
       "sourceProviderCode": "6270000",
       "sourceProviderName": "대구광역시",
-      "sourceRowNumber": 411,
+      "sourceRowNumber": 457,
       "sourceRecordKey": "fef082dc223cf69372762d571a739e6af1c967797f68456d562d476efa32ee25",
       "sourceExternalRecordId": "",
       "recordFingerprint": "891d2e5a920ad8da55e8f35937f7c244713729a26d355ce328e886e651b1f5d3",
@@ -9061,7 +9061,7 @@
           "sourceRecordKey": "fef082dc223cf69372762d571a739e6af1c967797f68456d562d476efa32ee25",
           "externalRecordId": "",
           "recordFingerprint": "891d2e5a920ad8da55e8f35937f7c244713729a26d355ce328e886e651b1f5d3",
-          "sourceRowNumber": 411,
+          "sourceRowNumber": 457,
           "sourceFacilityName": "대구간송미술관",
           "sourceRoadAddresses": [
             "대구광역시 수성구 미술관로 70"
@@ -9095,7 +9095,7 @@
           "sourceRecordKey": "fef082dc223cf69372762d571a739e6af1c967797f68456d562d476efa32ee25",
           "externalRecordId": "",
           "recordFingerprint": "891d2e5a920ad8da55e8f35937f7c244713729a26d355ce328e886e651b1f5d3",
-          "sourceRowNumber": 411,
+          "sourceRowNumber": 457,
           "sourceFacilityName": "대구간송미술관",
           "sourceRoadAddresses": [
             "대구광역시 수성구 미술관로 70"
@@ -9140,7 +9140,7 @@
       "sourceFacilityName": "수성구립사월책문화센터도서관",
       "sourceProviderCode": "3460000",
       "sourceProviderName": "대구광역시 수성구",
-      "sourceRowNumber": 614,
+      "sourceRowNumber": 1233,
       "sourceRecordKey": "e30a3c363334fbaa5cf67dd056756956b1fc6175475ae57a083b919cfdb86f6e",
       "sourceExternalRecordId": "",
       "recordFingerprint": "42d66bdfa9d7220355a434b61917c52c5472474c10d21cc601cafa334640a8d7",
@@ -9160,7 +9160,7 @@
           "sourceRecordKey": "e30a3c363334fbaa5cf67dd056756956b1fc6175475ae57a083b919cfdb86f6e",
           "externalRecordId": "",
           "recordFingerprint": "42d66bdfa9d7220355a434b61917c52c5472474c10d21cc601cafa334640a8d7",
-          "sourceRowNumber": 614,
+          "sourceRowNumber": 1233,
           "sourceFacilityName": "수성구립사월책문화센터도서관",
           "sourceRoadAddresses": [
             "대구광역시 수성구 성동로 70(청운신협행복센터 2층)"
@@ -9192,7 +9192,7 @@
           "sourceRecordKey": "e30a3c363334fbaa5cf67dd056756956b1fc6175475ae57a083b919cfdb86f6e",
           "externalRecordId": "",
           "recordFingerprint": "42d66bdfa9d7220355a434b61917c52c5472474c10d21cc601cafa334640a8d7",
-          "sourceRowNumber": 614,
+          "sourceRowNumber": 1233,
           "sourceFacilityName": "수성구립사월책문화센터도서관",
           "sourceRoadAddresses": [
             "대구광역시 수성구 성동로 70(청운신협행복센터 2층)"
@@ -9320,5 +9320,5 @@
       "legacyCoordinateRepair": false
     }
   ],
-  "generatedAt": "2026-08-28T09:26:59.761Z"
+  "generatedAt": "2026-09-21T05:10:00.251Z"
 }
