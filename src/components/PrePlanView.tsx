@@ -1,48 +1,23 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { z } from 'zod';
+import { prePlanBundleSchema, importPreplans, type PreplanConflictMode } from '../services/preplanBundle';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { type PrePlan, type PrePlanContact, createEmptyPrePlan } from '../types/preplan';
-import { resizeImage, savePhoto, getPhoto, deletePhoto, MAX_PREPLAN_PHOTO_DATA_URL_LENGTH } from '../services/preplanPhotos';
+import { resizeImage, savePhoto, getPhoto, deletePhoto } from '../services/preplanPhotos';
 import { buildSensitiveExportMessage } from '../utils/sensitiveExport';
 import { useAppFeedback } from '../contexts/FeedbackContext';
 import DataStatePanel from './DataStatePanel';
+import { useStoragePending } from '../hooks/useStoragePending';
 
 const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
-const MAX_IMPORT_PLANS = 500;
-const MAX_IMPORT_PHOTOS = 500;
-const MAX_PHOTOS_PER_PLAN = 50;
+
+
+
 const PREPLAN_EXPORT_DETAILS = [
   '대상물명과 주소',
   '관계인 이름과 연락처',
   '위험요소, 진입로, 소방시설 위치',
   '현장 사진',
 ];
-
-const photoKeySchema = z.string().min(1).max(120).regex(/^[A-Za-z0-9_.:-]+$/);
-const prePlanContactSchema = z.object({
-  role: z.string().max(80),
-  name: z.string().max(100),
-  phone: z.string().max(50),
-});
-const prePlanSchema = z.object({
-  id: z.string().min(1).max(80),
-  name: z.string().max(200),
-  address: z.string().max(500),
-  hazards: z.array(z.string().max(200)).max(50),
-  contacts: z.array(prePlanContactSchema).max(50),
-  facilities: z.array(z.string().max(200)).max(100),
-  accessNotes: z.string().max(5000),
-  photoKeys: z.array(photoKeySchema).max(MAX_PHOTOS_PER_PLAN),
-  updatedAt: z.number().finite().nonnegative(),
-}) satisfies z.ZodType<PrePlan>;
-const photoDataUrlSchema = z.string()
-  .max(MAX_PREPLAN_PHOTO_DATA_URL_LENGTH)
-  .regex(/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/);
-const prePlanBundleSchema = z.object({
-  version: z.number().optional(),
-  plans: z.array(prePlanSchema).max(MAX_IMPORT_PLANS),
-  photos: z.record(photoKeySchema, photoDataUrlSchema).optional(),
-});
 
 interface PrePlanViewProps {
   incidentContext?: { title: string; address: string } | null;
@@ -71,6 +46,7 @@ export default function PrePlanView({ incidentContext = null, searchQuery, onSea
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftPlan, setDraftPlan] = useState<PrePlan | null>(null);
   const fileImportRef = useRef<HTMLInputElement>(null);
+  const [conflictMode, setConflictMode] = useState<PreplanConflictMode>('keep');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const search = searchQuery ?? localSearch;
   const setSearch = onSearchQueryChange ?? setLocalSearch;
@@ -186,30 +162,17 @@ export default function PrePlanView({ incidentContext = null, searchQuery, onSea
       const parsed = prePlanBundleSchema.safeParse(JSON.parse(text));
       if (!parsed.success) throw new Error('형식 오류');
 
-      const existingIds = new Set(plans.map(p => p.id));
-      const importedPlans = parsed.data.plans.filter(p => !existingIds.has(p.id));
-      if (importedPlans.length === 0) {
-        showNotice({ message: '새로 가져올 대상물이 없습니다.', tone: 'info' });
-        return;
-      }
-
-      const referencedPhotoKeys = new Set(importedPlans.flatMap(p => p.photoKeys));
-      const photoEntries = Object.entries(parsed.data.photos ?? {})
-        .filter(([key]) => referencedPhotoKeys.has(key));
-      if (photoEntries.length > MAX_IMPORT_PHOTOS) throw new Error('사진 개수 초과');
-      await Promise.all(photoEntries.map(([key, dataUrl]) => savePhoto(key, dataUrl)));
-
-      setPlans(prev => {
-        const ids = new Set(prev.map(p => p.id));
-        const merged = [...prev];
-        importedPlans.forEach(p => {
-          if (!ids.has(p.id)) merged.push(p);
-        });
-        return merged;
+      const confirmed = await confirmAction({
+        title: '대상물 가져오기',
+        message: '파일의 대상물 ' + parsed.data.plans.length + '개를 확인했습니다. 같은 대상물은 선택한 처리 방식으로 반영합니다.',
+        confirmLabel: '가져오기',
       });
-      showNotice({ message: `대상물 ${importedPlans.length}개를 가져왔습니다.`, tone: 'success' });
-    } catch {
-      showNotice({ message: '가져오기에 실패했습니다. 올바른 백업 파일인지 확인하세요.', tone: 'error' });
+      if (!confirmed) return;
+      const result = await importPreplans(parsed.data, conflictMode);
+      setPlans(result.plans);
+      showNotice({ message: result.changed + '개 반영 · ' + result.skipped + '개 기존 유지', tone: 'success' });
+    } catch (error) {
+      showNotice({ message: error instanceof Error ? error.message : '가져오기에 실패했습니다. 올바른 백업 파일인지 확인하세요.', tone: 'error' });
     }
   };
 
@@ -239,6 +202,11 @@ export default function PrePlanView({ incidentContext = null, searchQuery, onSea
           <p className="text-sm text-on-surface-variant mt-1">관할 대상물의 위험요소·연락처·소방시설·사진을 기기에 축적</p>
         </div>
         <div className="flex gap-2">
+          <label className="flex items-center gap-2 text-xs text-on-surface-variant">같은 대상물
+            <select aria-label="같은 대상물 가져오기 방식" value={conflictMode} onChange={event => setConflictMode(event.target.value as PreplanConflictMode)} className="min-h-11 rounded-lg bg-surface-container px-2 text-on-surface">
+              <option value="keep">기존 유지</option><option value="newer">더 최신 내용 적용</option><option value="copy">별도 복사</option>
+            </select>
+          </label>
           <button onClick={exportAll} className="px-3 py-2 rounded-lg text-sm font-bold bg-surface-container text-on-surface-variant hover:bg-surface-container-high flex items-center gap-1.5">
             <span aria-hidden="true" className="material-symbols-outlined text-base">download</span>내보내기
           </button>
@@ -377,6 +345,7 @@ function PrePlanEditor({
   onDelete: () => void;
 }) {
   const { showNotice } = useAppFeedback();
+  const saveFailed = useStoragePending('119helper-preplans');
   const set = <K extends keyof PrePlan>(key: K, value: PrePlan[K]) => onChange({ ...plan, [key]: value });
 
   const addPhoto = async (file: File) => {
@@ -403,9 +372,9 @@ function PrePlanEditor({
         </button>
         <div className="min-w-0 flex-1">
           <h2 className="text-xl font-extrabold text-on-surface font-headline">대상물 편집</h2>
-          <p role="status" className="mt-0.5 flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+          <p role="status" className={`mt-0.5 flex items-center gap-1 text-[11px] font-bold ${saveFailed ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
             <span aria-hidden="true" className="material-symbols-outlined text-sm">save</span>
-            {isDraft
+            {saveFailed ? '저장 실패 · 이 탭에 임시 보관 중입니다' : isDraft
               ? '내용을 입력하면 이 기기에 자동 저장됩니다'
               : '입력 즉시 이 기기에 자동 저장됩니다 · 서버 동기화 없음'}
           </p>

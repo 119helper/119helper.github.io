@@ -11,6 +11,7 @@ import {
   loadStoredJson,
   removeStoredJson,
   saveStoredJson,
+  isStoragePending,
 } from './privacySettings';
 import {
   normalizeTriagePatients,
@@ -181,7 +182,7 @@ function normalizeStopwatch(
   };
 }
 
-function normalizeSnapshot(value: unknown): IncidentCaseSnapshot | null {
+export function normalizeSnapshot(value: unknown): IncidentCaseSnapshot | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Partial<IncidentCaseSnapshot>;
   if (raw.schemaVersion !== INCIDENT_CASE_SCHEMA_VERSION) return null;
@@ -257,7 +258,9 @@ function persistSnapshots(records: readonly IncidentCaseSnapshot[]): void {
     version: INCIDENT_CASE_SCHEMA_VERSION,
     records: [...records],
   };
-  saveStoredJson(INCIDENT_CASE_ARCHIVE_KEY, envelope);
+  if (!saveStoredJson(INCIDENT_CASE_ARCHIVE_KEY, envelope)) {
+    throw new Error('사건 기록을 기기에 저장하지 못했습니다. 저장 공간을 확보한 후 다시 시도해 주세요.');
+  }
   dispatchArchiveUpdate();
 }
 
@@ -340,7 +343,10 @@ export function archiveIncidentCase(
   }
 
   const existing = getIncidentCaseSnapshot(incidentId, now);
-  if (existing) return { status: 'existing', record: existing };
+  if (existing) {
+    if (isStoragePending(INCIDENT_CASE_ARCHIVE_KEY)) persistSnapshots(loadIncidentCaseSnapshots(now));
+    return { status: 'existing', record: existing };
+  }
 
   const record = normalizeSnapshot({
     schemaVersion: INCIDENT_CASE_SCHEMA_VERSION,

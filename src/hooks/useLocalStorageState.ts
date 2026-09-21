@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from 'react';
 import {
   canPersistStorageKey,
-  isSensitiveStorageKey,
   isStorageExpired,
   removeStoredJson,
   storageTimestampKey,
+  loadStoredJson,
+  saveStoredJson,
 } from '../services/privacySettings';
 
 /**
@@ -29,8 +30,7 @@ export function useLocalStorageState<T>(
         removeStoredJson(key);
         return initialValue();
       }
-      const saved = localStorage.getItem(key);
-      if (saved !== null) return JSON.parse(saved) as T;
+      return loadStoredJson(key, initialValue());
     } catch {
       /* 손상된 데이터는 무시하고 기본값 사용 */
     }
@@ -38,18 +38,7 @@ export function useLocalStorageState<T>(
   });
 
   useEffect(() => {
-    try {
-      if (!canPersistStorageKey(key)) {
-        removeStoredJson(key);
-        return;
-      }
-      localStorage.setItem(key, JSON.stringify(state));
-      if (isSensitiveStorageKey(key)) {
-        localStorage.setItem(storageTimestampKey(key), String(Date.now()));
-      }
-    } catch {
-      /* 용량 초과 등은 조용히 무시 */
-    }
+    saveStoredJson(key, state);
   }, [key, state]);
 
   useEffect(() => {
@@ -61,16 +50,8 @@ export function useLocalStorageState<T>(
       }
 
       try {
-        const saved = localStorage.getItem(key);
-        if (saved === null) {
-          setState(current => {
-            const next = initialValue();
-            return JSON.stringify(current) === JSON.stringify(next) ? current : next;
-          });
-          return;
-        }
-        const parsed = JSON.parse(saved) as T;
-        setState(current => JSON.stringify(current) === saved ? current : parsed);
+        const parsed = loadStoredJson(key, initialValue());
+        setState(current => JSON.stringify(current) === JSON.stringify(parsed) ? current : parsed);
       } catch {
         removeStoredJson(key);
         setState(initialValue());

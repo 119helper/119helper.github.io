@@ -99,7 +99,7 @@ jobs:
 
           for attempt in 1 2 3; do
             echo "Playwright browser install attempt $attempt/3"
-            if timeout --kill-after=10s 120s npx playwright install chromium; then
+            if timeout --kill-after=10s 120s npx playwright install chromium webkit; then
               exit 0
             else
               status=$?
@@ -122,11 +122,13 @@ jobs:
         timeout-minutes: 1
         run: |
           node - <<'NODE'
-          const { chromium } = require('@playwright/test');
+          const { chromium, webkit } = require('@playwright/test');
 
           (async () => {
-            const browser = await chromium.launch({ headless: true });
-            await browser.close();
+            for (const engine of [chromium, webkit]) {
+              const browser = await engine.launch({ headless: true });
+              await browser.close();
+            }
           })().catch((error) => {
             console.error(error);
             process.exit(1);
@@ -142,7 +144,7 @@ jobs:
 
           for attempt in 1 2 3; do
             echo "Playwright dependency install attempt $attempt/3"
-            if timeout --kill-after=15s 180s npx playwright install-deps chromium; then
+            if timeout --kill-after=15s 180s npx playwright install-deps chromium webkit; then
               exit 0
             else
               status=$?
@@ -163,11 +165,13 @@ jobs:
         timeout-minutes: 1
         run: |
           node - <<'NODE'
-          const { chromium } = require('@playwright/test');
+          const { chromium, webkit } = require('@playwright/test');
 
           (async () => {
-            const browser = await chromium.launch({ headless: true });
-            await browser.close();
+            for (const engine of [chromium, webkit]) {
+              const browser = await engine.launch({ headless: true });
+              await browser.close();
+            }
           })().catch((error) => {
             console.error(error);
             process.exit(1);

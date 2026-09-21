@@ -63,12 +63,12 @@ export function getStaleAt(data: unknown): number | null {
 
 // ═══════ 네트워크 상태 신호 ═══════
 // navigator.onLine은 "와이파이는 잡혔는데 인터넷이 안 되는" 상황을 못 잡는다.
-// 실제 fetch 성공/네트워크 실패를 이벤트로 흘려 ConnectivityStatus가 판정에 합산한다.
+// 검증된 정상 응답과 HTTP/계약/캐시 폴백 실패를 경로별로 합산한다.
 export const NETWORK_HEALTH_EVENT = '119:network-health';
 
-function reportNetworkHealth(ok: boolean) {
+function reportNetworkHealth(ok: boolean, path: string) {
   try {
-    window.dispatchEvent(new CustomEvent(NETWORK_HEALTH_EVENT, { detail: { ok } }));
+    window.dispatchEvent(new CustomEvent(NETWORK_HEALTH_EVENT, { detail: { ok, path } }));
   } catch { /* non-browser 환경 무시 */ }
 }
 
@@ -632,7 +632,6 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
 
     try {
       res = await fetch(url.toString(), { cache: 'no-store', signal: controller.signal, headers: workerHeaders() });
-      reportNetworkHealth(true); // 응답이 왔다 = 네트워크 자체는 살아 있음 (HTTP 에러와 무관)
       bodyText = await res.text().catch(() => '');
 
       if (!res.ok) {
@@ -676,13 +675,12 @@ export async function apiFetch<T>(path: string, params?: Record<string, string>,
       if (useCache) {
         await saveToCache(cacheKey, data);
       }
+      reportNetworkHealth(true, url.pathname);
       return data as T;
     } catch (err: unknown) {
+      reportNetworkHealth(false, url.pathname);
       if (isStaleDataError(err)) throw err;
       if (err instanceof Error && err.name === 'AbortError') isTimeout = true;
-
-      // res가 없으면 fetch 자체가 실패한 것 = 네트워크 레벨 장애 (타임아웃 포함)
-      if (!res) reportNetworkHealth(false);
 
       const errMessage = err instanceof Error ? err.message : String(err);
       const causeText = isTimeout ? 'timeout' : `${errMessage} ${bodyText}`;

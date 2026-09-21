@@ -168,6 +168,10 @@ export default function IncidentModeView({
   const [locationResolving, setLocationResolving] = useState(false);
   const [locationError, setLocationError] = useState('');
   const [offerRegionalFallback, setOfferRegionalFallback] = useState(false);
+  useEffect(() => {
+    document.documentElement.style.setProperty('--incident-start-clearance', session.active ? '0rem' : offerRegionalFallback ? '8rem' : '5rem');
+    return () => { document.documentElement.style.removeProperty('--incident-start-clearance'); };
+  }, [session.active, offerRegionalFallback]);
   const [activitySession] = useActivitySession(session.type);
 
   useEffect(() => {
@@ -891,6 +895,8 @@ export default function IncidentModeView({
               </div>
             )}
           </div>
+          <details className="text-on-surface">
+          <summary className="cursor-pointer py-3 text-sm font-bold">초기 상황 및 위험요소 (선택)</summary>
           <label htmlFor="incident-note" className="block text-sm font-bold text-on-surface space-y-2">
             <span>초기 상황 및 위험요소</span>
             <textarea
@@ -902,7 +908,9 @@ export default function IncidentModeView({
               className="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 font-normal"
             />
           </label>
-
+          </details>
+          <div className={offerRegionalFallback ? 'h-36 lg:hidden' : 'h-20 lg:hidden'} aria-hidden="true" />
+          <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-outline-variant/20 bg-surface px-4 py-3 lg:static lg:border-0 lg:bg-transparent lg:p-0">
           <button
             type="button"
             onClick={() => void startSession()}
@@ -921,6 +929,7 @@ export default function IncidentModeView({
               위치 없이 {cityLabel} 지역 기준으로 시작
             </button>
           )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

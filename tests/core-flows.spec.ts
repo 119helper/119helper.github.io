@@ -446,6 +446,7 @@ test('출동 상황판: 시작·도구 열람·종료가 활동 타임라인에 
   await page.getByRole('button', { name: 'ambulance 구급', exact: true }).click();
   await page.getByLabel('출동 제목').fill('광주 환자 이송');
   await page.getByLabel(/현장 주소/).fill('광주 서구');
+  await page.getByText('초기 상황 및 위험요소 (선택)', { exact: true }).click();
   await page.getByLabel('초기 상황 및 위험요소').fill('의식 저하');
   await page.getByRole('button', { name: /위치 기준 브리핑 시작/ }).click();
 
@@ -835,6 +836,7 @@ test('활성 출동: 사건 맥락으로 유사 위해사고를 즉시 좁힌다
   await page.getByRole('button', { name: 'emergency 구조', exact: true }).click();
   await page.getByLabel('출동 제목').fill('아파트 욕실 고령자 낙상 구조');
   await page.getByLabel(/현장 주소/).fill('서울특별시 종로구 세종대로 209');
+  await page.getByText('초기 상황 및 위험요소 (선택)', { exact: true }).click();
   await page.getByLabel('초기 상황 및 위험요소').fill('욕실 바닥에서 넘어짐');
   await page.getByRole('button', { name: /위치 기준 브리핑 시작/ }).click();
   const nextChecks = page.getByRole('region', { name: '출동별 다음 확인' });

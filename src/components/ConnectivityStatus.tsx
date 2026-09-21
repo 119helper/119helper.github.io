@@ -41,7 +41,7 @@ export default function ConnectivityStatus() {
   if (!showUpdateNotice && !showNetworkNotice) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 flex flex-col items-center gap-2 p-2 sm:p-3 lg:bottom-0 lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))]" role="status" aria-live="polite">
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom)+var(--incident-start-clearance,0rem))] z-40 flex flex-col items-center gap-2 p-2 sm:p-3 lg:bottom-0 lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))]" role="status" aria-live="polite">
       {showUpdateNotice && (
         <div className="pointer-events-auto flex items-center gap-3 rounded-full bg-primary px-4 py-2 text-sm font-bold text-on-primary shadow-lg">
           <span aria-hidden="true" className="material-symbols-outlined text-base">system_update</span>

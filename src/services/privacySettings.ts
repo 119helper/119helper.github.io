@@ -9,6 +9,22 @@ export interface PrivacySettings {
 
 const PRIVACY_KEY = '119helper-privacy-settings';
 
+// Failed writes remain available in this tab until retried or explicitly deleted.
+// Never persist this recovery buffer to another origin or transmit it in telemetry.
+const pendingWrites = new Map<string, { json: string; updatedAt: number }>();
+export const STORAGE_STATUS_EVENT = '119helper-storage-status';
+export function getPendingStorageCount(): number { return pendingWrites.size; }
+export function isStoragePending(key: string): boolean { return pendingWrites.has(key); }
+function notifyStorageStatus() {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(STORAGE_STATUS_EVENT));
+}
+export function retryPendingStorage(): boolean {
+  for (const [key, pending] of [...pendingWrites]) {
+    saveStoredJson(key, JSON.parse(pending.json));
+  }
+  return pendingWrites.size === 0;
+}
+
 export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
   publicDeviceMode: false,
   retentionDays: 30,
@@ -105,7 +121,7 @@ export function isStorageExpired(key: string, now = Date.now()): boolean {
   if (retentionExemptSensitiveKeySet.has(key)) return false;
   if (settings.retentionDays <= 0) return false;
 
-  const rawUpdatedAt = localStorage.getItem(storageTimestampKey(key));
+  const rawUpdatedAt = pendingWrites.get(key)?.updatedAt ?? localStorage.getItem(storageTimestampKey(key));
   if (!rawUpdatedAt) return false;
   const updatedAt = Number(rawUpdatedAt);
   if (!Number.isFinite(updatedAt)) return false;
@@ -114,6 +130,7 @@ export function isStorageExpired(key: string, now = Date.now()): boolean {
 }
 
 export function removeStoredJson(key: string): void {
+  if (pendingWrites.delete(key)) notifyStorageStatus();
   localStorage.removeItem(key);
   localStorage.removeItem(storageTimestampKey(key));
 }
@@ -129,30 +146,35 @@ export function loadStoredJson<T>(
       return fallback;
     }
 
-    const raw = localStorage.getItem(key);
+    const raw = pendingWrites.get(key)?.json ?? localStorage.getItem(key);
     if (raw === null) return fallback;
 
     const parsed: unknown = JSON.parse(raw);
     return mapValue ? mapValue(parsed) : parsed as T;
   } catch {
-    removeStoredJson(key);
+    try { removeStoredJson(key); } catch { /* Storage may be unavailable. */ }
     return fallback;
   }
 }
 
-export function saveStoredJson(key: string, value: unknown): void {
+export function saveStoredJson(key: string, value: unknown): boolean {
+  const json = JSON.stringify(value);
+  const updatedAt = Date.now();
+  if (!canPersistStorageKey(key)) {
+    try { removeStoredJson(key); } catch { /* Public mode must not retain a recovery copy. */ }
+    return false;
+  }
   try {
-    if (!canPersistStorageKey(key)) {
-      removeStoredJson(key);
-      return;
-    }
-
-    localStorage.setItem(key, JSON.stringify(value));
+    localStorage.setItem(key, json);
     if (isSensitiveStorageKey(key)) {
-      localStorage.setItem(storageTimestampKey(key), String(Date.now()));
+      localStorage.setItem(storageTimestampKey(key), String(updatedAt));
     }
+    if (pendingWrites.delete(key)) notifyStorageStatus();
+    return true;
   } catch {
-    // Storage persistence is best-effort.
+    pendingWrites.set(key, { json, updatedAt });
+    notifyStorageStatus();
+    return false;
   }
 }
 

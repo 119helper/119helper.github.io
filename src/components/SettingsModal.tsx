@@ -6,6 +6,7 @@ import {
 } from '../services/notificationSettings';
 import { SHIFT_CYCLE_DANGBIBI, type ShiftSetting, type ShiftType } from '../utils/shiftCalculator';
 import OfflineDataSection from './OfflineDataSection';
+import WorkspaceBackupSection from './WorkspaceBackupSection';
 import { useUserProfile, FIRE_RANKS, DUTY_ROLES, type UserProfile } from '../contexts/UserProfileContext';
 import {
   clearSensitiveStoredData,
@@ -375,6 +376,7 @@ function GeneralTab({ city, onCityChange, cityNames, refreshInterval, setRefresh
           저장 데이터 삭제
         </button>
       </div>
+      <WorkspaceBackupSection disabled={privacy.publicDeviceMode} />
     </div>
   );
 }

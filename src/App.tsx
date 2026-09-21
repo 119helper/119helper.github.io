@@ -8,6 +8,7 @@ import IncidentStatusStrip from './components/IncidentStatusStrip';
 import IncidentChangeGlobalBanner from './components/IncidentChangeGlobalBanner';
 import SidebarQuickAccess from './components/SidebarQuickAccess';
 import DataStatusSummary from './components/DataStatusSummary';
+import StorageStatus from './components/StorageStatus';
 import WorkspaceSwitcher from './components/WorkspaceSwitcher';
 import {
   fetchFireWaterFacilities,
@@ -1094,6 +1095,7 @@ export default function App() {
           onNavigate={handleNavigate}
         />
 
+        <StorageStatus />
         {/* Content */}
         <div 
           className="flex-1 overflow-y-auto custom-scrollbar relative"
