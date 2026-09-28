@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-28T06:44:34.139Z",
+  "generatedAt": "2026-09-28T07:35:41.667Z",
   "datasets": {
     "civil": {
       "label": "민방위 대피시설",
@@ -50,8 +50,8 @@
       "sourceDepartment": "지진방재관리과",
       "sourceContact": "044-205-5192",
       "interfaceId": "DSSP-IF-10944",
-      "generatedAt": "2026-09-27T07:04:07.728Z",
-      "verifiedAt": "2026-09-27T07:04:07.728Z",
+      "generatedAt": "2026-09-28T07:35:41.667Z",
+      "verifiedAt": "2026-09-28T07:35:41.667Z",
       "verificationMethod": "official-api-full-row-scan",
       "contentHashAlgorithm": "sha256:stable-id+canonical-json-v1",
       "contentSha256": "bf60ad212abcf43695085e3fea1a827cea3d2fbc42c27aca8dc3cf3034351960",
