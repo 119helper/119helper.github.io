@@ -47,3 +47,10 @@ tmp_lint.txt
 # Playwright
 test-results/
 playwright-report/
+
+# Local generated files (regenerable; keep source and test fixtures)
+Thumbs.db
+[Dd]esktop.ini
+*.tsbuildinfo
+/coverage/
+/blob-report/
