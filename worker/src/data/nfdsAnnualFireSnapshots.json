@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "generatedAt": "2026-10-16T19:34:55.816Z",
+  "generatedAt": "2026-10-17T18:33:04.486Z",
   "latestCompleteYear": "2025",
-  "latestDataThrough": "2026-10-16",
+  "latestDataThrough": "2026-10-17",
   "source": {
     "name": "소방청 국가화재정보시스템(NFDS)",
     "url": "https://www.nfds.go.kr/stat/general.do",
@@ -2078,7 +2078,7 @@
           "injuries": 16
         }
       ],
-      "collectedAt": "2026-10-16T19:34:55.816Z"
+      "collectedAt": "2026-10-17T18:33:04.486Z"
     },
     "2025": {
       "year": "2025",
@@ -4143,13 +4143,13 @@
           "injuries": 17
         }
       ],
-      "collectedAt": "2026-10-16T19:34:55.816Z"
+      "collectedAt": "2026-10-17T18:33:04.486Z"
     },
     "2026": {
       "year": "2026",
       "coverageType": "partial",
       "periodStart": "2026-01-01",
-      "dataThrough": "2026-10-16",
+      "dataThrough": "2026-10-17",
       "totalRecords": 32935,
       "propertyDamageUnit": "thousandWon",
       "regionalMonthlyGranularity": "sido-month",
@@ -5800,7 +5800,7 @@
         {
           "month": "10월",
           "periodStart": "2026-10-01",
-          "dataThrough": "2026-10-16",
+          "dataThrough": "2026-10-17",
           "count": 1744,
           "deaths": 9,
           "injuries": 82,
@@ -6032,7 +6032,7 @@
           "injuries": 9
         }
       ],
-      "collectedAt": "2026-10-16T19:34:55.816Z"
+      "collectedAt": "2026-10-17T18:33:04.486Z"
     }
   }
 }
