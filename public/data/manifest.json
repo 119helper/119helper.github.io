@@ -1,16 +1,16 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-25T06:48:02.363Z",
+  "generatedAt": "2026-10-26T06:03:39.291Z",
   "datasets": {
     "civil": {
       "label": "민방위 대피시설",
       "path": "/data/civil/{city}.json",
       "sourceUrl": "https://www.data.go.kr/data/15155067/openapi.do",
       "apiUrl": "https://apis.data.go.kr/1741000/civil_defense_shelter_info/info",
-      "sourceDate": "2026-10-17",
+      "sourceDate": "2026-10-24",
       "sourceDateLabel": "원본 행 최신 갱신일",
       "sourceDateSource": "원본 행 날짜 필드 최신값",
-      "generatedAt": "2026-10-19T06:05:10.521Z",
+      "generatedAt": "2026-10-26T06:03:39.291Z",
       "maxAgeDays": 14,
       "coverageScope": "supported-cities",
       "supportedCityCount": 9,
