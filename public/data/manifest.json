@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-29T07:38:42.159Z",
+  "generatedAt": "2026-10-31T07:28:24.522Z",
   "datasets": {
     "civil": {
       "label": "민방위 대피시설",
@@ -43,15 +43,15 @@
       "sourceMetadataUrl": "https://www.safetydata.go.kr/disaster-data/getApiView?dataSn=1340",
       "legacyCatalogUrl": "https://www.data.go.kr/data/15138870/openapi.do",
       "apiUrl": "https://www.safetydata.go.kr/V2/api/DSSP-IF-10944",
-      "sourceDate": "2026-10-29",
+      "sourceDate": "2026-10-31",
       "sourceDateLabel": "안전데이터 원본 갱신일",
       "sourceDateSource": "재난안전데이터공유플랫폼 상세 메타데이터 updtymd",
       "updateInterval": "1일",
       "sourceDepartment": "지진방재관리과",
       "sourceContact": "044-205-5192",
       "interfaceId": "DSSP-IF-10944",
-      "generatedAt": "2026-10-29T07:38:42.159Z",
-      "verifiedAt": "2026-10-29T07:38:42.159Z",
+      "generatedAt": "2026-10-31T07:28:24.522Z",
+      "verifiedAt": "2026-10-31T07:28:24.522Z",
       "verificationMethod": "official-api-full-row-scan",
       "contentHashAlgorithm": "sha256:stable-id+canonical-json-v1",
       "contentSha256": "bf60ad212abcf43695085e3fea1a827cea3d2fbc42c27aca8dc3cf3034351960",
@@ -101,30 +101,30 @@
           }
         },
         "safetyMap": {
-          "total": 636,
-          "activeTotal": 636,
-          "uniqueComparisonKeys": 636,
+          "total": 647,
+          "activeTotal": 647,
+          "uniqueComparisonKeys": 647,
           "duplicateComparisonKeys": 0,
-          "latestSourceModifyAt": "2026-03-17T16:00:57.000Z",
+          "latestSourceModifyAt": "2026-10-31T07:13:56.000Z",
           "regionCounts": {
-            "강원특별자치도": 177,
-            "경상북도": 359,
-            "부산광역시": 56,
+            "강원특별자치도": 185,
+            "경상북도": 361,
+            "부산광역시": 57,
             "울산광역시": 44
           }
         },
         "publicListsAgreement": {
-          "matched": 636,
-          "staticOnly": 0,
-          "mapOnly": 0
+          "matched": 627,
+          "staticOnly": 9,
+          "mapOnly": 20
         },
         "primaryComparison": {
-          "matchedWithSafetyMap": 624,
-          "primaryOnly": 23,
-          "safetyMapOnly": 12,
-          "matchedByAuthorityAndName": 620,
-          "primaryOnlyByAuthorityAndName": 17,
-          "safetyMapOnlyByAuthorityAndName": 7
+          "matchedWithSafetyMap": 644,
+          "primaryOnly": 3,
+          "safetyMapOnly": 3,
+          "matchedByAuthorityAndName": 634,
+          "primaryOnlyByAuthorityAndName": 3,
+          "safetyMapOnlyByAuthorityAndName": 3
         },
         "countGaps": {
           "officialApiToAnnouncement": -33,
