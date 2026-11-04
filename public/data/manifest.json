@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-03T08:31:58.428Z",
+  "generatedAt": "2026-11-04T07:58:24.389Z",
   "datasets": {
     "civil": {
       "label": "민방위 대피시설",
@@ -43,15 +43,15 @@
       "sourceMetadataUrl": "https://www.safetydata.go.kr/disaster-data/getApiView?dataSn=1340",
       "legacyCatalogUrl": "https://www.data.go.kr/data/15138870/openapi.do",
       "apiUrl": "https://www.safetydata.go.kr/V2/api/DSSP-IF-10944",
-      "sourceDate": "2026-11-03",
+      "sourceDate": "2026-11-04",
       "sourceDateLabel": "안전데이터 원본 갱신일",
       "sourceDateSource": "재난안전데이터공유플랫폼 상세 메타데이터 updtymd",
       "updateInterval": "1일",
       "sourceDepartment": "지진방재관리과",
       "sourceContact": "044-205-5192",
       "interfaceId": "DSSP-IF-10944",
-      "generatedAt": "2026-11-03T08:31:58.428Z",
-      "verifiedAt": "2026-11-03T08:31:58.428Z",
+      "generatedAt": "2026-11-04T07:58:24.389Z",
+      "verifiedAt": "2026-11-04T07:58:24.389Z",
       "verificationMethod": "official-api-full-row-scan",
       "contentHashAlgorithm": "sha256:stable-id+canonical-json-v1",
       "contentSha256": "bf60ad212abcf43695085e3fea1a827cea3d2fbc42c27aca8dc3cf3034351960",
@@ -91,8 +91,8 @@
         },
         "safetyPortalStatic": {
           "total": 647,
-          "uniqueComparisonKeys": 637,
-          "duplicateComparisonKeys": 10,
+          "uniqueComparisonKeys": 647,
+          "duplicateComparisonKeys": 0,
           "regionCounts": {
             "강원특별자치도": 185,
             "경상북도": 361,
@@ -103,9 +103,9 @@
         "safetyMap": {
           "total": 647,
           "activeTotal": 647,
-          "uniqueComparisonKeys": 637,
-          "duplicateComparisonKeys": 10,
-          "latestSourceModifyAt": "2026-11-02T16:10:55.000Z",
+          "uniqueComparisonKeys": 647,
+          "duplicateComparisonKeys": 0,
+          "latestSourceModifyAt": "2026-11-04T01:29:00.000Z",
           "regionCounts": {
             "강원특별자치도": 185,
             "경상북도": 361,
@@ -114,14 +114,14 @@
           }
         },
         "publicListsAgreement": {
-          "matched": 637,
+          "matched": 647,
           "staticOnly": 0,
           "mapOnly": 0
         },
         "primaryComparison": {
-          "matchedWithSafetyMap": 0,
-          "primaryOnly": 647,
-          "safetyMapOnly": 637,
+          "matchedWithSafetyMap": 644,
+          "primaryOnly": 3,
+          "safetyMapOnly": 3,
           "matchedByAuthorityAndName": 634,
           "primaryOnlyByAuthorityAndName": 3,
           "safetyMapOnlyByAuthorityAndName": 3
