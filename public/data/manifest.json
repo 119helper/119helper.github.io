@@ -1,32 +1,32 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-08T07:55:53.428Z",
+  "generatedAt": "2026-11-09T07:53:30.345Z",
   "datasets": {
     "civil": {
       "label": "민방위 대피시설",
       "path": "/data/civil/{city}.json",
       "sourceUrl": "https://www.data.go.kr/data/15155067/openapi.do",
       "apiUrl": "https://apis.data.go.kr/1741000/civil_defense_shelter_info/info",
-      "sourceDate": "2026-10-31",
+      "sourceDate": "2026-11-08",
       "sourceDateLabel": "원본 행 최신 갱신일",
       "sourceDateSource": "원본 행 날짜 필드 최신값",
-      "generatedAt": "2026-11-02T07:37:15.971Z",
+      "generatedAt": "2026-11-09T07:53:30.345Z",
       "maxAgeDays": 14,
       "coverageScope": "supported-cities",
       "supportedCityCount": 9,
       "completenessStatus": "scoped",
-      "total": 8136,
-      "upstreamTotal": 18845,
-      "uniqueUpstreamTotal": 18845,
-      "activeUpstreamTotal": 17241,
+      "total": 8134,
+      "upstreamTotal": 18846,
+      "uniqueUpstreamTotal": 18846,
+      "activeUpstreamTotal": 17237,
       "latestStatusCounts": {
-        "사용중": 17241,
-        "사용중지": 1587,
-        "일시중지": 17
+        "사용중": 17237,
+        "사용중지": 1593,
+        "일시중지": 16
       },
       "cities": {
         "seoul": 2902,
-        "busan": 1316,
+        "busan": 1314,
         "daegu": 777,
         "incheon": 795,
         "gwangju": 588,
