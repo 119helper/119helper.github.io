@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-25T10:26:22.693Z",
+  "generatedAt": "2026-11-26T10:00:55.504Z",
   "datasets": {
     "civil": {
       "label": "민방위 대피시설",
@@ -43,15 +43,15 @@
       "sourceMetadataUrl": "https://www.safetydata.go.kr/disaster-data/getApiView?dataSn=1340",
       "legacyCatalogUrl": "https://www.data.go.kr/data/15138870/openapi.do",
       "apiUrl": "https://www.safetydata.go.kr/V2/api/DSSP-IF-10944",
-      "sourceDate": "2026-11-25",
+      "sourceDate": "2026-11-26",
       "sourceDateLabel": "안전데이터 원본 갱신일",
       "sourceDateSource": "재난안전데이터공유플랫폼 상세 메타데이터 updtymd",
       "updateInterval": "1일",
       "sourceDepartment": "지진방재관리과",
       "sourceContact": "044-205-5192",
       "interfaceId": "DSSP-IF-10944",
-      "generatedAt": "2026-11-25T10:26:22.693Z",
-      "verifiedAt": "2026-11-25T10:26:22.693Z",
+      "generatedAt": "2026-11-26T10:00:55.504Z",
+      "verifiedAt": "2026-11-26T10:00:55.504Z",
       "verificationMethod": "official-api-full-row-scan",
       "contentHashAlgorithm": "sha256:stable-id+canonical-json-v1",
       "contentSha256": "84268b0f5db421121d9caacaa85d61191c02fae2f05f2253f8745da3d8bfba72",
@@ -105,7 +105,7 @@
           "activeTotal": 647,
           "uniqueComparisonKeys": 647,
           "duplicateComparisonKeys": 0,
-          "latestSourceModifyAt": "2026-11-24T16:10:55.000Z",
+          "latestSourceModifyAt": "2026-11-25T16:10:55.000Z",
           "regionCounts": {
             "강원특별자치도": 185,
             "경상북도": 361,
